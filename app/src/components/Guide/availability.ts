@@ -8,7 +8,10 @@ import { withAncestors, type GuidePanelId } from './panelState'
  * The guide's detailed tasks follow the same capabilities as the app. The five top-level headings
  * are always present as orientation; this list additionally controls which task panels are rendered.
  */
-export function computeGuideAvailablePanels(user: User): GuidePanelId[] {
+export function computeGuideAvailablePanels(
+  user: User,
+  { forumEnabled }: { forumEnabled: boolean },
+): GuidePanelId[] {
   const siteAdmin = isSiteAdmin(user)
   const subjectAdmin = isSubjectAdminForAny(user)
   const subjectOrSiteAdmin = siteAdmin || subjectAdmin
@@ -22,6 +25,8 @@ export function computeGuideAvailablePanels(user: User): GuidePanelId[] {
     'teachers.favorites',
     'teachers.documents',
     'teachers.messages',
+    forumEnabled && 'teachers.discussions',
+    forumEnabled && 'teachers.discussion-references',
     'teachers.request-editing',
 
     canEdit && 'editing.open-edit',
@@ -29,6 +34,7 @@ export function computeGuideAvailablePanels(user: User): GuidePanelId[] {
     canEdit && 'editing.saved-versions',
     canEdit && 'editing.recovery',
     canEdit && 'editing.compare',
+    canEdit && forumEnabled && 'editing.discuss-changes',
     canEdit && 'editing.writing',
 
     subjectOrSiteAdmin && 'subject-admins.promote',
@@ -47,6 +53,7 @@ export function computeGuideAvailablePanels(user: User): GuidePanelId[] {
     siteAdmin && 'site-admins.repair',
     siteAdmin && 'site-admins.delete',
     siteAdmin && 'site-admins.system',
+    siteAdmin && 'site-admins.discussions',
   ]
 
   return withAncestors([

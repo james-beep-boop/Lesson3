@@ -1,0 +1,44 @@
+{
+  "runtime": "v24.21.0",
+  "dataset": {
+    "topics": 5000,
+    "replies": 101980,
+    "longThread": 2000,
+    "participation": 500
+  },
+  "warmSamples": 25,
+  "results": {
+    "topic list, 20 rows": {
+      "medianMs": 32.18,
+      "p95Ms": 99.58
+    },
+    "title search, English": {
+      "medianMs": 31.15,
+      "p95Ms": 36
+    },
+    "title search, Swahili": {
+      "medianMs": 27.56,
+      "p95Ms": 32.79
+    },
+    "title search, no match": {
+      "medianMs": 24.72,
+      "p95Ms": 28.12
+    },
+    "nav unread, 500 discussions": {
+      "medianMs": 1.94,
+      "p95Ms": 2.38
+    },
+    "unread markers, 20 rows": {
+      "medianMs": 2.26,
+      "p95Ms": 3.12
+    },
+    "thread, 2000 replies, page 1": {
+      "medianMs": 19.42,
+      "p95Ms": 28.58
+    },
+    "thread, 2000 replies, page 40": {
+      "medianMs": 16.82,
+      "p95Ms": 18.51
+    }
+  }
+}

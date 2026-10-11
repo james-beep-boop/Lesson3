@@ -11,6 +11,62 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-11 — Discussions handoff: 4b and 4c implementation and publication
+
+Claude's 4a (#378) and handoff (#379) are merged. Work continues from `8bca543` in an isolated
+`feat/discussions-4b` worktree; the main checkout's ZIP-upload and historical forum changes were
+kept isolated. The user authorized publication; 4b is pushed as `4af1705`, and 4c is pushed as `35a5845` (#381). Neither is released. **Do not tag until 4c merges.**
+
+- The administrator controls reuse the protected moderation endpoints and shared Modal. Topic
+  redaction sends only checked parts; reply redaction uses the reply's database id. Pin is hidden
+  while off; already-redacted controls disappear. Unknown outcomes require reload rather than
+  another destructive write.
+- Manage → System → Features keeps its toggle pending until a password-confirmed Save. It sends
+  the original freshness token. Wrong password/rate limit preserve the pending choice and clear
+  the password; stale or unknown results require reload. The moderation link remains available
+  while off.
+- Posting pages never admit an off-state administrator. Read pages admit them for moderation,
+  without search, pinning, composer, unread marker, participation lookup or mark-read.
+- Guide availability follows the render's flag; administrator moderation instructions remain
+  visible while off. Both guides explain immutable posts, administrator-only thread deletion,
+  title search, saved-version references, participation, uncertain submission and backups.
+- A real browser regression exposed Next's cached frontend header: a soft Back after switch-off
+  removed content but retained the Discuss link. One shared frontend navigation component refreshes
+  after pathname/query changes, skipping initial and unchanged URLs. Soft links and client form
+  state remain. This adds one server request per soft transition; no polling or new endpoint.
+  Templates do not remount for query-only or deeper-segment navigation. The browser checks include
+  Back from a thread and Back from a lesson, rather than addressing forum links alone.
+- Repeated `q` parameters are ignored instead of passing an array to the title-search parser.
+- Mutation tests remove fourteen guards individually; each fails runtime assertions and sources
+  are restored. Compile errors are not counted as mutation evidence.
+
+- A legacy display-name browser test interacted with the avatar while a successful Save was
+  reloading the document. A changed avatar in the failure snapshot established that Save had
+  succeeded. The test now registers the document-load wait before each successful Save; account
+  behavior is unchanged. The existing saved-version navigation assertion uses its normal 30-second
+  navigation budget rather than the default five seconds.
+- Finished-app helper timings are recorded in
+  `docs/spikes/discussions-finished-2026-10-11/RESULTS.md`, with reproducible probes and JSON results.
+  The isolated Mac and Rock 5B runs use 5,000 topics and 101,980 replies. Rock's title-search P95 is
+  36 ms and unread-query P95 2.38 ms. These are warm helper/database timings, not browser or
+  concurrent-load promises. The Rock runner's older Next dependency is disclosed; live services
+  were untouched.
+
+Verification is green: 1,348 unit, 287 integration, 280 production HTTP and 74 full-suite browser
+tests, with browser retries disabled. All 17 focused forum browser cases pass, the display-name
+case passes five consecutive repetitions, and the final Guide clarification passes 37 parity tests.
+Lint, formatting, type checking, app-router validation, migrations and the production build pass.
+Fourteen guard mutations are caught and restored. Desktop/phone moderation screens were reviewed.
+The disposable test stack is removed; `app/test.env`, the vendor generator, schema/type generation
+and dependency pins are unchanged. 4b and 4c are committed/pushed in #380 and #381. Nothing is deployed or tagged.
+
+Shutdown publication: ZIP ingest is independently pushed as `225a5d3` (#382), after 15 unit,
+10 ingest integration and 27 Guide parity checks plus clean lint/format/types on current main.
+Its final production/wire/browser gate remains pending in CI. The original mixed working tree is
+preserved in recovery stash `67fd16efe3cc3aa8eaa4036943e6611bce2ef4d8`; the primary checkout is clean.
+4c must be rebased after 4b's squash merge and retargeted to main before enabling auto-merge.
+See NEXT-SESSION for the exact resume sequence.
+
 ## 2026-10-11 — ZIP uploads import valid JSON despite malformed neighbours
 
 Operator request: accept a ZIP containing multiple JSON lesson plans, import all valid files,

@@ -646,6 +646,12 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 - **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
   bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a
   deletion-request flow can ride on the same messaging substrate if wanted.)
+- **Discussions** — a forum for existing signed-in users, with chronological replies, title-only search,
+  saved-version references, and a blue unread dot for contributors and authors of versions referenced
+  by a new topic. Posts cannot be edited. Site Administrators can pin topics, irreversibly redact
+  titles or posts, and delete whole threads. Manage → System provides a password-confirmed off switch;
+  while off, only Site Administrator reading, redaction and deletion remain. Design and release order:
+  `docs/DESIGN-discussions-2026-10-09.md` §16.
 - **Favorites** (per user, **per version**, with role-split semantics — teacher-first T4,
   2026-07-08): for users with edit rights on the subject-grade a favorite **pins that snapshot**
   (decided 2026-07-06); for everyone else the star **follows the plan's current Official** — the

@@ -1,7 +1,7 @@
 # Lesson3 discussion forum
 
 Planning record started: 2026-10-08 (Asia/Tokyo).
-Status (2026-10-11): **design confirmed; the server side (PRs 1–3) and the forum for every user (4a, #378) are built; the administrator controls and switch (4b) and the Guide and release (4c) remain, under the release hold.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
+Status (2026-10-11): **design confirmed; the server side (PRs 1–3) and the forum for every user (4a, #378) are built; 4b and 4c are implemented in the isolated `feat/discussions-4b` worktree, with verification complete and publication authorized; 4b is pushed as `4af1705` (#380), and 4c is pushed as `35a5845` (#381). The release hold remains until 4c merges.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
 
 This document records the product discussion before option research. User-confirmed
 requirements take precedence over earlier suggestions. Research findings below include sources, dates, and limits on what has been verified. SPEC.md remains the
@@ -606,17 +606,18 @@ it introduces no implementation changes.
 
 ## 16. Design — 2026-10-09
 
-**Status (2026-10-11): design confirmed; server side and 4a built; 4b and 4c remaining.** Implementation was
-approved, and these have landed:
+**Status (2026-10-11): design confirmed; implementation complete.** These have merged:
+
 - the missing-version notice (#371);
 - System Save and the `forumEnabled` flag (#373, #374);
-- the forum's server side (#375, #376 and #377): data and posting, then mark-read, pin, redaction, the unread
-  queries and title search;
-- **4a (#378)**: the forum for every signed-in user.
+- the forum's server side (#375, #376 and #377);
+- **4a (#378)**: the forum for every signed-in user;
+- **4b (#380)**: administrator controls, the System switch and moderation-only view.
 
-What remains is 4b (the Site Administrator's controls, the System panel switch, the moderation-only view) and 4c
-(the Guide, `USER_GUIDE.md`, SPEC §10, release notes). Section 16.5 holds the contracts and the as-built notes.
-**The release hold stands until 4c lands.** This section is
+**4c (#381)** delivers the Guide, `USER_GUIDE.md`, SPEC §10, release notes and finished-app timings.
+Its branch is rebased onto `main`, including ZIP imports (#382), with the original 4b commit removed.
+Section 16.5 holds the contracts and as-built notes. **Merging #381 satisfies the forum release hold;
+release tagging still requires a release instruction.** This section is
 the current design. Sections 1–15 are the dated planning record that led to it. Where they conflict, 16
 wins. Every product choice (16.1) and default (16.2) is operator-confirmed. The technical contracts (16.3,
 16.4) were reviewed by Claude and GPT, and are subject to the search spike's findings. The design adopts the
@@ -1107,6 +1108,22 @@ still see everything at once, because no release is tagged until 4c merges. The 
   - e2e: each moderation action, the Save flow (including a wrong password), and the off-state view.
   - Endpoint wire tests already exist (PR 2, 3a, 3b).
 
+**4b as built — 2026-10-11 (publication authorized).** The controls use the existing pin, redaction and deletion
+endpoints. The Features panel submits only the pending forum change, password and original `updatedAt`
+token. A stale Save or an uncertain answer requires a reload; passwords are cleared after attempts.
+Read pages explicitly allow the Site Administrator while off, but the new-topic page never does.
+Off-state threads skip participation lookup and mark-read; lists ignore search parameters.
+
+A production-browser test found that Next retained the old shared header on soft navigation: the
+page correctly refused access after switch-off, but **Discuss** remained in navigation. The frontend
+layout now includes one navigation refresh after a pathname or query change. It skips the initial
+render and unchanged URLs, so there is no polling or refresh loop. Normal soft links remain, and
+client form state survives the refresh ([Next 16.4 router API](https://nextjs.org/docs/app/api-reference/functions/use-router)).
+The tradeoff is one additional server-render request after soft navigation; the settings and unread
+state must be current at that boundary. Pin/redaction refresh the current render explicitly; deletion
+navigates to the list. Templates do not remount for query-only or deeper-segment navigation
+([template behavior](https://nextjs.org/docs/app/api-reference/file-conventions/template)).
+
 **4c: documentation and release.**
 
 - The Guide and `USER_GUIDE.md` exactly as listed above, with `computeGuideAvailablePanels(user, { forumEnabled })`.
@@ -1118,6 +1135,25 @@ still see everything at once, because no release is tagged until 4c merges. The 
   - the backups caveat on redaction.
 - The query timings re-checked against the completed app (16.3 item 4); the Rock 5B run as available.
 - This document's status updated. The release hold lifts when 4c merges.
+
+**4c as built — 2026-10-11 (publication authorized).** The in-app Guide receives the render's resolved
+forum flag; role/flag tests cover every account capability. Teacher discussion and editing-entry
+panels disappear while off; administrator switch/moderation instructions remain. `USER_GUIDE.md`,
+SPEC §10 and Unreleased notes carry the same behavior, including irreversible redaction and backups.
+
+The [finished-app timing report](spikes/discussions-finished-2026-10-11/RESULTS.md) records reproducible
+Mac and Rock 5B helper probes with 5,000 topics, 101,980 replies, a 2,000-reply thread and participation
+in 500 discussions. Both use the current source and migrated schema in isolated databases. The Rock
+runner has an older Next dependency; these are helper/database measurements, not a full Rock app
+verification or concurrent-user capacity claim. No deployed service or database was changed.
+
+**Verification — 2026-10-11.** Production build, app-router check, lint, formatting and type checks
+pass. Unit: 1,348; integration: 287; production HTTP: 280; full browser suite: 74, with retries disabled.
+The focused forum browser suite passes all 17 cases. Fourteen guard mutations fail runtime assertions
+and are restored. The display-name browser synchronization fix also passes five consecutive runs.
+The Guide's wording-only final clarification passes all 37 parity tests. Desktop and phone moderation
+screens were visually checked. Only disposable databases were used; the tracked test environment,
+vendor generator, migrations, generated types and dependency pins remain unchanged.
 
 ⚑ **Release hold:** do not tag a release between PR 3 and PR 4. With the forum on by default, a release
 cut there would ship a forum reachable through the API but with no UI and no off switch.

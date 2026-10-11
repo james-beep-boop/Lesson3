@@ -73,6 +73,28 @@ function flatten(source: string): string {
  * Adding a rule to one file and not the other is exactly what this list refuses.
  */
 const CLAIMS: { what: string; claim: string }[] = [
+  { what: 'search does not search reply bodies', claim: 'Search covers titles only' },
+  {
+    what: 'immutable posts and administrator thread deletion',
+    claim: 'Posts cannot be edited. Only a Site administrator can delete a thread',
+  },
+  { what: 'the version discussion entry point', claim: 'Discuss this version' },
+  { what: 'the after-save discussion entry point', claim: 'Post about these changes' },
+  { what: 'the dot changes only on navigation', claim: 'The dot updates on navigation or reload' },
+  { what: 'forum drafts are not persisted', claim: 'Your forum text stays only in the form' },
+  { what: 'the switch defaults on', claim: 'Discussions are on by default' },
+  {
+    what: 'Save requires the administrator password',
+    claim: 'Review the change and enter your password',
+  },
+  {
+    what: 'redaction does not purge backups',
+    claim: 'Existing backups keep the text until they age out',
+  },
+  {
+    what: 'the limited off-state moderation view',
+    claim: 'This view has no search, posting, pinning or unread tracking',
+  },
   {
     what: 'the shared ARES Education and Seavuria credit',
     claim: 'Lesson Plans by ARES Education and Seavuria',

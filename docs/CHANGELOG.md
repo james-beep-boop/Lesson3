@@ -8,7 +8,24 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased — ZIP lesson-plan uploads
+## Unreleased
+
+### Discussions
+
+- **Discuss** brings teachers together around lesson-plan changes, questions and improvements. Topics
+  show latest activity, chronological replies, title-only search, saved-version references, and a blue
+  dot for unread posts in discussions you participate in. **Discuss this version** and **Post about
+  these changes** attach the version automatically. Existing app accounts and permissions apply.
+- Discussions are **on by default**. Site Administrators can switch them off in **Manage → System →
+  Features**, with a password-confirmed Save. Discussions are kept while off; administrators retain a
+  moderation-only view through **Moderate discussions** beside the switch.
+- Administrators can pin a suggested welcome topic explaining how to share lesson improvements and
+  ask questions. They can redact titles or posts and delete entire threads, each after confirmation.
+  Redaction cannot be undone; existing backups keep the text until they age out.
+- The in-app Guide follows the forum switch; the complete `USER_GUIDE.md` includes the new workflows.
+  Merging Discussions 4c (#381) satisfies the forum release hold. No release is tagged by this change.
+
+### ZIP lesson-plan uploads
 
 Site Administrators can upload ZIP archives of ARES JSON lesson plans, including nested folders.
 Valid files import even when neighbours are malformed; the report lists imports, rejections with
@@ -17,6 +34,11 @@ changed content for existing sub-strands becomes a Not Official major revision.
 The developer CLI retains its all-or-nothing batch behavior. Archives stay in memory; input count
 and compressed/expanded sizes are bounded.
 
+### Saved-version links
+
+- Lesson and comparison pages explain when an explicitly requested version is unavailable instead
+  of silently displaying another version. Older Messages links whose version relationship was
+  cleared on deletion still need a separate fix.
 
 ## v0.93 (2026-10-09)
 

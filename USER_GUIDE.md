@@ -58,6 +58,30 @@ _Compare_ button.
   messages show as a small count on your avatar, and you get a short email telling you a message is
   waiting (never its content). Opening Messages marks everything shown as read.
 
+### Discussions
+
+Discussions are on by default. A Site administrator can switch them off; the Discuss item and forum
+entry points then disappear, and existing discussions are kept.
+
+- Open **Discuss → Start a discussion**, write a title and post, then choose **Post**. Every signed-in
+  user can read and reply. Name the lesson and the question or change. Write plain text; web links
+  become clickable. Replies appear oldest first. Pinned topics stay above the list of latest activity.
+- **Search covers titles only.** Posts cannot be edited. Only a Site administrator can
+  delete a thread. You can make up to 100 posts per day, including replies.
+- **Add lesson reference** finds a lesson by title, then lets you choose one of its saved versions.
+  You can remove a prefilled reference before posting. **Share → Discuss this version** on a lesson
+  page opens a discussion with that version already attached. **Compare changes** appears when its
+  source version is still available. If the referenced version is deleted, its label remains with no
+  link to another version.
+- **The blue dot** means new posts in discussions you started or replied to, or discussions started
+  about a saved version you authored. Your own replies do not light the dot. A blue marker identifies
+  the unread thread in the list. Reading alone does not subscribe you. Reading a thread marks the
+  posts shown as read. Follow reply pages in order; jumping ahead leaves earlier posts unread.
+  The dot updates on navigation or reload.
+- **Your forum text stays only in the form.** Copy it before leaving, reloading or signing in again.
+  If a result is uncertain, keep the form open and choose **Try again**; the fields stay locked until
+  Lesson3 finds the post or confirms it was posted.
+
 ## Editing
 
 With editing access, you can change most lesson content in Lesson3. The subjects and grades you can
@@ -74,6 +98,10 @@ Lesson3, not in a Word file.
   it is ready.
 - **Find your saved versions:** *Manage → Lesson plans → My saved versions* lists versions you
   saved. Choose one to continue editing, or delete one you no longer need.
+- **Post about these changes:** after saving a version, choose this button beside **Compare to
+  Official** on your saved version. It opens a discussion with that version attached. Explain what
+  changed and invite colleagues’ suggestions. Starting a discussion that references someone else’s
+  saved version includes its author in the discussion’s blue-dot notifications.
 - **Unsaved work:** while you edit, a note below the buttons shows when Lesson3 last saved a
   temporary copy of your changes. Only you can see it, even if someone else uses the same computer.
   Lesson3 will not restore it unless you choose to.
@@ -136,11 +164,20 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
 - **Reset a password when email is unavailable:** If email is not available, create a
   password-reset link and give it to the person. They use the link to choose a new password. You
   will not see their password.
-- **Check site and backup status:** Manage → System shows the site address, whether email and public
+- **Check site and backup status:** Manage → System → Installation status shows the site address, whether email and public
   sharing are available, whether PDFs are working, where backups are sent, when the last backup
   succeeded, and whether this site keeps the key needed to open its backups. A successful backup
   means an encrypted copy was sent; it does not prove the backup can be restored. You cannot change
-  these settings on this page. Ask the person who manages the server to change them.
+  these installation settings on this page. Ask the person who manages the server to change them.
+- **Switch Discussions on or off:** in **Manage → System → Features**, change **Discussions enabled**
+  and choose **Save**. Review the change and enter your password. The switch stays unchanged until
+  Save succeeds. If someone else saved settings first, reload before saving.
+- **Moderate discussions:** on a thread, use **Pin** or **Unpin** to change its position. **Redact
+  topic** lets you remove the title, opening post, or both; **Redact reply** removes one reply’s text.
+  Redaction cannot be undone. Existing backups keep the text until they age out. **Delete thread**
+  removes the entire thread and every reply, and cannot be undone. Each action asks for confirmation.
+  While the forum is off, follow **Moderate discussions** beside the switch to read, redact or
+  delete. This view has no search, posting, pinning or unread tracking.
 - **Set up subjects and grades:** add subjects and grades before uploading lesson plans.
 - **Manage all lesson plans:** open, edit, download, mark Official, or delete plans across all
   subjects and grades.

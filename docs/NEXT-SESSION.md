@@ -25,7 +25,47 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# DISCUSSIONS FORUM — HANDOFF (2026-10-11): 4a merged; build 4b next
+# RELEASE PREPARATION — 2026-10-11: Discussions and ZIP imports
+
+The user authorized finishing, verifying and merging both features, and preparing release notes.
+No release tag or deployment is authorized by that instruction.
+
+- **Discussions 4b (#380)** merged as `73739e3`: administrator moderation, the password-confirmed
+  System switch, and the moderation-only view while off.
+- **ZIP imports (#382)** merged as `c689041` after its full CI gate passed. Re-uploading a corrected
+  archive skips content identical to the highest numeric saved version, including Not Official
+  versions. A completely unchanged upload succeeds without creating versions. Changed content still
+  creates a Not Official major version; the CLI retains its atomic/revision behavior.
+- **Discussions 4c (#381)** completes the role/flag-filtered Guide, `USER_GUIDE.md`, SPEC, release notes
+  and finished-app timings. It is rebased onto `main`, including ZIP imports, with the original 4b
+  commit removed. Both features' documentation is retained.
+
+**Resume:** confirm #381 merged and its combined `main` CI passed. The forum release hold is satisfied
+only once #381 merges. Then obtain a release instruction before creating an annotated version tag;
+follow AGENTS.md's tag-driven publishing procedure, rather than publishing a release manually.
+Release notes are prepared in `docs/CHANGELOG.md` under **Unreleased**. Discussions are on by default;
+review Manage → System → Features and consider pinning a welcome topic before announcing them.
+Existing backups retain redacted text until they age out.
+
+**Verification provenance:** 4b/4c previously passed 1,348 unit, 287 integration, 280 production HTTP
+and 74 browser tests with retries disabled. ZIP's final follow-up passed 44 focused unit/Guide,
+13 ingest integration, all 282 production HTTP tests and the expanded Chromium ZIP workflow locally;
+its full CI gate also passed. These are separate runs, not counts from the combined tree. Use #381's
+final CI and the ensuing `main` run for combined verification. Mac/Rock helper timings and limitations
+are in `docs/spikes/discussions-finished-2026-10-11/RESULTS.md`; these do not establish full Rock app
+or concurrent-user capacity. No live installation has been changed.
+
+**Cleanup/recovery:** the old mixed checkout is preserved in recovery stash
+`67fd16efe3cc3aa8eaa4036943e6611bce2ef4d8` (historical merged 4a and extracted ZIP source).
+Restore selectively into an isolated branch if needed; do not apply it over current main. Old
+publication worktrees and our disposable verification stacks have been removed; other/user services
+were untouched. Private environment backups and ZIP verification logs are under
+`.git/shutdown-backups-2026-10-11/`; never commit them. The tracked `app/test.env` is restored.
+
+---
+
+# HISTORICAL HANDOFF (2026-10-11): Claude's 4a handoff
+
 
 **State.** PRs 1–3 and 4a have merged:
 - #371: the missing-version notice.
