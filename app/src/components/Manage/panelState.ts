@@ -80,6 +80,7 @@ export const PANEL_IDS = [
   'plans.repair',
   'system',
   'system.deployment',
+  'system.features',
 ] as const
 
 export type PanelId = (typeof PANEL_IDS)[number]

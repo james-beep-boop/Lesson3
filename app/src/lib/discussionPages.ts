@@ -2,13 +2,14 @@
  * The Discussions pages' server reads (`docs/DESIGN-discussions-2026-10-09.md` §16.5, 4a contract).
  *
  * Every read runs AS THE VIEWER (`overrideAccess: false`), so the collections' own access rules — signed
- * in, forum on — decide what a page may show; this module adds no access rule of its own. Authors are
+ * in, forum on, or Site Administrator moderation while off — decide what a page may show. Authors are
  * projected names-only. The switch comes from `systemFlagsForRender`, the one reading the page gate, the
  * nav and the unread markers share within a render.
  */
 import { notFound } from 'next/navigation'
 import type { Payload } from 'payload'
 
+import { isSiteAdmin } from '../access'
 import type { DiscussionReply, DiscussionTopic, User } from '../payload-types'
 import {
   entryPage,
@@ -27,11 +28,13 @@ import { userDisplayName } from './widgetUser'
 const DELETED_USER = 'Deleted User'
 
 /**
- * The page gate: 404 while the forum is off (the `requirePublicLibrary` idiom — a callable, not a layout).
- * In 4a that includes the Site Administrator; their moderation-only view arrives in 4b.
+ * Posting pages always require the forum. Read pages may explicitly opt into the administrator's
+ * moderation-only view; the returned flag drives the banner and hides every participation control.
  */
-export async function requireForum(payload: Payload): Promise<void> {
-  if (!(await systemFlagsForRender(payload)).forumEnabled) notFound()
+export async function requireForum(payload: Payload, moderator?: User): Promise<boolean> {
+  const { forumEnabled } = await systemFlagsForRender(payload)
+  if (!forumEnabled && !isSiteAdmin(moderator)) notFound()
+  return forumEnabled
 }
 
 /** Display names for `ids`, names only, read as the viewer (any signed-in user reads names, SPEC §8). */
@@ -267,6 +270,7 @@ async function resolveReferences(
 // ─── The thread ────────────────────────────────────────────────────────────────────────────────────
 
 export interface PostView {
+  id: number
   seq: number
   authorName: string
   createdAt: string
@@ -278,6 +282,7 @@ export interface PostView {
 export interface ThreadView {
   id: number
   title: string | null
+  pinned: boolean
   lastSeq: number
   page: number
   totalPages: number
@@ -297,6 +302,7 @@ export async function loadThread(
   user: User,
   topicId: number,
   pageParam: string | undefined,
+  forumEnabled = true,
 ): Promise<ThreadView> {
   const [topic, participation] = await Promise.all([
     // ⚑ Only "not there" and "not yours to see" become a 404 (the `readBundle` convention); a database or
@@ -310,21 +316,25 @@ export async function loadThread(
         user,
       })
       .catch(nullOnNotVisible),
-    payload.find({
-      collection: 'discussion-participation',
-      where: { topic: { equals: topicId } },
-      overrideAccess: false,
-      user,
-      depth: 0,
-      limit: 1,
-      pagination: false, // one own row at most; skip Payload's COUNT
-      select: { lastReadSeq: true },
-    }),
+    // Participation is deliberately inaccessible while off, even to an administrator. Moderation
+    // starts at page 1 and never changes read markers.
+    forumEnabled
+      ? payload.find({
+          collection: 'discussion-participation',
+          where: { topic: { equals: topicId } },
+          overrideAccess: false,
+          user,
+          depth: 0,
+          limit: 1,
+          pagination: false, // one own row at most; skip Payload's COUNT
+          select: { lastReadSeq: true },
+        })
+      : null,
   ])
   if (!topic) notFound()
 
   const lastSeq = Number(topic.lastSeq ?? 0)
-  const own = participation.docs[0]
+  const own = participation?.docs[0]
   const lastReadSeq = own ? Number(own.lastReadSeq) : null
   const page = parsePage(pageParam, lastSeq) ?? entryPage(lastReadSeq, lastSeq)
   const seqs = replySeqsOn(page, lastSeq)
@@ -357,11 +367,13 @@ export async function loadThread(
   return {
     id: topic.id,
     title: topic.titleRedactedAt ? null : (topic.title ?? ''),
+    pinned: !!topic.pinnedAt,
     lastSeq,
     page,
     totalPages: replyPageCount(lastSeq),
     lastReadSeq,
     opening: {
+      id: topic.id,
       seq: 0,
       authorName: authorName(names, topic.author),
       createdAt: String(topic.createdAt),
@@ -369,6 +381,7 @@ export async function loadThread(
       reference: references[0],
     },
     replies: replies.map((r, i) => ({
+      id: r.id,
       seq: Number(r.seq),
       authorName: authorName(names, r.author),
       createdAt: String(r.createdAt),

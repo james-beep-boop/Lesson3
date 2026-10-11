@@ -18,6 +18,7 @@ import { buildRolesAccess } from '../../lib/editorGroups'
 import { startRenderTimings } from '../../lib/renderTimings'
 import { RolesAccessPanel } from '../Manage/RolesAccessPanel'
 import { SystemFactsPanel } from '../Manage/SystemFactsPanel'
+import { SystemFeaturesPanel } from '../Manage/SystemFeaturesPanel'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
 import { resolveServerPanelState, withAncestors, type PanelId } from '../Manage/panelState'
 import { SubjectGradesPanel, type SubjectGradeRow } from '../Manage/SubjectGradesPanel'
@@ -86,6 +87,7 @@ export default async function AdminDashboard({
     taxonomyGradesRes,
     assignmentCounts,
     systemFacts,
+    systemSettings,
   ] = await Promise.all([
     t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
     // ---- Saved versions (deletable candidates) ----
@@ -176,6 +178,18 @@ export default async function AdminDashboard({
     // the network and stats the artifact cache, which nobody but a Site Admin can see the result of.
     // `collectSystemFacts` never throws; a failed probe reports `unknown`.
     siteAdmin ? t.time('systemFacts', () => collectSystemFacts()) : null,
+    siteAdmin
+      ? t.time('systemSettings', () =>
+          payload.findGlobal({
+            slug: 'system-settings',
+            depth: 0,
+            overrideAccess: false,
+            user,
+            req,
+            select: { features: true, updatedAt: true },
+          }),
+        )
+      : null,
   ])
   const versionDocs = versionsRes?.docs ?? []
   // Hoisted beside the other unwraps because `sgById` below reads it for a Site Admin — see wave 2.
@@ -490,6 +504,7 @@ export default async function AdminDashboard({
         // `systemFacts &&`, the same clause the JSX uses — the ⚑ above asks for one spelling so the
         // list can be diffed against the render by eye. It is non-null exactly when `siteAdmin` is.
         !!systemFacts && 'system.deployment',
+        !!systemSettings && 'system.features',
       ] satisfies (PanelId | false)[]
     ).filter((id) => id !== false),
   )
@@ -688,11 +703,7 @@ export default async function AdminDashboard({
             `?open=` against that list, so a box out of order here would serialise its state in a
             position that does not match the page.
 
-            PR 1 ships the DEPLOYMENT half only. The `system.features` toggles land with their
-            enforcement in the next PR: `globals/SystemSettings.ts` already stores the flags and
-            stamps their provenance, but nothing READS them yet, so a switch here would do nothing —
-            the never-render-a-toggle-for-something-absent rule
-            (`docs/DESIGN-d1-deployment-amendments-2026-08-21.md` §D). */}
+            Features offers only switches with an enforcement point and a Save endpoint. */}
         {siteAdmin && systemFacts && (
           <AccordionPanel id="system" title="System">
             {/* ⚑ THE PANEL ID STAYS `system.deployment` — it is a URL contract (`?open=…`) and a
@@ -709,6 +720,22 @@ export default async function AdminDashboard({
               </p>
               <SystemFactsPanel facts={systemFacts} />
             </AccordionPanel>
+            {systemSettings && (
+              <AccordionPanel id="system.features" title="Features">
+                {typeof systemSettings.updatedAt === 'string' &&
+                typeof systemSettings.features?.forumEnabled === 'boolean' ? (
+                  <SystemFeaturesPanel
+                    key={systemSettings.updatedAt}
+                    initial={{
+                      enabled: systemSettings.features.forumEnabled,
+                      updatedAt: systemSettings.updatedAt,
+                    }}
+                  />
+                ) : (
+                  <p role="alert">Settings are unavailable. Reload before changing them.</p>
+                )}
+              </AccordionPanel>
+            )}
           </AccordionPanel>
         )}
       </AccordionProvider>

@@ -991,6 +991,11 @@ body {
   font-size: var(--app-secondary-size);
 }
 
+// Keep the forum switch and moderation link readable on narrow screens.
+.lp-system-features .lp-manage__row {
+  flex-wrap: wrap;
+}
+
 // Taxonomy panels — Manage → Subjects and Manage → Subject grades (PR 3).
 //
 // ⚑ NO CONTROL GEOMETRY LIVES HERE. The inputs use `.lp-users__input` and the pickers
