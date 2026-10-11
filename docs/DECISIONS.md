@@ -37,6 +37,18 @@ integration tests, plus lint, formatting and type checking; all pass. Published 
 the forum. The earlier HTTP/browser checks are retained above as provenance; the final branch's
 production build, HTTP and full browser gate will be checked by CI before merge.
 
+Follow-up CI review: four existing null-resource HTTP tests still expected validation details in
+the top-level error. Uploads now return those details in `rejected`, including when every file is
+invalid. The tests now assert the rejected filename and validation reason, zero imports and empty
+bundle/skip lists. They also compare actual plan and version counts before and after each rejected
+upload; the previous "nothing written" test names did not prove that promise. When an endpoint's
+response contract changes, search all of its wire-level callers, including older regression suites.
+
+Follow-up verification on a fresh production build and migrated disposable database: all 282 HTTP
+tests pass, including the four corrected assertions and ZIP authorization/partial-import cases.
+The real Chromium mixed/all-rejected ZIP scenario passes with retries disabled. All 15 focused
+unit tests, lint, formatting and type checks pass too. The full browser suite remains a CI check.
+
 ## 2026-10-11 — Discussions 4a: the forum for every signed-in user
 
 PR 4 is split into 4a (every user), 4b (Site Administrator) and 4c (Guide and release), all under the

@@ -239,10 +239,31 @@ describe('the empty group is an internal storage form, never an accepted input',
     ['an unexpected key', { foo: 1 }],
     ['a half-populated record', { title: 'only a title' }],
   ])('refuses an uploaded resource that is %s (422, nothing written)', async (_label, slot) => {
+    const counts = async () => {
+      const where = { subjectGrade: { equals: fx.subjectGrade.id } }
+      const [plans, versions] = await Promise.all([
+        fx.payload.count({ collection: 'lesson-plans', where }),
+        fx.payload.count({ collection: 'lesson-bundle-versions', where }),
+      ])
+      return { plans: plans.totalDocs, versions: versions.totalDocs }
+    }
+    const before = await counts()
     const res = await upload('bad.json', rawBundle('99.72', withSlot(slot)))
     expect(res.status).toBe(422)
-    const body = (await res.json()) as { ok: boolean; error: string }
+    const body = (await res.json()) as {
+      ok: boolean
+      count: number
+      bundles: unknown[]
+      rejected: { file: string; error: string }[]
+      skipped: unknown[]
+    }
     expect(body.ok).toBe(false)
-    expect(body.error).toMatch(/contract drift|not generatable/)
+    expect(body.count).toBe(0)
+    expect(body.bundles).toEqual([])
+    expect(body.skipped).toEqual([])
+    expect(body.rejected).toEqual([
+      { file: 'bad.json', error: expect.stringMatching(/contract drift|not generatable/) },
+    ])
+    expect(await counts()).toEqual(before)
   })
 })
