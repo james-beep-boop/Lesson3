@@ -1,15 +1,16 @@
 /**
  * Upload/import orchestration (SPEC §7): read ARES data files (`.js` modules OR `.json` exports) →
- * create a LessonPlan plus its version 1.0.0 (Official) via the Local API, in one all-or-nothing
- * transaction. The two input formats carry deep-equal data for a sub-strand, so only the
+ * create a LessonPlan plus its version 1.0.0 (Official) via the Local API. The CLI is atomic;
+ * web uploads reject invalid files and commit the valid subset in one transaction. The two input formats carry deep-equal data for a sub-strand, so only the
  * read step differs (`.json` → JSON.parse; `.js` → safe AST parse) — see `extract.ts`.
  *
  * ENTRY POINTS (both trusted, never teacher-facing): the dev-only CLI (`app/scripts/ingest.ts`)
- * and the Site-Administrator-only JSON upload endpoint (`src/endpoints/uploadBundles.ts`) — both
- * call the shared `ingestItems` core below. `ingestItems` runs as a TRUSTED Local-API system
+ * and the Site-Administrator-only JSON/ZIP upload endpoint (`src/endpoints/uploadBundles.ts`) — both
+ * share validation and writes below: the CLI is atomic, while web uploads reject invalid files
+ * and commit the valid subset. Both run as a TRUSTED Local-API system
  * call (no `req.user` → the version field-split treats it as a system path and lets it set all
  * fields), so **callers MUST enforce authorization first**: the CLI is dev-only; the endpoint
- * gates on Site Admin server-side (`isSiteAdmin`) and accepts JSON only. The untrusted-input risk
+ * gates on Site Admin server-side (`isSiteAdmin`) and parses JSON data only. The untrusted-input risk
  * lives in `extract.ts` (parse-never-execute for `.js`; structural guards for `.json`); see its
  * security contract.
  *
@@ -33,7 +34,8 @@ import { IngestError } from './errors'
 import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
-import { nextMajorForPlan } from '../lib/semver'
+import { bumpSemver, compareSemver, nextMajorForPlan } from '../lib/semver'
+import { comparableIngestContent } from './contentEquality'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 
@@ -68,7 +70,7 @@ export interface IngestResult {
  * transaction session produced a lock holding NOTHING while ingest proceeded as though serialised —
  * the docblock's old claim that "outside a transaction the lock is a harmless no-op" was true only
  * of the no-op, not of the harmlessness. `lockRows` fails closed; every caller was checked to run
- * inside a transaction (this one via `initTransaction` in `ingestItems`).
+ * inside a transaction (this one via `initTransaction` in `writePrepared`).
  *
  * Kept as a named function rather than inlined: it is the documented seam for the wiring spec, since
  * true concurrency can't be pinned in a unit test.
@@ -224,28 +226,54 @@ type Prepared = {
  * by extension (`.js` AST / `.json` JSON.parse); the upload endpoint always uses
  * `extractAresJson`. Neither path ever executes the input.
  */
-export type IngestItem = { name: string; extract: () => Record<string, unknown> }
+export type IngestItem = {
+  name: string
+  extract: () => Record<string, unknown> | Promise<Record<string, unknown>>
+}
 
-/**
- * Shared ingest core (used by the CLI `ingestPaths` and the Site-Admin upload endpoint).
- * Two phases:
- *   1. PRE-FLIGHT (read-only): extract + completeness-validate + resolve taxonomy for ALL
- *      items, collecting every problem. If any fails, throw with the full list, write NOTHING.
- *   2. WRITE: create all prepared lesson plans + 1.0.0 Official versions inside ONE transaction
- *      (all-or-nothing — a failure rolls back the whole batch).
- *
- * This is a TRUSTED system path (no `req.user`): callers MUST enforce authorization before
- * calling it — the CLI is dev-only; the endpoint gates on Site Admin.
- */
-export async function ingestItems(payload: Payload, items: IngestItem[]): Promise<IngestResult[]> {
-  if (items.length === 0) {
-    throw new IngestError('No bundles to ingest.')
-  }
+export type IngestRejection = { file: string; error: string }
+export type IngestReport = {
+  bundles: IngestResult[]
+  rejected: IngestRejection[]
+  skipped: IngestRejection[]
+}
 
+/** Fetch only the highest numeric semver's content, using the locked write transaction. */
+async function latestVersionForPlan(payload: Payload, planId: number, req: IngestReq) {
+  const { docs } = await payload.find({
+    collection: 'lesson-bundle-versions',
+    where: { lessonPlan: { equals: planId } },
+    pagination: false,
+    depth: 0,
+    select: { semver: true },
+    overrideAccess: true,
+    req,
+  })
+  const latest = docs.reduce<(typeof docs)[number] | undefined>(
+    (max, doc) => (!max || compareSemver(doc.semver, max.semver) > 0 ? doc : max),
+    undefined,
+  )
+  return latest
+    ? payload.findByID({
+        collection: 'lesson-bundle-versions',
+        id: latest.id,
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+    : null
+}
+
+/** Read-only validation shared by the atomic CLI and partial web upload. */
+async function prepareItems(
+  payload: Payload,
+  items: IngestItem[],
+  partial: boolean,
+): Promise<{ prepared: Prepared[]; rejected: IngestRejection[] }> {
   // Phase 1 — pre-flight (read-only).
   const preflightReq: IngestReq = { payload }
   const prepared: Prepared[] = []
-  const errors: string[] = []
+  const rejected: IngestRejection[] = []
   // Memoize taxonomy resolution across the batch: a directory of sub-strands is typically all one
   // subject-grade, so without this `resolveSubjectGrade` re-runs its 2 finds for every file.
   const sgCache = new Map<string, Promise<number>>()
@@ -260,21 +288,22 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
     return hit
   }
   for (const { name, extract } of items) {
+    let inputValidated = false
     try {
-      const raw = extract()
+      const raw = await extract()
       const data = rawToBundle(raw)
       const problems = validateGeneratable(data)
       if (problems.length > 0) {
         throw new IngestError(`not generatable:\n    - ${problems.join('\n    - ')}`)
       }
       // Contract drift is a HARD GATE: ARES adopted ares-contract.schema.json, so any divergence
-      // is a regression that must block ingest (same all-or-nothing pre-flight as
-      // validateGeneratable — nothing is written if ANY file drifts). Validate the RAW (UPPERCASE)
+      // is a regression that must reject this file. Validate the RAW (UPPERCASE)
       // object, the shape the contract describes. See docs/DECISIONS.md (warn-only → hard gate).
       const drift = contractDrift(raw)
       if (drift.length > 0) {
         throw new IngestError(`contract drift:\n    - ${drift.join('\n    - ')}`)
       }
+      inputValidated = true
       const subjectGrade = await resolveSubjectGradeCached(raw)
       const substrandId = substrandIdOf(raw)
       // Re-ingest resolution (SPEC §7): the existing plan to attach to as a new major, or null to
@@ -294,34 +323,75 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
         warnings: deliverableWarnings(data),
       })
     } catch (e) {
-      errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
+      // Missing taxonomy and ambiguous identities are input rejections. An unexpected database
+      // failure must abort pre-flight, rather than mislabel a valid file and commit only its peers.
+      if (partial && inputValidated && !(e instanceof IngestError)) throw e
+      rejected.push({ file: name, error: e instanceof Error ? e.message : String(e) })
     }
   }
 
-  // Intra-batch duplicate guard (SPEC §7): two files targeting the SAME (subjectGrade, substrand_id)
-  // in one upload would race for the plan/pointer — reject the batch instead. Only non-empty
-  // substrand_ids are keyed (an empty one is always a distinct new plan, so it can't collide).
-  const seen = new Map<string, string>()
+  // Reject every member of an ambiguous group on web uploads; never choose an arbitrary winner.
+  const seen = new Map<string, Prepared>()
+  const duplicates = new Set<Prepared>()
   for (const p of prepared) {
     if (!p.substrandId) continue
     const key = `${p.subjectGrade}::${p.substrandId}`
     const prior = seen.get(key)
     if (prior) {
-      errors.push(
-        `${p.name}: duplicate of "${prior}" in this batch — both target sub-strand ` +
-          `${JSON.stringify(p.substrandId)} in the same subject-grade. Upload one at a time.`,
-      )
+      const error =
+        `duplicate of "${prior.name}" in this batch — both target sub-strand ` +
+        `${JSON.stringify(p.substrandId)} in the same subject-grade. Upload one at a time.`
+      rejected.push({ file: p.name, error })
+      if (partial && !duplicates.has(prior)) {
+        rejected.push({
+          file: prior.name,
+          error: `duplicate of "${p.name}" in this batch. Upload one at a time.`,
+        })
+      }
+      duplicates.add(prior)
+      duplicates.add(p)
     } else {
-      seen.set(key, p.name)
+      seen.set(key, p)
     }
   }
+  return { prepared: prepared.filter((p) => !duplicates.has(p)), rejected }
+}
 
-  if (errors.length > 0) {
+/** Atomic CLI entry: any pre-flight failure prevents all writes. Trusted callers only. */
+export async function ingestItems(payload: Payload, items: IngestItem[]): Promise<IngestResult[]> {
+  if (items.length === 0) throw new IngestError('No bundles to ingest.')
+  const { prepared, rejected } = await prepareItems(payload, items, false)
+  if (rejected.length > 0) {
     throw new IngestError(
-      `Pre-flight failed (${errors.length}/${items.length} file(s)); nothing was written:\n  - ${errors.join('\n  - ')}`,
+      `Pre-flight failed (${rejected.length}/${items.length} file(s)); nothing was written:\n  - ` +
+        rejected.map((r) => `${r.file}: ${r.error}`).join('\n  - '),
     )
   }
+  return (await writePrepared(payload, prepared)).bundles
+}
 
+/**
+ * Web upload: reject invalid files, then commit all valid files together. Database/write failures
+ * still roll back the transaction and propagate; a malformed input cannot prevent valid imports.
+ * TRUSTED system path: the endpoint must authorize the caller before invoking this function.
+ */
+export async function ingestUploadItems(
+  payload: Payload,
+  items: IngestItem[],
+): Promise<IngestReport> {
+  const { prepared, rejected } = await prepareItems(payload, items, true)
+  const written =
+    prepared.length > 0
+      ? await writePrepared(payload, prepared, true)
+      : { bundles: [], skipped: [] }
+  return { ...written, rejected }
+}
+
+async function writePrepared(
+  payload: Payload,
+  prepared: Prepared[],
+  skipUnchanged = false,
+): Promise<Pick<IngestReport, 'bundles' | 'skipped'>> {
   // Phase 2 — write all bundles in one transaction.
   const req: IngestReq = { payload }
   await initTransaction(req)
@@ -336,18 +406,31 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
       prepared.map((p) => p.subjectGrade),
     )
     const results: IngestResult[] = []
+    const skipped: IngestRejection[] = []
     for (const { name, data, subjectGrade, substrandId, warnings, ...p } of prepared) {
       const existingPlanId =
         p.existingPlanId ??
         (substrandId ? await findExistingPlan(payload, subjectGrade, substrandId, req) : null)
       if (existingPlanId != null) {
+        const latest = skipUnchanged
+          ? await latestVersionForPlan(payload, existingPlanId, req)
+          : null
+        if (latest && comparableIngestContent(data) === comparableIngestContent(latest)) {
+          skipped.push({
+            file: name,
+            error: `Unchanged — matches latest saved version ${latest.semver}`,
+          })
+          continue
+        }
         // RE-INGEST (SPEC §7): attach as the next MAJOR version of the existing plan, arriving
         // Not Official. The Official pointer is NOT moved and the plan title is NOT refreshed — the
         // canonical (Official) content is unchanged until a Subject/Site Admin promotes this
         // candidate via Make Official (deliberate review gate, decided 2026-07-05). No sourceVersion
         // (this is an ingest, not a fork). nextMajorForPlan sees the plan's committed versions;
         // the unique (lessonPlan, semver) index is the backstop.
-        const semver = await nextMajorForPlan(payload, existingPlanId, req)
+        const semver = latest
+          ? bumpSemver(latest.semver, 'major')
+          : await nextMajorForPlan(payload, existingPlanId, req)
         await payload.create({
           collection: LESSON_BUNDLE_VERSIONS,
           data: {
@@ -430,7 +513,7 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
       })
     }
     await commitTransaction(req)
-    return results
+    return { bundles: results, skipped }
   } catch (e) {
     await killTransaction(req)
     throw e

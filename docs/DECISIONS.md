@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-11 — ZIP uploads import valid JSON despite malformed neighbours
+
+Operator request: accept a ZIP containing multiple JSON lesson plans, import all valid files,
+reject malformed files, and report the outcome. Web uploads now use shared read-only validation
+and commit the valid subset; the developer CLI retains its atomic batch contract. Duplicate
+sub-strand identities in one upload reject every member of that group rather than choosing a
+winner. Changed content creates the next major version, Not Official.
+
+Web re-uploads compare with the highest numeric saved version, including Not Official versions,
+inside the subject-grade write lock. Identical content is reported as "Unchanged" in skipped files,
+without a new version or a change to the Official pointer. Storage-added IDs, empty optional fields
+and derived row numbers do not count as content changes. This makes re-uploading a corrected archive
+safe after a partial import. An entirely unchanged upload is a successful no-op. The CLI retains its
+existing revision behavior; empty sub-strand identities still cannot be matched.
+
+ZIPs are read in memory with the already-pinned JSZip dependency. Nested JSON files are supported;
+other entries are reported as skipped. Compressed size, expanded per-JSON size, JSON count and
+archive entry count are bounded. Expanded data is streamed with a byte limit; eager archive-wide
+CRC checking would inflate all entries before those limits, so it is not enabled. Invalid archives
+and per-file parsing/validation/taxonomy failures appear in the rejection report. Unexpected database
+lookup failures abort pre-flight before writes; write failures roll back the valid subset.
+
+Lesson from the upload response change: search every wire-level caller when a response contract
+changes, including older regression suites. Assert per-file rejection reasons and actual unchanged
+plan/version counts; a test named "nothing written" is insufficient without checking stored data.
+
 ## 2026-10-11 — Discussions 4a: the forum for every signed-in user
 
 PR 4 is split into 4a (every user), 4b (Site Administrator) and 4c (Guide and release), all under the

@@ -21,6 +21,7 @@
 import React from 'react'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toast } from '@payloadcms/ui'
 
 vi.mock('@payloadcms/ui', () => ({
   Button: ({
@@ -52,6 +53,8 @@ const UploadBundles = (await import('@/components/UploadBundles')).default
 const okResponse = {
   ok: true,
   count: 1,
+  rejected: [],
+  skipped: [],
   bundles: [
     {
       file: 'cell_structure.json',
@@ -138,6 +141,91 @@ describe('upload results do not outlive the upload', () => {
     const { container } = render(<UploadBundles />)
     const input = await uploadOnce(container)
     expect(input.value).toBe('')
+    expect((screen.getByRole('button', { name: /^Upload/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+  })
+})
+
+describe('partial upload reporting', () => {
+  it('shows successes, rejection reasons and skipped files for a mixed ZIP', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          ...okResponse,
+          bundles: [{ ...okResponse.bundles[0], file: 'lessons.zip/good.json' }],
+          rejected: [{ file: 'lessons.zip/bad.json', error: 'Malformed JSON' }],
+          skipped: [{ file: 'lessons.zip/readme.txt', error: 'Not a JSON lesson-plan file' }],
+        }),
+      ),
+    )
+    const { container } = render(<UploadBundles />)
+    const input = container.querySelector('input[type=file]') as HTMLInputElement
+    expect(input.accept).toContain('.zip')
+    pickFile(input, 'lessons.zip')
+    fireEvent.click(screen.getByRole('button', { name: /^Upload/ }))
+    await screen.findByText('Imported 1 file(s); rejected 1; skipped 1.')
+    expect(container.textContent).toContain('lessons.zip/good.json')
+    expect(container.textContent).toContain('lessons.zip/bad.json')
+    expect(container.textContent).toContain('Malformed JSON')
+    expect(container.textContent).toContain('lessons.zip/readme.txt')
+    fireEvent.click(input)
+    expect(container.textContent).not.toContain('Malformed JSON')
+  })
+
+  it('reports an entirely unchanged ZIP as success and clears the picker', async () => {
+    vi.mocked(toast.success).mockClear()
+    vi.mocked(toast.error).mockClear()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          ok: true,
+          count: 0,
+          bundles: [],
+          rejected: [],
+          skipped: [
+            { file: 'same.zip/plan.json', error: 'Unchanged — matches latest saved version 1.0.0' },
+          ],
+        }),
+      ),
+    )
+    const { container } = render(<UploadBundles />)
+    pickFile(container.querySelector('input[type=file]') as HTMLInputElement, 'same.zip')
+    fireEvent.click(screen.getByRole('button', { name: /^Upload/ }))
+    await screen.findByText('Imported 0 file(s); rejected 0; skipped 1.')
+    expect(container.textContent).toContain('Unchanged — matches latest saved version 1.0.0')
+    expect(toast.success).toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+    expect((screen.getByRole('button', { name: /^Upload/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+  })
+
+  it('keeps a per-file report when every file is rejected (422)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          {
+            ok: false,
+            count: 0,
+            bundles: [],
+            rejected: [{ file: 'bad.json', error: 'Missing META' }],
+            skipped: [],
+            error: 'No files were imported.',
+          },
+          { status: 422 },
+        ),
+      ),
+    )
+    const { container } = render(<UploadBundles />)
+    const input = container.querySelector('input[type=file]') as HTMLInputElement
+    pickFile(input, 'bad.json')
+    fireEvent.click(screen.getByRole('button', { name: /^Upload/ }))
+    await screen.findByText('Imported 0 file(s); rejected 1; skipped 0.')
+    expect(container.textContent).toContain('Missing META')
     expect((screen.getByRole('button', { name: /^Upload/ }) as HTMLButtonElement).disabled).toBe(
       true,
     )

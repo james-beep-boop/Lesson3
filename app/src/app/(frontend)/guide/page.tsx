@@ -559,10 +559,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     Open <em>Manage → Lesson plans → Upload lesson plans</em>.
                   </li>
-                  <li>Select the lesson-plan files to upload and review the selected files.</li>
+                  <li>Select ARES JSON files or ZIP archives containing JSON lesson plans.</li>
                   <li>
-                    Submit the upload. Each upload creates a lesson plan and its first Official
-                    version.
+                    Submit the upload and review the report. Valid files are imported even if others
+                    fail; rejected files include the reason. Unchanged files are skipped, so you can
+                    re-upload a corrected ZIP. New plans receive their first Official version;
+                    changed content for existing sub-strands receives a Not Official revision for
+                    review.
                   </li>
                 </ol>
               </GuideAccordionPanel>

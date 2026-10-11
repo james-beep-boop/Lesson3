@@ -9,11 +9,11 @@
  * CLI + upload endpoint use). Seeds its own Subject/SubjectGrade, MARK-tagged, and tears down.
  * Requires a DB → Rock/CI only (like all of `tests/int`).
  */
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
-import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
+import { ingestItems, ingestUploadItems, type IngestItem } from '../../src/ingest/index.js'
 import { rawToBundle } from '../../src/ingest/toBundle.js'
 import {
   MARK,
@@ -211,5 +211,153 @@ describe('re-ingest (SPEC §7)', () => {
     await expect(
       ingestItems(payload, [item('ambig.json', rawBundle('97.9', 'Ambiguous'))]),
     ).rejects.toThrow(/matches 2 existing/i)
+  })
+})
+
+describe('partial web ingest', () => {
+  it('re-uploading a corrected batch skips previous imports and then becomes a successful no-op', async () => {
+    const first = rawBundle('97.90', 'Unchanged first')
+    const links = (first.LESSONS as { resourceLinks: Record<string, unknown> }[])[0].resourceLinks
+    ;(links.predict as Record<string, unknown>).video = null
+    const last = rawBundle('97.91', 'Unchanged last')
+    const fixed = rawBundle('97.92', 'Fixed file')
+    const initial = await ingestUploadItems(payload, [
+      item('first.json', first),
+      item('fixed.json', {}),
+      item('last.json', last),
+    ])
+    expect(initial.bundles).toHaveLength(2)
+    expect(initial.rejected).toHaveLength(1)
+    const files = [item('first.json', first), item('fixed.json', fixed), item('last.json', last)]
+    const corrected = await ingestUploadItems(payload, files)
+    expect(corrected.bundles.map((r) => r.file)).toEqual(['fixed.json'])
+    expect(corrected.rejected).toEqual([])
+    expect(corrected.skipped).toEqual([
+      { file: 'first.json', error: 'Unchanged — matches latest saved version 1.0.0' },
+      { file: 'last.json', error: 'Unchanged — matches latest saved version 1.0.0' },
+    ])
+    const before = await payload.count({ collection: 'lesson-bundle-versions' })
+    const repeated = await ingestUploadItems(payload, files)
+    expect(repeated.bundles).toEqual([])
+    expect(repeated.rejected).toEqual([])
+    expect(repeated.skipped).toHaveLength(3)
+    expect(await payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
+    for (const result of [...initial.bundles, ...corrected.bundles]) {
+      expect(await versionsOf(result.id)).toEqual(['1.0.0'])
+    }
+  })
+
+  it('compares the latest numeric version, including Not Official content, and retains CLI revisions', async () => {
+    const original = rawBundle('97.93', 'Latest version')
+    const [plan] = await ingestItems(payload, [item('latest.json', original)])
+    // Include 2.0.0 so a lexical sort would incorrectly choose it over 10.0.0.
+    await ingestItems(payload, [item('latest.json', original)])
+    const changed = rawBundle('97.93', 'Latest version')
+    ;(changed.LESSONS as Record<string, unknown>[])[0].overview = 'Changed prose'
+    await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(changed as never),
+        lessonPlan: plan.id,
+        subjectGrade: plan.subjectGrade,
+        semver: '10.0.0',
+      } as never,
+    })
+    const same = await ingestUploadItems(payload, [item('latest.json', changed)])
+    expect(same.bundles).toEqual([])
+    expect(same.skipped[0].error).toContain('10.0.0')
+    const revision = await ingestUploadItems(payload, [item('latest.json', original)])
+    expect(revision.bundles[0]).toMatchObject({
+      action: 'revised',
+      semver: '11.0.0',
+      official: false,
+    })
+    const [cli] = await ingestItems(payload, [item('latest.json', original)])
+    expect(cli.semver).toBe('12.0.0')
+    expect(await versionsOf(plan.id)).toEqual(['1.0.0', '2.0.0', '10.0.0', '11.0.0', '12.0.0'])
+    const official = await payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: (await officialOf(plan.id))!,
+    })
+    expect(official.semver).toBe('1.0.0')
+  })
+
+  it('serializes concurrent identical web imports without making an extra version', async () => {
+    const raw = rawBundle('97.94', 'Concurrent same file')
+    const reports = await Promise.all([
+      ingestUploadItems(payload, [item('same.json', raw)]),
+      ingestUploadItems(payload, [item('same.json', raw)]),
+    ])
+    const imported = reports.flatMap((r) => r.bundles)
+    expect(imported).toHaveLength(1)
+    expect(reports.flatMap((r) => r.skipped)).toHaveLength(1)
+    expect(await versionsOf(imported[0].id)).toEqual(['1.0.0'])
+  })
+
+  it('imports all valid files around parse, contract and taxonomy failures', async () => {
+    const noTaxonomy = rawBundle('97.81', 'Unknown subject')
+    ;(noTaxonomy.META as Record<string, unknown>).subject = 'Missing subject for ZIP test'
+    const drift = rawBundle('97.82', 'Contract failure')
+    drift.schemaVersion = 'invalid'
+    const result = await ingestUploadItems(payload, [
+      item('zip/first.json', rawBundle('97.80', 'First valid')),
+      {
+        name: 'zip/broken.json',
+        extract: () => {
+          throw new Error('Malformed JSON')
+        },
+      },
+      item('zip/taxonomy.json', noTaxonomy),
+      item('zip/contract.json', drift),
+      item('zip/last.json', rawBundle('97.83', 'Last valid')),
+    ])
+    expect(result.bundles.map((r) => r.file)).toEqual(['zip/first.json', 'zip/last.json'])
+    expect(result.rejected.map((r) => r.file)).toEqual([
+      'zip/broken.json',
+      'zip/taxonomy.json',
+      'zip/contract.json',
+    ])
+    for (const r of result.bundles) expect(await versionsOf(r.id)).toEqual(['1.0.0'])
+  })
+
+  it('rejects all files sharing an identity and imports unrelated files', async () => {
+    const result = await ingestUploadItems(payload, [
+      item('a.json', rawBundle('97.84', 'Duplicate A')),
+      item('b.json', rawBundle('97.84', 'Duplicate B')),
+      item('c.json', rawBundle('97.84', 'Duplicate C')),
+      item('good.json', rawBundle('97.85', 'Independent')),
+    ])
+    expect(result.bundles.map((r) => r.file)).toEqual(['good.json'])
+    expect(result.rejected.map((r) => r.file).sort()).toEqual(['a.json', 'b.json', 'c.json'])
+  })
+
+  it('aborts before writing when a database lookup fails after another valid file', async () => {
+    const before = await payload.count({ collection: 'lesson-bundle-versions' })
+    const original = payload.find.bind(payload)
+    const lookup = vi
+      .spyOn(payload, 'find')
+      .mockImplementationOnce(original) // Subject
+      .mockImplementationOnce(original) // Subject-grade
+      .mockImplementationOnce(original) // First file's plan lookup
+      .mockRejectedValueOnce(new Error('Database lookup unavailable')) // Second file; taxonomy cached
+    try {
+      await expect(
+        ingestUploadItems(payload, [
+          item('first.json', rawBundle('97.86', 'Prepared but not written')),
+          item('second.json', rawBundle('97.87', 'Database failure')),
+        ]),
+      ).rejects.toThrow('Database lookup unavailable')
+    } finally {
+      lookup.mockRestore()
+    }
+    expect(await payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
+  })
+
+  it('reports all-invalid input without creating any versions', async () => {
+    const before = await payload.count({ collection: 'lesson-bundle-versions' })
+    const report = await ingestUploadItems(payload, [item('bad.json', {})])
+    expect(report.bundles).toEqual([])
+    expect(report.rejected).toHaveLength(1)
+    expect(await payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
   })
 })

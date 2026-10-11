@@ -118,9 +118,12 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   _Create the first Site administrator_ form. There is no default username or password. After
   creating the first account, create and test a second Site administrator so someone can still manage
   the site if you forget your password.
-- **Manage lesson plans:** upload lesson plans (each upload creates a lesson plan and its first
-  Official version), repair plans that have no Official version, delete lesson plans (with all their
-  versions), and reach the People and Curriculum lists.
+- **Manage lesson plans:** upload ARES JSON files or ZIP archives of JSON files. Valid files are
+  imported even when others fail; review the report for imported, rejected and skipped files.
+  Unchanged files are skipped, so you can re-upload a corrected ZIP after a partial import.
+  New plans receive their first Official version; changed content for an existing sub-strand creates
+  a Not Official revision for review. You can also repair plans that have no Official version, delete
+  lesson plans (with all their versions), and reach the People and Curriculum lists.
 - **Create accounts without email:** use _Manage → Users → Accounts → Create user_, then open the new
   account and choose _Mark verified_. The person cannot sign in until that is done. Use _Make Site
   Administrator_ when the new account should be another Site administrator, and test it in a private
