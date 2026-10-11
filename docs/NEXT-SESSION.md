@@ -25,60 +25,42 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# SHUTDOWN HANDOFF — 2026-10-11: forum and ZIP changes published
+# RELEASE PREPARATION — 2026-10-11: Discussions and ZIP imports
 
-The user authorized commit, push, cleanup and ZIP inclusion. Everything below is pushed; no release
-or deployment has been performed. **Do not tag a release until Discussions 4c merges.**
+The user authorized finishing, verifying and merging both features, and preparing release notes.
+No release tag or deployment is authorized by that instruction.
 
-| PR | Branch / commit | State at shutdown |
-|---|---|---|
-| [#380: Discussions 4b](https://github.com/james-beep-boop/Lesson3/pull/380) | `feat/discussions-4b`, `4af1705` | Base `main`; CI running; squash auto-merge armed |
-| [#381: Discussions 4c](https://github.com/james-beep-boop/Lesson3/pull/381) | `feat/discussions-4c`, implementation `35a5845` plus this handoff | Stacked on 4b; auto-merge OFF |
-| [#382: ZIP ingest](https://github.com/james-beep-boop/Lesson3/pull/382) | `feat/zip-ingest`, `225a5d3` | Base `main`; final CI pending; auto-merge OFF |
+- **Discussions 4b (#380)** merged as `73739e3`: administrator moderation, the password-confirmed
+  System switch, and the moderation-only view while off.
+- **ZIP imports (#382)** merged as `c689041` after its full CI gate passed. Re-uploading a corrected
+  archive skips content identical to the highest numeric saved version, including Not Official
+  versions. A completely unchanged upload succeeds without creating versions. Changed content still
+  creates a Not Official major version; the CLI retains its atomic/revision behavior.
+- **Discussions 4c (#381)** completes the role/flag-filtered Guide, `USER_GUIDE.md`, SPEC, release notes
+  and finished-app timings. It is rebased onto `main`, including ZIP imports, with the original 4b
+  commit removed. Both features' documentation is retained.
 
-**Resume in this order:**
-1. Check #380. If its CI fails, fix the reported failure; otherwise let the guarded auto-merge finish.
-2. Only after #380 is merged, fetch `origin/main` and rebase 4c to drop the original 4b commit:
-   `git rebase --onto origin/main 4af1705 feat/discussions-4c`. Squash merge changes the parent commit
-   identity, so merely retargeting the PR leaves 4b appearing in 4c's diff. Resolve documentation
-   conflicts by preserving both forum and ZIP entries. Push with `--force-with-lease`, retarget #381
-   to `main`, and wait for its final CI before enabling squash auto-merge. Never merge 4c into 4b.
-3. Review #382's final CI. ZIP's earlier HTTP/browser checks are provenance; the shutdown review did
-   not rebuild its final app locally. Merge only after its production/wire/browser CI passes.
-   If #381 merged first, rebase ZIP and keep both features' documentation, then re-run CI.
-4. The release hold lifts only when #381 has merged. No tag is authorized by this handoff.
+**Resume:** confirm #381 merged and its combined `main` CI passed. The forum release hold is satisfied
+only once #381 merges. Then obtain a release instruction before creating an annotated version tag;
+follow AGENTS.md's tag-driven publishing procedure, rather than publishing a release manually.
+Release notes are prepared in `docs/CHANGELOG.md` under **Unreleased**. Discussions are on by default;
+review Manage → System → Features and consider pinning a welcome topic before announcing them.
+Existing backups retain redacted text until they age out.
 
-**Implementation:** 4b supplies confirmed pin/unpin, title/post/reply redaction and whole-thread
- deletion, password-confirmed System Features Save, and administrator-only moderation while off.
-4c adds the role/flag-filtered Guide, `USER_GUIDE.md`, SPEC and release notes. The shared frontend
-navigation refresh fixes cached Discuss visibility after switch-off; it runs on pathname/query
-changes with no polling and preserves client form state. The tradeoff is one extra render request
-per soft navigation. The existing display-name browser test now waits for Save's document reload.
+**Verification provenance:** 4b/4c previously passed 1,348 unit, 287 integration, 280 production HTTP
+and 74 browser tests with retries disabled. ZIP's final follow-up passed 44 focused unit/Guide,
+13 ingest integration, all 282 production HTTP tests and the expanded Chromium ZIP workflow locally;
+its full CI gate also passed. These are separate runs, not counts from the combined tree. Use #381's
+final CI and the ensuing `main` run for combined verification. Mac/Rock helper timings and limitations
+are in `docs/spikes/discussions-finished-2026-10-11/RESULTS.md`; these do not establish full Rock app
+or concurrent-user capacity. No live installation has been changed.
 
-**Forum verification:** 1,348 unit, 287 integration, 280 production HTTP and all 74 browser tests
-pass, with browser retries disabled. All 17 focused forum cases pass; the display-name test passes
-five consecutive repetitions. Fourteen guard mutations are caught and restored. Lint, formatting,
-types, migrations, app-router check and production build pass; phone/desktop moderation UI reviewed.
-The final Guide clarification passes 37 parity tests. Finished-app Mac/Rock helper results and
-limitations are in `docs/spikes/discussions-finished-2026-10-11/RESULTS.md`; Rock uses an older Next
-runner, so those measurements are not a full Rock application gate.
-
-**ZIP shutdown review:** 15 focused unit, 10 ingest integration and 27 Guide parity tests pass;
-lint, formatting and types pass. Nested JSON and partial failures are supported, duplicate identities
-are rejected together, size/count limits apply, and database failures abort/roll back. No new package,
-migration or generated type. See SPEC §7 and the ZIP decision entry for the behavior contract.
-
-**Cleanup/recovery:** the primary checkout `/Users/jamesmcclelland/Developer/Lesson3` is clean on
-`main` at `8bca543`. Its old mixed uncommitted tree is preserved in the recovery stash with hash
-`67fd16efe3cc3aa8eaa4036943e6611bce2ef4d8`, labelled `Shutdown recovery 2026-10-11: historical merged
-4a work and extracted ZIP source`. Restore selectively into an isolated branch if needed; do not
-apply that historical forum tree over current main. Temporary verification databases/containers and
-Rock probe files are removed; live services were untouched. `app/test.env` is restored in every tree.
-The stale Claude checkout was removed only after confirming its owner PID had exited, its tree
-was clean and byte-identical to merged main. The ZIP publication checkout is removed; the final
-forum publication checkout is removed after its last pushed handoff. All branch heads remain local
-and remote. Environment files were preserved privately under `.git/shutdown-backups-2026-10-11/`;
-never commit those files. Create a fresh worktree to resume.
+**Cleanup/recovery:** the old mixed checkout is preserved in recovery stash
+`67fd16efe3cc3aa8eaa4036943e6611bce2ef4d8` (historical merged 4a and extracted ZIP source).
+Restore selectively into an isolated branch if needed; do not apply it over current main. Old
+publication worktrees and our disposable verification stacks have been removed; other/user services
+were untouched. Private environment backups and ZIP verification logs are under
+`.git/shutdown-backups-2026-10-11/`; never commit them. The tracked `app/test.env` is restored.
 
 ---
 

@@ -8,7 +8,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased — Discussions
+## Unreleased
+
+### Discussions
 
 - **Discuss** brings teachers together around lesson-plan changes, questions and improvements. Topics
   show latest activity, chronological replies, title-only search, saved-version references, and a blue
@@ -21,9 +23,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
   ask questions. They can redact titles or posts and delete entire threads, each after confirmation.
   Redaction cannot be undone; existing backups keep the text until they age out.
 - The in-app Guide follows the forum switch; the complete `USER_GUIDE.md` includes the new workflows.
-  **Release hold remains until discussions 4c merges. No release is tagged by this change.**
+  Merging Discussions 4c (#381) satisfies the forum release hold. No release is tagged by this change.
 
-## Unreleased — ZIP lesson-plan uploads
+### ZIP lesson-plan uploads
 
 Site Administrators can upload ZIP archives of ARES JSON lesson plans, including nested folders.
 Valid files import even when neighbours are malformed; the report lists imports, rejections with
@@ -31,6 +33,12 @@ reasons and skipped files. Unchanged files are skipped when re-uploading a corre
 changed content for existing sub-strands becomes a Not Official major revision.
 The developer CLI retains its all-or-nothing batch behavior. Archives stay in memory; input count
 and compressed/expanded sizes are bounded.
+
+### Saved-version links
+
+- Lesson and comparison pages explain when an explicitly requested version is unavailable instead
+  of silently displaying another version. Older Messages links whose version relationship was
+  cleared on deletion still need a separate fix.
 
 ## v0.93 (2026-10-09)
 

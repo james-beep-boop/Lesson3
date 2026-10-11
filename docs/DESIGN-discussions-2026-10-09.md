@@ -606,18 +606,18 @@ it introduces no implementation changes.
 
 ## 16. Design — 2026-10-09
 
-**Status (2026-10-11): design confirmed; server side and 4a merged; 4b and 4c implemented and verified; 4b pushed as `4af1705` (#380), 4c pushed as `35a5845` (#381).** Implementation was
-approved, and these have landed:
+**Status (2026-10-11): design confirmed; implementation complete.** These have merged:
+
 - the missing-version notice (#371);
 - System Save and the `forumEnabled` flag (#373, #374);
-- the forum's server side (#375, #376 and #377): data and posting, then mark-read, pin, redaction, the unread
-  queries and title search;
-- **4a (#378)**: the forum for every signed-in user.
+- the forum's server side (#375, #376 and #377);
+- **4a (#378)**: the forum for every signed-in user;
+- **4b (#380)**: administrator controls, the System switch and moderation-only view.
 
-4b (administrator controls, the System switch and moderation-only view) and 4c (Guide, `USER_GUIDE.md`,
-SPEC §10, release notes and finished-app timings) are prepared in `feat/discussions-4b`. They have not
-been committed or merged. Section 16.5 holds the contracts and the as-built notes.
-**The release hold stands until 4c lands.** This section is
+**4c (#381)** delivers the Guide, `USER_GUIDE.md`, SPEC §10, release notes and finished-app timings.
+Its branch is rebased onto `main`, including ZIP imports (#382), with the original 4b commit removed.
+Section 16.5 holds the contracts and as-built notes. **Merging #381 satisfies the forum release hold;
+release tagging still requires a release instruction.** This section is
 the current design. Sections 1–15 are the dated planning record that led to it. Where they conflict, 16
 wins. Every product choice (16.1) and default (16.2) is operator-confirmed. The technical contracts (16.3,
 16.4) were reviewed by Claude and GPT, and are subject to the search spike's findings. The design adopts the
