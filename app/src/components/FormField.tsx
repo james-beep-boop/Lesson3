@@ -2,7 +2,10 @@
 
 import React, { useId } from 'react'
 
-/** Shared composer field: the hint describes the control without becoming part of its name. */
+/**
+ * Keep the hint outside the label: label text becomes the control's accessible name.
+ * aria-describedby supplies the hint as a separate description.
+ */
 export default function FormField({
   label,
   hint,

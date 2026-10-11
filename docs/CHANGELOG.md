@@ -10,6 +10,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## v0.94 (2026-10-12)
 
+### Upgrade note for nginx deployments
+
+Set `proxy_read_timeout 300s;` to allow large first-time ZIP imports to finish. The default 60-second
+timeout can return a 504 while the import continues; re-uploading unchanged files safely skips them.
+Allow request bodies of at least `201m` with `client_max_body_size`; an existing `252m` limit is sufficient.
+These are reverse-proxy settings for installations using nginx. See [OPS.md](OPS.md).
+
 ### Discussions
 
 - **Discuss** brings teachers together around lesson-plan changes, questions and improvements. Topics

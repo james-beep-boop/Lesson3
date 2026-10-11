@@ -27,12 +27,12 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 # RELEASE PREPARATION — 2026-10-12: final UI cleanup and v0.94
 
-The operator authorized merging the remaining changes and publishing the release. Confirm the
-deployment target separately before changing a running installation.
+The operator authorized merging the remaining changes and publishing the release, and confirmed
+that they will handle deployment. Publish and verify v0.94; leave the running installation unchanged.
 
 - Discussions 4a–4c and ZIP imports have merged. The forum release hold is satisfied.
 - Review fixes #383 merged as `9cf8200`, after its CI passed.
-- `refactor/forum-ui-consistency` contains the final presentation cleanup: shared `FormField`,
+- UI cleanup #384 merged as `6c74dc8` after its full CI passed: shared `FormField`,
   Messages `PageHeader`, common CSS rules and grey compose panels. Opening posts stay grey and
   replies white. The new Messages browser test covers sending and replying; the discussion test
   checks the unread border.
@@ -41,7 +41,10 @@ deployment target separately before changing a running installation.
   its seven-test file passed on an isolated rerun. Use the cleanup PR's full CI and the final main
   CI for release approval.
 
-**Next:** merge the cleanup only after CI passes, update the main checkout, and confirm its CI.
+- The release-note follow-up adds the nginx timeout/body-size upgrade note and clarifies why field
+  hints sit outside labels. It changes documentation and a code comment only.
+
+**Next:** merge the release-note follow-up only after CI passes, update main, and confirm its CI.
 Then push an annotated `v0.94` tag using AGENTS.md's release procedure and verify the published
 bundle and checksum. Release notes are in `docs/CHANGELOG.md`. Do not publish a release manually.
 
