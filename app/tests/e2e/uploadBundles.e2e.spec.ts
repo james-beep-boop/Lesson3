@@ -76,6 +76,28 @@ test.describe('ZIP upload report', () => {
     await expect(page.getByRole('button', { name: 'Upload', exact: true })).toBeDisabled()
     await page.screenshot({ path: testInfo.outputPath('mixed-upload.png'), fullPage: true })
 
+    zip.file('broken.json', JSON.stringify(raw('99.browserZip3')))
+    zip.file('invalid.json', JSON.stringify(raw('99.browserZip4')))
+    const corrected = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
+    await page
+      .locator('input[type=file]')
+      .setInputFiles({ name: 'lessons.zip', mimeType: 'application/zip', buffer: corrected })
+    await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Imported 2 file(s); rejected 0; skipped 3.' }),
+    ).toBeVisible()
+    await expect(page.getByText(/lessons.zip\/first.json: Unchanged/)).toBeVisible()
+    await expect(page.getByText(/lessons.zip\/folder\/last.json: Unchanged/)).toBeVisible()
+    await page
+      .locator('input[type=file]')
+      .setInputFiles({ name: 'lessons.zip', mimeType: 'application/zip', buffer: corrected })
+    await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Imported 0 file(s); rejected 0; skipped 5.' }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Upload', exact: true })).toBeDisabled()
+    await page.screenshot({ path: testInfo.outputPath('unchanged-upload.png'), fullPage: true })
+
     // A completed all-invalid attempt replaces the earlier successes with its own report.
     await page.locator('input[type=file]').setInputFiles({
       name: 'bad.zip',

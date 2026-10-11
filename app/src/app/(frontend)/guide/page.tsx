@@ -562,8 +562,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>Select ARES JSON files or ZIP archives containing JSON lesson plans.</li>
                   <li>
                     Submit the upload and review the report. Valid files are imported even if others
-                    fail; rejected files include the reason. New plans receive their first Official
-                    version; existing sub-strands receive a Not Official revision for review.
+                    fail; rejected files include the reason. Unchanged files are skipped, so you can
+                    re-upload a corrected ZIP. New plans receive their first Official version;
+                    changed content for existing sub-strands receives a Not Official revision for
+                    review.
                   </li>
                 </ol>
               </GuideAccordionPanel>

@@ -2260,6 +2260,39 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
       })
       expect(plan.officialVersion).toBeTruthy()
     }
+    // Fix the rejected files and re-upload the whole archive: the earlier successes must not
+    // acquire duplicate major versions, even though their stored rows include IDs/defaults.
+    zip.file('bad.json', await jsonFile('bad.json', '90.zip3').text())
+    zip.file('invalid.json', await jsonFile('invalid.json', '90.zip4').text())
+    const correctedBytes = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' })
+    const correctedBuild = (form: FormData) =>
+      form.append('files', new File([correctedBytes], 'lessons.zip'))
+    const corrected = await post('siteAdmin', correctedBuild)
+    expect(corrected.status).toBe(200)
+    const fixedReport = await corrected.json()
+    expect(fixedReport.count).toBe(2)
+    expect(fixedReport.rejected).toEqual([])
+    expect(
+      fixedReport.skipped.filter((r: { error: string }) => r.error.startsWith('Unchanged')),
+    ).toHaveLength(2)
+    for (const bundle of report.bundles) {
+      const versions = await fx.payload.find({
+        collection: 'lesson-bundle-versions',
+        where: { lessonPlan: { equals: bundle.id } },
+        depth: 0,
+        pagination: false,
+      })
+      expect(versions.docs.map((v) => v.semver)).toEqual(['1.0.0'])
+    }
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    const unchanged = await post('siteAdmin', correctedBuild)
+    expect(unchanged.status).toBe(200)
+    const sameReport = await unchanged.json()
+    expect(sameReport).toMatchObject({ ok: true, count: 0, bundles: [], rejected: [] })
+    expect(
+      sameReport.skipped.filter((r: { error: string }) => r.error.startsWith('Unchanged')),
+    ).toHaveLength(4)
+    expect(await fx.payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
   })
 
   it('a ZIP containing only malformed JSON returns a complete 422 report', async () => {

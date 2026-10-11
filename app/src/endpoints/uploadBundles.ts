@@ -78,14 +78,14 @@ export const uploadBundlesEndpoint: Endpoint = {
     // Trusted system path: authorization was enforced before buffering or inspecting any input.
     const report = await ingestUploadItems(req.payload, inputs.items)
     const rejected = [...inputs.rejected, ...report.rejected]
-    const ok = report.bundles.length > 0
+    const ok = report.bundles.length > 0 || report.skipped.length > 0
     return Response.json(
       {
         ok,
         count: report.bundles.length,
         bundles: report.bundles,
         rejected,
-        skipped: inputs.skipped,
+        skipped: [...inputs.skipped, ...report.skipped],
         ...(ok ? {} : { error: 'No files were imported. See the rejection report.' }),
       },
       { status: ok ? 200 : 422 },

@@ -86,7 +86,7 @@ export default function UploadBundles() {
       const rejected = json.rejected?.length ?? 0
       const skipped = json.skipped?.length ?? 0
       const message = `Imported ${json.count} file(s); rejected ${rejected}; skipped ${skipped}.`
-      if (json.count > 0) toast.success(message)
+      if (json.ok) toast.success(message)
       else toast.error(message)
       // Reset the picker so the button returns to its disabled "Upload" state and the same
       // files can't be re-submitted by accident. (Clearing state alone won't clear the native
@@ -117,8 +117,9 @@ export default function UploadBundles() {
       <p className="lp-manage__desc">
         Site administrator only. Choose ARES <code>.json</code> exports or <code>.zip</code>{' '}
         archives containing JSON files, including files in folders. Valid files are imported even if
-        others fail. New plans become Official 1.0.0; revisions require Make Official. Up to 50 JSON
-        files, 5 MB per JSON file and 50 MB per ZIP. Review the report below after uploading.
+        others fail. Unchanged files are skipped, so you can re-upload a corrected ZIP. New plans
+        become Official 1.0.0; revisions require Make Official. Up to 50 JSON files, 5 MB per JSON
+        file and 50 MB per ZIP. Review the report below after uploading.
       </p>
       {/* Classed, not inline-styled: the class is what lets the shared admin button block reach
           Upload. It was the last control on Manage rendering as stock Payload (operator report,

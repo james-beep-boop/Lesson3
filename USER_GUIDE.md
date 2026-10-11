@@ -120,8 +120,9 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   the site if you forget your password.
 - **Manage lesson plans:** upload ARES JSON files or ZIP archives of JSON files. Valid files are
   imported even when others fail; review the report for imported, rejected and skipped files.
-  New plans receive their first Official version; re-uploading an existing sub-strand creates a
-  Not Official revision for review. You can also repair plans that have no Official version, delete
+  Unchanged files are skipped, so you can re-upload a corrected ZIP after a partial import.
+  New plans receive their first Official version; changed content for an existing sub-strand creates
+  a Not Official revision for review. You can also repair plans that have no Official version, delete
   lesson plans (with all their versions), and reach the People and Curriculum lists.
 - **Create accounts without email:** use _Manage → Users → Accounts → Create user_, then open the new
   account and choose _Mark verified_. The person cannot sign in until that is done. Use _Make Site

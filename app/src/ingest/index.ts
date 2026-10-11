@@ -34,7 +34,8 @@ import { IngestError } from './errors'
 import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
-import { nextMajorForPlan } from '../lib/semver'
+import { bumpSemver, compareSemver, nextMajorForPlan } from '../lib/semver'
+import { comparableIngestContent } from './contentEquality'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 
@@ -231,7 +232,37 @@ export type IngestItem = {
 }
 
 export type IngestRejection = { file: string; error: string }
-export type IngestReport = { bundles: IngestResult[]; rejected: IngestRejection[] }
+export type IngestReport = {
+  bundles: IngestResult[]
+  rejected: IngestRejection[]
+  skipped: IngestRejection[]
+}
+
+/** Fetch only the highest numeric semver's content, using the locked write transaction. */
+async function latestVersionForPlan(payload: Payload, planId: number, req: IngestReq) {
+  const { docs } = await payload.find({
+    collection: 'lesson-bundle-versions',
+    where: { lessonPlan: { equals: planId } },
+    pagination: false,
+    depth: 0,
+    select: { semver: true },
+    overrideAccess: true,
+    req,
+  })
+  const latest = docs.reduce<(typeof docs)[number] | undefined>(
+    (max, doc) => (!max || compareSemver(doc.semver, max.semver) > 0 ? doc : max),
+    undefined,
+  )
+  return latest
+    ? payload.findByID({
+        collection: 'lesson-bundle-versions',
+        id: latest.id,
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+    : null
+}
 
 /** Read-only validation shared by the atomic CLI and partial web upload. */
 async function prepareItems(
@@ -336,7 +367,7 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
         rejected.map((r) => `${r.file}: ${r.error}`).join('\n  - '),
     )
   }
-  return writePrepared(payload, prepared)
+  return (await writePrepared(payload, prepared)).bundles
 }
 
 /**
@@ -349,11 +380,18 @@ export async function ingestUploadItems(
   items: IngestItem[],
 ): Promise<IngestReport> {
   const { prepared, rejected } = await prepareItems(payload, items, true)
-  const bundles = prepared.length > 0 ? await writePrepared(payload, prepared) : []
-  return { bundles, rejected }
+  const written =
+    prepared.length > 0
+      ? await writePrepared(payload, prepared, true)
+      : { bundles: [], skipped: [] }
+  return { ...written, rejected }
 }
 
-async function writePrepared(payload: Payload, prepared: Prepared[]): Promise<IngestResult[]> {
+async function writePrepared(
+  payload: Payload,
+  prepared: Prepared[],
+  skipUnchanged = false,
+): Promise<Pick<IngestReport, 'bundles' | 'skipped'>> {
   // Phase 2 — write all bundles in one transaction.
   const req: IngestReq = { payload }
   await initTransaction(req)
@@ -368,18 +406,31 @@ async function writePrepared(payload: Payload, prepared: Prepared[]): Promise<In
       prepared.map((p) => p.subjectGrade),
     )
     const results: IngestResult[] = []
+    const skipped: IngestRejection[] = []
     for (const { name, data, subjectGrade, substrandId, warnings, ...p } of prepared) {
       const existingPlanId =
         p.existingPlanId ??
         (substrandId ? await findExistingPlan(payload, subjectGrade, substrandId, req) : null)
       if (existingPlanId != null) {
+        const latest = skipUnchanged
+          ? await latestVersionForPlan(payload, existingPlanId, req)
+          : null
+        if (latest && comparableIngestContent(data) === comparableIngestContent(latest)) {
+          skipped.push({
+            file: name,
+            error: `Unchanged — matches latest saved version ${latest.semver}`,
+          })
+          continue
+        }
         // RE-INGEST (SPEC §7): attach as the next MAJOR version of the existing plan, arriving
         // Not Official. The Official pointer is NOT moved and the plan title is NOT refreshed — the
         // canonical (Official) content is unchanged until a Subject/Site Admin promotes this
         // candidate via Make Official (deliberate review gate, decided 2026-07-05). No sourceVersion
         // (this is an ingest, not a fork). nextMajorForPlan sees the plan's committed versions;
         // the unique (lessonPlan, semver) index is the backstop.
-        const semver = await nextMajorForPlan(payload, existingPlanId, req)
+        const semver = latest
+          ? bumpSemver(latest.semver, 'major')
+          : await nextMajorForPlan(payload, existingPlanId, req)
         await payload.create({
           collection: LESSON_BUNDLE_VERSIONS,
           data: {
@@ -462,7 +513,7 @@ async function writePrepared(payload: Payload, prepared: Prepared[]): Promise<In
       })
     }
     await commitTransaction(req)
-    return results
+    return { bundles: results, skipped }
   } catch (e) {
     await killTransaction(req)
     throw e

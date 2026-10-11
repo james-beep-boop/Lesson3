@@ -17,7 +17,14 @@ Operator request: accept a ZIP containing multiple JSON lesson plans, import all
 reject malformed files, and report the outcome. Web uploads now use shared read-only validation
 and commit the valid subset; the developer CLI retains its atomic batch contract. Duplicate
 sub-strand identities in one upload reject every member of that group rather than choosing a
-winner. Re-ingest still creates the next major version, Not Official.
+winner. Changed content creates the next major version, Not Official.
+
+Web re-uploads compare with the highest numeric saved version, including Not Official versions,
+inside the subject-grade write lock. Identical content is reported as "Unchanged" in skipped files,
+without a new version or a change to the Official pointer. Storage-added IDs, empty optional fields
+and derived row numbers do not count as content changes. This makes re-uploading a corrected archive
+safe after a partial import. An entirely unchanged upload is a successful no-op. The CLI retains its
+existing revision behavior; empty sub-strand identities still cannot be matched.
 
 ZIPs are read in memory with the already-pinned JSZip dependency. Nested JSON files are supported;
 other entries are reported as skipped. Compressed size, expanded per-JSON size, JSON count and
@@ -26,28 +33,9 @@ CRC checking would inflate all entries before those limits, so it is not enabled
 and per-file parsing/validation/taxonomy failures appear in the rejection report. Unexpected database
 lookup failures abort pre-flight before writes; write failures roll back the valid subset.
 
-Validation: 15 focused unit tests, 10 ingest integration tests, 10 upload HTTP checks and a real
-Chromium upload test passed, using isolated databases. Type checking, lint and formatting passed.
-The browser check covered both a mixed ZIP (two imported, two rejected, one skipped) and an
-all-rejected ZIP, including the report surviving refresh and replacing the previous result.
-
-
-Shutdown review on the current `origin/main` base re-ran all 15 focused unit and 10 ingest
-integration tests, plus lint, formatting and type checking; all pass. Published separately from
-the forum. The earlier HTTP/browser checks are retained above as provenance; the final branch's
-production build, HTTP and full browser gate will be checked by CI before merge.
-
-Follow-up CI review: four existing null-resource HTTP tests still expected validation details in
-the top-level error. Uploads now return those details in `rejected`, including when every file is
-invalid. The tests now assert the rejected filename and validation reason, zero imports and empty
-bundle/skip lists. They also compare actual plan and version counts before and after each rejected
-upload; the previous "nothing written" test names did not prove that promise. When an endpoint's
-response contract changes, search all of its wire-level callers, including older regression suites.
-
-Follow-up verification on a fresh production build and migrated disposable database: all 282 HTTP
-tests pass, including the four corrected assertions and ZIP authorization/partial-import cases.
-The real Chromium mixed/all-rejected ZIP scenario passes with retries disabled. All 15 focused
-unit tests, lint, formatting and type checks pass too. The full browser suite remains a CI check.
+Lesson from the upload response change: search every wire-level caller when a response contract
+changes, including older regression suites. Assert per-file rejection reasons and actual unchanged
+plan/version counts; a test named "nothing written" is insufficient without checking stored data.
 
 ## 2026-10-11 — Discussions 4a: the forum for every signed-in user
 

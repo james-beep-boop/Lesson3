@@ -12,7 +12,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 Site Administrators can upload ZIP archives of ARES JSON lesson plans, including nested folders.
 Valid files import even when neighbours are malformed; the report lists imports, rejections with
-reasons and skipped non-JSON files. Existing sub-strands become Not Official major revisions.
+reasons and skipped files. Unchanged files are skipped when re-uploading a corrected archive;
+changed content for existing sub-strands becomes a Not Official major revision.
 The developer CLI retains its all-or-nothing batch behavior. Archives stay in memory; input count
 and compressed/expanded sizes are bounded.
 

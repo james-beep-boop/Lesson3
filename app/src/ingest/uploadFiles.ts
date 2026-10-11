@@ -1,5 +1,6 @@
 /** JSON/ZIP input preparation. Archives stay in memory; uploaded paths never touch the filesystem. */
 import JSZip from 'jszip'
+import type { Readable } from 'node:stream'
 
 import type { IngestItem, IngestRejection } from './index'
 import { IngestError } from './errors'
@@ -14,14 +15,14 @@ const MAX_ZIP_ENTRIES = 1000
 /** Stop inflation at the actual byte limit, including when ZIP size metadata is dishonest. */
 function readJsonEntry(entry: JSZip.JSZipObject): Promise<Record<string, unknown>> {
   // JSZip uses readable-stream 2, whose streams do not support async iteration.
-  const stream = entry.nodeStream('nodebuffer')
+  const stream = entry.nodeStream('nodebuffer') as Readable
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     let size = 0
     stream.on('data', (chunk: Buffer) => {
       size += chunk.length
       if (size > MAX_FILE_BYTES) {
-        stream.pause()
+        stream.destroy()
         chunks.length = 0
         reject(new IngestError(`Exceeds the ${MAX_FILE_BYTES}-byte JSON limit`))
         return
