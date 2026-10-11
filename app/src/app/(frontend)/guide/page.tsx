@@ -6,14 +6,15 @@ import { GuideAccordion, GuideAccordionPanel } from '@/components/Guide/Accordio
 import { computeGuideAvailablePanels } from '@/components/Guide/availability'
 import { resolveGuidePanelState, type GuidePanelId } from '@/components/Guide/panelState'
 import { requireUser } from '@/lib/session'
+import { systemFlagsForRender } from '@/lib/systemFlags'
 
 type UserGuidePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 export default async function UserGuidePage({ searchParams }: UserGuidePageProps) {
-  const [{ user }, params] = await Promise.all([requireUser(), searchParams])
-  const available = computeGuideAvailablePanels(user)
+  const [{ payload, user }, params] = await Promise.all([requireUser(), searchParams])
+  const available = computeGuideAvailablePanels(user, await systemFlagsForRender(payload))
   const { open, focusTarget } = resolveGuidePanelState(params, available)
   const can = (id: GuidePanelId) => available.includes(id)
 
@@ -175,6 +176,65 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               </GuideAccordionPanel>
             )}
 
+            {can('teachers.discussions') && (
+              <GuideAccordionPanel id="teachers.discussions" title="Start a discussion and reply">
+                <ol className="guide-steps">
+                  <li>
+                    Open <em>Discuss</em>, choose <em>Start a discussion</em>, and write a title and
+                    post. Name the lesson and the question or change.
+                  </li>
+                  <li>
+                    Choose <em>Post</em>. Every signed-in user can read and reply. Write plain text;
+                    web links become clickable.
+                  </li>
+                  <li>
+                    Open a thread to reply. Replies appear oldest first. Pinned topics stay above
+                    the list of latest activity.
+                  </li>
+                </ol>
+                <p>
+                  Search covers titles only. Posts cannot be edited. Only a Site administrator can
+                  delete a thread. You can make up to 100 posts per day, including replies.
+                </p>
+                <p>
+                  The blue dot means new posts in discussions you started or replied to, or
+                  discussions started about a saved version you authored. Your own replies do not
+                  light the dot. A blue marker identifies the unread thread in the list. Reading
+                  alone does not subscribe you.
+                </p>
+                <p>
+                  Reading a thread marks the posts shown as read. Follow reply pages in order;
+                  jumping ahead leaves earlier posts unread. The dot updates on navigation or
+                  reload.
+                </p>
+                <p>
+                  Your forum text stays only in the form. Copy it before leaving, reloading or
+                  signing in again. If a result is uncertain, keep the form open and choose{' '}
+                  <em>Try again</em>; the fields stay locked until Lesson3 finds the post or
+                  confirms it was posted.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('teachers.discussion-references') && (
+              <GuideAccordionPanel
+                id="teachers.discussion-references"
+                title="Add a lesson reference"
+              >
+                <p>
+                  In either composer, choose <em>Add lesson reference</em>, find a lesson by title,
+                  then choose one of its saved versions. You can remove a prefilled reference before
+                  posting.
+                </p>
+                <p>
+                  From a lesson page, <em>Share → Discuss this version</em> opens a discussion with
+                  that version already attached. <em>Compare changes</em> appears when its source
+                  version is still available. If the referenced version is deleted, its label
+                  remains with no link to another version.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
             {can('teachers.request-editing') && (
               <GuideAccordionPanel id="teachers.request-editing" title="Request editing access">
                 <ol className="guide-steps">
@@ -323,6 +383,20 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <em>Spacing or document structure changed</em>, the words are the same but
                   arranged differently. Lesson3 compares outcomes, overview, implementation
                   framework, teacher reflection, and summary prompts separately.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('editing.discuss-changes') && (
+              <GuideAccordionPanel id="editing.discuss-changes" title="Discuss your saved changes">
+                <p>
+                  After saving a version, choose <em>Post about these changes</em> beside{' '}
+                  <em>Compare to Official</em> on your saved version. It opens a discussion with
+                  that version attached. Explain what changed and invite colleagues’ suggestions.
+                </p>
+                <p>
+                  Starting a discussion that references someone else’s saved version includes its
+                  author in the discussion’s blue-dot notifications.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -595,14 +669,42 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('site-admins.system') && (
               <GuideAccordionPanel id="site-admins.system" title="Check site and backup status">
                 <p>
-                  <em>Manage → System</em> shows the site address, whether email and public sharing
-                  are available, whether PDFs are working, where backups are sent, when the last
-                  backup succeeded, and whether this site keeps the key needed to open its backups.
+                  <em>Manage → System → Installation status</em> shows the site address, whether
+                  email and public sharing are available, whether PDFs are working, where backups
+                  are sent, when the last backup succeeded, and whether this site keeps the key
+                  needed to open its backups.
                 </p>
                 <p>
                   A successful backup means an encrypted copy was sent. It does not prove the backup
-                  can be restored. You cannot change these settings on this page; ask the person who
-                  manages the server to change them.
+                  can be restored. You cannot change these installation settings on this page; ask
+                  the person who manages the server to change them.
+                </p>
+              </GuideAccordionPanel>
+            )}
+            {can('site-admins.discussions') && (
+              <GuideAccordionPanel
+                id="site-admins.discussions"
+                title="Switch and moderate Discussions"
+              >
+                <p>
+                  Discussions are on by default. In <em>Manage → System → Features</em>, change{' '}
+                  <em>Discussions enabled</em> and choose <em>Save</em>. Review the change and enter
+                  your password. The switch stays unchanged until Save succeeds. If someone else
+                  saved settings first, reload before saving.
+                </p>
+                <p>
+                  On a thread, use <em>Pin</em> or <em>Unpin</em> to change its position.{' '}
+                  <em>Redact topic</em> lets you remove the title, opening post, or both;{' '}
+                  <em>Redact reply</em> removes one reply’s text. Redaction cannot be undone.
+                  Existing backups keep the text until they age out. <em>Delete thread</em> removes
+                  the entire thread and every reply, and cannot be undone. Each action asks for
+                  confirmation.
+                </p>
+                <p>
+                  Switching Discussions off hides its pages and entry points from other users;
+                  existing discussions are kept. Follow <em>Moderate discussions</em> beside the
+                  switch to read, redact or delete while it is off. This view has no search,
+                  posting, pinning or unread tracking.
                 </p>
               </GuideAccordionPanel>
             )}

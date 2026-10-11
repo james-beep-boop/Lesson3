@@ -11,6 +11,8 @@ export const GUIDE_PANEL_IDS = [
   'teachers.favorites',
   'teachers.documents',
   'teachers.messages',
+  'teachers.discussions',
+  'teachers.discussion-references',
   'teachers.request-editing',
   'editing',
   'editing.open-edit',
@@ -18,6 +20,7 @@ export const GUIDE_PANEL_IDS = [
   'editing.saved-versions',
   'editing.recovery',
   'editing.compare',
+  'editing.discuss-changes',
   'editing.writing',
   'subject-admins',
   'subject-admins.promote',
@@ -35,6 +38,7 @@ export const GUIDE_PANEL_IDS = [
   'site-admins.repair',
   'site-admins.delete',
   'site-admins.system',
+  'site-admins.discussions',
   'role-notes',
 ] as const
 

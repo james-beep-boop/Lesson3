@@ -8,6 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased — Discussions
+
+- **Discuss** brings teachers together around lesson-plan changes, questions and improvements. Topics
+  show latest activity, chronological replies, title-only search, saved-version references, and a blue
+  dot for unread posts in discussions you participate in. **Discuss this version** and **Post about
+  these changes** attach the version automatically. Existing app accounts and permissions apply.
+- Discussions are **on by default**. Site Administrators can switch them off in **Manage → System →
+  Features**, with a password-confirmed Save. Discussions are kept while off; administrators retain a
+  moderation-only view through **Moderate discussions** beside the switch.
+- Administrators can pin a suggested welcome topic explaining how to share lesson improvements and
+  ask questions. They can redact titles or posts and delete entire threads, each after confirmation.
+  Redaction cannot be undone; existing backups keep the text until they age out.
+- The in-app Guide follows the forum switch; the complete `USER_GUIDE.md` includes the new workflows.
+  **Release hold remains until discussions 4c merges. No release is tagged by this change.**
+
 ## Unreleased — ZIP lesson-plan uploads
 
 Site Administrators can upload ZIP archives of ARES JSON lesson plans, including nested folders.
@@ -16,7 +31,6 @@ reasons and skipped files. Unchanged files are skipped when re-uploading a corre
 changed content for existing sub-strands becomes a Not Official major revision.
 The developer CLI retains its all-or-nothing batch behavior. Archives stay in memory; input count
 and compressed/expanded sizes are bounded.
-
 
 ## v0.93 (2026-10-09)
 

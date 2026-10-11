@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { User } from '@/payload-types'
 
 const session = vi.hoisted(() => ({ requireUser: vi.fn() }))
+const flags = vi.hoisted(() => ({ forumEnabled: true }))
 vi.mock('@/lib/session', () => ({ requireUser: session.requireUser }))
+vi.mock('@/lib/systemFlags', () => ({ systemFlagsForRender: async () => flags }))
 
 import UserGuidePage from '@/app/(frontend)/guide/page'
 
@@ -21,9 +23,52 @@ async function renderGuide(currentUser: User) {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  flags.forumEnabled = true
 })
 
 describe('role-aware guide content', () => {
+  const roles = [
+    ['Teacher', user()],
+    ['Teacher with editing access', user({ assignments: [{ subjectGrade: 10, role: 'editor' }] })],
+    [
+      'Subject-grade administrator',
+      user({ assignments: [{ subjectGrade: 10, role: 'subjectAdmin' }] }),
+    ],
+    ['Site administrator', user({ roles: ['siteAdmin'] })],
+  ] as const
+
+  it.each(roles)('shows the forum tasks to a %s while on', async (_label, currentUser) => {
+    await renderGuide(currentUser)
+    fireEvent.click(screen.getByRole('button', { name: 'Teachers' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Editing' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Site administrators' }))
+    expect(screen.getByRole('button', { name: 'Start a discussion and reply' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add a lesson reference' })).toBeTruthy()
+    expect(!!screen.queryByRole('button', { name: 'Discuss your saved changes' })).toBe(
+      !!currentUser.roles?.length || !!currentUser.assignments?.length,
+    )
+    expect(!!screen.queryByRole('button', { name: 'Switch and moderate Discussions' })).toBe(
+      currentUser.roles?.includes('siteAdmin') === true,
+    )
+  })
+
+  it.each(roles)(
+    'hides posting tasks from a %s while off and retains only administrator moderation',
+    async (_label, currentUser) => {
+      flags.forumEnabled = false
+      await renderGuide(currentUser)
+      fireEvent.click(screen.getByRole('button', { name: 'Teachers' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Editing' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Site administrators' }))
+      expect(screen.queryByRole('button', { name: 'Start a discussion and reply' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Add a lesson reference' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Discuss your saved changes' })).toBeNull()
+      expect(!!screen.queryByRole('button', { name: 'Switch and moderate Discussions' })).toBe(
+        currentUser.roles?.includes('siteAdmin') === true,
+      )
+    },
+  )
+
   it('renders all five overviews and teacher tasks for a Teacher without admin walkthroughs', async () => {
     await renderGuide(user())
 

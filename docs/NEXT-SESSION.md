@@ -25,7 +25,56 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# DISCUSSIONS FORUM — HANDOFF (2026-10-11): 4a merged; build 4b next
+# DISCUSSIONS FORUM — CURRENT (2026-10-11): 4b and 4c verified; publication authorized
+
+PRs #378 (4a) and #379 (handoff) merged. The isolated worktree is
+`/Users/jamesmcclelland/Developer/Lesson3-discussions-4b`, branch `feat/discussions-4c`, based on
+`8bca543`. **4b is committed as `4af1705` and pushed. 4c follows as its own stacked PR. Do not tag until 4c merges.**
+
+Read §16.5 and the newest DECISIONS entry. Implemented:
+- 4b: confirmation-based pin/redact/delete, password-confirmed System → Features Save, moderation
+  link, off-state administrator reading without participation/search/posting/pinning.
+- 4c: role/flag-filtered Guide, `USER_GUIDE.md`, SPEC §10 and Unreleased release notes. Finished-app
+  helper timings are measured on both Mac and Rock 5B. Read
+  `docs/spikes/discussions-finished-2026-10-11/RESULTS.md` for reproducible results and limitations:
+  the Rock runner uses an older Next dependency; this is not a full Rock browser/build gate.
+- A browser check caught stale navigation after switch-off. One shared frontend refresh on pathname/query changes
+  updates the header while preserving soft links and form state. No polling, new API, migrations or
+  generated types. The tradeoff is an extra render request after soft navigation.
+
+Keep 4b implementation/tests and 4c Guide/docs/tests separately reviewable:
+- 4b: moderation and System Features components, discussion read pages/helper changes, admin
+  dashboard/panel vocabulary, shared navigation refresh, scoped styles and their tests. Include
+  the two existing browser-test synchronization fixes here.
+- 4c: Guide page/availability/vocabulary, `USER_GUIDE.md`, SPEC, Guide tests, Unreleased notes
+  and the finished-app probe/report. Update the shared design/decision/handoff records in each
+  commit so that they describe its actual state.
+
+The user authorized commit/push and ZIP inclusion on 2026-10-11. Create separate reviewable PRs;
+retarget 4c to `main` after 4b merges before arming its auto-merge.
+The primary checkout's unrelated ZIP upload and historical forum work remain untouched. The locked
+Claude worktree also remains. Never mix these trees' changes.
+
+Verification uses only disposable Compose project `lesson3-forum4b-probe`, production mode for HTTP
+and e2e, and a separate `lesson3_test` integration database. Run fixture-writing suites serially.
+`app/test.env` is restored. Both probes' temporary containers/data are removed; live services are
+untouched. Verification on 2026-10-11:
+- 1,348 unit tests; 287 integration; 280 production HTTP.
+- Full browser suite: 74 pass with retries disabled, including all 17 forum cases.
+- Display-name browser synchronization fix: five consecutive passes; saved-version suite: four
+  passes. The fix waits for the successful Save's reload, not a timer or router-internals check.
+- Fourteen runtime guard mutations caught and restored.
+- Lint, formatting, tsc, app-router check, migrations and production build pass.
+- Desktop and phone moderation views checked. Final Guide wording passes all 37 parity tests.
+
+Next: finish publishing the stacked 4b/4c PRs and review ZIP ingest in a separate branch.
+`origin/main` was refreshed and still equals `8bca543`. Keep the release hold until 4c merges.
+No release or deployment has been performed.
+
+---
+
+# HISTORICAL HANDOFF (2026-10-11): Claude's 4a handoff
+
 
 **State.** PRs 1–3 and 4a have merged:
 - #371: the missing-version notice.
