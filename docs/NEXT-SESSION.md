@@ -25,7 +25,27 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# RELEASE PREPARATION — 2026-10-12: final UI cleanup and v0.94
+# RELEASE v0.94 PUBLISHED — 2026-10-12; native publishing follow-up
+
+**v0.94 is published and verified** at tag `v0.94`, commit `319d9bb`, after the final main gate
+passed: 1,381 unit, 294 integration, 286 HTTP and 79 browser tests. PRs #383, #384 and #385 are
+merged. The downloaded bundle's checksum and version passed, and both image pins resolve to
+amd64 and arm64 indexes. The GitHub release page includes the nginx upgrade note. The operator
+handles deployment; this work did not change a running installation.
+
+Publishing attempt 1 stalled in ARM dependency installation under emulation. Retrying only the app
+job on a fresh runner succeeded, retaining the completed migration image. The native-publishing
+follow-up builds each platform on its matching runner and verifies the joined index and the exact
+pins in the bundle before publication. It also makes a native ARM production build part of CI.
+It changes publishing and CI, without changing the application or retagging v0.94.
+
+**Resume:** confirm the native-publishing PR and its main CI passed. Future release tags use the
+native workflow after that change merges. There is no remaining forum release hold. v0.94's
+immutable tag retains the workflow used for that release; do not move it to include this follow-up.
+
+---
+
+# HISTORICAL RELEASE PREPARATION — 2026-10-12: final UI cleanup and v0.94
 
 The operator authorized merging the remaining changes and publishing the release, and confirmed
 that they will handle deployment. Publish and verify v0.94; leave the running installation unchanged.
