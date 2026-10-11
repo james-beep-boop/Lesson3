@@ -250,6 +250,8 @@ describe('partial web ingest', () => {
   it('compares the latest numeric version, including Not Official content, and retains CLI revisions', async () => {
     const original = rawBundle('97.93', 'Latest version')
     const [plan] = await ingestItems(payload, [item('latest.json', original)])
+    // Include 2.0.0 so a lexical sort would incorrectly choose it over 10.0.0.
+    await ingestItems(payload, [item('latest.json', original)])
     const changed = rawBundle('97.93', 'Latest version')
     ;(changed.LESSONS as Record<string, unknown>[])[0].overview = 'Changed prose'
     await payload.create({
@@ -272,7 +274,7 @@ describe('partial web ingest', () => {
     })
     const [cli] = await ingestItems(payload, [item('latest.json', original)])
     expect(cli.semver).toBe('12.0.0')
-    expect(await versionsOf(plan.id)).toEqual(['1.0.0', '10.0.0', '11.0.0', '12.0.0'])
+    expect(await versionsOf(plan.id)).toEqual(['1.0.0', '2.0.0', '10.0.0', '11.0.0', '12.0.0'])
     const official = await payload.findByID({
       collection: 'lesson-bundle-versions',
       id: (await officialOf(plan.id))!,
