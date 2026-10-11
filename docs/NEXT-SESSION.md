@@ -25,51 +25,57 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# DISCUSSIONS FORUM — CURRENT (2026-10-11): 4b and 4c verified; publication authorized
+# SHUTDOWN HANDOFF — 2026-10-11: forum and ZIP changes published
 
-PRs #378 (4a) and #379 (handoff) merged. The isolated worktree is
-`/Users/jamesmcclelland/Developer/Lesson3-discussions-4b`, branch `feat/discussions-4c`, based on
-`8bca543`. **4b is committed as `4af1705` and pushed. 4c follows as its own stacked PR. Do not tag until 4c merges.**
+The user authorized commit, push, cleanup and ZIP inclusion. Everything below is pushed; no release
+or deployment has been performed. **Do not tag a release until Discussions 4c merges.**
 
-Read §16.5 and the newest DECISIONS entry. Implemented:
-- 4b: confirmation-based pin/redact/delete, password-confirmed System → Features Save, moderation
-  link, off-state administrator reading without participation/search/posting/pinning.
-- 4c: role/flag-filtered Guide, `USER_GUIDE.md`, SPEC §10 and Unreleased release notes. Finished-app
-  helper timings are measured on both Mac and Rock 5B. Read
-  `docs/spikes/discussions-finished-2026-10-11/RESULTS.md` for reproducible results and limitations:
-  the Rock runner uses an older Next dependency; this is not a full Rock browser/build gate.
-- A browser check caught stale navigation after switch-off. One shared frontend refresh on pathname/query changes
-  updates the header while preserving soft links and form state. No polling, new API, migrations or
-  generated types. The tradeoff is an extra render request after soft navigation.
+| PR | Branch / commit | State at shutdown |
+|---|---|---|
+| [#380: Discussions 4b](https://github.com/james-beep-boop/Lesson3/pull/380) | `feat/discussions-4b`, `4af1705` | Base `main`; CI running; squash auto-merge armed |
+| [#381: Discussions 4c](https://github.com/james-beep-boop/Lesson3/pull/381) | `feat/discussions-4c`, implementation `35a5845` plus this handoff | Stacked on 4b; auto-merge OFF |
+| [#382: ZIP ingest](https://github.com/james-beep-boop/Lesson3/pull/382) | `feat/zip-ingest`, `225a5d3` | Base `main`; final CI pending; auto-merge OFF |
 
-Keep 4b implementation/tests and 4c Guide/docs/tests separately reviewable:
-- 4b: moderation and System Features components, discussion read pages/helper changes, admin
-  dashboard/panel vocabulary, shared navigation refresh, scoped styles and their tests. Include
-  the two existing browser-test synchronization fixes here.
-- 4c: Guide page/availability/vocabulary, `USER_GUIDE.md`, SPEC, Guide tests, Unreleased notes
-  and the finished-app probe/report. Update the shared design/decision/handoff records in each
-  commit so that they describe its actual state.
+**Resume in this order:**
+1. Check #380. If its CI fails, fix the reported failure; otherwise let the guarded auto-merge finish.
+2. Only after #380 is merged, fetch `origin/main` and rebase 4c to drop the original 4b commit:
+   `git rebase --onto origin/main 4af1705 feat/discussions-4c`. Squash merge changes the parent commit
+   identity, so merely retargeting the PR leaves 4b appearing in 4c's diff. Resolve documentation
+   conflicts by preserving both forum and ZIP entries. Push with `--force-with-lease`, retarget #381
+   to `main`, and wait for its final CI before enabling squash auto-merge. Never merge 4c into 4b.
+3. Review #382's final CI. ZIP's earlier HTTP/browser checks are provenance; the shutdown review did
+   not rebuild its final app locally. Merge only after its production/wire/browser CI passes.
+   If #381 merged first, rebase ZIP and keep both features' documentation, then re-run CI.
+4. The release hold lifts only when #381 has merged. No tag is authorized by this handoff.
 
-The user authorized commit/push and ZIP inclusion on 2026-10-11. Create separate reviewable PRs;
-retarget 4c to `main` after 4b merges before arming its auto-merge.
-The primary checkout's unrelated ZIP upload and historical forum work remain untouched. The locked
-Claude worktree also remains. Never mix these trees' changes.
+**Implementation:** 4b supplies confirmed pin/unpin, title/post/reply redaction and whole-thread
+ deletion, password-confirmed System Features Save, and administrator-only moderation while off.
+4c adds the role/flag-filtered Guide, `USER_GUIDE.md`, SPEC and release notes. The shared frontend
+navigation refresh fixes cached Discuss visibility after switch-off; it runs on pathname/query
+changes with no polling and preserves client form state. The tradeoff is one extra render request
+per soft navigation. The existing display-name browser test now waits for Save's document reload.
 
-Verification uses only disposable Compose project `lesson3-forum4b-probe`, production mode for HTTP
-and e2e, and a separate `lesson3_test` integration database. Run fixture-writing suites serially.
-`app/test.env` is restored. Both probes' temporary containers/data are removed; live services are
-untouched. Verification on 2026-10-11:
-- 1,348 unit tests; 287 integration; 280 production HTTP.
-- Full browser suite: 74 pass with retries disabled, including all 17 forum cases.
-- Display-name browser synchronization fix: five consecutive passes; saved-version suite: four
-  passes. The fix waits for the successful Save's reload, not a timer or router-internals check.
-- Fourteen runtime guard mutations caught and restored.
-- Lint, formatting, tsc, app-router check, migrations and production build pass.
-- Desktop and phone moderation views checked. Final Guide wording passes all 37 parity tests.
+**Forum verification:** 1,348 unit, 287 integration, 280 production HTTP and all 74 browser tests
+pass, with browser retries disabled. All 17 focused forum cases pass; the display-name test passes
+five consecutive repetitions. Fourteen guard mutations are caught and restored. Lint, formatting,
+types, migrations, app-router check and production build pass; phone/desktop moderation UI reviewed.
+The final Guide clarification passes 37 parity tests. Finished-app Mac/Rock helper results and
+limitations are in `docs/spikes/discussions-finished-2026-10-11/RESULTS.md`; Rock uses an older Next
+runner, so those measurements are not a full Rock application gate.
 
-Next: finish publishing the stacked 4b/4c PRs and review ZIP ingest in a separate branch.
-`origin/main` was refreshed and still equals `8bca543`. Keep the release hold until 4c merges.
-No release or deployment has been performed.
+**ZIP shutdown review:** 15 focused unit, 10 ingest integration and 27 Guide parity tests pass;
+lint, formatting and types pass. Nested JSON and partial failures are supported, duplicate identities
+are rejected together, size/count limits apply, and database failures abort/roll back. No new package,
+migration or generated type. See SPEC §7 and the ZIP decision entry for the behavior contract.
+
+**Cleanup/recovery:** the primary checkout `/Users/jamesmcclelland/Developer/Lesson3` is clean on
+`main` at `8bca543`. Its old mixed uncommitted tree is preserved in the recovery stash with hash
+`67fd16efe3cc3aa8eaa4036943e6611bce2ef4d8`, labelled `Shutdown recovery 2026-10-11: historical merged
+4a work and extracted ZIP source`. Restore selectively into an isolated branch if needed; do not
+apply that historical forum tree over current main. Temporary verification databases/containers and
+Rock probe files are removed; live services were untouched. `app/test.env` is restored in every tree.
+The locked Claude checkout is retained. Clean isolated publication worktrees may be removed safely
+because their branch heads are pushed; create a fresh worktree to resume.
 
 ---
 

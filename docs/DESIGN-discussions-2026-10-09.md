@@ -1,7 +1,7 @@
 # Lesson3 discussion forum
 
 Planning record started: 2026-10-08 (Asia/Tokyo).
-Status (2026-10-11): **design confirmed; the server side (PRs 1–3) and the forum for every user (4a, #378) are built; 4b and 4c are implemented in the isolated `feat/discussions-4b` worktree, with verification complete and publication authorized; 4b is pushed as `4af1705`, and 4c follows in a separate PR. The release hold remains until 4c merges.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
+Status (2026-10-11): **design confirmed; the server side (PRs 1–3) and the forum for every user (4a, #378) are built; 4b and 4c are implemented in the isolated `feat/discussions-4b` worktree, with verification complete and publication authorized; 4b is pushed as `4af1705` (#380), and 4c is pushed as `35a5845` (#381). The release hold remains until 4c merges.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
 
 This document records the product discussion before option research. User-confirmed
 requirements take precedence over earlier suggestions. Research findings below include sources, dates, and limits on what has been verified. SPEC.md remains the
@@ -606,7 +606,7 @@ it introduces no implementation changes.
 
 ## 16. Design — 2026-10-09
 
-**Status (2026-10-11): design confirmed; server side and 4a merged; 4b and 4c implemented and verified; 4b pushed as `4af1705`, 4c publication authorized.** Implementation was
+**Status (2026-10-11): design confirmed; server side and 4a merged; 4b and 4c implemented and verified; 4b pushed as `4af1705` (#380), 4c pushed as `35a5845` (#381).** Implementation was
 approved, and these have landed:
 - the missing-version notice (#371);
 - System Save and the `forumEnabled` flag (#373, #374);

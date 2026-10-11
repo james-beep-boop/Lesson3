@@ -14,8 +14,8 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 ## 2026-10-11 — Discussions handoff: 4b and 4c implementation and publication
 
 Claude's 4a (#378) and handoff (#379) are merged. Work continues from `8bca543` in an isolated
-`feat/discussions-4b` worktree; the main checkout's ZIP-upload and historical forum changes remain
-untouched. The user authorized publication; 4b is pushed as `4af1705`, and 4c follows in a separate PR. Neither is released. **Do not tag until 4c merges.**
+`feat/discussions-4b` worktree; the main checkout's ZIP-upload and historical forum changes were
+kept isolated. The user authorized publication; 4b is pushed as `4af1705`, and 4c is pushed as `35a5845` (#381). Neither is released. **Do not tag until 4c merges.**
 
 - The administrator controls reuse the protected moderation endpoints and shared Modal. Topic
   redaction sends only checked parts; reply redaction uses the reply's database id. Pin is hidden
@@ -58,7 +58,14 @@ case passes five consecutive repetitions, and the final Guide clarification pass
 Lint, formatting, type checking, app-router validation, migrations and the production build pass.
 Fourteen guard mutations are caught and restored. Desktop/phone moderation screens were reviewed.
 The disposable test stack is removed; `app/test.env`, the vendor generator, schema/type generation
-and dependency pins are unchanged. 4b is committed/pushed; 4c publication is authorized. Nothing is deployed or tagged.
+and dependency pins are unchanged. 4b and 4c are committed/pushed in #380 and #381. Nothing is deployed or tagged.
+
+Shutdown publication: ZIP ingest is independently pushed as `225a5d3` (#382), after 15 unit,
+10 ingest integration and 27 Guide parity checks plus clean lint/format/types on current main.
+Its final production/wire/browser gate remains pending in CI. The original mixed working tree is
+preserved in recovery stash `67fd16efe3cc3aa8eaa4036943e6611bce2ef4d8`; the primary checkout is clean.
+4c must be rebased after 4b's squash merge and retargeted to main before enabling auto-merge.
+See NEXT-SESSION for the exact resume sequence.
 
 ## 2026-10-11 — ZIP uploads import valid JSON despite malformed neighbours
 
