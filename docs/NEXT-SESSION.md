@@ -25,7 +25,29 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# RELEASE PREPARATION — 2026-10-11: Discussions and ZIP imports
+# RELEASE PREPARATION — 2026-10-12: final UI cleanup and v0.94
+
+The operator authorized merging the remaining changes and publishing the release. Confirm the
+deployment target separately before changing a running installation.
+
+- Discussions 4a–4c and ZIP imports have merged. The forum release hold is satisfied.
+- Review fixes #383 merged as `9cf8200`, after its CI passed.
+- `refactor/forum-ui-consistency` contains the final presentation cleanup: shared `FormField`,
+  Messages `PageHeader`, common CSS rules and grey compose panels. Opening posts stay grey and
+  replies white. The new Messages browser test covers sending and replying; the discussion test
+  checks the unread border.
+- Local verification: production build, lint, formatting and types passed; 21 browser tests passed
+  with retries disabled. The unit run passed 1,380 tests with one existing five-second timeout;
+  its seven-test file passed on an isolated rerun. Use the cleanup PR's full CI and the final main
+  CI for release approval.
+
+**Next:** merge the cleanup only after CI passes, update the main checkout, and confirm its CI.
+Then push an annotated `v0.94` tag using AGENTS.md's release procedure and verify the published
+bundle and checksum. Release notes are in `docs/CHANGELOG.md`. Do not publish a release manually.
+
+---
+
+# HISTORICAL RELEASE PREPARATION — 2026-10-11: Discussions and ZIP imports
 
 The user authorized finishing, verifying and merging both features, and preparing release notes.
 No release tag or deployment is authorized by that instruction.

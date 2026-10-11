@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased
+## v0.94 (2026-10-12)
 
 ### Discussions
 
@@ -23,7 +23,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
   ask questions. They can redact titles or posts and delete entire threads, each after confirmation.
   Redaction cannot be undone; existing backups keep the text until they age out.
 - The in-app Guide follows the forum switch; the complete `USER_GUIDE.md` includes the new workflows.
-  Merging Discussions 4c (#381) satisfies the forum release hold. No release is tagged by this change.
+- Messages and Discussions share form fields, page headers and presentation styles. Compose panels
+  use the same soft grey background; the opening discussion post remains grey and replies white.
+  Unread topic rows retain their blue border, and field hints remain separate from accessible names.
+- Ordinary soft navigations check the forum switch and unread state without repeating the whole page
+  render. Back and Forward refresh cached pages so lesson actions and moderated posts stay current.
 
 ### ZIP lesson-plan uploads
 
@@ -33,6 +37,8 @@ reasons and skipped files. Unchanged files are skipped when re-uploading a corre
 changed content for existing sub-strands becomes a Not Official major revision.
 The developer CLI retains its all-or-nothing batch behavior. Archives stay in memory; input count
 and compressed/expanded sizes are bounded.
+ZIP limits accommodate a measured full ARES export, while counting actual central-directory records
+even when names repeat or an archive understates its entry count.
 
 ### Saved-version links
 

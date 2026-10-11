@@ -154,10 +154,8 @@ describe('Guide + Compare visual system', () => {
     // `.page-heading h1`, not `.lesson-heading h1` — the latter reached only two pages, which is
     // exactly why the Guide had to declare its own.
     //
-    // Scoped claim on purpose: the catalogue (`.lp-title`) and Messages (`.msg-title`) still
-    // declare the same size/weight independently, because neither uses the shared header yet.
-    // Converting them is a later PR; until then "a page title is 30px/700 by virtue of BEING one"
-    // is true of `.page-heading` callers, not of the whole app.
+    // The catalogue (`.lp-title`) still declares the same size/weight independently.
+    // Messages now uses the shared header alongside the Guide, lessons and Discussions.
     const body = bodyOf('.page-heading h1')
     expect(body).toMatch(/font-size:\s*var\(--app-page-title-size\)/)
     expect(body).toMatch(/font-weight:\s*700/)

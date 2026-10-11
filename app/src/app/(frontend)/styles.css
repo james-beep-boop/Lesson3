@@ -198,28 +198,16 @@ a {
    same as every other page. The former `.messages { max-width: 46rem }` capped it at 736px inside a
    960px column for no derived reason — it predated the shared page shell (removed 2026-07-31). */
 
-/* Heading row: "Messages" title with the New-message button inline on the right (2026-07-18). */
-.msg-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin: 0 0 1.5rem;
-}
-.msg-title {
-  font-size: var(--app-page-title-size);
-  font-weight: 700;
-  margin: 0;
-}
-.msg-compose {
+/* Messages and Discussions share compose-panel chrome; Discussions adds its grid below. */
+.msg-compose,
+.disc-compose {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-soft);
   padding: 1rem 1.25rem;
   margin: 1rem 0 2rem;
 }
-.msg-compose__hint {
+.form-field__hint {
   display: block;
   margin-top: 0.25rem;
   color: var(--muted);
@@ -235,14 +223,19 @@ a {
   font-size: 0.9rem;
   color: var(--muted);
 }
-.msg-compose__field {
+.form-field {
   display: block;
-  margin-bottom: 0.75rem;
   font-size: 0.9rem;
+}
+.form-field > label {
   font-weight: 600;
 }
-.msg-compose__field select,
-.msg-compose__field textarea {
+.msg-compose .form-field {
+  margin-bottom: 0.75rem;
+}
+.form-field input,
+.form-field select,
+.form-field textarea {
   display: block;
   width: 100%;
   margin-top: 0.3rem;
@@ -254,7 +247,8 @@ a {
   font: inherit;
   font-weight: 400;
 }
-.msg-compose__actions {
+.msg-compose__actions,
+.disc-compose__actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -264,18 +258,21 @@ a {
   color: var(--muted);
   font-size: 0.9rem;
 }
-.msg-section h2 {
+.msg-section h2,
+.disc-section-title {
   font-size: 1.05rem;
   margin: 1.5rem 0 0.5rem;
 }
-.msg-list {
+.msg-list,
+.disc-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 0.6rem;
 }
-.msg {
+.msg,
+.disc-row {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 0.6rem 0.9rem;
@@ -2108,26 +2105,13 @@ button.user-menu__item {
 }
 .disc-search input {
   flex: 1 1 16rem;
+}
+.disc-search input,
+.disc-picker--open input {
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   font: inherit;
-}
-.disc-section-title {
-  font-size: 1.05rem;
-  margin: 1.5rem 0 0.5rem;
-}
-.disc-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.6rem;
-}
-.disc-row {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.9rem;
 }
 .disc-row__title {
   margin: 0;
@@ -2199,50 +2183,13 @@ button.user-menu__item {
   padding: 0;
 }
 .disc-compose {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 1rem 1.25rem;
-  margin: 1rem 0 2rem;
   display: grid;
   gap: 0.75rem;
 }
-.disc-compose__field {
-  display: block;
-  font-size: 0.9rem;
-}
-.disc-compose__field > label {
-  font-weight: 600;
-}
-.disc-compose__field input,
-.disc-compose__field textarea {
-  display: block;
-  width: 100%;
-  margin-top: 0.3rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--ink);
-  font: inherit;
-  font-weight: 400;
-}
 /* Locked after an uncertain result (the key travels with its content): visibly not editable. */
-.disc-compose__field input:read-only,
-.disc-compose__field textarea:read-only {
+.disc-compose .form-field input:read-only,
+.disc-compose .form-field textarea:read-only {
   background: var(--bg-soft);
-}
-.disc-compose__hint {
-  display: block;
-  margin-top: 0.25rem;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 400;
-}
-.disc-compose__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 .disc-compose__note {
   font-size: 0.9rem;
@@ -2261,12 +2208,6 @@ button.user-menu__item {
 .disc-picker--open legend {
   font-weight: 600;
   padding: 0 0.25rem;
-}
-.disc-picker--open input {
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  font: inherit;
 }
 .disc-picker__label {
   color: var(--muted);

@@ -118,6 +118,10 @@ test.describe('Discussions', () => {
       primaryNav(teacher).getByRole('link', { name: 'Discuss (unread discussions)' }),
     ).toBeVisible()
     await expect(teacher.locator('.disc-row--unread', { hasText: `${MARK}Dot` })).toBeVisible()
+    await expect(teacher.locator('.disc-row--unread', { hasText: `${MARK}Dot` })).toHaveCSS(
+      'border-left-width',
+      '3px',
+    )
 
     const marked = teacher.waitForResponse((r) => r.url().includes('/mark-read') && r.ok())
     await teacher.getByRole('link', { name: `${MARK}Dot` }).click()

@@ -9,6 +9,8 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import FormField from '@/components/FormField'
+import PageHeader from '@/components/PageHeader'
 import { sendMessage } from './sendMessage'
 
 export default function Composer({
@@ -54,24 +56,24 @@ export default function Composer({
 
   return (
     <>
-      {/* Heading row: the page title with the New-message button INLINE (declutter 2026-07-18) — saves
-          the vertical gap of a stacked button. When compose is open the form renders below this row. */}
-      <div className="msg-head">
-        <h1 className="msg-title">Messages</h1>
-        {!open && (
-          <button
-            type="button"
-            className="btn"
-            // Clear any stale send-status note from the previous open (CodeRabbit on #89).
-            onClick={() => {
-              setNote(null)
-              setOpen(true)
-            }}
-          >
-            New message
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Messages"
+        actions={
+          !open && (
+            <button
+              type="button"
+              className="btn"
+              // Clear any stale send-status note from the previous open (CodeRabbit on #89).
+              onClick={() => {
+                setNote(null)
+                setOpen(true)
+              }}
+            >
+              New message
+            </button>
+          )
+        }
+      />
       {open && (
         <form className="msg-compose" onSubmit={onSubmit}>
           <h2>Send a message</h2>
@@ -83,40 +85,43 @@ export default function Composer({
               </a>
             </p>
           )}
-          <label className="msg-compose__field">
-            To
-            <select
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              required
-              disabled={busy}
-            >
-              <option value="" disabled>
-                Choose a recipient…
-              </option>
-              {roster.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
+          <FormField
+            label="To"
+            hint="Anyone with a repository account — everyone is listed by name."
+          >
+            {(ids) => (
+              <select
+                {...ids}
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                required
+                disabled={busy}
+              >
+                <option value="" disabled>
+                  Choose a recipient…
                 </option>
-              ))}
-            </select>
-            {/* Who's eligible (D5): the roster is every repository account, names only (SPEC §8). */}
-            <span className="msg-compose__hint">
-              Anyone with a repository account — everyone is listed by name.
-            </span>
-          </label>
-          <label className="msg-compose__field">
-            Message
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={4}
-              maxLength={5000}
-              required
-              disabled={busy}
-              placeholder="Write a note…"
-            />
-          </label>
+                {roster.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </FormField>
+          <FormField label="Message">
+            {(ids) => (
+              <textarea
+                {...ids}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={4}
+                maxLength={5000}
+                required
+                disabled={busy}
+                placeholder="Write a note…"
+              />
+            )}
+          </FormField>
           <div className="msg-compose__actions">
             <button
               type="submit"

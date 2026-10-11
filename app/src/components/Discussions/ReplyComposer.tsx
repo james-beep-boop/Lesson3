@@ -13,7 +13,8 @@ import React, { useState } from 'react'
 
 import { MAX_BODY_LENGTH } from '@/lib/discussionText'
 import ReferencePicker, { type ChosenReference } from './ReferencePicker'
-import { ComposerActions, ComposerField, PLAIN_TEXT_HINT } from './ComposerParts'
+import FormField from '@/components/FormField'
+import { ComposerActions, PLAIN_TEXT_HINT } from './ComposerParts'
 import { useComposer } from './useComposer'
 
 export default function ReplyComposer({
@@ -48,7 +49,7 @@ export default function ReplyComposer({
 
   return (
     <form className="disc-compose" onSubmit={onSubmit} aria-label="Write a reply">
-      <ComposerField label="Reply" hint={PLAIN_TEXT_HINT}>
+      <FormField label="Reply" hint={PLAIN_TEXT_HINT}>
         {(ids) => (
           <textarea
             {...ids}
@@ -60,7 +61,7 @@ export default function ReplyComposer({
             readOnly={locked}
           />
         )}
-      </ComposerField>
+      </FormField>
       <ReferencePicker value={reference} onChange={setReference} disabled={locked} />
       <ComposerActions
         phase={state.phase}
