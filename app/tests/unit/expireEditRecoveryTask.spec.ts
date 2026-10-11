@@ -31,7 +31,9 @@ describe('expireEditRecovery task wiring', () => {
     expect(EXPIRE_EDIT_RECOVERY_CRON.trim().split(/\s+/), 'seconds field included').toHaveLength(6)
   })
 
-  it('is registered in the Payload config', async () => {
+  // A longer timeout because this imports the whole Payload config: ~1–2 s alone, but it crossed the
+  // 5 s default twice in three full parallel runs on 2026-10-11.
+  it('is registered in the Payload config', { timeout: 30_000 }, async () => {
     const config = (await import('../../src/payload.config')).default
     const resolved = await config
     const slugs = (resolved.jobs?.tasks ?? []).map((t) => t.slug)

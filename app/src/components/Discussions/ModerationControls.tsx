@@ -64,6 +64,21 @@ export default function ModerationControls({
         },
       )
       if (!response.ok) {
+        // ⚑ The target changed under us (review of #380, 2026-10-11), so show what is true rather than
+        // leave live controls on a stale page. 404: the post is gone, and replies only go with their
+        // thread, so the thread is gone; return to the list. 409: another administrator already
+        // redacted it; re-render, and the page shows the removal. Other refusals (validation, rate
+        // limit, permission) keep the dialog and its message so the administrator can act on it.
+        if (response.status === 404) {
+          setAction(null)
+          router.push('/discuss')
+          return
+        }
+        if (response.status === 409) {
+          setAction(null)
+          router.refresh()
+          return
+        }
         setError(await wireErrorMessage(response, 'Could not complete this action'))
         // A server failure can follow a committed write. Re-read before attempting another action.
         if (response.status >= 500) setUncertain(true)

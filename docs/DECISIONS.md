@@ -11,6 +11,88 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-11 — Review of #380/#382: a cheaper navigation check, ZIP sizing from a real export
+
+A post-merge code review of #382 (ZIP imports) and #380 (moderation and the forum switch), with GPT's
+assessment of it, led to these fixes. Two of my original findings were corrected first:
+- #1 overstated the cost. It is one extra route render per *soft* URL change; the top-level menu uses
+  full navigations.
+- #2 (the dot stays lit after reading) is the agreed contract: it clears on the next navigation. The
+  operator chose to keep it.
+
+- **The navigation check, at the right depth.** #380 re-rendered the whole destination route after
+  every soft URL change, so the retained layout's Discuss item could not outlive a switch-off. GPT's
+  key point: whatever replaces it must also keep a cached Back page from offering "Discuss this
+  version" after the forum is switched off, not just update the dot. Now:
+  - `NavigationFreshness` asks `GET /api/discussion-topics/nav-state` for `{ forumEnabled, unread }`
+    and calls `router.refresh()` only when that differs from what the layout was rendered with, or
+    cannot be read. Unknown counts as changed.
+  - Ordinary browsing costs one small query instead of a page render, and a switch-off or a new unread
+    post still reaches the page on the next navigation.
+  - **Correction from GPT's second review: real browser Back is different.** An ordinary navigation
+    renders a dynamic page fresh from the server, so only the layout can be stale and the summary
+    suffices. But Back/Forward restores the **page itself** from Next's client cache. A thread revisited
+    by Back after a redaction showed the redacted text again, and both booleans were unchanged. History
+    traversal (`popstate`) therefore always refreshes, as #380 did, and e2e tests now press the real
+    Back button: a lesson after switch-off, and a thread after a redaction and a new reply. The earlier
+    tests only clicked links named "Back".
+  - **The check has a deadline** covering the request and reading its body. A stalled check refreshes;
+    one cancelled by a newer navigation does nothing.
+  - The endpoint has wire tests: 401, own state only, `no-store`, unread then cleared, and off for every
+    role including the Site Administrator.
+- **ZIP limits sized from a real export.** The operator's current archive is 7.4 MB holding **95** JSON
+  files (33.3 MB expanded, largest 588 KB). Archives of up to ~20 MB are expected (~255 files). The
+  first limit of 50 JSON files per upload rejected even today's archive.
+  - New limits: 500 JSON files and a **200 MiB expanded-JSON budget per upload**, keeping 5 MiB per JSON
+    and 50 MiB per ZIP. The request body cap is now the budget plus 256 KiB (209,977,344 bytes); the
+    OPS proxy example becomes `201m`.
+  - Each archive's directory records are **counted before** `JSZip.loadAsync` builds an object per
+    entry, stopping at the limit. Archives are read one at a time and released, rather than all staying
+    open until the import ends.
+  - **Correction from GPT's second review:** my first pre-check trusted the count the archive
+    *declares*. GPT built a 186 KB archive declaring 1 entry and carrying 1,001. JSZip parsed them all,
+    and because it keys entries by normalized name, duplicates also passed the post-parse count. The
+    count now walks the actual central-directory records, locating them exactly as JSZip 3.10 does:
+    the last end-of-directory record, ZIP64, and the extra-bytes shift. An archive whose directory
+    cannot be located is refused as unreadable without calling JSZip. Tests cover a forged count and
+    1,001 duplicate names. **Rule:** never bound work by a count the input declares about itself.
+  - **Second correction from GPT, third round: read numbers the way the other parser does.** JSZip
+    reads integers with 32-bit arithmetic, so an 8-byte ZIP64 offset over 2³¹ is truncated. My count
+    read it exactly. A ZIP64 locator offset with 2³² added sent JSZip to the real directory of 1,001
+    entries and my count to a decoy describing none. Any offset or size field at or above 2³¹ is now
+    refused before the fallback; a ≤ 50 MB archive never needs one, and below that the two readings
+    agree. There are regressions for that archive, a valid ZIP64 archive and a prefixed
+    (self-extracting) archive. **Rule:** when guarding a parser, mirror its arithmetic, not just its
+    algorithm.
+  - The browser Back test was split, also at GPT's request. A redaction alone leaves both nav booleans
+    unchanged, and the test asserts that, so only "history traversal always refreshes" can pass it. The
+    combined version also added a reply, which flipped `unread` and would have let a
+    refresh-on-change-only check pass by accident. The new-reply case is a separate test.
+  - **That split test then caught my bug: `popstate` arrives too late.** The detector listened for
+    `popstate`, and its unit test (which dispatched `popstate` before changing the route) passed. In
+    Chromium with Next 16 the real order is different: the Navigation API's `navigate` (traverse), then
+    React renders the restored route and runs the route effect, and only then `popstate`. So the effect
+    saw no traversal, ran the nav check, found nothing changed, and Back showed the redacted text. Two
+    intermediate fixes also failed in the browser: a module-level listener (Next's own listener still
+    registered first, because this chunk is evaluated after the router mounts) and a capturing one
+    (`popstate` is simply after the render). Listener order was confirmed with DevTools
+    `getEventListeners`, and the sequence with timestamps. The flag is now set from `navigate` with
+    `navigationType === 'traverse'`, with a capturing `popstate` kept for browsers without the API.
+    Unit tests reproduce both orders, and a mutant for each listener is caught. **Rule:** a unit test
+    that dispatches events in the order I *assume* proves nothing about the browser. Pin the event
+    order with an e2e test before trusting it.
+- **Measured, not guessed** (Mac, probe database, real archive):
+  - first import: 0.6 s to read, **10.6 s** to import, peak heap 337 MB (+200 MB);
+  - re-upload (all unchanged): 1.8 s.
+  - So a ~20 MB first import is roughly 30 s here and plausibly over a minute on a Rock, beyond nginx's
+    default 60 s `proxy_read_timeout`. OPS now sets 300 s. A timed-out request still completes on the
+    server, and a re-upload then reports "Unchanged".
+- **A failed settings read no longer breaks Manage.** `readFeaturesSettings` logs the failure and
+  returns null, which Features renders as unavailable, with no Save.
+- **Moderation after the target changed.** A 404 means the thread is gone (replies only go with it), so
+  the controls return to the list. A 409 means the post was already redacted, so they re-render.
+  Validation errors, rate limits and permission refusals keep the dialog and its message.
+
 ## 2026-10-11 — Discussions handoff: 4b and 4c implementation and publication
 
 Claude's 4a (#378) and handoff (#379) are merged. Work continues from `8bca543` in an isolated

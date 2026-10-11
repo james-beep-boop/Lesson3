@@ -7,6 +7,7 @@ import { resolveAccessSummary } from '../../lib/accessScopes'
 import { hasUnread } from '../../lib/discussions'
 import { systemFlagsForRender } from '../../lib/systemFlags'
 import { UserMenu } from '../UserMenu'
+import NavigationFreshness from './NavigationFreshness'
 import type { User } from '../../payload-types'
 
 /**
@@ -30,7 +31,14 @@ import type { User } from '../../payload-types'
  * no websockets/polling; see DECISIONS 2026-07-02): counted here and passed to the menu, which shows
  * it both on the avatar (so unread is visible without opening the menu) and on the Messages item.
  */
-export async function AppNav({ user }: { user: User }) {
+export async function AppNav({
+  user,
+  watchNavigation = false,
+}: {
+  user: User
+  /** Frontend only: re-check the forum state after soft navigations (`NavigationFreshness`). */
+  watchNavigation?: boolean
+}) {
   const payload = await getPayload({ config })
   // Independent reads → run concurrently, both best-effort so the nav can't break on a DB hiccup.
   // Truthfulness contract (decided 2026-07-29): the TYPE is always shown — it's pure, never queried,
@@ -49,6 +57,12 @@ export async function AppNav({ user }: { user: User }) {
   ])
   return (
     <nav className="app-nav" aria-label="Primary">
+      {watchNavigation && (
+        // `useSearchParams` needs a Suspense boundary; it renders nothing either way.
+        <React.Suspense fallback={null}>
+          <NavigationFreshness rendered={{ forumEnabled: forum.enabled, unread: forum.unread }} />
+        </React.Suspense>
+      )}
       {/* eslint-disable @next/next/no-html-link-for-pages */}
       <a className="app-nav__link" href="/">
         Lessons

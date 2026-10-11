@@ -87,6 +87,8 @@ describe('fixture signup-limit configuration', () => {
     }
   })
 
+  // A longer timeout (the trailing 30_000) because the fresh import after resetModules dominates: 4.8 s
+  // of the 5 s default even alone, and it failed under a loaded full run on 2026-10-11.
   it('applies controlled global-signup configuration to the real limiter primitive', async () => {
     setEnv({ RATE_LIMIT_SIGNUP_GLOBAL_MAX: '2', RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS: '60000' })
     vi.resetModules()
@@ -106,7 +108,7 @@ describe('fixture signup-limit configuration', () => {
       ok: false,
       retryAfterSec: 30,
     })
-  })
+  }, 30_000)
 
   it('leaves the production fallback at 100 signups per 24-hour window', async () => {
     setEnv({})

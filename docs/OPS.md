@@ -567,8 +567,9 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
    3001 reachable for the supported private Tailscale/offline deployment.)
    **A hard request-body ceiling is mandatory at this layer**: application `Content-Length` checks
    are bypassable by an omitted/false header or chunked transfer. The largest legitimate endpoint is
-   the Site-Admin batch upload (`262,406,144` bytes including framing), so set a global ceiling just
-   above it (for example nginx `client_max_body_size 252m;`). Keep the endpoint's smaller application
+   the Site-Admin batch upload (`209,977,344` bytes including framing: 200 MiB of JSON plus 256 KiB),
+   so set a global ceiling just above it (for example nginx `client_max_body_size 201m;`; an existing
+   `252m` from before 2026-10-11 still works). Keep the endpoint's smaller application
    checks as defense in depth. Caddy's `request_body { max_size ... }` is acceptable only on Caddy
    v2.10+ (where that directive is currently experimental); validate the installed version before
    using it. Verify both a declared-length and chunked request over the public URL receive `413`
@@ -578,7 +579,11 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
 
    ```nginx
    server {
-       client_max_body_size 252m;
+       client_max_body_size 201m;
+       # A large lesson-plan upload is one long request: a real 95-file archive took ~11 s to
+       # import on a Mac, so a ~20 MB archive (~255 files) may take a minute or more on a Rock.
+       # nginx's default 60 s would answer 504 while the import still completes. Allow 5 minutes.
+       proxy_read_timeout 300s;
 
        location / {
            proxy_set_header Host $host;

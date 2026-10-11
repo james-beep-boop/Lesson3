@@ -516,3 +516,80 @@ describe('lesson reference picker (4a)', () => {
     }
   })
 })
+
+// ─── Review of #380: the navigation's forum check ──────────────────────────────────────────────────
+
+describe('GET /api/discussion-topics/nav-state', () => {
+  // ⚑ The navigation asks this after each soft navigation instead of re-rendering the whole route, and
+  // refreshes only when the answer differs. It must say exactly what the nav shows — no more — for the
+  // caller only, never from a cache, and it must say "off" for everyone while the switch is off.
+  const navState = (as?: RoleKey) => call('GET', '/api/discussion-topics/nav-state', as)
+
+  it('refuses an anonymous caller', async () => {
+    expect((await navState()).status).toBe(401)
+  })
+
+  it('answers the caller’s own state, and only the two fields the nav shows', async () => {
+    for (const role of ROLES) {
+      const res = await navState(role)
+      expect(res.status, LABEL[role]).toBe(200)
+      expect(Object.keys(res.body ?? {}).sort(), LABEL[role]).toEqual(['forumEnabled', 'unread'])
+      expect(res.body?.forumEnabled, LABEL[role]).toBe(true)
+    }
+    const raw = await fetch(url('/api/discussion-topics/nav-state'), {
+      headers: { Authorization: `JWT ${token.teacher}` },
+    })
+    expect(raw.headers.get('cache-control')).toContain('no-store')
+  })
+
+  it('reports a reply by someone else as unread, and clears once it is read', async () => {
+    // A fresh account, so the only thread it takes part in is this one (the fixture users take part
+    // in many by now, which would make "unread" true for reasons outside this test).
+    const reader = await createUserVerified(fx.payload, {
+      email: `${MARK}nav-state@example.test`.toLowerCase(),
+      name: `${MARK}Nav state`,
+      password: fx.password,
+    })
+    try {
+      const readerToken = await login(reader.email, fx.password)
+      const asReader = (method: 'GET' | 'POST', path: string, body?: unknown) =>
+        fetch(url(path), {
+          method,
+          headers: { 'Content-Type': 'application/json', Authorization: `JWT ${readerToken}` },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        }).then(async (r) => ({ status: r.status, body: await r.json() }))
+
+      expect((await asReader('GET', '/api/discussion-topics/nav-state')).body.unread).toBe(false)
+      const topic = await asReader('POST', '/api/discussion-topics', topicBody())
+      expect(topic.status).toBe(201)
+      const topicId = topic.body.doc.id as number
+      const reply = await call('POST', '/api/discussion-replies', 'editor', replyBody(topicId))
+      expect(reply.status, reply.text).toBe(201)
+      expect((await asReader('GET', '/api/discussion-topics/nav-state')).body.unread).toBe(true)
+
+      const read = await asReader('POST', `/api/discussion-topics/${topicId}/mark-read`, {
+        fromSeq: 0,
+        throughSeq: 1,
+      })
+      expect(read.status).toBe(200)
+      expect((await asReader('GET', '/api/discussion-topics/nav-state')).body.unread).toBe(false)
+    } finally {
+      await clearRateLimitBuckets(fx.payload, `login:${reader.email.toLowerCase()}`)
+      await clearPostingCaps(fx.payload, [reader])
+      await deleteUserFixture(fx.payload, reader.id)
+    }
+  })
+
+  it('answers "off" for every role while the forum is switched off, the Site Administrator included', async () => {
+    await setForum(false)
+    try {
+      for (const role of ROLES) {
+        const res = await navState(role)
+        expect(res.status, LABEL[role]).toBe(200)
+        expect(res.body, LABEL[role]).toEqual({ forumEnabled: false, unread: false })
+      }
+    } finally {
+      await setForum(true)
+    }
+  })
+})
