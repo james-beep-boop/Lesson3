@@ -1,38 +1,11 @@
 'use client'
 
-/** The pieces both composers share: a labelled field with its hint, and the submit / Try again row. */
-import React, { useId } from 'react'
+/** The discussion-specific submit / Try again row. Fields use the shared FormField. */
+import React from 'react'
 
 import type { ComposerPhase } from '@/lib/discussionComposer'
 
 export const PLAIN_TEXT_HINT = 'Plain text. Web links become clickable.'
-
-/**
- * A labelled field with a hint. ⚑ The hint is NOT inside the `<label>`: there it became part of the
- * field's accessible name ("Post Plain text. Web links become clickable."), which a screen reader reads as
- * the name and which no `getByLabel('Post')` could find. It is a DESCRIPTION, so it is attached with
- * `aria-describedby`.
- */
-export function ComposerField({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  hint: string
-  children: (ids: { id: string; 'aria-describedby': string }) => React.ReactNode
-}) {
-  const id = useId()
-  return (
-    <div className="disc-compose__field">
-      <label htmlFor={id}>{label}</label>
-      {children({ id, 'aria-describedby': `${id}-hint` })}
-      <span id={`${id}-hint`} className="disc-compose__hint">
-        {hint}
-      </span>
-    </div>
-  )
-}
 
 /** Post / Posting… / Try again, and the last attempt's message. Shared by both composers. */
 export function ComposerActions({

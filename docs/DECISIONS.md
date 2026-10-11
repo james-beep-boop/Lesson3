@@ -11,6 +11,16 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-12 — Messages and Discussions share presentation components
+
+Operator preference: keep the opening discussion post softly grey and replies white; give the
+discussion composers the same grey panel background as Messages. Shared `FormField` keeps labels
+separate from hints, with explicit control associations and `aria-describedby`. Messages uses the
+existing `PageHeader`. Identical panel, input, list, card and action styles have one definition and
+reuse the existing colour, border and type tokens. Base card rules precede unread accents, preserving
+the blue attention border. Submission, recovery, moderation and navigation behaviour stay within
+their existing features.
+
 ## 2026-10-11 — Review of #380/#382: a cheaper navigation check, ZIP sizing from a real export
 
 A post-merge code review of #382 (ZIP imports) and #380 (moderation and the forum switch), with GPT's

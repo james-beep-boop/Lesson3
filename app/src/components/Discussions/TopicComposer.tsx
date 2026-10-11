@@ -7,7 +7,8 @@
 import React, { useState } from 'react'
 
 import { MAX_BODY_LENGTH, MAX_TITLE_LENGTH } from '@/lib/discussionText'
-import { ComposerActions, ComposerField, PLAIN_TEXT_HINT } from './ComposerParts'
+import FormField from '@/components/FormField'
+import { ComposerActions, PLAIN_TEXT_HINT } from './ComposerParts'
 import ReferencePicker, { type ChosenReference } from './ReferencePicker'
 import { useComposer } from './useComposer'
 
@@ -38,7 +39,7 @@ export default function TopicComposer({
 
   return (
     <form className="disc-compose" onSubmit={onSubmit}>
-      <ComposerField label="Title" hint="Name the lesson and the question or change.">
+      <FormField label="Title" hint="Name the lesson and the question or change.">
         {(ids) => (
           <input
             {...ids}
@@ -49,8 +50,8 @@ export default function TopicComposer({
             readOnly={locked}
           />
         )}
-      </ComposerField>
-      <ComposerField label="Post" hint={PLAIN_TEXT_HINT}>
+      </FormField>
+      <FormField label="Post" hint={PLAIN_TEXT_HINT}>
         {(ids) => (
           <textarea
             {...ids}
@@ -62,7 +63,7 @@ export default function TopicComposer({
             readOnly={locked}
           />
         )}
-      </ComposerField>
+      </FormField>
       <ReferencePicker value={reference} onChange={setReference} disabled={locked} />
       <ComposerActions
         phase={state.phase}
