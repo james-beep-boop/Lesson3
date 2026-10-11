@@ -37,9 +37,12 @@ Publishing attempt 1 stalled in ARM dependency installation under emulation. Ret
 job on a fresh runner succeeded, retaining the completed migration image. The native-publishing
 follow-up builds each platform on its matching runner and verifies the joined index and the exact
 pins in the bundle before publication. It also makes a native ARM production build part of CI.
-It changes publishing and CI, without changing the application or retagging v0.94.
+It changes publishing and CI, without changing the application or retagging v0.94. Native publishing
+merged in #386 as `28686a8`. The CI gate follow-up makes the required status job always report an
+explicit result for successful, failed, skipped or cancelled dependencies; build work stays in the
+two normally cancellable jobs.
 
-**Resume:** confirm the native-publishing PR and its main CI passed. Future release tags use the
+**Resume:** confirm the CI-gate follow-up and its main CI passed. Future release tags use the
 native workflow after that change merges. There is no remaining forum release hold. v0.94's
 immutable tag retains the workflow used for that release; do not move it to include this follow-up.
 
