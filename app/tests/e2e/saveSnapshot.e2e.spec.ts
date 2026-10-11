@@ -101,8 +101,11 @@ for (const role of ['editor', 'subjectAdmin'] as const) {
           await expect(page.locator(OVERVIEW)).toHaveValue(text)
           await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
         } else {
+          // Save and its navigation are asynchronous. The default five-second assertion expired
+          // even though the failure snapshot already showed the saved version; use the normal
+          // navigation budget within this test's explicit 120-second limit.
           await expect
-            .poll(() => new URL(page.url()).pathname)
+            .poll(() => new URL(page.url()).pathname, { timeout: 30_000 })
             .not.toBe(`/admin/collections/lesson-bundle-versions/${version.id}`)
           const savedId = Number(new URL(page.url()).pathname.split('/').at(-1))
           expect(savedId).not.toBe(version.id)

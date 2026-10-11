@@ -2146,6 +2146,16 @@ button.user-menu__item {
 .disc-empty {
   margin: 1.5rem 0;
 }
+.disc-moderation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.disc-redact-options {
+  display: grid;
+  gap: 0.5rem;
+}
 .disc-pager {
   display: flex;
   gap: 1rem;

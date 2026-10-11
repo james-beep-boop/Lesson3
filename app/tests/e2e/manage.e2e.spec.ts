@@ -1483,7 +1483,12 @@ test.describe('Manage page', () => {
     await expect(page.locator('.user-menu__edit-error')).toHaveCount(0)
 
     await page.getByLabel('Display name').fill(newName)
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    // Saving reloads the document. Register the load wait before clicking so the next avatar
+    // interaction cannot hit the old page and disappear during that reload.
+    await Promise.all([
+      page.waitForEvent('load'),
+      page.getByRole('button', { name: 'Save', exact: true }).click(),
+    ])
 
     // ⚑ ASSERT THE NEW VALUE, not merely that the menu still renders. An earlier version of this test
     // checked only that the account button and dropdown were visible after saving — which is true
@@ -1498,7 +1503,12 @@ test.describe('Manage page', () => {
 
     // Restore, so this test does not rename a fixture the rest of the file identifies by name.
     await page.getByLabel('Display name').fill(`${MARK}editor`)
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    // Saving reloads the document. Register the load wait before clicking so the next avatar
+    // interaction cannot hit the old page and disappear during that reload.
+    await Promise.all([
+      page.waitForEvent('load'),
+      page.getByRole('button', { name: 'Save', exact: true }).click(),
+    ])
     await page.getByRole('button', { name: /Account menu/ }).click()
     await page.getByRole('button', { name: 'Change display name' }).click()
     await expect(page.getByLabel('Display name')).toHaveValue(`${MARK}editor`)

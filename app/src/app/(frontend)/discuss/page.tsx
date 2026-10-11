@@ -24,49 +24,60 @@ import { requireUser } from '@/lib/session'
 export default async function DiscussionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>
+  searchParams: Promise<{ q?: string | string[]; page?: string }>
 }) {
   const { payload, user } = await requireUser()
-  await requireForum(payload)
+  const forumEnabled = await requireForum(payload, user)
   const sp = await searchParams
-  const query = (sp.q ?? '').slice(0, MAX_SEARCH_LENGTH).trim()
+  // Repeated query parameters arrive as an array, not the scalar submitted by the search form.
+  const query =
+    forumEnabled && typeof sp.q === 'string' ? sp.q.slice(0, MAX_SEARCH_LENGTH).trim() : ''
   const page = listPageParam(sp.page)
 
   return (
     <article className="disc">
+      {!forumEnabled && (
+        <p className="disc-notice" role="status">
+          Discussions are switched off. You can redact posts and delete threads here.
+        </p>
+      )}
       <PageHeader
         title="Discussions"
         actions={
-          <Link href="/discuss/new" className="btn btn--primary">
-            Start a discussion
-          </Link>
+          forumEnabled && (
+            <Link href="/discuss/new" className="btn btn--primary">
+              Start a discussion
+            </Link>
+          )
         }
       />
-      <form className="disc-search" action="/discuss" method="get" role="search">
-        <label htmlFor="disc-q" className="visually-hidden">
-          Search discussion titles
-        </label>
-        <input
-          id="disc-q"
-          type="search"
-          name="q"
-          defaultValue={query}
-          placeholder="Search discussion titles"
-          maxLength={MAX_SEARCH_LENGTH}
-        />
-        <button type="submit" className="btn">
-          Search
-        </button>
-        {query && (
-          <Link href="/discuss" className="btn btn--quiet">
-            Clear
-          </Link>
-        )}
-      </form>
+      {forumEnabled && (
+        <form className="disc-search" action="/discuss" method="get" role="search">
+          <label htmlFor="disc-q" className="visually-hidden">
+            Search discussion titles
+          </label>
+          <input
+            id="disc-q"
+            type="search"
+            name="q"
+            defaultValue={query}
+            placeholder="Search discussion titles"
+            maxLength={MAX_SEARCH_LENGTH}
+          />
+          <button type="submit" className="btn">
+            Search
+          </button>
+          {query && (
+            <Link href="/discuss" className="btn btn--quiet">
+              Clear
+            </Link>
+          )}
+        </form>
+      )}
       {query ? (
         <SearchResults query={query} results={await searchTopics(payload, user, query, page)} />
       ) : (
-        <TopicList list={await listTopics(payload, user, page)} />
+        <TopicList list={await listTopics(payload, user, page)} forumEnabled={forumEnabled} />
       )}
     </article>
   )
@@ -102,18 +113,22 @@ function SearchResults({
   )
 }
 
-function TopicList({ list }: { list: TopicListPage }) {
+function TopicList({ list, forumEnabled }: { list: TopicListPage; forumEnabled: boolean }) {
   if (list.page === 1 && list.pinned.length === 0 && list.rows.length === 0) {
     return (
       <div className="disc-empty">
         <p>No discussions yet.</p>
-        <p className="muted">
-          Ask a question about a lesson, or tell colleagues what you changed and why. Everyone
-          signed in can read and reply.
-        </p>
-        <Link href="/discuss/new" className="btn btn--primary">
-          Start the first discussion
-        </Link>
+        {forumEnabled && (
+          <p className="muted">
+            Ask a question about a lesson, or tell colleagues what you changed and why. Everyone
+            signed in can read and reply.
+          </p>
+        )}
+        {forumEnabled && (
+          <Link href="/discuss/new" className="btn btn--primary">
+            Start the first discussion
+          </Link>
+        )}
       </div>
     )
   }

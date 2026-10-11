@@ -2,6 +2,8 @@ import React from 'react'
 import { notFound } from 'next/navigation'
 
 import MarkThreadRead from '@/components/Discussions/MarkThreadRead'
+import ModerationControls from '@/components/Discussions/ModerationControls'
+import { isSiteAdmin } from '@/access'
 import { PostReference, PostText, postTime } from '@/components/Discussions/PostText'
 import ReplyComposer from '@/components/Discussions/ReplyComposer'
 import Pager from '@/components/Discussions/Pager'
@@ -27,10 +29,11 @@ export default async function ThreadPage({
   searchParams: Promise<{ page?: string }>
 }) {
   const { payload, user } = await requireUser()
-  await requireForum(payload)
+  const forumEnabled = await requireForum(payload, user)
+  const moderator = isSiteAdmin(user)
   const topicId = relId((await params).id)
   if (topicId == null) notFound()
-  const thread = await loadThread(payload, user, topicId, (await searchParams).page)
+  const thread = await loadThread(payload, user, topicId, (await searchParams).page, forumEnabled)
   // Only a participant has a marker to move, and only when this page shows something past it — so
   // revisiting a thread you have read sends nothing.
   const range = thread.lastReadSeq == null ? null : markRangeFor(thread.page, thread.lastSeq)
@@ -39,11 +42,29 @@ export default async function ThreadPage({
 
   return (
     <article className="disc disc-thread">
+      {!forumEnabled && (
+        <p className="disc-notice" role="status">
+          Discussions are switched off. You can redact posts and delete threads here.
+        </p>
+      )}
       {markRange && <MarkThreadRead topicId={thread.id} {...markRange} />}
       <PageHeader
         title={thread.title ?? <em>Title removed by the administrator</em>}
         actions={<PageBackLink href="/discuss" label="Back to discussions" />}
       />
+      {moderator && (
+        <ModerationControls
+          key={`topic-${thread.id}-${thread.pinned}-${thread.title === null}-${thread.opening.body === null}`}
+          target={{
+            kind: 'topic',
+            id: thread.id,
+            pinned: thread.pinned,
+            titleRemoved: thread.title === null,
+            forumEnabled,
+          }}
+          bodyRemoved={thread.opening.body === null}
+        />
+      )}
       <Post post={thread.opening} opening />
       <Pager
         page={thread.page}
@@ -56,6 +77,13 @@ export default async function ThreadPage({
           {thread.replies.map((reply) => (
             <li key={reply.seq}>
               <Post post={reply} />
+              {moderator && (
+                <ModerationControls
+                  key={`reply-${reply.id}-${reply.body === null}`}
+                  target={{ kind: 'reply', id: reply.id }}
+                  bodyRemoved={reply.body === null}
+                />
+              )}
             </li>
           ))}
         </ol>
@@ -66,7 +94,9 @@ export default async function ThreadPage({
         href={pageHref}
         label="Reply pages"
       />
-      <ReplyComposer authorId={user.id} topicId={thread.id} joinedAtSeq={thread.lastSeq} />
+      {forumEnabled && (
+        <ReplyComposer authorId={user.id} topicId={thread.id} joinedAtSeq={thread.lastSeq} />
+      )}
     </article>
   )
 }

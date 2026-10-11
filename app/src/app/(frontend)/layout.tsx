@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { getSession } from '@/lib/session'
 import { AppNav } from '@/components/AppNav'
+import RefreshNavigation from '@/components/RefreshNavigation'
 
 import '../app-tokens.scss'
 import './styles.css'
@@ -40,6 +41,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             ResetPasswordForm. See DECISIONS.md 2026-08-03 before adding a third one. */}
         {user && (
           <header className="app-header">
+            <React.Suspense fallback={null}>
+              <RefreshNavigation />
+            </React.Suspense>
             <Link href="/" className="brand">
               ARES Lesson Plans
             </Link>
