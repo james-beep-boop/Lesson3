@@ -134,9 +134,43 @@ verify_line="$(awk '/scripts\/verify-release-bundle-images.sh/ {print NR; exit}'
 publish_line="$(awk '/run: bash scripts\/publish-release-bundle.sh/ {print NR; exit}' "$repo_dir/.github/workflows/publish-containers.yml")"
 [[ -n "$verify_line" && -n "$publish_line" && "$verify_line" -lt "$publish_line" ]] \
   || fail 'bundle images are not verified before publication'
-# A skipped required gate can count as success. Keep a failed ARM build an explicit gate failure.
-grep -Fq 'needs: native_arm' "$repo_dir/.github/workflows/ci.yml" || fail 'CI ignores the native build'
-grep -Fq 'if: ${{ !cancelled() }}' "$repo_dir/.github/workflows/ci.yml" || fail 'failed ARM can skip the gate'
-grep -Fq 'run: test "$NATIVE_ARM_RESULT" = success' "$repo_dir/.github/workflows/ci.yml" \
-  || fail 'required gate does not refuse native build failure'
+# Exercise the actual required gate commands, including cancellation after both parents completed.
+ci_workflow="$repo_dir/.github/workflows/ci.yml"
+gate_job="$(awk '/^  gate:$/ {inside=1; next} inside && /^  [a-z_]+:$/ {exit} inside {print}' "$ci_workflow")"
+grep -Fq 'needs: [native_arm, checks]' <<<"$gate_job" || fail 'CI gate ignores a required job'
+[[ "$(grep -Fc 'if: ${{ always() }}' <<<"$gate_job")" == 2 ]] \
+  || fail 'failed or cancelled CI can skip the gate or its status check'
+grep -Fq 'if: ${{ cancelled() }}' <<<"$gate_job" || fail 'gate ignores workflow cancellation'
+gate_script="$(awk '/^        run: \|$/ {inside=1; next} inside && /^      - / {exit} inside {sub(/^          /, ""); print}' <<<"$gate_job")"
+cancel_script="$(awk '/if: \$\{\{ cancelled\(\) \}\}/ {inside=1; next} inside && /^        run:/ {sub(/^        run: /, ""); print; exit}' <<<"$gate_job")"
+[[ -n "$gate_script" && -n "$cancel_script" ]] || fail 'required gate has no status or cancellation commands'
+gate_cases=0
+while read -r native_result checks_result cancelled expected; do
+  [[ "$native_result" != missing ]] || native_result=''
+  result=0
+  NATIVE_ARM_RESULT="$native_result" CHECKS_RESULT="$checks_result" \
+    bash -eo pipefail -c "$gate_script" >"$work_dir/output" 2>&1 || result=$?
+  if [[ "$result" == 0 && "$cancelled" == true ]]; then
+    bash -eo pipefail -c "$cancel_script" >>"$work_dir/output" 2>&1 || result=$?
+  fi
+  if [[ "$expected" == pass ]]; then
+    [[ "$result" == 0 ]] || fail 'successful CI did not pass the gate'
+  else
+    [[ "$result" != 0 ]] || fail "$native_result/$checks_result/cancelled=$cancelled passed the gate"
+  fi
+  gate_cases=$((gate_cases + 1))
+done <<'CASES'
+success success false pass
+failure success false fail
+skipped success false fail
+cancelled success true fail
+cancelled success false fail
+success failure false fail
+success skipped false fail
+success cancelled true fail
+success cancelled false fail
+success success true fail
+missing success false fail
+CASES
+echo "  ok: $gate_cases required-gate outcomes include failure, skip and cancellation"
 echo 'test-merge-release-images: PASS'

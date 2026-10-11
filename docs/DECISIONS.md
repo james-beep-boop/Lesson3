@@ -11,6 +11,17 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-12 — Required CI gate must report cancellation explicitly
+
+The initial native-build guard used `!cancelled()` on the required gate. That handles build failure
+but can skip the gate on cancellation, and GitHub accepts skipped required checks. Use a short
+`always()` status job that requires successful native ARM and regular checks, and refuses cancelled
+runs even when both parents completed. Keep checkout and build work in the two ordinary jobs, which
+can run in parallel and cancel normally. Tests execute the gate's actual commands against success,
+failure, skipped, cancelled and missing parent results. This is a correction to the CI guard, without
+changing application code or the published release.
+See [GitHub's required-check guidance](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
+
 ## 2026-10-12 — Native ARM publishing and verification of bundle image pins
 
 Build each release image on its matching architecture: `ubuntu-24.04` for amd64 and
