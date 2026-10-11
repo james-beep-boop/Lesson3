@@ -1,6 +1,8 @@
 /** PR 4b: real browser controls over the already wire-tested moderation and settings endpoints. */
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { sql } from '@payloadcms/db-postgres'
 
+import { drizzleOf } from '../helpers/db'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { clearPostingCaps, createTopicAs, testSubmissionKey } from '../helpers/discussions'
 import { MARK, setForumEnabled, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
@@ -36,6 +38,81 @@ test.describe('Discussion administration', () => {
       page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: /^Discuss/ }),
     ).toHaveCount(0)
   })
+  // ⚑ REAL history traversal (review of #380, GPT 2026-10-11). The tests above click links named "Back";
+  // these press the browser's Back, which restores the PAGE from Next's client cache. That is the case a
+  // nav summary cannot see, so `NavigationFreshness` must always refresh on it.
+  test('browser Back to a lesson after switch-off shows no forum entry points', async ({
+    page,
+  }) => {
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    await page.getByRole('link', { name: 'Back to lesson plans' }).click()
+    await page.waitForURL(`${BASE}/`)
+    await setForumEnabled(fx.payload, false)
+    await page.goBack()
+    await page.waitForURL(new RegExp(`/lessons/${fx.plan.id}$`))
+    await expect(
+      page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: /^Discuss/ }),
+    ).toHaveCount(0)
+    await page.getByRole('button', { name: /^Share/ }).click()
+    await expect(page.getByRole('link', { name: 'Message a colleague' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Discuss this version' })).toHaveCount(0)
+  })
+
+  /** What the nav check would answer for this page's user right now. */
+  const navState = async (page: Page) =>
+    (await page.request.get(`${BASE}/api/discussion-topics/nav-state`)).json()
+
+  // ⚑ GPT review 2026-10-11: isolate the case a nav summary CANNOT see. A redaction changes neither of
+  // the two booleans, so only "Back/Forward always refreshes" can show it; a reply by someone else would
+  // also flip `unread` and let a refresh-only-on-change check pass by accident.
+  test('browser Back to a thread shows a redaction made meanwhile, with the nav state unchanged', async ({
+    page,
+  }) => {
+    const secret = `${MARK}Phone 0700 000 000`
+    const topic = await createTopicAs(fx.payload, fx.users.teacher, { body: secret })
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/discuss/${topic.id}`)
+    await expect(page.getByText(secret)).toBeVisible()
+    await page.getByRole('link', { name: 'Back to discussions' }).click()
+    await page.waitForURL(`${BASE}/discuss`)
+
+    const before = await navState(page)
+    await drizzleOf(fx.payload).execute(
+      sql`UPDATE discussion_topics SET body = '', redacted_at = now() WHERE id = ${topic.id}`,
+    )
+    expect(await navState(page), 'the redaction must not change what the nav check sees').toEqual(
+      before,
+    )
+
+    await page.goBack()
+    await page.waitForURL(new RegExp(`/discuss/${topic.id}`))
+    await expect(page.getByText('Removed by the administrator')).toBeVisible()
+    await expect(page.getByText(secret)).toHaveCount(0)
+  })
+
+  test('browser Back to a thread shows a reply made meanwhile', async ({ page }) => {
+    const topic = await createTopicAs(fx.payload, fx.users.teacher)
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/discuss/${topic.id}`)
+    await page.getByRole('link', { name: 'Back to discussions' }).click()
+    await page.waitForURL(`${BASE}/discuss`)
+    await fx.payload.create({
+      collection: 'discussion-replies',
+      data: {
+        topic: topic.id,
+        body: `${MARK}A reply made while you were away`,
+        submissionKey: testSubmissionKey(),
+        joinedAtSeq: 0,
+      } as never,
+      overrideAccess: false,
+      user: fx.users.editor,
+    })
+    await page.goBack()
+    await page.waitForURL(new RegExp(`/discuss/${topic.id}`))
+    await expect(page.getByText(`${MARK}A reply made while you were away`)).toBeVisible()
+  })
+
   test.beforeAll(async () => {
     fx = await setupRoleFixture()
     await setForumEnabled(fx.payload, true)

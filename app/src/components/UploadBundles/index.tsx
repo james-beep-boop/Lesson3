@@ -118,8 +118,9 @@ export default function UploadBundles() {
         Site administrator only. Choose ARES <code>.json</code> exports or <code>.zip</code>{' '}
         archives containing JSON files, including files in folders. Valid files are imported even if
         others fail. Unchanged files are skipped, so you can re-upload a corrected ZIP. New plans
-        become Official 1.0.0; revisions require Make Official. Up to 50 JSON files, 5 MB per JSON
-        file and 50 MB per ZIP. Review the report below after uploading.
+        become Official 1.0.0; revisions require Make Official. Up to 500 JSON files and 200 MB of
+        JSON in total, 5 MB per JSON file and 50 MB per ZIP. Review the report below after
+        uploading.
       </p>
       {/* Classed, not inline-styled: the class is what lets the shared admin button block reach
           Upload. It was the last control on Manage rendering as stock Payload (operator report,

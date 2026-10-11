@@ -56,7 +56,9 @@ describe('isUndefinedTableError (onInit failure filter)', () => {
 })
 
 describe('wiring', () => {
-  it('Users auth cookie Secure is driven by the posture helper', async () => {
+  // A longer timeout because this imports the Users collection, which pulls in most of the Payload
+  // config: ~2 s alone, but it crossed the 5 s default twice in three full parallel runs on 2026-10-11.
+  it('Users auth cookie Secure is driven by the posture helper', { timeout: 30_000 }, async () => {
     const { Users } = await import('../../src/collections/Users')
     const cookies = (Users.auth as { cookies?: { secure?: boolean } }).cookies
     // SERVER_URL is unset/non-https in the test env → derived false; the property existing at all

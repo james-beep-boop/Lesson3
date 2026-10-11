@@ -64,4 +64,60 @@ describe('moderation controls', () => {
     expect(screen.queryByRole('button', { name: 'Redact topic' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Delete thread' })).toBeTruthy()
   })
+
+  // ⚑ Review of #380 (2026-10-11): a target that changed under the moderator must not leave live
+  // controls on a stale page.
+  it('a thread already gone (404) returns to the list; an already-redacted post (409) re-renders', async () => {
+    const gone = vi.fn(async () =>
+      Response.json(
+        { errors: [{ message: 'This discussion no longer exists.' }] },
+        { status: 404 },
+      ),
+    )
+    vi.stubGlobal('fetch', gone)
+    render(
+      <ModerationControls
+        target={{ kind: 'topic', id: 12, pinned: false, titleRemoved: false, forumEnabled: true }}
+        bodyRemoved={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Delete thread' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete thread' }).at(-1)!)
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/discuss'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    cleanup()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          { errors: [{ message: 'Already removed by the administrator.' }] },
+          { status: 409 },
+        ),
+      ),
+    )
+    render(<ModerationControls target={{ kind: 'reply', id: 814 }} bodyRemoved={false} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Redact reply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Redact' }))
+    await waitFor(() => expect(router.refresh).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('other refusals keep the dialog and its message so the administrator can act on them', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ errors: [{ message: 'Too many requests.' }] }, { status: 429 }),
+      ),
+    )
+    render(<ModerationControls target={{ kind: 'reply', id: 814 }} bodyRemoved={false} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Redact reply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Redact' }))
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain('Too many requests.'),
+    )
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(router.refresh).not.toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
+  })
 })

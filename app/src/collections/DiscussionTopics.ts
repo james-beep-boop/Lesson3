@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { markReadEndpoint, pinEndpoint, redactTopicEndpoint } from '../endpoints/discussionActions'
+import { navStateEndpoint } from '../endpoints/discussionNavState'
 import { deleteThreadEndpoint } from '../endpoints/discussionThreadDelete'
 import {
   cascadeDeleteThread,
@@ -49,7 +50,13 @@ export const DiscussionTopics: CollectionConfig = {
     afterChange: [joinTopicParticipants],
     beforeDelete: [cascadeDeleteThread],
   },
-  endpoints: [deleteThreadEndpoint, markReadEndpoint, pinEndpoint, redactTopicEndpoint],
+  endpoints: [
+    navStateEndpoint,
+    deleteThreadEndpoint,
+    markReadEndpoint,
+    pinEndpoint,
+    redactTopicEndpoint,
+  ],
   // One post per composer submission (contract item 1). NULL authors (deleted accounts) never collide.
   indexes: [{ fields: ['author', 'submissionKey'], unique: true }],
   fields: [
