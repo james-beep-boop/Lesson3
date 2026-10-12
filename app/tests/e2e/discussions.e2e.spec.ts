@@ -103,13 +103,25 @@ test.describe('Discussions', () => {
     })
     try {
       await page.getByRole('button', { name: 'Add lesson reference' }).click()
-      await page.getByLabel('Find a lesson by its title').fill(`${MARK}Plan`)
+      const search = page.getByLabel('Find a lesson by its title')
+      await search.fill(`${MARK}Plan`)
+      await search.press('Enter')
+      await expect(page).toHaveURL(`${BASE}/discuss/new`)
+      const { totalDocs } = await fx.payload.count({
+        collection: 'discussion-topics',
+        where: { title: { equals: `${MARK}Picked` } },
+        overrideAccess: true,
+      })
+      expect(totalDocs, 'Enter in lesson search must not create a discussion').toBe(0)
       await page.getByRole('button', { name: new RegExp(`${MARK}Plan`, 'i') }).click()
       await expect(page.getByText('Loading versions…')).toBeVisible()
       await expect(post).toBeDisabled()
       await expect(
-        page.getByText('Choose a lesson version before posting, or cancel'),
+        page.getByRole('group', { name: 'Add lesson reference' }).getByRole('status'),
       ).toBeVisible()
+      await expect(
+        page.getByRole('group', { name: 'Add lesson reference' }).getByRole('status'),
+      ).toContainText('Choose a lesson version before posting, or cancel')
     } finally {
       releaseVersions()
     }
@@ -127,6 +139,8 @@ test.describe('Discussions', () => {
     await loginAs(page, fx, 'teacher')
     await page.goto(`${BASE}/discuss/new`)
     await startDiscussion(page, `${MARK}Reply reference`, 'Please compare this version.')
+    const topicId = Number(page.url().split('/').pop())
+    const threadUrl = page.url()
     await page.getByLabel('Reply', { exact: true }).fill('Here is the version to compare.')
     const post = page.getByRole('button', { name: 'Post reply' })
     let releaseVersions!: () => void
@@ -140,7 +154,16 @@ test.describe('Discussions', () => {
     })
     try {
       await page.getByRole('button', { name: 'Add lesson reference' }).click()
-      await page.getByLabel('Find a lesson by its title').fill(`${MARK}Plan`)
+      const search = page.getByLabel('Find a lesson by its title')
+      await search.fill(`${MARK}Plan`)
+      await search.press('Enter')
+      await expect(page).toHaveURL(threadUrl)
+      const { totalDocs } = await fx.payload.count({
+        collection: 'discussion-replies',
+        where: { topic: { equals: topicId } },
+        overrideAccess: true,
+      })
+      expect(totalDocs, 'Enter in lesson search must not create a reply').toBe(0)
       await page.getByRole('button', { name: new RegExp(`${MARK}Plan`, 'i') }).click()
       await expect(page.getByText('Loading versions…')).toBeVisible()
       await expect(post).toBeDisabled()

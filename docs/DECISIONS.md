@@ -17,8 +17,9 @@ Opening the lesson picker expresses an intent to attach a reference. Both topic 
 block submission until a saved version is selected or the teacher explicitly cancels the picker.
 Loading, a failed lookup, and an empty version list keep that intent pending. Guard the form's submit
 handler as well as its button, so keyboard submission cannot bypass it. Regression tests delay the
-version response and prove that the selected reference survives posting. Posts without references
-remain allowed when the picker is closed.
+version response, press Enter in the lesson-search field without creating a topic or reply, and
+prove that the selected reference survives posting. The adjacent guidance uses `role="status"`.
+Posts without references remain allowed when the picker is closed.
 
 ## 2026-10-12 — Required CI gate must report cancellation explicitly
 
