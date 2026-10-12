@@ -11,6 +11,75 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-12 — Retire completed v0.95 publication automation
+
+The operator authorised repository cleanup after v0.95 was published. Remove the one-off
+requested-release CI job and its publication/stub-test scripts: they existed only to finish that
+release after the laptop went offline. Keep the normal annotated-tag publisher and required CI
+gate. Future releases use the standard AGENTS procedure rather than a lingering version-specific
+job. Remove completed clean worktrees only after confirming their work was merged and preserving
+needed local configuration; retain unfinished branches.
+
+## 2026-10-12 — Desktop remains primary; confine phone layout changes
+
+The operator clarified that almost all current use is on desktops. Paired production-build
+screenshots with identical data showed that the first sibling-form CSS correction preserved Users
+geometry but widened Subjects fields and made Subject grades rows taller on desktop. Restrict the
+subject/grade field and form layout rules, and the new input/file width constraints, to ≤640px.
+Keep desktop geometry unchanged. Shared field styling uses a mixin so the phone-only scope does
+not require duplicate style declarations. Future responsive changes require desktop comparisons.
+
+The reviewed LessonReference code already defaulted className to disc-ref; the rendered browser
+reference confirmed lesson-reference disc-ref without an undefined token. Do not add a workaround
+for an absent defect. The Guide upload steps did still omit creating the subject first, and were
+corrected to match the Upload panel and manual.
+
+## 2026-10-12 — Phone layout corrections and review of UI clarity work
+
+Shared subject/grade form selectors were nested inside `.lp-users`, so they matched no sibling
+forms. Keep the shared layout rules at the stylesheet root, wrap the subject/grade rows on phones,
+and constrain the native file chooser and inputs to their available width. Check 360px and 390px
+screens with real controls and a long filename. Messages and Discussions already share the
+reference component; use one phone link rule too, so both offer the same 44px tap area.
+
+The review corrected remaining internal-name diagnostics, upload prerequisites (create the subject,
+then its grade), reference-button instructions, and stale heading comments. Keep the operator's
+chosen Delete individual versions heading; its help explicitly includes reviewing saved versions.
+Set an Official version remains a recovery entry for plans with no selection; ordinary Official
+changes stay on the lesson page. Existing ids and bookmarks stay unchanged.
+
+Release labels read “Version 0.95”, without a redundant v. An unlabelled production image says
+“Version unavailable”; only explicit development metadata or the development server says
+“Development build”. Missing metadata cannot establish that a production server is development.
+The work continues on a fresh UI branch; no commit or push is authorised by this review request.
+
+## 2026-10-12 — Plain Manage headings and action-first System ordering
+
+Use "Delete a plan (all versions)" for complete-plan deletion and "Delete individual versions" for
+administrator cleanup of non-Official saved versions. Keep "Upload lesson plans" first, followed by
+complete-plan deletion and individual-version deletion.
+The existing recovery panel is renamed "Set an Official version" and goes last when present. It
+selects an Official version for a plan with none selected; it does not repair version content.
+Teachers retain "My saved versions". Rename the main
+Curriculum heading to Subjects and grades. Features precedes Installation status. Explain above
+Upload that the subject and matching subject grade must already
+exist and match the lesson file; update import diagnostics that still point to Taxonomy. Keep the
+two-level accordion limit and all existing panel ids/deep links; update canonical render ordering,
+Guide instructions and the subject-grade deletion guard's navigation text.
+
+## 2026-10-12 — Make attaching references explicit and show the installed app version
+
+Saved-version buttons say "Add reference: v1.0.0" and use the existing blue outline button style.
+Keep the full lesson title above the choices and move each date/author below its button, associated
+with it using aria-describedby. Both composers use this picker; choosing or cancelling remains
+required before posting. Keep the label short for phones.
+
+Login and the Guide footer share a small version label. Publishing bakes the release tag into the
+app image; source deploys supply their exact tag or commit. This is image metadata, never a lookup
+of GitHub's newest release and never a manually maintained product string. Local dev is labelled
+"Development build". APP_RELEASE_VERSION is runtime-provided in the env parity guard, deliberately
+absent from env templates so a blank env-file setting cannot override the image's version.
+
 ## 2026-10-12 — Publish the authorised v0.95 without the operator's laptop
 
 Queue this single release after main's required CI gate, checking that the message-reference fix

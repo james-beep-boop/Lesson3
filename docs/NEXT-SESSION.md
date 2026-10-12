@@ -25,15 +25,41 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# V0.95 RELEASE QUEUED ON GITHUB — 2026-10-12
+# UI CLARITY READY FOR MERGE — 2026-10-12
 
-Application fixes #388 and #389 have merged. The operator authorised publication of v0.95 and will
-handle the Rock deployment. A one-off `requested_release` job waits for main's required CI gate,
-verifies that #389 is included, creates an annotated v0.95 tag and dispatches the existing publisher
-at that immutable tag. Its PR must pass CI and merge first; publishing then continues without this
-laptop. Do not create a published release manually or move the tag. Check Actions and the attached
-checksummed deployment bundles before claiming publication is complete. Once v0.95 is published,
-the queue becomes a no-op; remove this one-off job and its scripts in a subsequent cleanup PR.
+v0.95 is published. The operator authorised committing and pushing the reviewed changes and will
+handle deployment. The implementation is on `feat/ui-clarity-phone-layout`; merge only after its
+required CI gate succeeds. No new release has been tagged. To deploy from source, use
+`scripts/deploy.sh` after the change reaches main; it records an exact release tag or source commit
+for the installed-version label. Release bundles remain on v0.95 until another release is published.
+
+This change adds explicit Add reference buttons, a shared version label on Login and the Guide,
+clearer Manage headings/order, Subjects and grades, Features before Installation status, and upload
+prerequisites. Preserve all existing panel ids and the two-level accordion. Set an Official version
+is the existing recovery section for plans with no Official selection; ordinary Official changes
+remain on the lesson page. The Guide, manual, SPEC, Manage design notes and changelog match.
+
+Desktop is the priority. Subject/grade layout and field-width fixes apply only up to 640px; the
+existing desktop layout and 30rem dropdown cap remain intact. Same-data production comparisons of
+Users, Subjects, Subject grades and Upload at 1024, 1280 and 1440px found no control geometry changes
+within 0.5px. A browser regression test guards desktop controls and requires visible grade rows.
+The reference component already defaults className to disc-ref; the reported undefined class was
+not a defect. Confirmed in a real browser.
+
+Verification: the earlier complete unit run passed 1,398 tests and 13 re-ingest integration tests.
+After the desktop correction, 34 focused unit tests and 47 Manage/Discussions/Guide/Messages browser
+tests passed without retries; the strengthened desktop test also passed independently. Lint, types,
+format and production build pass. Deployment stubs passed 15 cases, and an unlabelled production
+image showed Version unavailable. The sample v0.96 label was test metadata, not a published release.
+
+Temporary comparison/test containers and the empty capture-spec placeholder are removed. Original
+local Postgres data is untouched. Screenshots and measurements remain outside the repository at
+`/Users/jamesmcclelland/.codex/visualizations/2026/10/12/lesson3-app-audit`; the desktop gallery is
+`http://127.0.0.1:3119/desktop.html` while its local server is running.
+
+The one-off v0.95 requested-release CI job and its two scripts are retired now that publication
+succeeded. The normal annotated-tag publisher remains unchanged apart from installed-version
+metadata. CI verifies the final PR before merge; deployment remains the operator's responsibility.
 
 ---
 
