@@ -2174,9 +2174,6 @@ button.user-menu__item {
   margin: 0.6rem 0 0;
   font-size: 0.9rem;
 }
-.disc-ref__kicker {
-  color: var(--muted);
-}
 .disc-replies {
   list-style: none;
   margin: 0;

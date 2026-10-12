@@ -1,5 +1,8 @@
 import React from 'react'
 import Link from 'next/link'
+import LessonReference from '@/components/LessonReference'
+import { versionReferenceLabel, type ReferenceView } from '@/lib/lessonReference'
+import { resolveVersionReferences } from '@/lib/resolveLessonReferences'
 
 import { requireUser } from '@/lib/session'
 import { findReadablePlan, findReadableVersion } from '@/lib/readBundle'
@@ -37,36 +40,40 @@ export default async function MessagesPage({
   const widerHref = showingOlder ? null : '/messages?older=1'
   const { payload, user } = await requireUser()
 
-  // Compose context from the lesson page — only attached when the plan is real and readable by the
-  // SENDER (a bogus/foreign ?plan= just composes without context), and the version link only when it's
-  // a readable version that actually BELONGS to the plan (mirroring the server-side validateContextLink
-  // guard in Messages.ts, so a stale/manipulated URL can't prefill a broken cross-plan context; a
-  // missing/foreign/mismatched version just drops to null). The plan→version fetches are sequential by
-  // necessity (the ownership check needs the plan id), but the whole resolution is INDEPENDENT of the
-  // inbox/roster batch below, so it runs concurrently with it — one wave, not three.
-  const aboutPlanId = sp.plan && Number.isInteger(Number(sp.plan)) ? Number(sp.plan) : null
+  // An explicitly requested version must never silently become a whole-lesson link.
   const contextPromise = (async () => {
-    const aboutPlan = aboutPlanId
-      ? await findReadablePlan(payload, { id: String(aboutPlanId), user })
-      : null
-    let aboutVersionId: number | null = null
-    if (aboutPlan && sp.version && Number.isInteger(Number(sp.version))) {
-      const version = await findReadableVersion(payload, { id: Number(sp.version), user })
-      if (version && relId(version.lessonPlan) === aboutPlan.id) aboutVersionId = version.id
+    const askedVersion = sp.version != null && sp.version !== ''
+    const planId = relId(sp.plan)
+    const plan = planId != null ? await findReadablePlan(payload, { id: planId, user }) : null
+    const versionId = relId(sp.version)
+    const version =
+      plan && askedVersion && versionId != null
+        ? await findReadableVersion(payload, {
+            id: versionId,
+            user,
+            select: { lessonPlan: true, title: true, semver: true, meta: { substrand_name: true } },
+          })
+        : null
+    const missingVersion = askedVersion && (!version || relId(version.lessonPlan) !== plan?.id)
+    return {
+      missingVersion,
+      about:
+        plan && !missingVersion
+          ? {
+              planId: plan.id,
+              versionId: version?.id ?? null,
+              title: version
+                ? versionReferenceLabel(version)
+                : displayTitle(plan.title ?? 'Lesson plan'),
+            }
+          : null,
     }
-    return aboutPlan
-      ? {
-          planId: aboutPlan.id,
-          versionId: aboutVersionId,
-          title: displayTitle(aboutPlan.title ?? 'Lesson plan'),
-        }
-      : null
   })()
 
   // The names-only roster for the recipient picker (SPEC §8 as amended: any authenticated user
   // reads display names; email/roles/assignments are field-stripped). Self excluded — the picker
   // is for messaging colleagues.
-  const [about, [{ docs: roster }, unread, readMsgs, sent]] = await Promise.all([
+  const [context, [{ docs: roster }, unread, readMsgs, sent]] = await Promise.all([
     contextPromise,
     Promise.all([
       payload.find({
@@ -121,8 +128,32 @@ export default async function MessagesPage({
     ]),
   ])
 
+  const { about, missingVersion } = context
+
   // Unread first, then read — both newest-first within their group.
   const inbox = [...unread.docs, ...readMsgs.docs]
+  const messages = [...inbox, ...sent.docs]
+  const versionReferences = await resolveVersionReferences(
+    payload,
+    user,
+    messages.map((m) => ({
+      refVersion: m.version,
+      refLabel: m.versionLabel,
+    })),
+  )
+  const references = new Map(
+    messages.map((m, i) => {
+      const planId = relId(m.lessonPlan)
+      const planTitle = m.lessonPlan && typeof m.lessonPlan === 'object' ? m.lessonPlan.title : null
+      // A stored version label prevents fallback even after the database clears the version FK.
+      const reference =
+        versionReferences[i] ??
+        (planId != null && planTitle != null
+          ? { label: displayTitle(planTitle), lessonHref: `/lessons/${planId}`, compareHref: null }
+          : null)
+      return [m.id, reference] as const
+    }),
+  )
   /** True when the store holds more than this render shows, so the UI can say so instead of
    *  silently truncating (the previous behaviour, which is how the badge bug stayed invisible). */
   const inboxTruncated = unread.totalDocs + readMsgs.totalDocs > inbox.length
@@ -141,6 +172,7 @@ export default async function MessagesPage({
       <Composer
         roster={roster.map((u) => ({ id: u.id, name: userDisplayName(u) }))}
         about={about}
+        missingVersion={missingVersion}
       />
 
       <section className="msg-section" aria-label="Inbox">
@@ -151,7 +183,12 @@ export default async function MessagesPage({
           <>
             <ul className="msg-list">
               {inbox.map((m) => (
-                <MessageCard key={m.id} message={m} direction="in" />
+                <MessageCard
+                  key={m.id}
+                  message={m}
+                  direction="in"
+                  reference={references.get(m.id) ?? null}
+                />
               ))}
             </ul>
             {inboxTruncated && (
@@ -172,7 +209,12 @@ export default async function MessagesPage({
         ) : (
           <ul className="msg-list">
             {sent.docs.map((m) => (
-              <MessageCard key={m.id} message={m} direction="out" />
+              <MessageCard
+                key={m.id}
+                message={m}
+                direction="out"
+                reference={references.get(m.id) ?? null}
+              />
             ))}
           </ul>
         )}
@@ -221,9 +263,16 @@ function ShowOlder({
 }
 
 /** One flat message row. `direction` picks whose name heads the card (sender for inbox rows,
- *  recipient for sent rows). The lesson link renders from the depth-1 population — access-gated
- *  for the READER, so an unreadable link just falls back to the bare id-less label. */
-function MessageCard({ message: m, direction }: { message: Message; direction: 'in' | 'out' }) {
+ *  recipient for sent rows). References were resolved in one viewer-scoped batch for this page. */
+function MessageCard({
+  message: m,
+  direction,
+  reference,
+}: {
+  message: Message
+  direction: 'in' | 'out'
+  reference: ReferenceView | null
+}) {
   const counterpart = direction === 'in' ? m.sender : m.recipient
   const name =
     typeof counterpart === 'object' && counterpart !== null
@@ -231,10 +280,6 @@ function MessageCard({ message: m, direction }: { message: Message; direction: '
       : 'A user'
   const isNew = direction === 'in' && !m.readAt
   const senderId = relId(m.sender)
-  const planId = relId(m.lessonPlan)
-  const versionId = relId(m.version)
-  const planTitle =
-    m.lessonPlan && typeof m.lessonPlan === 'object' ? (m.lessonPlan.title ?? 'Lesson plan') : null
   const when = new Date(m.createdAt).toLocaleString('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -247,20 +292,9 @@ function MessageCard({ message: m, direction }: { message: Message; direction: '
         {isNew && <span className="msg-new-tag">New</span>}
       </p>
       <p className="msg-body">{m.body}</p>
-      {planId != null && planTitle != null && (
-        <p className="msg-link">
-          <Link href={`/lessons/${planId}${versionId != null ? `?version=${versionId}` : ''}`}>
-            {displayTitle(planTitle)}
-          </Link>
-        </p>
-      )}
+      {reference && <LessonReference reference={reference} className="msg-link" />}
       {direction === 'in' && senderId != null && (
-        <ReplyBox
-          recipientId={senderId}
-          recipientName={name}
-          planId={planId}
-          versionId={versionId}
-        />
+        <ReplyBox recipientId={senderId} recipientName={name} messageId={m.id} />
       )}
     </li>
   )

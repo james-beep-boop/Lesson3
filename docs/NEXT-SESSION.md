@@ -25,6 +25,20 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# MESSAGE REFERENCE FOLLOW-UP — 2026-10-12
+
+The operator approved sharing the forum's precise version-reference handling with Messages, including
+server-authorised reference inheritance for replies. The change adds `messages.version_label` and a
+transient `replyTo` input; run the normal migration when deploying its eventual release. Whole-lesson
+links retain their behaviour. Already-cleared legacy version references cannot be reconstructed.
+A Messages lesson picker remains out of scope. See SPEC §10, the 2026-10-12 decision and Unreleased.
+
+The discussion-picker fix merged in #388 as `e1747ef`. The Rock currently runs v0.94, so Hermes's
+reproduction there was against the earlier build. Both fixes belong to a later release; leave v0.94's
+tag unchanged and leave deployment to the operator.
+
+---
+
 # RELEASE v0.94 PUBLISHED — 2026-10-12; native publishing follow-up
 
 **v0.94 is published and verified** at tag `v0.94`, commit `319d9bb`, after the final main gate

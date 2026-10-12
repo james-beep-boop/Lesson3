@@ -1,3 +1,4 @@
+import * as migration_20261012_012355_add_message_version_labels from './20261012_012355_add_message_version_labels'
 import * as migration_20260608_024132_initial from './20260608_024132_initial'
 import * as migration_20260608_145602_lesson_entities from './20260608_145602_lesson_entities'
 import * as migration_20260608_224715_bundle_versioning from './20260608_224715_bundle_versioning'
@@ -179,5 +180,10 @@ export const migrations = [
     up: migration_20261009_125057_add_discussions.up,
     down: migration_20261009_125057_add_discussions.down,
     name: '20261009_125057_add_discussions',
+  },
+  {
+    up: migration_20261012_012355_add_message_version_labels.up,
+    down: migration_20261012_012355_add_message_version_labels.down,
+    name: '20261012_012355_add_message_version_labels',
   },
 ]

@@ -4,7 +4,7 @@
  * `lib/discussions.ts` holds the server rules and re-exports `escapeLike` and `refLabelFor` from here, so
  * the server and the reference picker in the browser build the same label and the same search pattern.
  */
-import { lessonDisplayName } from './substrand'
+export { versionReferenceLabel as refLabelFor } from './lessonReference'
 
 /** Text limits (§16.2): a title, and a post or reply (the same as `messages.body`). */
 export const MAX_TITLE_LENGTH = 150
@@ -26,17 +26,6 @@ export function likeAllWords(query: string): string | null {
   const words = query.slice(0, MAX_SEARCH_LENGTH).trim().split(/\s+/).filter(Boolean)
   return words.length ? words.map(escapeLike).join(' ') : null
 }
-
-/**
- * The snapshot label a reference keeps after its version is deleted: `<lesson name> · v<semver>`
- * (§16.2). Lesson names are readable by every signed-in user, so the snapshot discloses nothing new.
- */
-export const refLabelFor = (version: {
-  meta?: { substrand_name?: string | null } | null
-  title?: string | null
-  semver?: string | null
-}): string =>
-  `${lessonDisplayName(version.meta?.substrand_name, version.title)} · v${version.semver ?? '?'}`
 
 // ─── Plain text with safe links (§16.4 "Links in text") ────────────────────────────────────────────
 

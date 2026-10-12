@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Messages and Discussions share version-reference display and batched lookups. Messages retain the
+  referenced version's label after deletion, including in replies, and offer Compare changes while
+  both versions exist. Whole-lesson links remain supported. The database migration labels surviving
+  references; references already lost before upgrading cannot be recovered. Invalid version handoffs
+  are explained when composing instead of silently becoming whole-lesson links.
 - Discussion topics and replies wait for a lesson version to be selected or the reference picker to
   be explicitly cancelled, preventing a slow version lookup from silently dropping the lesson link.
 

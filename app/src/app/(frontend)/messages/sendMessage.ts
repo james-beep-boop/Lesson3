@@ -12,6 +12,8 @@ export async function sendMessage(input: {
   /** Optional lesson context. `version` is sent only when `lessonPlan` is too. */
   lessonPlan?: number | null
   version?: number | null
+  /** The server chooses the reply recipient and copies the original reference. No label is sent. */
+  replyTo?: number
 }): Promise<void> {
   const res = await fetch('/api/messages', {
     method: 'POST',
@@ -20,8 +22,14 @@ export async function sendMessage(input: {
     body: JSON.stringify({
       recipient: input.recipient,
       body: input.body,
-      ...(input.lessonPlan != null ? { lessonPlan: input.lessonPlan } : {}),
-      ...(input.lessonPlan != null && input.version != null ? { version: input.version } : {}),
+      ...(input.replyTo != null
+        ? { replyTo: input.replyTo }
+        : {
+            ...(input.lessonPlan != null ? { lessonPlan: input.lessonPlan } : {}),
+            ...(input.lessonPlan != null && input.version != null
+              ? { version: input.version }
+              : {}),
+          }),
     }),
   })
   if (!res.ok) {

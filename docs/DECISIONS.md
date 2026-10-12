@@ -11,6 +11,20 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-12 — Messages share the forum's precise saved-version references
+
+Save a server-derived `versionLabel` only for a specific-version reference. It survives nullable
+relationship clearing, so deletion cannot silently substitute the current Official version.
+Whole-lesson messages have no such label and keep their plan link. Backfill surviving references
+using the same formatter; already-cleared legacy references cannot be reconstructed.
+
+Replies send only their original message's id for reference inheritance. The server reads it with
+the caller's access, requires the caller to be its recipient, chooses its sender as the reply
+recipient and copies the stored context. Neither a browser label nor substituted recipient/context
+is authoritative. Database faults propagate. Share the batched viewer-scoped lookup and reference
+component with Discussions. Keep a Messages lesson picker out of this fix. Tests cover whole-lesson
+and deleted-version references, inheritance, forged labels, non-recipient requests and migration.
+
 ## 2026-10-12 — Do not silently omit a partially selected discussion reference
 
 Opening the lesson picker expresses an intent to attach a reference. Both topic and reply composers
