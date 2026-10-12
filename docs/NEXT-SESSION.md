@@ -25,6 +25,18 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# V0.95 RELEASE QUEUED ON GITHUB — 2026-10-12
+
+Application fixes #388 and #389 have merged. The operator authorised publication of v0.95 and will
+handle the Rock deployment. A one-off `requested_release` job waits for main's required CI gate,
+verifies that #389 is included, creates an annotated v0.95 tag and dispatches the existing publisher
+at that immutable tag. Its PR must pass CI and merge first; publishing then continues without this
+laptop. Do not create a published release manually or move the tag. Check Actions and the attached
+checksummed deployment bundles before claiming publication is complete. Once v0.95 is published,
+the queue becomes a no-op; remove this one-off job and its scripts in a subsequent cleanup PR.
+
+---
+
 # MESSAGE REFERENCE FOLLOW-UP — 2026-10-12
 
 The operator approved sharing the forum's precise version-reference handling with Messages, including
@@ -34,7 +46,7 @@ links retain their behaviour. Already-cleared legacy version references cannot b
 A Messages lesson picker remains out of scope. See SPEC §10, the 2026-10-12 decision and Unreleased.
 
 The discussion-picker fix merged in #388 as `e1747ef`. The Rock currently runs v0.94, so Hermes's
-reproduction there was against the earlier build. Both fixes belong to a later release; leave v0.94's
+reproduction there was against the earlier build. Both fixes are queued for v0.95; leave v0.94's
 tag unchanged and leave deployment to the operator.
 
 ---

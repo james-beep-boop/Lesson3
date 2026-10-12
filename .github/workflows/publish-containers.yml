@@ -3,6 +3,9 @@ name: Publish release containers
 # A release tag is the publication boundary. The normal CI workflow must pass on the pull request
 # before the change reaches main; this workflow also refuses to publish a tag not contained in main.
 on:
+  # A CI-created tag does not trigger another workflow through GITHUB_TOKEN. The release queue
+  # explicitly dispatches this same publisher at the immutable tag after main's gate succeeds.
+  workflow_dispatch:
   push:
     tags:
       - "v*"
