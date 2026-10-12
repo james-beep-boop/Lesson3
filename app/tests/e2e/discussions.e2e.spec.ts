@@ -84,16 +84,78 @@ test.describe('Discussions', () => {
     )
   })
 
-  test('the picker finds a lesson, then a version', async ({ page }) => {
+  test('the picker prevents posting while versions load and until a version is chosen', async ({
+    page,
+  }) => {
     await loginAs(page, fx, 'teacher')
     await page.goto(`${BASE}/discuss/new`)
-    await page.getByRole('button', { name: 'Add lesson reference' }).click()
-    await page.getByLabel('Find a lesson by its title').fill(`${MARK}Plan`)
-    await page.getByRole('button', { name: new RegExp(`${MARK}Plan`, 'i') }).click()
+    await page.getByLabel('Title').fill(`${MARK}Picked`)
+    await page.getByLabel('Post', { exact: true }).fill('Picked by hand.')
+    const post = page.getByRole('button', { name: 'Post', exact: true })
+    let releaseVersions!: () => void
+    const versionsReady = new Promise<void>((resolve) => {
+      releaseVersions = resolve
+    })
+    await page.route('**/api/lesson-bundle-versions?**', async (route) => {
+      const response = await route.fetch()
+      await versionsReady
+      await route.fulfill({ response })
+    })
+    try {
+      await page.getByRole('button', { name: 'Add lesson reference' }).click()
+      await page.getByLabel('Find a lesson by its title').fill(`${MARK}Plan`)
+      await page.getByRole('button', { name: new RegExp(`${MARK}Plan`, 'i') }).click()
+      await expect(page.getByText('Loading versions…')).toBeVisible()
+      await expect(post).toBeDisabled()
+      await expect(
+        page.getByText('Choose a lesson version before posting, or cancel'),
+      ).toBeVisible()
+    } finally {
+      releaseVersions()
+    }
+    await expect(page.getByRole('button', { name: /^v1\.0\.1 · / })).toBeVisible()
+    await expect(post).toBeDisabled()
     await page.getByRole('button', { name: /^v1\.0\.1 · / }).click()
     await expect(page.getByText('Lesson reference:')).toBeVisible()
-    await startDiscussion(page, `${MARK}Picked`, 'Picked by hand.')
+    await expect(post).toBeEnabled()
+    await post.click()
+    await page.waitForURL(/\/discuss\/\d+$/)
     await expect(page.getByRole('link', { name: 'Compare changes' })).toBeVisible()
+  })
+
+  test('a reply waits for its selected lesson version and preserves the link', async ({ page }) => {
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/discuss/new`)
+    await startDiscussion(page, `${MARK}Reply reference`, 'Please compare this version.')
+    await page.getByLabel('Reply', { exact: true }).fill('Here is the version to compare.')
+    const post = page.getByRole('button', { name: 'Post reply' })
+    let releaseVersions!: () => void
+    const versionsReady = new Promise<void>((resolve) => {
+      releaseVersions = resolve
+    })
+    await page.route('**/api/lesson-bundle-versions?**', async (route) => {
+      const response = await route.fetch()
+      await versionsReady
+      await route.fulfill({ response })
+    })
+    try {
+      await page.getByRole('button', { name: 'Add lesson reference' }).click()
+      await page.getByLabel('Find a lesson by its title').fill(`${MARK}Plan`)
+      await page.getByRole('button', { name: new RegExp(`${MARK}Plan`, 'i') }).click()
+      await expect(page.getByText('Loading versions…')).toBeVisible()
+      await expect(post).toBeDisabled()
+    } finally {
+      releaseVersions()
+    }
+    await expect(page.getByRole('button', { name: /^v1\.0\.1 · / })).toBeVisible()
+    await expect(post).toBeDisabled()
+    await page.getByRole('button', { name: /^v1\.0\.1 · / }).click()
+    await expect(post).toBeEnabled()
+    await post.click()
+    await page.waitForURL(/#reply-1$/)
+    await expect(
+      page.locator('#reply-1').getByRole('link', { name: 'Compare changes' }),
+    ).toHaveAttribute('href', `/lessons/${fx.plan.id}/compare?from=${fx.version.id}&to=${saved.id}`)
   })
 
   test('a reply lights the author’s dot, and reading the thread clears it', async ({ browser }) => {

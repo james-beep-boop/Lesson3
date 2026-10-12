@@ -42,8 +42,11 @@ merged in #386 as `28686a8`. The CI gate follow-up makes the required status job
 explicit result for successful, failed, skipped or cancelled dependencies; build work stays in the
 two normally cancellable jobs.
 
-**Resume:** confirm the CI-gate follow-up and its main CI passed. Future release tags use the
-native workflow after that change merges. There is no remaining forum release hold. v0.94's
+The CI-gate follow-up merged in #387 as `757ed0f`, and its final main CI passed. The discussion
+reference-selection follow-up blocks posting while the lesson picker is open; see the 2026-10-12
+decision and the Unreleased changelog entry.
+
+**Resume:** future release tags use the native workflow. There is no remaining forum release hold. v0.94's
 immutable tag retains the workflow used for that release; do not move it to include this follow-up.
 
 ---

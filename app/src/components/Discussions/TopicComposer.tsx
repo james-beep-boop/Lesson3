@@ -22,11 +22,12 @@ export default function TopicComposer({
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [reference, setReference] = useState(initialReference)
+  const [referencePending, setReferencePending] = useState(false)
   const { state, locked, submit, retry } = useComposer(authorId)
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (locked || !title.trim() || !body.trim()) return
+    if (locked || referencePending || !title.trim() || !body.trim()) return
     void submit({
       kind: 'topic',
       data: {
@@ -64,12 +65,17 @@ export default function TopicComposer({
           />
         )}
       </FormField>
-      <ReferencePicker value={reference} onChange={setReference} disabled={locked} />
+      <ReferencePicker
+        value={reference}
+        onChange={setReference}
+        onPendingChange={setReferencePending}
+        disabled={locked}
+      />
       <ComposerActions
         phase={state.phase}
         message={state.message}
         submitLabel="Post"
-        canSubmit={!!title.trim() && !!body.trim()}
+        canSubmit={!referencePending && !!title.trim() && !!body.trim()}
         onRetry={retry}
       />
     </form>

@@ -1063,6 +1063,9 @@ still see everything at once, because no release is tagged until 4c merges. The 
   - Type to find a lesson by title (readable lessons only, `overrideAccess: false`).
   - Then choose one of its saved versions (version number, date, author), via the `findReadableVersions` rules.
   - One reference per post; a prefilled reference is removable.
+  - Opening the picker blocks posting until a saved version is chosen or the picker is explicitly
+    cancelled. Loading, failed and empty version lookups must not silently turn a pending reference
+    into a post without one; enforce this in both composers' submit handlers and buttons.
   - **Through existing REST endpoints only**, as the caller (`overrideAccess: false`). Authors are projected
     **names only** (`populate[users][name]`), never emails, roles or assignments. ⚑ If building it needs a new
     route or Server Action, that is a new authorization boundary. It then gets wire tests: 401, per-role access,

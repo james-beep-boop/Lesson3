@@ -50,12 +50,16 @@ const authorOf = (v: VersionHit): string | null =>
 export default function ReferencePicker({
   value,
   onChange,
+  onPendingChange,
   disabled,
 }: {
   value: ChosenReference | null
   onChange: (next: ChosenReference | null) => void
+  onPendingChange: (pending: boolean) => void
   disabled: boolean
 }) {
+  // Opening the picker expresses intent to attach a reference. Only choosing a version or explicitly
+  // cancelling clears the composer's pending flag; a lookup finishing (or failing) does not.
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   // Results are kept with the query they answer, so a stale answer is never shown for a newer query.
@@ -100,9 +104,11 @@ export default function ReferencePicker({
   const choosePlan = (next: PlanHit | null) => {
     setVersions(null)
     setPlan(next)
+    setError(null)
   }
 
   const reset = () => {
+    onPendingChange(false)
     setOpen(false)
     setQuery('')
     setFound(null)
@@ -129,7 +135,15 @@ export default function ReferencePicker({
   if (!open) {
     return (
       <div className="disc-picker">
-        <button type="button" className="btn" onClick={() => setOpen(true)} disabled={disabled}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            onPendingChange(true)
+            setOpen(true)
+          }}
+          disabled={disabled}
+        >
           Add lesson reference
         </button>
       </div>
@@ -139,6 +153,9 @@ export default function ReferencePicker({
   return (
     <fieldset className="disc-picker disc-picker--open" disabled={disabled}>
       <legend>Add lesson reference</legend>
+      <p className="muted" role="status">
+        Choose a lesson version before posting, or cancel to post without a lesson reference.
+      </p>
       {!plan ? (
         <>
           <label htmlFor={inputId} className="disc-picker__label">

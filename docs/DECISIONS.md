@@ -11,6 +11,15 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-12 — Do not silently omit a partially selected discussion reference
+
+Opening the lesson picker expresses an intent to attach a reference. Both topic and reply composers
+block submission until a saved version is selected or the teacher explicitly cancels the picker.
+Loading, a failed lookup, and an empty version list keep that intent pending. Guard the form's submit
+handler as well as its button, so keyboard submission cannot bypass it. Regression tests delay the
+version response and prove that the selected reference survives posting. Posts without references
+remain allowed when the picker is closed.
+
 ## 2026-10-12 — Required CI gate must report cancellation explicitly
 
 The initial native-build guard used `!cancelled()` on the required gate. That handles build failure
