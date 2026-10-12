@@ -1715,7 +1715,6 @@ button.user-menu__item {
   border-radius: 4px;
   background: var(--bg-soft);
 }
-.request-editing-guide-link,
 .help-guide-link a {
   display: inline-flex;
   min-height: 2.75rem;
