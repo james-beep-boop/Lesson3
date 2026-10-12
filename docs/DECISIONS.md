@@ -11,6 +11,12 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-13 — Remove the lesson toolbar editing-access help link
+
+Remove “What does editing access let me do?” from both the request button's initial and sent states
+on the lesson page, as requested by the operator. Retain the request action, its feedback and the
+Guide's editing-access explanation. Remove the unused CSS selector without changing toolbar spacing.
+
 ## 2026-10-12 — Retire completed v0.95 publication automation
 
 The operator authorised repository cleanup after v0.95 was published. Remove the one-off
