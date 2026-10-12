@@ -28,6 +28,7 @@ export default function ReplyComposer({
 }) {
   const [body, setBody] = useState('')
   const [reference, setReference] = useState<ChosenReference | null>(null)
+  const [referencePending, setReferencePending] = useState(false)
   const { state, locked, submit, retry } = useComposer(authorId, () => {
     setBody('')
     setReference(null)
@@ -35,7 +36,7 @@ export default function ReplyComposer({
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (locked || !body.trim()) return
+    if (locked || referencePending || !body.trim()) return
     void submit({
       kind: 'reply',
       topicId,
@@ -62,12 +63,17 @@ export default function ReplyComposer({
           />
         )}
       </FormField>
-      <ReferencePicker value={reference} onChange={setReference} disabled={locked} />
+      <ReferencePicker
+        value={reference}
+        onChange={setReference}
+        onPendingChange={setReferencePending}
+        disabled={locked}
+      />
       <ComposerActions
         phase={state.phase}
         message={state.message}
         submitLabel="Post reply"
-        canSubmit={!!body.trim()}
+        canSubmit={!referencePending && !!body.trim()}
         onRetry={retry}
       />
     </form>

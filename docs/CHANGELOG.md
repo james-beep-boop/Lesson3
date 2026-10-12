@@ -8,6 +8,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+- Discussion topics and replies wait for a lesson version to be selected or the reference picker to
+  be explicitly cancelled, preventing a slow version lookup from silently dropping the lesson link.
+
 ## v0.94 (2026-10-12)
 
 ### Upgrade note for nginx deployments
