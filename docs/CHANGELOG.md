@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased
+## v0.95 (2026-10-12)
 
 - Messages and Discussions share version-reference display and batched lookups. Messages retain the
   referenced version's label after deletion, including in replies, and offer Compare changes while
@@ -17,6 +17,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
   are explained when composing instead of silently becoming whole-lesson links.
 - Discussion topics and replies wait for a lesson version to be selected or the reference picker to
   be explicitly cancelled, preventing a slow version lookup from silently dropping the lesson link.
+
+- Release images build on native amd64 and ARM runners. The deployment bundle verifies that its
+  pinned app and migration image digests support both architectures.
 
 ## v0.94 (2026-10-12)
 

@@ -11,6 +11,15 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-12 — Publish the authorised v0.95 without the operator's laptop
+
+Queue this single release after main's required CI gate, checking that the message-reference fix
+(#389) is an ancestor. Create an annotated tag without moving an existing tag. Explicitly dispatch
+the existing publisher at that tag: tags created with `GITHUB_TOKEN` do not trigger another workflow,
+while `workflow_dispatch` does. The publisher retains its draft-and-assets publication procedure and
+multi-platform digest verification. An already published release makes the queue a no-op; API failures
+stop publication. Deployment remains the operator's responsibility.
+
 ## 2026-10-12 — Messages share the forum's precise saved-version references
 
 Save a server-derived `versionLabel` only for a specific-version reference. It survives nullable
