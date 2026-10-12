@@ -89,9 +89,15 @@ const ENV_MODULE_REL = 'src/lib/env.ts'
 /**
  * Set by the framework/runtime, never by an operator: Next.js sets `NEXT_PHASE`/`NEXT_RUNTIME`
  * itself, and `RENDER_TIMINGS` is a local perf-probe flag (`lib/renderTimings.ts`) meant to be passed
- * ad hoc for one run, not carried in a deployment's config.
+ * ad hoc for one run, not carried in a deployment's config. APP_RELEASE_VERSION is image metadata
+ * supplied by publishing/deploy.sh, not an operator setting; an empty env-file value would override it.
  */
-const RUNTIME_PROVIDED = new Set(['NEXT_PHASE', 'NEXT_RUNTIME', 'RENDER_TIMINGS'])
+const RUNTIME_PROVIDED = new Set([
+  'NEXT_PHASE',
+  'NEXT_RUNTIME',
+  'RENDER_TIMINGS',
+  'APP_RELEASE_VERSION',
+])
 
 /**
  * Read by Compose or the container, not by `app/src` — so they belong in the ROOT template only and

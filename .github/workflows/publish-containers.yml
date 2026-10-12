@@ -72,6 +72,8 @@ jobs:
           platforms: linux/${{ matrix.platform.arch }}
           pull: true
           push: true
+          build-args: |
+            APP_RELEASE_VERSION=${{ github.ref_name }}
           # Native builds use versioned architecture tags. Only the merge job publishes the
           # multi-platform release tag, after all four builds succeed. Never move a latest alias.
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.package }}:${{ github.ref_name }}-${{ matrix.platform.arch }}

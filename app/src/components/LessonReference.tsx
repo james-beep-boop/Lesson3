@@ -10,7 +10,7 @@ export default function LessonReference({
   className?: string
 }) {
   return (
-    <p className={className}>
+    <p className={`lesson-reference ${className}`}>
       <span className="muted">Lesson:</span>{' '}
       {reference.lessonHref ? (
         <a href={reference.lessonHref}>{reference.label}</a>

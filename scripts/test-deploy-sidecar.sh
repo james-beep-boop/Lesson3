@@ -41,12 +41,14 @@ if [[ "\$*" == *"HEAD:gotenberg"* ]]; then
   echo "$tree"; exit 0
 fi
 [[ "\$*" == *"--short"* ]] && { echo "deadbee"; exit 0; }
+if [[ "\$1" == describe ]]; then echo "\${SOURCE_TAG:-}"; exit 0; fi
 exit 0   # pull etc. — succeed silently
 EOF
 
   cat >"$SANDBOX/home/bin/docker" <<EOF
 #!/usr/bin/env bash
 echo "docker \$*" >>"$SANDBOX/calls"
+echo "version \${APP_RELEASE_VERSION:-}" >>"$SANDBOX/calls"
 if [[ "\$1 \$2" == "compose config" ]]; then echo "lesson3-gotenberg"; exit 0; fi
 if [[ "\$1 \$2" == "image inspect" ]]; then
   [[ "$label" == "NOIMAGE" ]] && exit 1
@@ -91,6 +93,12 @@ echo "deploy.sh branch decisions:"
 # 1. Provenance matches → the whole point: no font build on an unchanged sidecar.
 run_case "$TREE_MATCH" "$TREE_MATCH"
 check "matching label skips the build" "expected no gotenberg build" "$(not_built && echo 0 || echo 1)"
+
+check "untagged source reports its commit" "expected build-deadbee" \
+  "$(grep -q '^version build-deadbee$' <<<"$CALLS" && echo 0 || echo 1)"
+run_case "$TREE_MATCH" "$TREE_MATCH" SOURCE_TAG=v1.2.3
+check "tagged source reports its release" "expected v1.2.3" \
+  "$(grep -q '^version v1.2.3$' <<<"$CALLS" && echo 0 || echo 1)"
 
 # 2. Sidecar genuinely changed → must rebuild.
 run_case "$TREE_OTHER" "$TREE_MATCH"

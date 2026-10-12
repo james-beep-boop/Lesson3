@@ -20,7 +20,7 @@
  *
  * ⚑ These are a URL CONTRACT, not internal names: they appear in bookmarks and shared links, so
  * renaming one silently breaks a link that used to work. `versions` is deliberately not `saved` —
- * the same panel is titled "Candidate versions" for administrators and "My saved versions" for
+ * the same panel is titled "Delete individual versions" for administrators and "My saved versions" for
  * Teachers with editing access, and an id must not encode one role's label.
  *
  * ⚑ THE TOP LEVEL WAS REGROUPED (operator decision 2026-08-18) from six flat sections into groups of
@@ -42,14 +42,14 @@
  * ⚑ AND `curriculum` IS BACK, which the previous version of this comment told the next reader not to
  * do. The prohibition was specific and still holds in its own terms: it forbade re-adding the id **to
  * make an old link work**, i.e. resurrecting a panel the product no longer had. The product now has a
- * Curriculum group again, and it contains exactly what the old holding pen dissolved into (Subjects
+ * Subjects and grades group again, and it contains exactly what the old holding pen dissolved into (Subjects
  * and Subject grades), so an ancient `?open=curriculum` bookmark resolves to a superset of what it
  * originally pointed at. The id is being reused because the panel came back, not to rescue the link.
  * `tests/unit/panelState.spec.ts` pins the new meaning, where it used to pin the retirement.
  *
  * ⚑ `system` IS NAMED "System", not "System Administration" (operator decision 2026-08-21, after
  * proposing the longer form). Two reasons, and the second is the one that decided it: the other boxes
- * are `Users`, `Curriculum`, `Lesson plans` — plain nouns, so "System" is parallel and the longer form
+ * are `Users`, `Subjects and grades`, `Lesson plans` — plain nouns, so "System" is parallel and the longer form
  * would be the only category-of-activity label; and "System Administration" would sit inches from
  * **Site Administrator** and **Subject Administrator** on a page whose role vocabulary has already cost
  * this project rework twice ("Editor" as a user type, `draft`). D1 called the panel "Installation",
@@ -71,16 +71,16 @@ export const PANEL_IDS = [
   'curriculum.subject-grades',
   'plans',
   'plans.upload',
+  'plans.delete',
   // ⚑ ONE id FOR EVERY ROLE. Role-dependent nesting was proposed and refused: the vocabulary is
   // role-independent so a shared link means the same page for everyone. What differs by role is the
-  // TITLE ("Candidate versions" for an administrator, "My saved versions" otherwise) and whether the
+  // TITLE ("Delete individual versions" for an administrator, "My saved versions" otherwise) and whether the
   // row is available at all — never where it lives.
   'plans.versions',
-  'plans.delete',
   'plans.repair',
   'system',
-  'system.deployment',
   'system.features',
+  'system.deployment',
 ] as const
 
 export type PanelId = (typeof PANEL_IDS)[number]

@@ -114,13 +114,18 @@ export default function UploadBundles() {
       {/* Heading lives on Manage ("Upload lesson plans"); not repeated here. `lp-manage__desc` is the
           shared help-text class the sibling panels use — the inline style it replaces had drifted to
           0.85rem (13.6px) against the 14px token and had no max-width measure. */}
+      <p className="lp-manage__desc">Site administrator only.</p>
       <p className="lp-manage__desc">
-        Site administrator only. Choose ARES <code>.json</code> exports or <code>.zip</code>{' '}
-        archives containing JSON files, including files in folders. Valid files are imported even if
-        others fail. Unchanged files are skipped, so you can re-upload a corrected ZIP. New plans
-        become Official 1.0.0; revisions require Make Official. Up to 500 JSON files and 200 MB of
-        JSON in total, 5 MB per JSON file and 50 MB per ZIP. Review the report below after
-        uploading.
+        Before uploading, create the subject under <strong>Subjects and grades → Subjects</strong>,
+        then add its grade under <strong>Subject grades</strong>. The subject name and grade must
+        match the lesson file.
+      </p>
+      <p className="lp-manage__desc">
+        Choose ARES <code>.json</code> exports or <code>.zip</code> archives containing JSON files,
+        including files in folders. Valid files are imported even if others fail. Unchanged files
+        are skipped, so you can re-upload a corrected ZIP. New plans become Official 1.0.0;
+        revisions require Make Official. Up to 500 JSON files and 200 MB of JSON in total, 5 MB per
+        JSON file and 50 MB per ZIP. Review the report below after uploading.
       </p>
       {/* Classed, not inline-styled: the class is what lets the shared admin button block reach
           Upload. It was the last control on Manage rendering as stock Payload (operator report,

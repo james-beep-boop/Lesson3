@@ -77,7 +77,7 @@ describe.each(['topic', 'reply'] as const)('%s lesson reference selection', (kin
     expect((post as HTMLButtonElement).disabled).toBe(true)
     fireEvent.submit(form)
     expect(composer.submit).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /^v1\.0\.1 · / }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add reference: v1.0.1' }))
     expect((post as HTMLButtonElement).disabled).toBe(false)
     fireEvent.submit(form)
     expect(composer.submit).toHaveBeenCalledTimes(1)

@@ -6,9 +6,9 @@
  * interactive flows:
  *
  *   1. Role scoping — editing-access user: a "Lesson plans" box holding ONLY "My saved versions";
- *      Subject Admin: the same box holding "Candidate versions", plus "Users" holding "Roles &
+ *      Subject Admin: the same box holding "Delete individual versions", plus "Users" holding "Roles &
  *      Access"; Site Admin: "Users" (Accounts / Roles & Access), "Curriculum" (Subjects / Subject
- *      grades), "Lesson plans" (Upload / Candidate versions / Delete / Repair) and "System".
+ *      grades), "Lesson plans" (Upload / Delete / Repair / Delete individual versions) and "System".
  *      ⚑ DO NOT ASSERT A BOX COUNT — availability is DATA-dependent (candidate versions come and go
  *      with `showSaved`, Repair with unpointed plans), and every count written here has gone stale.
  *      ⚑ Panels that were once top-level are nested now, so a test that wants one must open its group
@@ -18,7 +18,7 @@
  *      `…/lesson-bundle-versions`) land on Manage, and the "Lesson plans" nav group is hidden.
  *   3. Repair — a pointerless plan appears in the Site-Admin Repair section (clean name, links to
  *      the plan form).
- *   4. Delete lesson plans — search → select → delete removes the plan.
+ *   4. Delete a plan (all versions) — search → select → delete removes the plan.
  *   5. Section separators — the CSS-only rules between main sections (purely visual, so nothing else
  *      here would fail if they broke).
  *
@@ -99,10 +99,10 @@ const openPanel = async (page: Page, name: string) => {
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
 }
 
-/** Open "Lesson plans" → "Delete lesson plans", the two-step most tests below need. */
+/** Open "Lesson plans" → "Delete a plan (all versions)", the two-step most tests below need. */
 const openDeletePanel = async (page: Page) => {
   await openPanel(page, 'Lesson plans')
-  await openPanel(page, 'Delete lesson plans')
+  await openPanel(page, 'Delete a plan (all versions)')
 }
 
 /** Search the lazy directory for exactly one fixture account and disclose its mounted details. */
@@ -162,7 +162,7 @@ test.describe('Manage page', () => {
       overrideAccess: true,
     })
     // A genuine non-Official CANDIDATE on the fixture plan (whose Official is still v1.0.0). Required
-    // since 2026-08-04: the Candidate versions section is hidden entirely for an administrator with
+    // since 2026-08-04: the Delete individual versions section is hidden entirely for an administrator with
     // nothing to tidy, so without a real candidate this spec would assert a heading that correctly
     // does not exist. It also makes the spec finally test its own name — previously "sees candidates"
     // passed against an empty list showing only its empty state.
@@ -273,7 +273,7 @@ test.describe('Manage page', () => {
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Delete a plan (all versions)' })).toHaveCount(0)
     // The "Lesson plans" nav group is hidden (CSS display:none — still in the DOM, so assert
     // visibility, not count).
     await expect(page.locator("[id='nav-group-Lesson plans']")).toBeHidden()
@@ -286,8 +286,8 @@ test.describe('Manage page', () => {
     // auto-expands, and `plans.versions` sits inside a closed `[hidden]` panel — out of the
     // accessibility tree, so `getByRole` cannot see it until the parent opens.
     await openPanel(page, 'Lesson plans')
-    await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
-    await openPanel(page, 'Candidate versions')
+    await expect(page.getByRole('heading', { name: 'Delete individual versions' })).toBeVisible()
+    await openPanel(page, 'Delete individual versions')
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
     // an empty list. Selector note: `.lp-manage__row` alone would ALSO match the editors widget's
     // rows, which reuse it (`--tight`); `.lp-manage__row-main` is the candidate row's own structure.
@@ -319,7 +319,7 @@ test.describe('Manage page', () => {
     await openPanel(page, 'Users')
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Delete a plan (all versions)' })).toHaveCount(0)
     // ⚑ THE PAIR IS THE AUTHORIZATION STATEMENT: the box renders because they can see something in it
     // (their candidates), and the two Site-Admin operations above are absent. `exact` because
     // Playwright's role-name match is a case-insensitive SUBSTRING by default, so a bare
@@ -358,7 +358,7 @@ test.describe('Manage page', () => {
     )
   })
 
-  test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({
+  test('Site Admin: Set an Official version lists plans missing an Official version; full panel set present', async ({
     page,
   }) => {
     await loginAs(page, 'siteAdmin')
@@ -387,9 +387,39 @@ test.describe('Manage page', () => {
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toBeHidden()
     await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Repair' })).toBeVisible()
-    await openPanel(page, 'Repair')
+    await expect(page.getByRole('heading', { name: 'Delete a plan (all versions)' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Set an Official version' })).toBeVisible()
+    await openPanel(page, 'Upload lesson plans')
+    await expect(
+      page.getByText('Before uploading, create the subject under', {
+        exact: false,
+      }),
+    ).toBeVisible()
+    const plansId = await page
+      .getByRole('button', { name: 'Lesson plans', exact: true })
+      .getAttribute('aria-controls')
+    const lessonPlansPanel = page.locator(`[id="${plansId}"]`)
+    // Query the direct child headers so controls inside an expanded operation don't affect ordering.
+    await expect(lessonPlansPanel.locator(':scope > .lp-accordion > h3 button')).toHaveText([
+      'Upload lesson plans',
+      'Delete a plan (all versions)',
+      'Delete individual versions',
+      'Set an Official version',
+    ])
+    await openPanel(page, 'System')
+    const systemId = await page
+      .getByRole('button', { name: 'System', exact: true })
+      .getAttribute('aria-controls')
+    await expect(page.locator(`[id="${systemId}"] > .lp-accordion > h3 button`)).toHaveText([
+      'Features',
+      'Installation status',
+    ])
+    await expect(page.locator('.lp-accordion .lp-accordion .lp-accordion')).toHaveCount(0)
+    await test.info().attach('manage-headings', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    })
+    await openPanel(page, 'Set an Official version')
     await expect(page.locator('.lp-manage__list a', { hasText: POINTERLESS_TITLE })).toBeVisible()
 
     // Panel boxes (2026-08-18) — the same invariant this block has always pinned, one property along.
@@ -487,7 +517,7 @@ test.describe('Manage page', () => {
     await page.goto(`${BASE}/admin`)
     // A Site Admin starts fully collapsed, so open the box before its children are in the tree.
     await openPanel(page, 'Lesson plans')
-    await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Delete individual versions' })).toBeVisible()
     // This run's rows only — the fixture subject-grade's displayName carries the MARK.
     const meta = page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK })
     // fx seeds v1.0.0 as the plan's Official, and v1.1.0 as a non-Official candidate on that plan.
@@ -772,14 +802,14 @@ test.describe('Manage page', () => {
       // inside a closed `[hidden]` panel — out of the accessibility tree entirely, which is why this
       // failed with "element(s) not found" rather than with the wrong attribute value. A hidden
       // control is not a collapsed control, and asserting `aria-expanded=false` on one asserts nothing.
-      // ⚑ "Candidate versions" IS NOT IN THIS LIST because it is nested now — a button inside a closed
+      // ⚑ "Delete individual versions" IS NOT IN THIS LIST because it is nested now — a button inside a closed
       // panel, absent from the accessibility tree, and asserting `aria-expanded=false` on a hidden
       // control asserts nothing (the same trap the note above records for Subjects / Subject grades /
       // Roles & Access).
       //
       // ⚑ `System` IS in it, and had been missing since before this list was last edited — so the
       // census skipped a Site-Admin box entirely and nothing noticed.
-      for (const name of ['Users', 'Curriculum', 'Lesson plans', 'System']) {
+      for (const name of ['Users', 'Subjects and grades', 'Lesson plans', 'System']) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
           'aria-expanded',
           'false',
@@ -802,7 +832,7 @@ test.describe('Manage page', () => {
       // Two TOP-LEVEL boxes, deliberately: this test is about `replaceState` and history depth, and
       // driving it through a nested panel would make it depend on the parent being open first.
       // (It used to use Roles & Access, which is nested as of 2026-08-18.)
-      await openPanel(page, 'Curriculum')
+      await openPanel(page, 'Subjects and grades')
       await expect(page).toHaveURL(/[?&]open=curriculum/)
       await openPanel(page, 'Lesson plans')
       await expect(page).toHaveURL(new RegExp(`[?&]open=curriculum${SEP}plans`))
@@ -813,7 +843,7 @@ test.describe('Manage page', () => {
       expect(await depth()).toBe(before)
 
       // …and closing removes it again rather than accumulating stale ids.
-      await page.getByRole('button', { name: 'Curriculum', exact: true }).click()
+      await page.getByRole('button', { name: 'Subjects and grades', exact: true }).click()
       await expect(page).toHaveURL(/[?&]open=plans/)
       await expect(page).not.toHaveURL(/curriculum/)
       expect(await depth()).toBe(before)
@@ -822,14 +852,13 @@ test.describe('Manage page', () => {
     test('open state survives a genuine reload', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      await openPanel(page, 'Curriculum')
+      await openPanel(page, 'Subjects and grades')
       // A full page load is the case React state cannot survive and the reason the URL carries this
       // at all (D7).
       await page.reload()
-      await expect(page.getByRole('button', { name: 'Curriculum', exact: true })).toHaveAttribute(
-        'aria-expanded',
-        'true',
-      )
+      await expect(
+        page.getByRole('button', { name: 'Subjects and grades', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'true')
     })
 
     test('a deep link opens the named panels, including a nested one', async ({ page }) => {
@@ -842,7 +871,7 @@ test.describe('Manage page', () => {
         'true',
       )
       await expect(
-        page.getByRole('button', { name: 'Delete lesson plans', exact: true }),
+        page.getByRole('button', { name: 'Delete a plan (all versions)', exact: true }),
       ).toHaveAttribute('aria-expanded', 'true')
       await expect(page.getByLabel('Search lesson plans to delete')).toBeVisible()
     })
@@ -873,7 +902,7 @@ test.describe('Manage page', () => {
       await page.goto(`${BASE}/admin`)
       // A top-level box, so the test drives the disclosure itself rather than first having to open a
       // parent (Roles & Access became nested on 2026-08-18).
-      const trigger = page.getByRole('button', { name: 'Curriculum', exact: true })
+      const trigger = page.getByRole('button', { name: 'Subjects and grades', exact: true })
       await trigger.focus()
       await page.keyboard.press('Enter')
       await expect(trigger).toHaveAttribute('aria-expanded', 'true')
@@ -915,11 +944,11 @@ test.describe('Manage page', () => {
       await expect(page.getByRole('button', { name: /Delete selected \(1\)/ })).toBeVisible()
     })
 
-    test('Candidate versions has a search that filters the rows (D3)', async ({ page }) => {
+    test('Delete individual versions has a search that filters the rows (D3)', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
       await openPanel(page, 'Lesson plans')
-      await openPanel(page, 'Candidate versions')
+      await openPanel(page, 'Delete individual versions')
       const search = page.getByLabel('Search saved versions')
       await expect(search).toBeVisible()
 
@@ -939,9 +968,9 @@ test.describe('Manage page', () => {
        * nested, so the count silently picks up sibling panels' lists. A panel's own region is
        * `aria-controls` on its trigger, which cannot match an ancestor.
        */
-      const trigger = page.getByRole('button', { name: 'Candidate versions', exact: true })
+      const trigger = page.getByRole('button', { name: 'Delete individual versions', exact: true })
       const regionId = await trigger.getAttribute('aria-controls')
-      expect(regionId, 'the Candidate versions trigger must control a region').toBeTruthy()
+      expect(regionId, 'the Delete individual versions trigger must control a region').toBeTruthy()
       await expect(page.locator(`[id="${regionId}"] .lp-manage__list`)).toHaveCount(0)
     })
   })
@@ -1352,6 +1381,80 @@ test.describe('Manage page', () => {
    * collapsed a 409 into "Delete failed" would leave the guards working and useless.
    */
   test.describe('Taxonomy panels', () => {
+    test('desktop subject and grade forms retain compact controls', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      for (const width of [1024, 1280, 1440]) {
+        await page.setViewportSize({ width, height: 900 })
+        await page.goto(`${BASE}/admin?open=curriculum.subjects`)
+        const panel = page.locator('.lp-taxonomy').filter({
+          has: page.getByRole('form', { name: 'Add a subject', exact: true }),
+        })
+        const bounds = await panel.boundingBox()
+        for (const input of await panel.locator('input:not([type="search"])').all()) {
+          const rect = await input.boundingBox()
+          expect(rect!.width).toBeLessThan(bounds!.width / 2)
+        }
+        await page.goto(`${BASE}/admin?open=curriculum.subject-grades`)
+        const gradePanel = page.locator('.lp-taxonomy').filter({
+          has: page.getByRole('form', { name: 'Add a subject grade', exact: true }),
+        })
+        await expect(gradePanel.locator('.lp-taxonomy__form').first()).toBeVisible()
+        for (const form of await gradePanel.locator('.lp-taxonomy__form').all()) {
+          const subject = await form
+            .getByRole('combobox', { name: 'Subject', exact: true })
+            .boundingBox()
+          const grade = await form.getByLabel('Grade', { exact: true }).boundingBox()
+          // Inline labels can wrap one control onto the next line; desktop must not gain the
+          // tall stacked field layout needed on a phone.
+          expect(Math.abs(grade!.y - subject!.y)).toBeLessThanOrEqual(subject!.height + 6)
+        }
+      }
+    })
+
+    test('subject, grade and upload controls fit narrow phone screens', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      for (const width of [360, 390]) {
+        await page.setViewportSize({ width, height: 800 })
+        for (const [panel, heading] of [
+          ['curriculum.subjects', 'Subjects'],
+          ['curriculum.subject-grades', 'Subject grades'],
+          ['plans.upload', 'Upload lesson plans'],
+        ]) {
+          await page.goto(`${BASE}/admin?open=${panel}`)
+          await expect(page.getByRole('button', { name: heading, exact: true })).toHaveAttribute(
+            'aria-expanded',
+            'true',
+          )
+          if (panel === 'plans.upload') {
+            await page.locator('input[type="file"]').setInputFiles({
+              name: `${'Long lesson plan name '.repeat(6)}.json`,
+              mimeType: 'application/json',
+              buffer: Buffer.from('{}'),
+            })
+          }
+          await expect
+            .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+            .toBe(width)
+          const controls = page.locator(
+            panel === 'plans.upload'
+              ? '.lp-manage__upload input, .lp-manage__upload button'
+              : '.lp-taxonomy input, .lp-taxonomy select, .lp-taxonomy button',
+          )
+          for (const control of await controls.all()) {
+            if (!(await control.isVisible())) continue
+            const rect = await control.boundingBox()
+            expect(rect).not.toBeNull()
+            expect(rect!.x).toBeGreaterThanOrEqual(0)
+            expect(rect!.x + rect!.width).toBeLessThanOrEqual(width)
+          }
+          await test.info().attach(`${panel}-${width}`, {
+            body: await page.screenshot({ fullPage: true }),
+            contentType: 'image/png',
+          })
+        }
+      }
+    })
+
     test("a blocked delete shows the guard's own message, and the confirm names the cascade", async ({
       page,
     }) => {
@@ -1385,11 +1488,11 @@ test.describe('Manage page', () => {
       expect(prompt).toContain('This cannot be undone.')
 
       // The delete then FAILS on the content guard, and its 409 text — not a generic failure — is
-      // what the panel renders. `Manage → Delete lesson plans` is the actionable part of that
+      // what the panel renders. `Manage → Delete a plan (all versions)` is the actionable part of that
       // message and the reason surfacing it verbatim matters.
       const error = page.locator('.lp-taxonomy .lp-manage__error')
       await expect(error).toContainText('still use this subject grade')
-      await expect(error).toContainText('Manage → Delete lesson plans')
+      await expect(error).toContainText('Manage → Lesson plans → Delete a plan (all versions)')
       // Still there: a refused delete must not look like a successful one.
       await expect(remove).toBeVisible()
     })

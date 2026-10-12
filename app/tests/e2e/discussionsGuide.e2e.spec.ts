@@ -16,8 +16,23 @@ test.afterAll(async () => {
 test('forum Guide tasks follow the switch; administrator moderation instructions stay available', async ({
   page,
 }) => {
+  await page.goto(`${BASE}/login`)
+  const version = await page.locator('.app-version').innerText()
+  await test.info().attach('login-version', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  })
+  expect(version).toMatch(
+    /^(Version \d+\.\d+(?:\.\d+)?|Build [a-f0-9]+|Development build|Version unavailable)$/,
+  )
   await loginAs(page, fx, 'editor')
   await page.goto(`${BASE}/guide?open=teachers,editing`)
+  await expect(page.locator('.guide-footer .app-version')).toHaveText(version)
+  await page.locator('.guide-footer').scrollIntoViewIfNeeded()
+  await test.info().attach('guide-version', {
+    body: await page.screenshot(),
+    contentType: 'image/png',
+  })
   await expect(page.getByRole('button', { name: 'Start a discussion and reply' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add a lesson reference' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Discuss your saved changes' })).toBeVisible()

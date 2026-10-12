@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Manage — Site-Admin "Delete lesson plans" panel (browse/search → select → confirm → delete).
+ * Manage — Site-Admin "Delete a plan (all versions)" panel (browse/search → select → confirm → delete).
  *
  * ORGANISATION (2026-08-04, operator request): the same subject-grade → strand → sub-strand tree the
  * library catalogue renders, via the SAME `groupLessons` (lib/substrand.ts) — so the two views can
@@ -198,7 +198,7 @@ export function DeletePlansPanel({ rows }: { rows: PlanRow[] }) {
           const sgIds = subjectGradeIds(sg)
           return (
             <section key={sg.key} className="lp-delete-plans__group">
-              {/* h4/h5 under the section's h3 "Delete lesson plans": the group's checkbox is the
+              {/* h4/h5 under the section's h3 "Delete a plan (all versions)": the group's checkbox is the
                   affordance, but the outline still has to read as an outline. */}
               <h4 className="lp-delete-plans__group-head">
                 <GroupPick
@@ -394,8 +394,8 @@ function ConfirmDelete({
       )}
       {scope.kind === 'subjectGrade' && (
         <p className="modal__body">
-          The subject grade itself stays. Once it is empty you can delete it from Curriculum &amp;
-          people.
+          The subject grade itself stays. Once it is empty you can delete it from Subjects and
+          grades.
         </p>
       )}
       <p className="lp-confirm__warn">This cannot be undone.</p>
