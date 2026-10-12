@@ -84,30 +84,117 @@ describe('genuine not-visible answers are still a 400', () => {
 })
 
 describe('the happy path and the paths that skip the check entirely', () => {
-  it('passes the data through when the version belongs to the plan', async () => {
-    const data = { ...LINKED }
+  it('derives the snapshot label when the version belongs to the plan, ignoring a supplied label', async () => {
+    const data = { ...LINKED, versionLabel: 'forged' }
     await expect(
-      validateContextLink(hookArgs(() => Promise.resolve({ id: 5, lessonPlan: 9 }), data)),
-    ).resolves.toBe(data)
+      validateContextLink(
+        hookArgs(
+          () => Promise.resolve({ id: 5, lessonPlan: 9, title: 'Fractions', semver: '1.0.1' }),
+          data,
+        ),
+      ),
+    ).resolves.toEqual({ ...LINKED, versionLabel: 'Fractions · v1.0.1' })
   })
 
   it.each([['no version link at all', { lessonPlan: 9 }]])(
     '%s skips the lookup',
     async (_label, data) => {
       const findByID = vi.fn(() => Promise.resolve({}))
-      await expect(validateContextLink(hookArgs(findByID, data))).resolves.toBe(data)
+      await expect(
+        validateContextLink(hookArgs(findByID, { ...data, versionLabel: 'forged' })),
+      ).resolves.toEqual({ ...data, versionLabel: null })
       expect(findByID).not.toHaveBeenCalled()
     },
   )
 
   /** System paths (fixtures, tests, seeds) run without `req.user` and are trusted by design. */
-  it('a system path with no user is trusted', async () => {
+  it('a system path with no user still derives its label from the version', async () => {
     const data = { ...LINKED }
     const args = {
       data,
       operation: 'create',
-      req: { payload: { findByID: vi.fn() } },
+      req: {
+        payload: {
+          findByID: vi.fn(async () => ({
+            id: 5,
+            title: 'Fractions',
+            semver: '1.0.1',
+            lessonPlan: 9,
+          })),
+        },
+      },
     } as never
-    await expect(validateContextLink(args)).resolves.toBe(data)
+    await expect(validateContextLink(args)).resolves.toEqual({
+      ...data,
+      versionLabel: 'Fractions · v1.0.1',
+    })
+  })
+})
+
+describe('reply reference inheritance', () => {
+  const original = {
+    id: 8,
+    sender: 2,
+    recipient: 1,
+    lessonPlan: 9,
+    version: null,
+    versionLabel: 'Fractions · v1.0.1',
+  }
+
+  it('copies the server snapshot and reply recipient, ignoring forged browser context', async () => {
+    const findByID = vi.fn(async () => original)
+    const args = hookArgs(findByID, {
+      replyTo: 8,
+      recipient: 77,
+      lessonPlan: 99,
+      version: 100,
+      versionLabel: 'forged',
+      body: 'Thanks',
+    })
+    await expect(validateContextLink(args)).resolves.toMatchObject({
+      recipient: 2,
+      lessonPlan: 9,
+      version: null,
+      versionLabel: original.versionLabel,
+    })
+    expect(findByID).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'messages',
+        id: 8,
+        overrideAccess: false,
+        user: { id: 1 },
+      }),
+    )
+  })
+
+  it('refuses a caller who is not the original recipient', async () => {
+    const findByID = vi.fn(async () => ({ ...original, recipient: 99 }))
+    await expect(validateContextLink(hookArgs(findByID, { replyTo: 8 }))).rejects.toMatchObject({
+      status: 403,
+    })
+    expect(findByID).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([403, 404])('maps an inaccessible original (%s) to 404', async (status) => {
+    await expect(
+      validateContextLink(hookArgs(() => Promise.reject({ status }), { replyTo: 8 })),
+    ).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('does not hide an operational failure during the original-message lookup', async () => {
+    const failure = new Error('database unavailable')
+    await expect(
+      validateContextLink(hookArgs(() => Promise.reject(failure), { replyTo: 8 })),
+    ).rejects.toBe(failure)
+  })
+
+  it('keeps the original label if the version disappears or becomes unreadable while replying', async () => {
+    const findByID = vi.fn(async ({ collection }: { collection: string }) => {
+      if (collection === 'messages') return { ...original, version: 5 }
+      throw { status: 404 }
+    })
+    await expect(
+      validateContextLink(hookArgs(findByID as never, { replyTo: 8 })),
+    ).resolves.toMatchObject({ version: null, versionLabel: original.versionLabel })
   })
 })

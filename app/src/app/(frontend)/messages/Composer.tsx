@@ -16,9 +16,11 @@ import { sendMessage } from './sendMessage'
 export default function Composer({
   roster,
   about,
+  missingVersion,
 }: {
   roster: { id: number; name: string }[]
   about: { planId: number; versionId: number | null; title: string } | null
+  missingVersion: boolean
 }) {
   const router = useRouter()
   const [recipient, setRecipient] = useState('')
@@ -28,7 +30,7 @@ export default function Composer({
   // Collapsed by default (design track D5, critique §6): reading the inbox is the page's primary
   // job; composing is a secondary action behind one button. Arriving with a lesson handoff
   // (?plan=… from "Message a colleague") means compose intent, so the form opens ready.
-  const [open, setOpen] = useState(about != null)
+  const [open, setOpen] = useState(about != null || missingVersion)
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,6 +79,12 @@ export default function Composer({
       {open && (
         <form className="msg-compose" onSubmit={onSubmit}>
           <h2>Send a message</h2>
+          {missingVersion && (
+            <p className="muted" role="status">
+              The lesson version you came from is no longer available, so this message has no lesson
+              reference.
+            </p>
+          )}
           {about && (
             <p className="msg-compose__about">
               About: <strong>{about.title}</strong>{' '}

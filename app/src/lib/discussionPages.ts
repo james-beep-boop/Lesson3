@@ -20,6 +20,9 @@ import {
 } from './discussionPaging'
 import { searchTopicTitles, TOPIC_PAGE_SIZE, unreadTopicIds } from './discussions'
 import { nullOnNotVisible } from './readBundle'
+import type { ReferenceView } from './lessonReference'
+import { resolveVersionReferences } from './resolveLessonReferences'
+export type { ReferenceView } from './lessonReference'
 import { distinctIds, relId } from './relId'
 import { systemFlagsForRender } from './systemFlags'
 import { userDisplayName } from './widgetUser'
@@ -193,80 +196,6 @@ export const listPageParam = (raw: string | undefined): number => pageNumberPara
 
 // ─── References (§16.2) ────────────────────────────────────────────────────────────────────────────
 
-export interface ReferenceView {
-  label: string
-  /** `/lessons/<plan>?version=<v>`, or null when the version is gone or not readable. */
-  lessonHref: string | null
-  /** Compare changes, only when the source version is recorded and both are readable now. */
-  compareHref: string | null
-}
-
-type Referencing = { refVersion?: unknown; refLabel?: string | null }
-
-/**
- * Resolve every reference on a page at once, as the viewer: one read for the referenced versions, one for
- * their sources.
- *
- * ⚑ A NULL OR UNREADABLE `refVersion` GETS NO LINK AT ALL — not a lesson link (which would open the
- * Official version instead) and not Compare changes (GPT review 2026-10-09). The snapshot label still says
- * what it was.
- */
-async function resolveReferences(
-  payload: Payload,
-  user: User,
-  posts: Referencing[],
-): Promise<(ReferenceView | null)[]> {
-  const versionIds = distinctIds(posts.map((p) => relId(p.refVersion)))
-  const readable = versionIds.length
-    ? (
-        await payload.find({
-          collection: 'lesson-bundle-versions',
-          where: { id: { in: versionIds } },
-          overrideAccess: false,
-          user,
-          depth: 0,
-          pagination: false,
-          select: { lessonPlan: true, sourceVersion: true },
-        })
-      ).docs
-    : []
-  const byId = new Map(readable.map((v) => [v.id, v]))
-  const sourceIds = distinctIds(readable.map((v) => relId(v.sourceVersion)))
-  const readableSources = new Set(
-    sourceIds.length
-      ? (
-          await payload.find({
-            collection: 'lesson-bundle-versions',
-            where: { id: { in: sourceIds } },
-            overrideAccess: false,
-            user,
-            depth: 0,
-            pagination: false,
-            select: { semver: true }, // any one field: only the ids of what is readable matter
-          })
-        ).docs.map((v) => v.id)
-      : [],
-  )
-
-  return posts.map((post) => {
-    const versionId = relId(post.refVersion)
-    if (versionId == null && !post.refLabel) return null
-    const label = post.refLabel ?? 'A lesson version'
-    const version = versionId == null ? undefined : byId.get(versionId)
-    const planId = relId(version?.lessonPlan)
-    if (!version || planId == null) return { label, lessonHref: null, compareHref: null }
-    const sourceId = relId(version.sourceVersion)
-    return {
-      label,
-      lessonHref: `/lessons/${planId}?version=${version.id}`,
-      compareHref:
-        sourceId != null && readableSources.has(sourceId)
-          ? `/lessons/${planId}/compare?from=${sourceId}&to=${version.id}`
-          : null,
-    }
-  })
-}
-
 // ─── The thread ────────────────────────────────────────────────────────────────────────────────────
 
 export interface PostView {
@@ -361,7 +290,7 @@ export async function loadThread(
 
   const [names, references] = await Promise.all([
     namesFor(payload, user, [relId(topic.author), ...replies.map((r) => relId(r.author))]),
-    resolveReferences(payload, user, [topic, ...replies]),
+    resolveVersionReferences(payload, user, [topic, ...replies]),
   ])
 
   return {

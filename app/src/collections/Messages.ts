@@ -10,7 +10,8 @@ import { APIError } from 'payload'
 
 import { consumeRateLimit } from '../lib/rateLimit'
 import { enqueueDetached } from '../lib/enqueue'
-import { findReadableVersion } from '../lib/readBundle'
+import { validateContextLink } from '../hooks/messageReference'
+export { validateContextLink } from '../hooks/messageReference'
 import { relId } from '../lib/relId'
 import { MESSAGE_PING_SLUG, type MessagePingInput } from '../jobs/messagePing'
 import { markMessagesReadEndpoint } from '../endpoints/markMessagesRead'
@@ -35,7 +36,7 @@ import type { User } from '../payload-types'
  *
  * Parent deletions: sender/recipient are required (NOT NULL cols with ON DELETE SET NULL FKs), so
  * user deletion must cascade-delete their messages first — same 23502 trap as favorites. The
- * optional lessonPlan/version links are nullable, so those FKs' SET NULL just clears the link.
+ * optional lessonPlan/version links are nullable. The saved version label survives their FK clearing.
  */
 
 /** Sender or recipient only — messages are private (no Site Admin read; see header comment). */
@@ -60,49 +61,6 @@ const stampSenderAndRateLimit: CollectionBeforeValidateHook = async ({ data, ope
     )
   }
   return { ...data, sender: req.user.id }
-}
-
-/** beforeValidate (create): keep the optional context link internally consistent. `POST /api/messages`
- *  is open, so — even though the Composer always sends a matching pair — a crafted request could
- *  attach Plan A with a `version` that belongs to Plan B. The inbox would then silently fall back to
- *  A's Official version, HIDING the mismatch rather than surfacing it. Enforce it server-side: a
- *  linked version must belong to the linked plan (and the sender must be able to read it). System
- *  paths (no `req.user` — fixtures/tests) are trusted. */
-/**
- * Exported for `tests/unit/messageContextLink.spec.ts` — the same reason `applyEditorFieldSplit` is
- * exported from `hooks/fieldSplit.ts`. A hook reachable only through `payload.create` can only be
- * tested against a real database, and the case that matters here is an operational FAULT in the
- * lookup, which is precisely what a real database will not do on request.
- */
-export const validateContextLink: CollectionBeforeValidateHook = async ({
-  data,
-  operation,
-  req,
-}) => {
-  if (operation !== 'create' || !req.user || data?.version == null) return data
-  if (data.lessonPlan == null) {
-    throw new APIError('A linked lesson version must include its lesson plan.', 400)
-  }
-  // ⚑ `findReadableVersion`, NOT a bare `.catch(() => null)`. The catch this replaces swallowed
-  // EVERY failure — so a database outage, a driver fault or any unexpected runtime error was
-  // reported to the client as `400 A linked lesson version must belong to the linked lesson plan`:
-  // a confident, specific, wrong diagnosis that also bypassed the 500 path and the error tracker.
-  // The shared helper returns null for the two answers that genuinely mean "you cannot see it"
-  // (Payload's 404 and 403) and rethrows everything else, which is exactly the distinction this
-  // check needs and the one place it is already written down.
-  //
-  // The read now also carries `req`, which the inline version omitted, so it runs on the create's
-  // own transaction rather than a separate pooled connection. Safe — the version is a pre-existing
-  // row in another collection — and it matches how every other `findReadable*` caller passes it.
-  const version = await findReadableVersion(req.payload, {
-    id: data.version as number | string,
-    user: req.user as User,
-    req,
-  })
-  if (!version || relId(version.lessonPlan) !== relId(data.lessonPlan)) {
-    throw new APIError('A linked lesson version must belong to the linked lesson plan.', 400)
-  }
-  return data
 }
 
 /** afterChange (create): enqueue the content-free email ping for the recipient — but only when
@@ -226,6 +184,19 @@ export const Messages: CollectionConfig = {
       name: 'version',
       type: 'relationship',
       relationTo: 'lesson-bundle-versions',
+      maxDepth: 0,
+    },
+    {
+      // Present only for a specific version, and survives that version's nullable FK being cleared.
+      name: 'versionLabel',
+      type: 'text',
+      access: { create: () => false, update: () => false },
+    },
+    {
+      // Request input only: the server verifies the caller is this message's recipient.
+      name: 'replyTo',
+      type: 'number',
+      virtual: true,
     },
     {
       // null = unread. Client creates must not spoof a read receipt; only system writes may set it.

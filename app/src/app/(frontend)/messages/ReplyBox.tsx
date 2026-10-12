@@ -14,14 +14,12 @@ import { sendMessage } from './sendMessage'
 export default function ReplyBox({
   recipientId,
   recipientName,
-  planId,
-  versionId,
+  messageId,
 }: {
   recipientId: number
   recipientName: string
-  /** The original message's lesson link, re-attached so the reply keeps context (null = none). */
-  planId?: number | null
-  versionId?: number | null
+  /** The original message is the server's authority for the inherited reference. */
+  messageId: number
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -37,8 +35,7 @@ export default function ReplyBox({
       await sendMessage({
         recipient: recipientId,
         body: body.trim(),
-        lessonPlan: planId,
-        version: versionId,
+        replyTo: messageId,
       })
       setBody('')
       setOpen(false)

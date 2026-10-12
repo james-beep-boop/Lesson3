@@ -439,6 +439,8 @@ export interface Message {
   body: string;
   lessonPlan?: (number | null) | LessonPlan;
   version?: (number | null) | LessonBundleVersion;
+  versionLabel?: string | null;
+  replyTo?: number | null;
   readAt?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -1001,6 +1003,8 @@ export interface MessagesSelect<T extends boolean = true> {
   body?: T;
   lessonPlan?: T;
   version?: T;
+  versionLabel?: T;
+  replyTo?: T;
   readAt?: T;
   updatedAt?: T;
   createdAt?: T;

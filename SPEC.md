@@ -646,6 +646,13 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 - **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
   bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a
   deletion-request flow can ride on the same messaging substrate if wanted.)
+  Specific-version links keep a server-generated label after version or lesson deletion and show
+  "this version is no longer available" without substituting the Official version. Whole-lesson
+  links carry no version label and retain their existing behaviour. A reply identifies its original
+  message; the server verifies the caller is its recipient, chooses the original sender as the reply
+  recipient, and copies the reference, including an unavailable-version label. Browser labels are
+  ignored. Migration backfills labels only where a referenced version survives; older references
+  already cleared by deletion cannot be distinguished from whole-lesson links.
 - **Discussions** — a forum for existing signed-in users, with chronological replies, title-only search,
   saved-version references, and a blue unread dot for contributors and authors of versions referenced
   by a new topic. Posts cannot be edited. Site Administrators can pin topics, irreversibly redact
