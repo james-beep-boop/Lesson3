@@ -11,6 +11,8 @@ This is the complete offline reference. The in-app guide at `/guide` shows an ov
 and gives detailed steps only for tasks available to the signed-in user. Keep the facts in both guides
 in step when either changes.
 
+The installed app version appears below the sign-in form and at the bottom of the in-app Guide.
+
 ## Teachers
 
 Use Lessons to find and read plans or download their Word and PDF files. Each plan opens at its
@@ -68,7 +70,8 @@ entry points then disappear, and existing discussions are kept.
   become clickable. Replies appear oldest first. Pinned topics stay above the list of latest activity.
 - **Search covers titles only.** Posts cannot be edited. Only a Site administrator can
   delete a thread. You can make up to 100 posts per day, including replies.
-- **Add lesson reference** finds a lesson by title, then lets you choose one of its saved versions.
+- **Add lesson reference** finds a lesson by title. Press **Add reference** for the saved version
+  you want to attach.
   You can remove a prefilled reference before posting. **Share → Discuss this version** on a lesson
   page opens a discussion with that version already attached. **Compare changes** appears when its
   source version is still available. If the referenced version is deleted, its label remains with no
@@ -129,7 +132,7 @@ structure, and choose which version is Official for their subjects and grades.
   ARES keywords, lesson phases, assessment examples, and rubric rows.
 - **Make Official:** on a lesson page, promote a saved version to the Official one Teachers see —
   optionally deleting the version it replaces.
-- **Review saved versions:** *Manage → Lesson plans → Candidate versions* lists saved versions that
+- **Review saved versions:** *Manage → Lesson plans → Delete individual versions* lists saved versions that
   are not Official for your subjects and grades. Open one to review it or delete one you no longer need.
 - **Roles & Access:** *Manage → Users → Roles & Access* lets you give or remove editing access for a
   subject and grade. Check the person's email address before changing access; two people can have the
@@ -150,8 +153,12 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   imported even when others fail; review the report for imported, rejected and skipped files.
   Unchanged files are skipped, so you can re-upload a corrected ZIP after a partial import.
   New plans receive their first Official version; changed content for an existing sub-strand creates
-  a Not Official revision for review. You can also repair plans that have no Official version, delete
-  lesson plans (with all their versions), and reach the People and Curriculum lists.
+  a Not Official revision for review. For plans with no Official version, use **Set an Official
+  version** at the bottom of Lesson plans. You can also delete selected lesson plans (with all their versions) under **Delete a plan (all versions)**, or remove
+  individual non-Official versions under **Delete individual versions**.
+- **Prepare subjects and grades before upload:** use *Manage → Subjects and grades* to create the
+  subject first, then its subject grade. The subject name and grade must match each lesson file;
+  uploads reject files whose subject or subject grade is missing.
 - **Create accounts without email:** use _Manage → Users → Accounts → Create user_, then open the new
   account and choose _Mark verified_. The person cannot sign in until that is done. Use _Make Site
   Administrator_ when the new account should be another Site administrator, and test it in a private

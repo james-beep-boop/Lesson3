@@ -2,6 +2,7 @@ import React from 'react'
 
 import PageBackLink from '@/components/PageBackLink'
 import PageHeader from '@/components/PageHeader'
+import AppVersion from '@/components/AppVersion'
 import { GuideAccordion, GuideAccordionPanel } from '@/components/Guide/Accordion'
 import { computeGuideAvailablePanels } from '@/components/Guide/availability'
 import { resolveGuidePanelState, type GuidePanelId } from '@/components/Guide/panelState'
@@ -223,8 +224,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               >
                 <p>
                   In either composer, choose <em>Add lesson reference</em>, find a lesson by title,
-                  then choose one of its saved versions. You can remove a prefilled reference before
-                  posting.
+                  then press <em>Add reference</em> for the version you want to attach. You can
+                  remove a prefilled reference before posting.
                 </p>
                 <p>
                   From a lesson page, <em>Share → Discuss this version</em> opens a discussion with
@@ -494,10 +495,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('subject-admins.candidates') && (
               <GuideAccordionPanel id="subject-admins.candidates" title="Review saved versions">
                 <p>
-                  <em>Manage → Lesson plans → Candidate versions</em> lists saved versions that are
-                  not Official for your subjects and grades. Open one to review it, or delete one
-                  you no longer need. This section appears only when there are saved versions to
-                  review.
+                  <em>Manage → Lesson plans → Delete individual versions</em> lists saved versions
+                  that are not Official for your subjects and grades. Open one to review it, or
+                  delete one you no longer need. This section appears only when there are saved
+                  versions to review.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -623,7 +624,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
 
             {can('site-admins.curriculum') && (
               <GuideAccordionPanel id="site-admins.curriculum" title="Set up subjects and grades">
-                <p>Add subjects and grades before uploading lesson plans.</p>
+                <p>
+                  Open <em>Manage → Subjects and grades</em>. Add the subject first, then its
+                  subject grade. The subject name and grade must match the lesson file.
+                </p>
               </GuideAccordionPanel>
             )}
 
@@ -632,6 +636,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <ol className="guide-steps">
                   <li>
                     Open <em>Manage → Lesson plans → Upload lesson plans</em>.
+                  </li>
+                  <li>
+                    First create the subject under <em>Subjects and grades → Subjects</em>, then add
+                    its grade under <em>Subject grades</em>. Uploads reject files with no matching
+                    subject grade.
                   </li>
                   <li>Select ARES JSON files or ZIP archives containing JSON lesson plans.</li>
                   <li>
@@ -648,11 +657,12 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('site-admins.repair') && (
               <GuideAccordionPanel
                 id="site-admins.repair"
-                title="Fix a plan with no Official version"
+                title="Set an Official version for a plan"
               >
                 <p>
-                  Open the Repair panel in Manage and follow the steps to choose an Official version
-                  for the plan.
+                  Open <em>Manage → Lesson plans → Set an Official version</em>. This section
+                  appears only when a plan has no Official version selected. Open the plan and
+                  choose an available saved version to make Official.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -660,8 +670,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('site-admins.delete') && (
               <GuideAccordionPanel id="site-admins.delete" title="Delete a lesson plan">
                 <p>
-                  Deleting a lesson plan also deletes all its versions. Confirm the lesson plan and
-                  the consequences in the prompt before proceeding.
+                  Open <em>Manage → Lesson plans → Delete a plan (all versions)</em>. Only selected
+                  plans are removed, together with every version of each one. Confirm the selected
+                  plans and the consequences in the prompt before proceeding.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -771,6 +782,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             </a>
           </div>
         </div>
+        <AppVersion />
       </footer>
     </article>
   )

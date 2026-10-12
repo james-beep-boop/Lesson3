@@ -391,9 +391,9 @@ export default async function AdminDashboard({
   // indistinguishable from a fast render on a small one.
   t.report(payload.logger, { candidates: candidates.length, plans: planRows.length })
 
-  const savedTitle = isAdmin ? 'Candidate versions' : 'My saved versions'
+  const savedTitle = isAdmin ? 'Delete individual versions' : 'My saved versions'
   const savedDesc = isAdmin
-    ? 'Saved, non-Official versions you may delete.'
+    ? 'Open a saved version to review it, or delete one that is not currently Official.'
     : 'Continue working on versions you have saved.'
   // Empty state carries the explanation the list would otherwise have to: what belongs here and how
   // something gets here. A bare "You have no saved versions." tells a teacher new to editing access nothing.
@@ -593,7 +593,7 @@ export default async function AdminDashboard({
         )}
 
         {siteAdmin && (
-          <AccordionPanel id="curriculum" title="Curriculum">
+          <AccordionPanel id="curriculum" title="Subjects and grades">
             <AccordionPanel id="curriculum.subjects" title="Subjects">
               <p className="lp-manage__desc">
                 Academic disciplines. Grade is not part of a subject — it lives on a subject grade.
@@ -636,7 +636,17 @@ export default async function AdminDashboard({
               </AccordionPanel>
             )}
 
-            {/* ⚑ TITLE AND EMPTY-STATE DIFFER BY ROLE, LOCATION DOES NOT. "Candidate versions" for an
+            {siteAdmin && (
+              <AccordionPanel id="plans.delete" title="Delete a plan (all versions)">
+                <p className="lp-manage__desc">
+                  Select the plans to delete. Every version of each selected plan is removed. This
+                  cannot be undone.
+                </p>
+                <DeletePlansPanel rows={planRows} />
+              </AccordionPanel>
+            )}
+
+            {/* ⚑ TITLE AND EMPTY-STATE DIFFER BY ROLE, LOCATION DOES NOT. "Delete individual versions" for an
                 administrator tidying other people's work; "My saved versions" for a teacher returning
                 to their own. An administrator with nothing to tidy gets no row at all (`showSaved`),
                 which is why this stays conditional rather than becoming a permanent empty section. */}
@@ -644,7 +654,7 @@ export default async function AdminDashboard({
               <AccordionPanel id="plans.versions" title={savedTitle}>
                 <p className="lp-manage__desc">{savedDesc}</p>
                 {/* ⚑ `isAdmin`, NOT `siteAdmin`. Both administrator roles get the same list under
-                    the same "Candidate versions" title — other people's unfinished work, shown to
+                    the same "Delete individual versions" title — other people's unfinished work, shown to
                     be tidied — so both get the same actions. #306 named Site Administrators and
                     teachers and simply omitted the Subject Administrator, who then had a "Continue
                     editing" button on a cleanup queue while the Site Administrator beside them did
@@ -659,19 +669,11 @@ export default async function AdminDashboard({
               </AccordionPanel>
             )}
 
-            {siteAdmin && (
-              <AccordionPanel id="plans.delete" title="Delete lesson plans">
-                <p className="lp-manage__desc">
-                  Deleting a lesson plan removes ALL of its saved versions. This cannot be undone.
-                </p>
-                <DeletePlansPanel rows={planRows} />
-              </AccordionPanel>
-            )}
-
             {siteAdmin && repairPlans.length > 0 && (
-              <AccordionPanel id="plans.repair" title="Repair">
+              <AccordionPanel id="plans.repair" title="Set an Official version">
                 <p className="lp-manage__desc">
-                  Lesson plans with no Official version — open one to set its Official pointer.
+                  These plans have no Official version selected. Open a plan to choose which saved
+                  version should be Official.
                 </p>
                 <ul className="lp-manage__list">
                   {repairPlans.map((p) => (
@@ -697,20 +699,6 @@ export default async function AdminDashboard({
             Features offers only switches with an enforcement point and a Save endpoint. */}
         {siteAdmin && systemFacts && (
           <AccordionPanel id="system" title="System">
-            {/* ⚑ THE PANEL ID STAYS `system.deployment` — it is a URL contract (`?open=…`) and a
-                closed vocabulary in `PANEL_IDS`. Only the visible title changed to "Installation
-                status", which is what an administrator would call this. */}
-            <AccordionPanel id="system.deployment" title="Installation status">
-              <p className="lp-manage__desc">
-                This page shows how this installation of ARES Lesson Plans is set up, and whether
-                the services it depends on are working. It is for information only — changes are
-                made on the server, and most of these take effect only when it restarts. The last
-                three rows are different: they report what actually happened, or what is working
-                right now. The smaller technical names are included for whoever maintains the
-                server.
-              </p>
-              <SystemFactsPanel facts={systemFacts} />
-            </AccordionPanel>
             {siteAdmin && (
               <AccordionPanel id="system.features" title="Features">
                 {typeof systemSettings?.updatedAt === 'string' &&
@@ -727,6 +715,20 @@ export default async function AdminDashboard({
                 )}
               </AccordionPanel>
             )}
+            {/* ⚑ THE PANEL ID STAYS `system.deployment` — it is a URL contract (`?open=…`) and a
+                closed vocabulary in `PANEL_IDS`. Only the visible title changed to "Installation
+                status", which is what an administrator would call this. */}
+            <AccordionPanel id="system.deployment" title="Installation status">
+              <p className="lp-manage__desc">
+                This page shows how this installation of ARES Lesson Plans is set up, and whether
+                the services it depends on are working. It is for information only — changes are
+                made on the server, and most of these take effect only when it restarts. The last
+                three rows are different: they report what actually happened, or what is working
+                right now. The smaller technical names are included for whoever maintains the
+                server.
+              </p>
+              <SystemFactsPanel facts={systemFacts} />
+            </AccordionPanel>
           </AccordionPanel>
         )}
       </AccordionProvider>

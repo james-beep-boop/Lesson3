@@ -758,6 +758,22 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
 
 ## 13. Conventions & constraints
 
+- Manage calls the subject/grade setup area Subjects and grades, and retains at most two accordion
+  levels. Under Lesson plans, Upload comes first, Delete a plan (all versions) removes selected plans
+  and all their versions, and Delete individual versions handles administrators' non-Official-version
+  cleanup. Set an Official version comes last, visible to Site administrators only when a plan has
+  no Official version selected. Before upload, explain that a matching subject and subject grade
+  must already exist and match the lesson file. Teachers retain My saved versions.
+  System shows Features before Installation status. Existing panel ids and deep links remain stable.
+
+- Login and the Guide footer show the installed application version, supplied automatically by the
+  release image. Source deployments identify an exact release tag or their commit; local development
+  shows "Development build". An unlabelled production build shows "Version unavailable". Both pages
+  share the display component.
+
+- Desktop is the primary interface for the current audience. Phone layout fixes must preserve
+  desktop usability and be checked at desktop widths as well as on phones.
+
 - Keep scope controlled; do not invent features not listed here.
 - One runtime: resist re-introducing a second language on the core path.
 - Structured data is canonical; the editor's grammar must stay a subset of the generator's input grammar (§4).

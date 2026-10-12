@@ -186,7 +186,7 @@ export default function ReferencePicker({
       ) : (
         <>
           <p className="disc-picker__label">
-            Choose a version of <strong>{displayTitle(plan.title ?? 'Lesson plan')}</strong>{' '}
+            Choose a version to attach: <strong>{displayTitle(plan.title ?? 'Lesson plan')}</strong>{' '}
             <button
               type="button"
               className="btn btn--quiet btn--compact"
@@ -207,16 +207,19 @@ export default function ReferencePicker({
                   <li key={v.id}>
                     <button
                       type="button"
-                      className="btn btn--quiet"
+                      className="btn"
+                      aria-describedby={`${inputId}-version-${v.id}`}
                       onClick={() => {
                         onChange({ versionId: v.id, label: refLabelFor(v) })
                         reset()
                       }}
                     >
-                      v{v.semver} ·{' '}
+                      Add reference: v{v.semver}
+                    </button>
+                    <small id={`${inputId}-version-${v.id}`} className="muted">
                       {new Date(v.createdAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
                       {author ? ` · ${author}` : ''}
-                    </button>
+                    </small>
                   </li>
                 )
               })}

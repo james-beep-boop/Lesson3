@@ -33,6 +33,10 @@ echo "deploy: git pull"
 git pull --ff-only
 
 SHA="$(git rev-parse --short HEAD)"
+# Record this exact source build rather than claiming the latest published release is installed.
+APP_RELEASE_VERSION="$(git describe --tags --exact-match HEAD 2>/dev/null || true)"
+[[ "$APP_RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || APP_RELEASE_VERSION="build-$SHA"
+export APP_RELEASE_VERSION
 if [[ -f .env ]] && grep -q '^BACKUP_AGE_RECIPIENT=' .env && grep -q '^BACKUP_RCLONE_REMOTE=' .env; then
   echo "deploy: pre-migration snapshot (premigrate-$SHA)"
   scripts/backup-db.sh --label "premigrate-$SHA"

@@ -7,6 +7,7 @@ import { hasRegisteredUsers } from '@/lib/firstUserBootstrap'
 import { isPublicLibraryEnabled } from '@/lib/publicLibrary'
 import { FirstUserForm } from './FirstUserForm'
 import { LoginForm } from './LoginForm'
+import AppVersion from '@/components/AppVersion'
 
 export const metadata = { title: 'Sign in — ARES Lesson Plans' }
 
@@ -56,6 +57,7 @@ export default async function LoginPage() {
       ) : (
         <FirstUserForm />
       )}
+      <AppVersion />
     </section>
   )
 }

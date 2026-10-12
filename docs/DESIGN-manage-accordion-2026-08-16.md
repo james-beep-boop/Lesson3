@@ -39,6 +39,17 @@ the reasoning is the durable part.
 
 ---
 
+## Current labels and order — 2026-10-12
+
+The dated design below remains the record of the original implementation. The current visible
+heading for Curriculum is **Subjects and grades**. Lesson plans contains Upload lesson plans,
+**Delete a plan (all versions)**, **Delete individual versions** for administrators, then
+**Set an Official version** when needed. The last panel lists plans with no Official version
+selected; it does not repair version content. Teachers retain My saved versions. System shows
+Features before Installation status.
+The two-level limit and existing panel ids/deep links are unchanged. Upload requires the subject
+and matching subject grade to have been created first. See SPEC §13 and DECISIONS 2026-10-12.
+
 ## 1. Why this exists — the operator's brief
 
 The operator opened with six observations about Manage:

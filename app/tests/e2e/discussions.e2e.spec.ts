@@ -68,6 +68,7 @@ test.describe('Discussions', () => {
   })
 
   test('Discuss this version starts a discussion that references the version', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 })
     await loginAs(page, fx, 'teacher')
     await page.goto(`${BASE}/lessons/${fx.plan.id}?version=${saved.id}`)
     await page.getByRole('button', { name: /^Share/ }).click()
@@ -82,11 +83,18 @@ test.describe('Discussions', () => {
       'href',
       `/lessons/${fx.plan.id}/compare?from=${fx.version.id}&to=${saved.id}`,
     )
+    // The same component in Messages already has phone-sized reference links.
+    for (const link of await page.locator('.lesson-reference a').all()) {
+      const rect = await link.boundingBox()
+      expect(rect?.height).toBeGreaterThanOrEqual(44)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360)
   })
 
   test('the picker prevents posting while versions load and until a version is chosen', async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 360, height: 800 })
     await loginAs(page, fx, 'teacher')
     await page.goto(`${BASE}/discuss/new`)
     await page.getByLabel('Title').fill(`${MARK}Picked`)
@@ -125,9 +133,19 @@ test.describe('Discussions', () => {
     } finally {
       releaseVersions()
     }
-    await expect(page.getByRole('button', { name: /^v1\.0\.1 · / })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Add reference: v1.0.1', exact: true }),
+    ).toBeVisible()
     await expect(post).toBeDisabled()
-    await page.getByRole('button', { name: /^v1\.0\.1 · / }).click()
+    const addReference = page.getByRole('button', { name: 'Add reference: v1.0.1', exact: true })
+    await expect(addReference).toHaveClass('btn')
+    await expect(addReference).toHaveAccessibleDescription(/\d+ \w+ \d{4}/)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
+    await test.info().attach('reference-picker-mobile', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    })
+    await addReference.click()
     await expect(page.getByText('Lesson reference:')).toBeVisible()
     await expect(post).toBeEnabled()
     await post.click()
@@ -170,9 +188,11 @@ test.describe('Discussions', () => {
     } finally {
       releaseVersions()
     }
-    await expect(page.getByRole('button', { name: /^v1\.0\.1 · / })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Add reference: v1.0.1', exact: true }),
+    ).toBeVisible()
     await expect(post).toBeDisabled()
-    await page.getByRole('button', { name: /^v1\.0\.1 · / }).click()
+    await page.getByRole('button', { name: 'Add reference: v1.0.1', exact: true }).click()
     await expect(post).toBeEnabled()
     await post.click()
     await page.waitForURL(/#reply-1$/)

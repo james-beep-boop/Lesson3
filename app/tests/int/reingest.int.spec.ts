@@ -297,6 +297,8 @@ describe('partial web ingest', () => {
   it('imports all valid files around parse, contract and taxonomy failures', async () => {
     const noTaxonomy = rawBundle('97.81', 'Unknown subject')
     ;(noTaxonomy.META as Record<string, unknown>).subject = 'Missing subject for ZIP test'
+    const noGrade = rawBundle('97.86', 'Missing grade')
+    ;(noGrade.META as Record<string, unknown>).grade = GRADE + 1
     const drift = rawBundle('97.82', 'Contract failure')
     drift.schemaVersion = 'invalid'
     const result = await ingestUploadItems(payload, [
@@ -308,6 +310,7 @@ describe('partial web ingest', () => {
         },
       },
       item('zip/taxonomy.json', noTaxonomy),
+      item('zip/grade.json', noGrade),
       item('zip/contract.json', drift),
       item('zip/last.json', rawBundle('97.83', 'Last valid')),
     ])
@@ -315,8 +318,18 @@ describe('partial web ingest', () => {
     expect(result.rejected.map((r) => r.file)).toEqual([
       'zip/broken.json',
       'zip/taxonomy.json',
+      'zip/grade.json',
       'zip/contract.json',
     ])
+    expect(result.rejected.find((r) => r.file === 'zip/taxonomy.json')?.error).toContain(
+      'Manage → Subjects and grades',
+    )
+    expect(result.rejected.find((r) => r.file === 'zip/grade.json')?.error).toContain(
+      'Manage → Subjects and grades → Subject grades',
+    )
+    expect(result.rejected.find((r) => r.file === 'zip/grade.json')?.error).toMatch(
+      /^No subject grade for/,
+    )
     for (const r of result.bundles) expect(await versionsOf(r.id)).toEqual(['1.0.0'])
   })
 

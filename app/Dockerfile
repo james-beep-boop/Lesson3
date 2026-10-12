@@ -57,6 +57,8 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ARG APP_RELEASE_VERSION
+ENV APP_RELEASE_VERSION=$APP_RELEASE_VERSION
 # Uncomment the following line in case you want to disable telemetry during runtime.
 # ENV NEXT_TELEMETRY_DISABLED 1
 

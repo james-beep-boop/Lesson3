@@ -8,6 +8,23 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+- Retire the completed one-off v0.95 publication job; future releases use the normal tag publisher.
+
+- Subject/grade forms and the upload chooser fit narrow phone screens, while preserving the compact
+  desktop form layout and dropdown width limits. Forum lesson references use the same phone tap areas
+  as Messages.
+
+- Manage distinguishes deleting a plan and all its versions from deleting individual non-Official
+  versions. The existing recovery panel is named Set an Official version and comes last;
+  System puts Features before Installation status.
+  Subjects and grades replaces Curriculum, and upload instructions explain the required setup.
+- Saved-version choices explicitly say "Add reference" with the shared blue outline style; dates
+  and authors sit beneath the buttons to keep them compact on phones.
+- Login and the Guide footer show the installed application version automatically. Unlabelled production builds explicitly
+  report that their version is unavailable.
+
 ## v0.95 (2026-10-12)
 
 - Messages and Discussions share version-reference display and batched lookups. Messages retain the

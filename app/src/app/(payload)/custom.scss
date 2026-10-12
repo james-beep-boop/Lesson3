@@ -856,31 +856,6 @@ body {
     padding: 0 var(--app-space-2) var(--app-space-4);
   }
 
-  // ⚑ SHARED WITH THE TAXONOMY PANELS, listed rather than copied. PR 3 shipped `.lp-taxonomy__create`
-  // and `__form` as a private restatement of these four declarations — the same two-lists-kept-in-
-  // step failure `.lp-users__input` was unpicked for one PR earlier, in this file. Layout is no more
-  // exempt from that rule than control geometry was.
-  &__profile,
-  &__reset,
-  .lp-taxonomy__create,
-  .lp-taxonomy__form {
-    display: flex;
-    align-items: end;
-    gap: var(--app-space-2);
-    flex-wrap: wrap;
-  }
-
-  // The taxonomy label span needs no class: it inherits the colour and size set on `__field` here.
-  &__field,
-  .lp-taxonomy__field {
-    display: grid;
-    gap: var(--app-space-1);
-    min-width: min(18rem, 100%);
-    flex: 1;
-    color: var(--theme-elevation-700);
-    font-size: var(--app-secondary-size);
-  }
-
   &__actions {
     display: flex;
     align-items: center;
@@ -938,11 +913,7 @@ body {
   }
 
   @media (max-width: 640px) {
-    &__filters,
-    &__profile,
-    &__reset,
-    .lp-taxonomy__create,
-    .lp-taxonomy__form {
+    &__filters {
       align-items: stretch;
       flex-direction: column;
     }
@@ -976,6 +947,52 @@ body {
 
     &__jump {
       min-height: var(--app-btn-touch-min-height);
+    }
+  }
+}
+
+// Desktop keeps the existing compact Users forms. Subject/grade layout fixes belong only
+// to phone widths: applying them globally made the desktop rows wider and taller.
+.lp-users .lp-users__profile,
+.lp-users .lp-users__reset {
+  display: flex;
+  align-items: end;
+  gap: var(--app-space-2);
+  flex-wrap: wrap;
+}
+
+@mixin manage-field-layout {
+  display: grid;
+  gap: var(--app-space-1);
+  min-width: min(18rem, 100%);
+  flex: 1;
+  color: var(--theme-elevation-700);
+  font-size: var(--app-secondary-size);
+}
+
+.lp-users__field {
+  @include manage-field-layout;
+}
+
+@media (max-width: 640px) {
+  // The panels are siblings. Sharing these root selectors reaches each panel without
+  // introducing a descendant dependency on .lp-users.
+  .lp-users .lp-users__profile,
+  .lp-users .lp-users__reset,
+  .lp-taxonomy__create,
+  .lp-taxonomy__form {
+    display: flex;
+    align-items: stretch;
+    gap: var(--app-space-2);
+    flex-direction: column;
+  }
+
+  .lp-taxonomy__field {
+    @include manage-field-layout;
+
+    > input,
+    > select {
+      width: 100%;
     }
   }
 }
@@ -1039,8 +1056,17 @@ body {
   }
 
   @media (max-width: 640px) {
-    // (Stacking is shared with the Users panel's ≤640px rule — see that block.)
-    // Full width on a phone, matching the Users panel's action treatment at this width.
+    // These rows also contain a count or derived title and Delete; let them wrap separately
+    // from the shared form layout instead of squeezing a full form beside the action.
+    .lp-manage__row.lp-manage__row--tight {
+      flex-wrap: wrap;
+
+      > .lp-taxonomy__form,
+      > .lp-taxonomy__title {
+        flex: 1 1 100%;
+      }
+    }
+
     &__field--narrow {
       flex: 1;
     }
@@ -2187,6 +2213,14 @@ a.btn.lp-btn {
 // to read. That was backwards — the test was order-dependent and has been fixed to find this rule by
 // intent instead. Placement is a stylesheet decision; a guard should observe it, not dictate it.)
 @media (max-width: 640px) {
+  .lp-manage__select,
+  .lp-admin-list__search,
+  .lp-users__input,
+  .lp-manage__file {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
   .lp-modal .btn,
   .btn.lp-btn,

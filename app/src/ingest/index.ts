@@ -161,7 +161,7 @@ async function resolveSubjectGrade(
     const all = await payload.find({ collection: 'subjects', limit: 200, depth: 0, req })
     const names = all.docs.map((d) => `"${d.name}"`).join(', ') || '(none)'
     throw new IngestError(
-      `No Subject named "${subjectName}". Existing subjects: ${names}. Create the Subject and its SubjectGrade before ingest.`,
+      `No subject named "${subjectName}". Existing subjects: ${names}. Create the subject and its subject grade (Manage → Subjects and grades) before importing.`,
     )
   }
 
@@ -175,7 +175,7 @@ async function resolveSubjectGrade(
   const sg = sgs.docs[0]
   if (!sg) {
     throw new IngestError(
-      `No SubjectGrade for "${subjectName}" Grade ${grade}. Create it (Taxonomy → Subject Grades) before ingest.`,
+      `No subject grade for "${subjectName}" Grade ${grade}. Create it (Manage → Subjects and grades → Subject grades) before importing.`,
     )
   }
   return sg.id
