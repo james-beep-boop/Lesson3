@@ -11,6 +11,24 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-14 — Keep public audit guidance separate from private operations
+
+The audit plan must contain portable roles and procedures, not machine identities, network
+addresses, OS users, local paths, host keys or account/readiness observations. Keep private run
+configuration and raw evidence outside the repository with restrictive permissions; review planned
+publication content before committing it. Removing details from current documentation does not
+remove historical commits or pull-request diffs; history remediation requires a separate decision.
+
+The user clarified that all three subscriptions are $20/month plans: two Claude Pro and one
+ChatGPT Plus. Do not apply OpenAI Pro allowances or infer relative throughput from equal prices.
+Preserve the requested cross-family review protocol until the user chooses a different policy.
+
+Split the public guide into a small operating handbook and an assigned-chunk catalog. Retain
+required runtime testing; readiness gates and unresolved choices do not count as completed coverage.
+CI's native ARM image build and separate full-stack checks are evidence for feasibility, not proof
+that a particular private ARM stack has passed. This change publishes documentation cleanup only;
+it starts no audit, dependency setup, local stack or unattended runner.
+
 ## 2026-10-13 — Remove the lesson toolbar editing-access help link
 
 Remove “What does editing access let me do?” from both the request button's initial and sent states
