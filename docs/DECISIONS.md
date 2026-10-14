@@ -21,7 +21,11 @@ remove historical commits or pull-request diffs; history remediation requires a 
 
 The user clarified that all three subscriptions are $20/month plans: two Claude Pro and one
 ChatGPT Plus. Do not apply OpenAI Pro allowances or infer relative throughput from equal prices.
-Preserve the requested cross-family review protocol until the user chooses a different policy.
+The user selected tiered cross-family review: full author–reviewer–author cycles for Critical/High
+and every security/integrity claim, one review pass for other Medium claims, and sampled batch
+review for other Low/Info claims. Raw scanner observations need no model cycle; semantic defect
+claims do. Keep unsampled observations distinct from peer-confirmed findings. This limits reviewer
+backlog without hiding uncertainty or reducing scrutiny based only on a low severity label.
 
 Split the public guide into a small operating handbook and an assigned-chunk catalog. Retain
 required runtime testing; readiness gates and unresolved choices do not count as completed coverage.

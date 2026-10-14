@@ -411,7 +411,7 @@ A different model family (e.g. Codex if Claude did the originals) independently 
 `app/src/access/**`, the C30 write paths, and `app/src/ingest/**` **without** reading earlier findings
 first, writing `findings/C82-cross-review.md`. Only then compare against C22/C30/C31/C40/C41/C5.1/C5.2
 and note agreements, new findings, and disputed findings. New candidates enter the mandatory
-review cycle in the handbook; this blind missing-issue pass does not replace review of each reported claim.
+review tiers in the handbook; this blind missing-issue pass supplements finding validation.
 
 #### C83 — Synthesis and roadmap · Strong · M
 1. **Change sweep:** compare immutable audit base to a separately recorded current main SHA, not
@@ -420,7 +420,8 @@ review cycle in the handbook; this blind missing-issue pass does not replace rev
 2. De-duplicate and incorporate all handbook critiques/author responses. Build `FINDINGS.md` with accepted
    findings and separate withdrawn/duplicate/unresolved sections, each linking its audit trail.
    Include final evidence/review status, severity/class/category/location and later fix disposition.
-   Only accepted findings enter confirmed totals or the fix roadmap.
+   Only accepted findings enter confirmed totals or the fix roadmap; list unsampled author-verified
+   observations separately, without implying peer confirmation.
 3. Write `SUMMARY.md` as a self-contained handoff (see the handbook): executive summary, audited/deployed revisions,
    environment and exclusions; accepted counts by severity/class/category and prioritized risks with
    rationale; test results/coverage gaps; unresolved/withdrawn outcomes; and a PR-sized fix roadmap.
@@ -451,9 +452,10 @@ can be re-run without model calls; execution still consumes compute and interpre
 ```markdown
 ### F-C22-007 — Teacher with editing access on SG-B can PATCH a lesson plan in SG-A via REST
 - **Severity:** Critical   **Category:** rbac   **Class:** live-risk
-- **Audit status:** candidate | under-review | author-recheck | accepted | withdrawn | unresolved | duplicate
+- **Audit status:** candidate | under-review | author-recheck | accepted | author-verified/unreviewed | withdrawn | unresolved | duplicate
 - **Revision / provenance:** source SHA, deployment SHA if tested, artifact version/hash, author role/model/date (account identity private)
-- **Peer review:** reviewer role/model/date (account identity private); critique and author-response references (see the handbook review protocol)
+- **Review tier / coverage:** full-cycle | single-pass | sampled | unsampled; selection rule/batch/IDs if sampled
+- **Peer review:** reviewer role/model/date (account identity private); verdict/evidence and author response where required by the tier
 - **Evidence scope:** source-confirmed | locally reproduced | deployment reproduced | pending reproduction
 - **Scenario:** one line — concrete input/state → wrong outcome
 - **Where:** `PATCH /api/lesson-plans/:id` · `app/src/access/bundle.ts:L42-L61`

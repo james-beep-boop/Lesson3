@@ -95,20 +95,29 @@ Templates, prior-work references, exclusions and the progress table are in the c
 
 ## Opposite-family review
 
-Preserve the user's every-finding review requirement until they explicitly choose another policy.
-Claude candidate → Codex critique → original Claude recheck; reverse families for Codex-origin claims.
+Apply these user-selected tiers; security/integrity scope overrides the severity label:
+
+- **Critical/High and every security/integrity claim:** author → opposite-family critique → original
+  author recheck. Verdict per ID: confirm, amend, reject, insufficient-evidence or duplicate, with
+  reasons/evidence. Author retains, revises, withdraws or records unresolved after checking objections.
+- **Medium, outside those topics:** one opposite-family review pass. Return amendments/objections to
+  the author for correction or an evidence-based response; unchanged confirmations need no extra round.
+- **Low/Info, outside those topics:** batch review with sampling. Record batch scope, selection rule,
+  selected IDs and outcomes. Cover differing categories/components; avoid author-selected easy examples.
+  A materially incorrect sampled claim triggers wider review of the affected batch/pattern.
+  Label unsampled items author-verified/unreviewed; never count them as cross-family confirmed.
+- **Raw mechanical tool output:** retain reproducible observations without a model review cycle.
+  A semantic claim about dead code, impact, reachability, severity or a fix enters the tiers above.
+
 Reviewer independently opens relevant source/guards/callers/tests and reproduces where feasible.
-Verdict per ID: confirm, amend, reject, insufficient-evidence or duplicate, with reasons/evidence.
-Author responds per ID: retain, revise, withdraw, duplicate or unresolved after checking the objection.
-Unchanged confirmed claims need brief acknowledgement. Revised/disputed retentions get at most one
-targeted reviewer follow-up; no majority vote, confident capitulation or endless debate.
-Only accepted claims enter confirmed totals/roadmap; keep withdrawals/duplicates/unresolved visible.
-Batch routine findings into one review/response table with per-ID outcomes; do not silently sample.
-Rerunning a scanner proves its output recurs, not semantic validity, reachability or severity.
-Every accepted High/Critical needs a runnable repro spec against the unfixed baseline.
-Reviewer can run that spec remotely in a separate isolated checkout/stack within approved limits.
-C82 is a separately blind search for missed issues, not a replacement for finding validation.
-New reviewer-discovered claims get their own ID and opposite-family review.
+Claude-origin claims receive Codex review; Codex-origin claims receive Claude review.
+For disputed retentions, permit at most one targeted reviewer follow-up; then preserve unresolved
+status. Agreement alone proves nothing; no majority vote, automatic capitulation or endless debate.
+Only accepted claims enter confirmed totals/roadmap; list author-verified/unreviewed observations,
+withdrawals, duplicates and unresolved claims separately. Evidence maturity remains a separate field.
+Every accepted High/Critical needs a runnable repro spec against the unfixed baseline; reviewer may
+run it remotely in a separate isolated checkout/stack within approved limits.
+C82 independently searches for missed issues; new claims receive their own IDs and the same tiers.
 
 ## Completion and handoff
 
@@ -134,11 +143,10 @@ Pilot account costs rather than infer them from names or prices. Preserve the us
 allocation initially; change it from measured capacity, not an assumed higher OpenAI tier.
 Private operations notes retain machine/readiness details. Removing them here does not erase Git
 history, old PR diffs or cached copies; any history remediation requires a separate decision.
-Review tiers/sampling, planted-bug calibration, exact test-target approval and unattended automation
-remain proposals for user/Claude review; publishing this cleanup does not approve or execute them.
-Proposed tiers: full cycles for Critical/High and all security/integrity claims, one cross-family pass
-for Medium, sampled batch review for Low/Info. Unsampled claims must remain explicitly unreviewed;
-scanner observations need no model cycle unless interpreted as defects. Widen review if samples fail.
+Tiered review is selected to protect reviewer capacity while retaining full challenge for serious
+and security/integrity claims. The pilot must record review effort and outcomes by tier; do not infer
+accuracy from agreement or withdrawal rates alone.
+Exact test-target setup and unattended automation remain planning decisions; this update launches neither.
 Optional calibration uses known bugs and decoy non-bugs in an authorized throwaway copy; it measures
 false positives/misses on those examples, not the overall audit accuracy.
 
@@ -147,5 +155,5 @@ false positives/misses on those examples, not the overall audit accuracy.
     Read audit_plan.md and your assigned catalog section, pinned source rules and relevant known issues.
     Assignment <ID>; role <role>; source SHA <sha>; approved scope <scope>; private config supplied separately.
     Verify before recording candidates. Persist component/coverage notes and sanitized evidence per file/test.
-    Return owned artifacts, review status, exact resume point and blockers. Follow the opposite-family cycle.
+    Return owned artifacts, review status, exact resume point and blockers. Follow the assigned review tier.
     Continue eligible assigned work within allowance/scope; checkpoint at limits and stop at completion.
