@@ -112,7 +112,12 @@ References: `payloadcms.com/docs`, the `docx` npm package, and the ARES `cbe-gen
 
 ## Working agreements
 
-- **Never commit or push without an explicit request.**
+- Commit freely on a working branch. Pushing to a feature branch is pre-authorised.
+- Pushing directly to `main` is pre-authorised for docs-only changes and for changes the operator has
+  asked for in the current session. Never force-push. Never rewrite published history.
+- Tell the operator what was pushed and where, in one line, after pushing.
+- The deployment is a demo server (operator decision 2026-10-14; branch protection removed for
+  speed). Revisit this rule before real users are onboarded.
 - When in doubt, check `SPEC.md`; if still ambiguous, choose the simplest maintainable option and document the deviation there.
 - Do not invent features beyond the spec.
 - Keep the system single-runtime — do not re-introduce a second language on the core path.

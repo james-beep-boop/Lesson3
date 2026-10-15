@@ -225,4 +225,9 @@ curl -fsSLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/
   `app/.prettierignore` (regenerate it, never reformat it).
 - **Deployment runbook:** `docs/ROCK5B-SETUP.md` (first stand-up) + the schema-change workflow in
   `docs/NEXT-SESSION.md`. origin/main is the single source of truth — push first, then pull on the Rock.
-- **Never commit or push without an explicit request.**
+- Commit freely on a working branch. Pushing to a feature branch is pre-authorised.
+- Pushing directly to `main` is pre-authorised for docs-only changes and for changes the operator has
+  asked for in the current session. Never force-push. Never rewrite published history.
+- Tell the operator what was pushed and where, in one line, after pushing.
+- The deployment is a demo server (operator decision 2026-10-14; branch protection removed for
+  speed). Revisit this rule before real users are onboarded.
