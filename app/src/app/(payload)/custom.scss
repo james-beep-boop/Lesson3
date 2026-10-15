@@ -653,6 +653,17 @@ body {
     color: var(--theme-elevation-1000);
   }
 
+  // Collapsible details for a subject-grade row in RolesAccessPanel. Shares padding geometry with
+  // `.lp-users__details`; internal spacing is handled by the existing child margins (`__roles-label`,
+  // `__roles-admin`, `__editors-add`) so no grid gap is needed here.
+  &__group-details {
+    padding: 0 var(--app-space-2) var(--app-space-4);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
   // The two block labels inside a subject-grade group — "Subject Administrator" and
   // "Editing access (N)" — added 2026-08-19 after an operator misread the administrator's row as a
   // column header for the editor rows beneath it. Naming both blocks is the fix; this rule is what
