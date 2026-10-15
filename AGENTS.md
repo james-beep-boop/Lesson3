@@ -88,8 +88,9 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   #    cwd-independent. This is not tidiness — see the trap note under step 4.
   ROOT=$(git rev-parse --show-toplevel) && cd "$ROOT"
 
-  # 1. stand up the isolated stack (own volumes, own network)
-  docker compose -p lesson3-ci-probe up -d --build
+  # 1. stand up an isolated postgres (own volume, own network — never touches the seeded dev db)
+  #    ⚑ .env must exist: scripts/create-env.sh generates one on a fresh machine.
+  docker compose -p lesson3-ci-probe up -d --wait postgres
 
   # 2. create the test DB inside THAT project's postgres
   docker compose -p lesson3-ci-probe exec -T postgres psql -U lesson3 -d postgres \
@@ -97,7 +98,7 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
 
   # 3. point the TRACKED app/test.env at it (restore afterwards — step 5)
   PW=$(grep -E '^POSTGRES_PASSWORD=' "$ROOT/.env" | cut -d= -f2-)
-  sed -i '' -E "s#^DATABASE_URI=.*#DATABASE_URI=postgres://lesson3:${PW}@postgres:5432/lesson3_test#" "$ROOT/app/test.env"
+  sed -i.bak -E "s#^DATABASE_URI=.*#DATABASE_URI=postgres://lesson3:${PW}@postgres:5432/lesson3_test#" "$ROOT/app/test.env" && rm "$ROOT/app/test.env.bak"
 
   # 4. run — note `-e NODE_ENV=test` goes to `docker run` (before the `--`), NOT to `compose up`
   scripts/in-deps.sh --network lesson3-ci-probe_default \
@@ -142,6 +143,7 @@ UI defects are invisible to `tsc`, ESLint and the unit suite — three in the bu
 reached the deployed site because there was no local stack (DECISIONS 2026-07-30). There is one now.
 
 ```bash
+scripts/create-env.sh                                                               # once per machine — creates .env with random secrets
 docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate  # first run only
 scripts/dev-seed.sh                                                                # logins + one lesson plan
 scripts/dev-server.sh                                                              # then browse localhost:3000
@@ -176,6 +178,35 @@ runs the same dev-server script. Both scripts start Postgres themselves, so ther
   accounts with a known password, so it must be impossible to aim at a shared database.
 - ⚠ A stale `app/.next` can serve **empty bodies with a 200** after a big change
   (`Invariant: missing bootstrap script`). That reads as working. `rm -rf app/.next` and restart.
+
+### E2E tests against the local stack
+
+`test:e2e` runs Playwright + Chromium. The `lesson3-deps` image is Alpine (musl); Playwright needs
+glibc, so CI and local E2E both use the separate `lesson3-e2e` image built from the `e2e` stage of
+`app/Dockerfile`. Build it once (or after lockfile changes):
+
+```bash
+docker build --target e2e -t lesson3-e2e ./app
+```
+
+With the dev server running (`scripts/dev-server.sh`), run Playwright in a second terminal. On
+Linux (including the Spark), `--network host` lets the container reach the host's published port 3000:
+
+```bash
+docker run --rm --network host \
+  -v "$PWD/app:/app" \
+  -e E2E_BASE_URL=http://localhost:3000 \
+  lesson3-e2e npm run test:e2e
+```
+
+On macOS, replace `--network host` with `--add-host host.docker.internal:host-gateway` and set
+`E2E_BASE_URL=http://host.docker.internal:3000`.
+
+⚑ E2E fixtures seed accounts directly into the database via `DATABASE_URI`. The container must
+reach the test database (published on `127.0.0.1:55432` by `docker-compose.local.yml`), so set
+`DATABASE_URI=postgres://lesson3:<password>@host.docker.internal:55432/lesson3` (or use
+`--network host` on Linux so `localhost:55432` resolves). The `lesson3-e2e` and `lesson3-deps`
+images cannot share a `node_modules` volume (different libc), so an anonymous volume is correct here.
 
 ## Releasing
 

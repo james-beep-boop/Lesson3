@@ -166,6 +166,36 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'the backup status distinguishes successful transport from demonstrated recovery',
     claim: 'does not prove the backup can be restored',
   },
+  {
+    what: 'Manage reports backup state but cannot perform a backup or restore',
+    claim: 'reports status only; it cannot start a backup or restore data',
+  },
+  {
+    what: 'the recovery-key status describes the off-box school key accurately',
+    claim: 'new backups are encrypted for a recovery key held by the school',
+  },
+  {
+    what: 'Site Administrator is an application role, not server or private-key access',
+    claim:
+      'Site Administrator access in Lesson3 is an application role; it does not grant access to the server command line or the private recovery key',
+  },
+  {
+    what: 'recovery prerequisites are named before attempting a restore',
+    claim:
+      'the matching private key on the machine where the restore will run (not on the Lesson3 server)',
+  },
+  {
+    what: 'recovery instructions branch by the reported key state',
+    claim: 'Recovery needs ARES',
+  },
+  {
+    what: 'the manual backup command is available to the server operator',
+    claim: 'cd /srv/lesson3 && scripts/backup-db.sh',
+  },
+  {
+    what: 'the backup-list command is available to the server operator',
+    claim: 'cd /srv/lesson3 && scripts/restore-db.sh --list',
+  },
   // ⚑ Edit recovery had NO guide coverage at all until 2026-08-25 — a teacher met that dialog with no
   // prior explanation, and it is the one place outside version-compare showing red/green diff
   // colours. These four are the facts they could act on and be wrong about.
@@ -231,6 +261,18 @@ describe('the in-app guide and USER_GUIDE.md preserve shared rules', () => {
       expect(page, `/guide is missing: "${claim}"`).toContain(claim)
     })
   }
+
+  it('does not publish an incomplete restore command — recovery is handed off to docs/OPS.md', () => {
+    const md = read(GUIDE_MD, 'USER_GUIDE.md missing')
+    const page = read(GUIDE_PAGE, 'The /guide page moved?')
+    const incomplete = /AGE_IDENTITY=.*restore-db\.sh/
+    expect(md, 'USER_GUIDE.md must not contain an incomplete restore command').not.toMatch(
+      incomplete,
+    )
+    expect(page, '/guide must not contain an incomplete restore command').not.toMatch(incomplete)
+    expect(md).toContain('docs/OPS.md')
+    expect(page).toContain('docs/OPS.md')
+  })
 
   /**
    * ⚑ NO HTML CHARACTER ENTITIES IN THE PAGE, except `&amp;` — and this is a MEASURED toolchain
