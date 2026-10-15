@@ -3,6 +3,7 @@
 Human-facing engineering conventions for Lesson3. Canonical spec: `SPEC.md`. AI-assistant
 operating rules: `CLAUDE.md` (it points here for conventions rather than duplicating them).
 Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `docs/NEXT-SESSION.md`.
+**`COMPUTING-ENVIRONMENT.md`** lists all available machines, their Tailscale addresses, roles, and hardware. Read it when deciding where to run a task.
 
 ## Stack conventions
 
