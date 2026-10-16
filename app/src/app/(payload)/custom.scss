@@ -1065,8 +1065,12 @@ body {
 
   // Grade is one or two digits — a field as wide as the subject picker beside it reads as a mistake.
   &__field--narrow {
-    min-width: 6rem;
+    min-width: 0;
     flex: 0 0 auto;
+
+    .lp-users__input {
+      width: 4rem;
+    }
   }
 
   // The derived "<Subject> — Grade N". Read-only by nature, so it takes the row's primary label

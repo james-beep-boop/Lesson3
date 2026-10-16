@@ -98,20 +98,21 @@ function SubjectGradeItem({
         >
           Save
         </Button>
+        <Button
+          className="lp-btn lp-btn--compact"
+          buttonStyle="error"
+          size="small"
+          type="button"
+          disabled={disabled}
+          aria-label={`Delete ${row.displayName}`}
+          onClick={() => {
+            if (!window.confirm(deleteConsequences(row))) return
+            void actions.remove(row.id, `Deleted ${row.displayName}.`)
+          }}
+        >
+          Delete
+        </Button>
       </form>
-      <Button
-        className="lp-btn lp-btn--compact"
-        buttonStyle="error"
-        size="small"
-        disabled={disabled}
-        aria-label={`Delete ${row.displayName}`}
-        onClick={() => {
-          if (!window.confirm(deleteConsequences(row))) return
-          void actions.remove(row.id, `Deleted ${row.displayName}.`)
-        }}
-      >
-        Delete
-      </Button>
     </li>
   )
 }
