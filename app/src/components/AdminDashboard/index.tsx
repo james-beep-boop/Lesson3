@@ -552,7 +552,7 @@ export default async function AdminDashboard({
             {siteAdmin && (
               <AccordionPanel id="users.accounts" title="Accounts">
                 <p className="lp-manage__desc">
-                  Search accounts, repair access and use disable sign-in for routine offboarding.
+                  Search and manage user accounts. Use Disable sign-in when a teacher leaves — this preserves their history without deleting the account.
                 </p>
                 <UsersPanel />
               </AccordionPanel>
