@@ -1038,8 +1038,15 @@ body {
   display: grid;
   gap: var(--app-space-3);
 
-  // (Form-row and field LAYOUT are shared with the Users panel — see `.lp-users__profile, … ,
-  // .lp-taxonomy__create` above. Only the genuine deltas live here.)
+  // Desktop form-row layout — the create form and each edit form are flex rows so their fields
+  // and buttons have proper gaps. The ≤640px block below overrides direction to column.
+  &__create,
+  &__form {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    flex-wrap: wrap;
+  }
 
   // The row's form takes the free width so the Delete control stays right-aligned beside it.
   &__form {
@@ -1047,9 +1054,12 @@ body {
     min-width: 0;
   }
 
-  // Narrower than the Users panel's 18rem: these fields sit two-and-a-button to a row. Later in the
-  // file than the shared rule, so it wins at equal specificity.
+  // Each label+control pair: inline-flex so "Subject" / "Grade" text sits with a small gap
+  // beside its input or select rather than being jammed against it.
   &__field {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--app-space-1);
     min-width: min(14rem, 100%);
   }
 
