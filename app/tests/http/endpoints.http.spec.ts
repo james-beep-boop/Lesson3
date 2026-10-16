@@ -1492,6 +1492,10 @@ describe('editor assignment endpoints — POST /users/:id/{assign,unassign}-edit
 describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
   // Read the daily budget the way the limiter does, so the exhaustion test tracks env overrides.
   const EMAIL_MAX = Number(process.env.RATE_LIMIT_EMAIL_MAX) || 10
+  // The SMTP gate is checked last (after authz + rate limits), so auth/validation/429 tests are
+  // valid regardless. The 202 happy path only runs where SMTP is configured; the 503 test is the
+  // complement — it runs where it isn't (CI, offline installs).
+  const smtpConfigured = !!process.env.SMTP_HOST?.trim()
   const emailUrl = (versionId: number | string) =>
     `/api/lesson-bundle-versions/${versionId}/email?as=docx`
   const post = (versionId: number | string, key: RoleKey | undefined, body: unknown) =>
@@ -1531,9 +1535,9 @@ describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
     expect(await rateCount(key)).toBe(0) // …and still untouched: the 404 spent no shared budget.
   })
 
-  it('Teacher emails a version → 202 {queued} and the job is enqueued', async () => {
-    // RFC 2606-reserved recipient: on the Rock the send goes to example.com's blackhole; in CI
-    // (no SMTP_HOST) the console adapter logs it. The contract under test is queue-and-202.
+  it.skipIf(!smtpConfigured)('Teacher emails a version → 202 {queued} and the job is enqueued', async () => {
+    // RFC 2606-reserved recipient: send goes to example.com's blackhole. The contract under test
+    // is queue-and-202; skipped when SMTP_HOST is absent (no-SMTP → 503, tested separately).
     const to = 'mailbox@example.com'
     const res = await post(fx.version.id, 'teacher', { to })
     expect(res.status).toBe(202)
@@ -1552,6 +1556,13 @@ describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
     })
     const mine = docs.find((j) => (j.input as { to?: string } | undefined)?.to === to)
     expect(mine).toBeTruthy()
+  })
+
+  it.skipIf(smtpConfigured)('without SMTP configured → 503 (valid request, feature unavailable)', async () => {
+    // The gate fires after authz + rate limits so validation errors are still specific; a valid
+    // request that reaches the queue step gets 503, not a silent 202.
+    const res = await post(fx.version.id, 'teacher', { to: 'someone@example.com' })
+    expect(res.status).toBe(503)
   })
 
   it('the per-user DAILY cap → 429 with Retry-After (invalid bodies spend budget too)', async () => {

@@ -215,6 +215,7 @@ export default async function LessonView({
             semver={selected.semver}
             deliverables={deliverables}
             canDiscuss={forumEnabled}
+            smtpEnabled={!!process.env.SMTP_HOST?.trim()}
           />
         </div>
         {navItems.length > 0 && (

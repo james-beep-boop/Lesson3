@@ -38,6 +38,7 @@ export default function ShareMenu({
   semver,
   deliverables = [],
   canDiscuss = false,
+  smtpEnabled = false,
 }: {
   planId: number
   versionId: number
@@ -47,6 +48,8 @@ export default function ShareMenu({
   deliverables?: DeliverableTag[]
   /** Offer "Discuss this version" — only while the forum is switched on (§16.1 entry points). */
   canDiscuss?: boolean
+  /** Hide email-a-doc when SMTP is not configured — mirrors the server-side gate in emailVersion.ts. */
+  smtpEnabled?: boolean
 }) {
   // ⚑ THE PRIMARY LESSON PLAN IS FILTERED OUT HERE (2026-08-30), and this is the SAME split the
   // catalogue row has always used (`DocStrip … condensed`): the lesson page's action bar now renders
@@ -153,20 +156,19 @@ export default function ShareMenu({
               <DocStrip versionId={versionId} tags={supporting} />
             </div>
           )}
-          {/* ⚑ EMAIL MIRRORS DOWNLOAD, one entry per format. It was a single "Email to an address…"
-              that always sent Word, while Download offered both — an asymmetry against SPEC §10's own
-              model, where an artifact is (version, document, KIND) and "only the deliverable `kind`
-              varies". The endpoint already took `?as=docx|pdf`; only the UI withheld it.
-              ⚑ THE ELLIPSIS STAYS, and it is the one thing that distinguishes these from the two
-              entries above: Download acts on click, Email opens a form for the address. Without it,
-              four adjacent items would look like four of the same kind of action, and two of them
-              are not. It also says WHAT is sent, which "Email to an address…" never did. */}
-          <button type="button" onClick={() => openEmail('docx')}>
-            Email all — Word (.zip)…
-          </button>
-          <button type="button" onClick={() => openEmail('pdf')}>
-            Email all — PDF (.zip)…
-          </button>
+          {/* Email entries only when SMTP is configured. Hidden (not disabled) when absent: a button
+              that immediately says "not available" is worse UX than no button. The server gate in
+              emailVersion.ts enforces the same condition for direct API callers. */}
+          {smtpEnabled && (
+            <>
+              <button type="button" onClick={() => openEmail('docx')}>
+                Email all — Word (.zip)…
+              </button>
+              <button type="button" onClick={() => openEmail('pdf')}>
+                Email all — PDF (.zip)…
+              </button>
+            </>
+          )}
           {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
           <Link href={`/messages?plan=${planId}&version=${versionId}`}>Message a colleague</Link>
           {/* Forum handoff (discussions §16.1): opens Start a discussion with this version referenced. */}

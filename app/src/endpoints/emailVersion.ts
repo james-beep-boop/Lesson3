@@ -84,6 +84,14 @@ export const emailVersionEndpoint: Endpoint = {
     )
     if (globalLimited) return globalLimited
 
+    // SMTP gate — checked last so validation errors (400), auth failures (401/404), and rate
+    // limits (429) are still returned for otherwise-invalid requests without SMTP configured.
+    // Callers that reach here have a valid, authorized request; telling them 503 rather than
+    // silently queuing a job that will never deliver is the honest response.
+    if (!process.env.SMTP_HOST?.trim()) {
+      return json({ error: 'Email is not configured on this installation.' }, 503)
+    }
+
     const user = req.user as User
     const input: EmailVersionArtifactInput = {
       versionId: Number(version.id),
