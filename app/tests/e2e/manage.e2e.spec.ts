@@ -1191,21 +1191,24 @@ test.describe('Manage page', () => {
       await page.goto(`${BASE}/admin?open=users.access`)
 
       // The FACT is shown — scoped information they already effectively hold.
-      const group = page.locator('.lp-manage__editors-group').first()
-      await expect(group.getByText('Subject Administrator')).toBeVisible()
+      // Rows are now collapsible (lp-users__row); expand before asserting detail content.
+      const group = page.locator('.lp-users__row').first()
+      await group.locator('.lp-users__summary').click()
+      const details = group.locator('.lp-manage__group-details')
+      await expect(details.getByText('Subject Administrator')).toBeVisible()
 
       // ⚑ THE LABEL MUST BE STYLED, not merely present. `lp-manage__roles-admin` once shipped with no
       // CSS rule at all: the row rendered as an unstyled pile and the only assertion on it checked
       // that its text was VISIBLE, which passes on unstyled markup. `lp-manage__roles-label` is new
       // in the same file, so it gets the assertion that failure taught — a computed value only a real
       // rule can produce. 600 is the weight; the browser reports it numerically.
-      const rolesLabel = group.locator('.lp-manage__roles-label').first()
+      const rolesLabel = details.locator('.lp-manage__roles-label').first()
       await expect(rolesLabel).toHaveCSS('font-weight', '600')
       await expect(rolesLabel).toHaveCSS('font-size', '14px')
 
       // Both blocks are named — that pairing is what stops the administrator row reading as a header
       // for the editor rows beneath it (2026-08-19).
-      await expect(group.locator('.lp-manage__roles-label')).toHaveCount(2)
+      await expect(details.locator('.lp-manage__roles-label')).toHaveCount(2)
 
       // ⚑ THE CONTROL THAT REMOVES AN ADMINISTRATOR DOES NOT EXIST for them — neither the Site
       // Admin's appoint/replace picker nor any remove button. Asserted as absence rather than
@@ -1219,9 +1222,9 @@ test.describe('Manage page', () => {
       // holder on this subject-grade, so there is an eligible successor and the picker renders; a
       // subject-grade with no editors gets the explanatory line instead, which
       // `tests/unit/rolesAccessPanel.spec.tsx` covers without a browser.
-      const handover = group.getByRole('combobox', { name: /Hand over administration of/ })
+      const handover = details.getByRole('combobox', { name: /Hand over administration of/ })
       await expect(handover).toBeVisible()
-      await expect(group.getByRole('button', { name: /Hand over administration of/ })).toBeVisible()
+      await expect(details.getByRole('button', { name: /Hand over administration of/ })).toBeVisible()
 
       // ⚑ THE POOL, not just the presence — the server permits a handover only to somebody who already
       // holds editing access here, so a picker offering the whole roster would 403 on most choices.

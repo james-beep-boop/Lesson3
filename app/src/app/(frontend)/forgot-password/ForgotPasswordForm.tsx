@@ -99,7 +99,7 @@ export function ForgotPasswordForm({ smtpEnabled = true }: { smtpEnabled?: boole
         </p>
       )}
       <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy}>
-        {busy ? 'Sending…' : 'Email me a reset link'}
+        {busy ? 'Sending…' : smtpEnabled ? 'Email me a reset link' : 'Send request'}
       </button>
     </form>
   )

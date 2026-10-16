@@ -106,12 +106,12 @@ export default function ShareMenu({
 
   const onDownloadJson = () => {
     if (jsonBusy) return
-    setOpen(false)
     setNote(null)
     setError(null)
     setJsonBusy(true)
     const filename = `lesson-plan${semver ? `-v${semver}` : ''}.json`
     downloadVersionJson(versionId, filename)
+      .then(() => setOpen(false))
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : 'Could not download JSON.')
       })
@@ -162,7 +162,7 @@ export default function ShareMenu({
             Download all — PDF (.zip)
           </button>
           <button type="button" disabled={jsonBusy} onClick={onDownloadJson}>
-            Download as JSON
+            {jsonBusy ? 'Downloading…' : 'Download as JSON'}
           </button>
           {/* Per-document downloads (2026-07-17, replacing the page's Documents line; narrowed to
               the SUPPORTING documents 2026-08-30 — see `supporting` above): one row per document,

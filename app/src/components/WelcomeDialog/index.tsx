@@ -33,6 +33,7 @@ export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
   }, [user.id])
 
   function dismiss() {
+    localStorage.setItem(storageKey(user.id), '1')
     setVisible(false)
   }
 
