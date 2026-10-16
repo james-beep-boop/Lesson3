@@ -97,6 +97,7 @@ prepare() {
   printf '\nBACKUP_AGE_RECIPIENT=age1test\nBACKUP_RCLONE_REMOTE=remote:backups\n' >>"$TARGET/.env"
   mkdir "$CASE/original"
   cp -p "$TARGET/compose.yaml" "$TARGET/VERSION" "$TARGET/.env.example" "$TARGET/DEPLOYMENT.md" "$CASE/original/"
+  [[ ! -f "$TARGET/OPS.md" ]] || cp -p "$TARGET/OPS.md" "$CASE/original/"
   cp -Rp "$TARGET/scripts" "$CASE/original/scripts"
   cp "$TARGET/.env" "$CASE/env"
   echo original >"$CASE/database"
@@ -144,6 +145,7 @@ completed() {
     || fail 'completion state incorrect'
   previous_unchanged "$ARCHIVE"
   cmp -s "$TARGET/compose.yaml" "$NEW/compose.yaml" || fail 'new Compose was not activated'
+  cmp -s "$TARGET/OPS.md" "$NEW/OPS.md" || fail 'OPS.md was not installed'
 }
 
 prepare pull-twice

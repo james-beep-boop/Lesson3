@@ -2129,16 +2129,20 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
       // Regression for the defect where a public forgot-password request invalidated a
       // hand-delivered link an administrator had already created for the account.
       await clearBudget()
-      // Read the user's current reset token (may be null — either way proves no rotation occurred).
-      const userBefore = (await fx.payload.findByID({
-        collection: 'users',
-        id: fx.users.teacher.id,
-        showHiddenFields: true,
-        overrideAccess: true,
-        depth: 0,
-      })) as { resetPasswordToken?: string | null }
-      const tokenBefore = userBefore.resetPasswordToken ?? null
 
+      // Plant a known sentinel token + expiration as if an administrator had issued it via the
+      // recovery script. `resetPasswordToken` and `resetPasswordExpiration` are hidden fields;
+      // write them directly through drizzle so Payload's hook layer cannot interfere.
+      const sentinelToken = 'admin-issued-sentinel-token-do-not-rotate'
+      const sentinelExp = new Date(Date.now() + 3600_000).toISOString() // 1 hour from now
+      await drizzle().execute(
+        sql`UPDATE "users"
+            SET "reset_password_token" = ${sentinelToken},
+                "reset_password_expiration" = ${sentinelExp}::timestamptz
+            WHERE "id" = ${fx.users.teacher.id};`,
+      )
+
+      const jobsBefore = await countJobs()
       await forgot(fx.users.teacher.email)
 
       const userAfter = (await fx.payload.findByID({
@@ -2147,8 +2151,21 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
         showHiddenFields: true,
         overrideAccess: true,
         depth: 0,
-      })) as { resetPasswordToken?: string | null }
-      expect(userAfter.resetPasswordToken ?? null).toBe(tokenBefore)
+      })) as { resetPasswordToken?: string | null; resetPasswordExpiration?: string | null }
+
+      // Token and expiration must be exactly the administrator-issued values — untouched.
+      expect(userAfter.resetPasswordToken).toBe(sentinelToken)
+      expect(userAfter.resetPasswordExpiration).toBeTruthy()
+      // No delivery job was created — the endpoint returned before reaching forgotPasswordOperation.
+      expect(await countJobs()).toBe(jobsBefore)
+
+      // Cleanup: clear the sentinel so later tests start clean.
+      await drizzle().execute(
+        sql`UPDATE "users"
+            SET "reset_password_token" = NULL,
+                "reset_password_expiration" = NULL
+            WHERE "id" = ${fx.users.teacher.id};`,
+      )
     },
   )
 })

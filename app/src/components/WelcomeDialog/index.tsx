@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import Modal from '@/components/Modal'
 
@@ -24,19 +24,16 @@ function storageKey(userId: number) {
 }
 
 export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return !localStorage.getItem(storageKey(user.id))
+    } catch {
+      return true
+    }
+  })
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const role = getRole(user)
-
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(storageKey(user.id))) {
-        setVisible(true)
-      }
-    } catch {
-      setVisible(true)
-    }
-  }, [user.id])
 
   function dismiss() {
     // Close first — storage failure must never leave the dialog open.
@@ -66,7 +63,7 @@ export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
           checked={dontShowAgain}
           onChange={(e) => setDontShowAgain(e.target.checked)}
         />
-        Don't show this again
+        {"Don't show this again"}
       </label>
     </Modal>
   )
