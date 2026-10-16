@@ -1076,9 +1076,10 @@ body {
     font-size: var(--app-body-size);
   }
 
-  @media (max-width: 640px) {
-    // These rows also contain a count or derived title and Delete; let them wrap separately
-    // from the shared form layout instead of squeezing a full form beside the action.
+  // Landscape phones (~641–900px): wrap title and edit form to separate lines so the row
+  // is not cramped. The form stays flex-row at this width — fields and Save fit comfortably
+  // on the full row width once the title is no longer competing for space.
+  @media (max-width: 900px) {
     .lp-manage__row.lp-manage__row--tight {
       flex-wrap: wrap;
 
@@ -1087,7 +1088,10 @@ body {
         flex: 1 1 100%;
       }
     }
+  }
 
+  // Portrait phones (≤640px): narrow Grade field expands to fill the column layout.
+  @media (max-width: 640px) {
     &__field--narrow {
       flex: 1;
     }
