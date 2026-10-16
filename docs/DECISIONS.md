@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-16 — Eight post-v0.96 audit findings corrected
+
+GPT-assisted audit of commits c1f250b→827c245 found eight defects. All fixed in 1252e07 (initial
+corrections) and the follow-up to this entry.
+
+**No-SMTP forgot-password amendment (amends 2026-07-21).** The original fix closed the timing oracle
+and preserved the rate limit by calling `forgotPasswordOperation` with `disableEmail: true`. A
+follow-up finding showed that in no-SMTP installations an administrator can hand-deliver a password
+reset link; a subsequent public forgot-password submission rotated that token, invalidating the link.
+The fix: return the uniform padded response immediately when `SMTP_HOST` is absent, without calling
+the operation. This deliberately drops rate limiting for the no-SMTP branch — acceptable because the
+absence of a delivery channel removes the practical target. Tests for job queuing, case-normalised
+delivery, and the 429 throttle are now `skipIf(!smtpConfigured)`; a new test asserts the user's
+`resetPasswordToken` is unchanged after a no-SMTP public submission. The 2026-07-21 entry's claim
+that "the throttle survives the shadow" remains true for the SMTP-present path only.
+
+**ARES JSON export — Unit serialisation.** `bundleToAresData` coerces absent groups for the DOCX
+generator: `clean()` converts every `null` leaf to `''`, so a Payload-padded Unit with all-null
+fields becomes `{}` after cleaning, which fails the ingest contract. Used `hasContent()` (the same
+leaf-string check applied to FE/ST) instead of a nullish guard on `version.unit`. Exported
+`hasContent` from `generator/adapter.ts`.
+
+**OPS.md now included in the release bundle.** `build-local-deploy-bundle.sh` now copies
+`docs/OPS.md` → `OPS.md` alongside `DEPLOYMENT.md`. `update.sh` now stages, preserves, and
+atomically replaces it on upgrade so both fresh installs and updates receive it.
+
+**WelcomeDialog.** Backup-key checklist item linked to a hidden Payload global
+(`/admin/globals/system-settings`); corrected to `/guide?open=site-admins&at=site-admins.backups`.
+Dismiss always wrote to `localStorage` regardless of the checkbox state — corrected to honour the
+checkbox. A `localStorage.setItem` failure could prevent dismissal — fixed by calling
+`setVisible(false)` before the write. Raw `<a>` tags replaced with `<Link>` (five instances) and
+unused `React` default import removed, clearing the remaining ESLint errors.
+
+**RolesAccessPanel.** Repeated jump to the same group left it collapsed: `jumpTargetOpened` was
+not reset when the target was consumed, so the second jump's `jumpTarget !== jumpTargetOpened`
+check was false and the open was suppressed. Reset `jumpTargetOpened` to `null` when
+`jumpTarget === null`.
+
 ## 2026-10-14 — Keep public audit guidance separate from private operations
 
 The audit plan must contain portable roles and procedures, not machine identities, network
@@ -7683,9 +7721,12 @@ delivery to a retrying `passwordResetEmail` job. Both branches return an identic
 - Because delivery retries, "a reset link is on its way" is now TRUE, not merely uniform — which also
   resolves the false-success complaint that motivated the reverted #119. The right fix was never in
   the client.
-- **The throttle survives the shadow.** Unlike verify (whose native op runs no hooks), the
-  forgot-password OPERATION runs collection `beforeOperation` hooks, so `rateLimitAuthOperations`
-  still fires. Proven over the wire: 5×200 then 429. This was the main risk of shadowing.
+- **The throttle survives the shadow — SMTP-present path only (amended 2026-10-16).** Unlike
+  verify (whose native op runs no hooks), the forgot-password OPERATION runs collection
+  `beforeOperation` hooks, so `rateLimitAuthOperations` still fires. Proven over the wire: 5×200
+  then 429. This was the main risk of shadowing. When SMTP is absent the endpoint now returns
+  early without calling the operation, so rate limiting does not apply on that branch — see the
+  2026-10-16 entry for the reasoning.
 - **The job takes a user id, never the token.** Succeeded jobs are deleted, but jobs that exhaust
   retries are RETAINED — exactly the SMTP-outage case — so a token in the input would persist a live
   reset credential precisely when delivery was failing. The handler reads the current

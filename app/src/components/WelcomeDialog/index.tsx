@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import Modal from '@/components/Modal'
 
 interface WelcomeUser {
@@ -111,7 +112,7 @@ function TeacherContent() {
         To edit lesson plans, message your <strong>subject or site administrator</strong> for
         permission.
         <br />
-        <a href="/messages">Send a message →</a>
+        <Link href="/messages">Send a message →</Link>
       </p>
     </>
   )
@@ -144,21 +145,21 @@ function SiteAdminContent() {
       <p className="welcome-body">A few things to do to get started:</p>
       <ol className="welcome-checklist">
         <li>
-          <a href="/guide?open=site-admins&at=site-admins.backups">
+          <Link href="/guide?open=site-admins&at=site-admins.backups">
             Commission off-server backups
-          </a>
+          </Link>
           <span className="welcome-checklist__note"> — follow the Backups guide</span>
         </li>
         <li>
-          <a href="/admin/collections/users">Add your teachers</a>
+          <Link href="/admin/collections/users">Add your teachers</Link>
           <span className="welcome-checklist__note"> — Manage → Users</span>
         </li>
         <li>
-          <a href="/admin/collections/users">Set user roles</a>
+          <Link href="/admin/collections/users">Set user roles</Link>
           <span className="welcome-checklist__note"> — give teachers advanced privileges</span>
         </li>
         <li>
-          <a href="/lessons">Review your lesson plans</a>
+          <Link href="/lessons">Review your lesson plans</Link>
           <span className="welcome-checklist__note">
             {' '}
             — check, update, or add new ones (individually, in groups, or as a ZIP)

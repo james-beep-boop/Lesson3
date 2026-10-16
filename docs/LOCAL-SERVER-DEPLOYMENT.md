@@ -188,6 +188,10 @@ Container status alone does not prove those paths.
 
 ## Configure backups before real use
 
+The release bundle includes `OPS.md` alongside `DEPLOYMENT.md` so the full operations runbook is
+available without internet access. The GitHub links below point to the same content for online
+reference.
+
 The database contains lesson plans, all retained versions, users, roles, messages, and edit-recovery
 records. The artifact-cache volume is disposable and is not a backup.
 

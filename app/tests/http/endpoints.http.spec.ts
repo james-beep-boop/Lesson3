@@ -2000,6 +2000,12 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
   // SMTP fails). Status therefore discriminated registered users on an UNAUTHENTICATED endpoint.
   // `endpoints/forgotPassword.ts` shadows it, runs the operation with `disableEmail: true` (so no
   // send can throw in-request) and queues delivery instead.
+  //
+  // When SMTP is absent the endpoint returns the uniform response immediately, without calling
+  // forgotPasswordOperation. Token rotation and job queuing are deliberately skipped so an
+  // administrator-issued hand-delivered reset link remains valid after a public submission.
+  const smtpConfigured = !!process.env.SMTP_HOST?.trim()
+
   const forgot = (email: string) =>
     fetch(url('/api/users/forgot-password'), {
       method: 'POST',
@@ -2034,9 +2040,13 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
     expect(await knownRes.text()).toBe(await unknownRes.text())
   })
 
-  it('queues a delivery job for a REGISTERED address and none for an unknown one', async () => {
+  it.skipIf(!smtpConfigured)(
+    'queues a delivery job for a REGISTERED address and none for an unknown one',
+    async () => {
     // Delivery is off the request path — that is what lets the two branches answer identically.
     // Count immediately: succeeded jobs are removed (`deleteJobOnComplete` defaults true).
+    // Skipped when SMTP is absent: the endpoint returns early before calling
+    // forgotPasswordOperation, so no job is ever queued (token rotation is also skipped).
     await clearBudget()
 
     const before = await countJobs()
@@ -2045,7 +2055,8 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
 
     await forgot(fx.users.editor.email)
     expect(await countJobs()).toBeGreaterThan(before) // registered → queued
-  })
+  },
+  )
 
   it('answers in uniform TIME, not just uniform bytes (timing-oracle regression)', async () => {
     // MEASURED, not theorised. On the Rock against real Postgres (2026-07-21, n=20 per branch) the
@@ -2075,33 +2086,71 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
     expect(knownMs).toBeGreaterThanOrEqual(floorMs - tolerance)
   })
 
-  it('a MIXED-CASE / whitespace-padded registered address still queues delivery (regression)', async () => {
-    // The bug this pins (2026-07-21): Payload finds the account with a NORMALISED email
-    // (`.toLowerCase().trim()`), but the endpoint's follow-up lookup originally re-matched the RAW
-    // request value. `Teacher@School.org` therefore returned 200 and minted a live reset token while
-    // queueing NOTHING — recovery silently dead for anyone who capitalises their address. Every wire
-    // test passed because all fixture emails are lowercase, which is exactly why this case exists.
-    await clearBudget()
-    const before = await countJobs()
-    const shouty = `  ${fx.users.teacher.email.toUpperCase()}  ` // upper-cased AND padded
-    const res = await forgot(shouty)
+  it.skipIf(!smtpConfigured)(
+    'a MIXED-CASE / whitespace-padded registered address still queues delivery (regression)',
+    async () => {
+      // The bug this pins (2026-07-21): Payload finds the account with a NORMALISED email
+      // (`.toLowerCase().trim()`), but the endpoint's follow-up lookup originally re-matched the RAW
+      // request value. `Teacher@School.org` therefore returned 200 and minted a live reset token while
+      // queueing NOTHING — recovery silently dead for anyone who capitalises their address. Every wire
+      // test passed because all fixture emails are lowercase, which is exactly why this case exists.
+      // Skipped when SMTP is absent: the endpoint short-circuits before forgotPasswordOperation.
+      await clearBudget()
+      const before = await countJobs()
+      const shouty = `  ${fx.users.teacher.email.toUpperCase()}  ` // upper-cased AND padded
+      const res = await forgot(shouty)
 
-    expect(res.status).toBe(200)
-    expect(await countJobs()).toBeGreaterThan(before)
-  })
+      expect(res.status).toBe(200)
+      expect(await countJobs()).toBeGreaterThan(before)
+    },
+  )
 
-  it('the per-address cap still bites → 429, proving the shadow did NOT lose the throttle', async () => {
-    // The one real risk of shadowing. Unlike the verify endpoint (whose native op runs no hooks and
-    // needed the limit re-applied by hand), forgotPasswordOperation DOES run collection
-    // `beforeOperation` hooks, so `rateLimitAuthOperations` still fires through our endpoint. If a
-    // Payload bump changed that, this is the assertion that fails.
-    await clearBudget()
-    const email = `${MARK}throttle-probe@example.invalid`
-    const MAX = Number(process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX) || 5
-    for (let i = 0; i < MAX; i++) expect((await forgot(email)).status).toBe(200)
-    expect((await forgot(email)).status).toBe(429)
-    await clearBudget()
-  })
+  it.skipIf(!smtpConfigured)(
+    'the per-address cap still bites → 429, proving the shadow did NOT lose the throttle',
+    async () => {
+      // The one real risk of shadowing. Unlike the verify endpoint (whose native op runs no hooks and
+      // needed the limit re-applied by hand), forgotPasswordOperation DOES run collection
+      // `beforeOperation` hooks, so `rateLimitAuthOperations` still fires through our endpoint. If a
+      // Payload bump changed that, this is the assertion that fails.
+      // Skipped when SMTP is absent: the endpoint returns early without calling the operation,
+      // so the collection's beforeOperation rate-limit hooks do not fire (see forgotPassword.ts).
+      await clearBudget()
+      const email = `${MARK}throttle-probe@example.invalid`
+      const MAX = Number(process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX) || 5
+      for (let i = 0; i < MAX; i++) expect((await forgot(email)).status).toBe(200)
+      expect((await forgot(email)).status).toBe(429)
+      await clearBudget()
+    },
+  )
+
+  it.skipIf(smtpConfigured)(
+    'without SMTP: public submission does not rotate an existing administrator-issued reset token',
+    async () => {
+      // Regression for the defect where a public forgot-password request invalidated a
+      // hand-delivered link an administrator had already created for the account.
+      await clearBudget()
+      // Read the user's current reset token (may be null — either way proves no rotation occurred).
+      const userBefore = (await fx.payload.findByID({
+        collection: 'users',
+        id: fx.users.teacher.id,
+        showHiddenFields: true,
+        overrideAccess: true,
+        depth: 0,
+      })) as { resetPasswordToken?: string | null }
+      const tokenBefore = userBefore.resetPasswordToken ?? null
+
+      await forgot(fx.users.teacher.email)
+
+      const userAfter = (await fx.payload.findByID({
+        collection: 'users',
+        id: fx.users.teacher.id,
+        showHiddenFields: true,
+        overrideAccess: true,
+        depth: 0,
+      })) as { resetPasswordToken?: string | null }
+      expect(userAfter.resetPasswordToken ?? null).toBe(tokenBefore)
+    },
+  )
 })
 
 describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () => {

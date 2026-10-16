@@ -26,7 +26,7 @@ import type { AresDataObject } from './index'
 import { toAresResourceLinks } from '../ingest/resourceLinks'
 
 /** True if any leaf string under `value` is non-empty (used to prune empty groups). */
-function hasContent(value: unknown): boolean {
+export function hasContent(value: unknown): boolean {
   if (typeof value === 'string') return value.trim() !== ''
   if (Array.isArray(value)) return value.some(hasContent)
   if (value && typeof value === 'object') return Object.values(value).some(hasContent)

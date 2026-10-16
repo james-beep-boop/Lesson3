@@ -37,7 +37,7 @@ TARGET="$1"
 [[ "$TARGET" == /* ]] || die "installation path must be absolute"
 TARGET="$(cd "$TARGET" 2>/dev/null && pwd)" || die "installation directory not found: $1"
 [[ "$TARGET" != "$SOURCE" ]] || die "extract the new bundle elsewhere, then pass the existing installation path"
-bundle_files=(compose.yaml .env.example VERSION DEPLOYMENT.md update.sh)
+bundle_files=(compose.yaml .env.example VERSION DEPLOYMENT.md OPS.md update.sh)
 for file in "${bundle_files[@]}" scripts/backup-db.sh scripts/restore-db.sh \
   scripts/prune-db.sh scripts/heartbeat.sh scripts/lib.sh; do
   [[ -f "$SOURCE/$file" ]] || die "new release bundle is incomplete: missing $file"
@@ -130,6 +130,7 @@ if [[ ! -d "$PENDING" ]]; then
   cp -p "$TARGET/compose.yaml" "$TARGET/VERSION" "$TARGET/.env.example" "$STAGE/previous/"
   cp -Rp "$TARGET/scripts" "$STAGE/previous/scripts"
   [[ ! -f "$TARGET/DEPLOYMENT.md" ]] || cp -p "$TARGET/DEPLOYMENT.md" "$STAGE/previous/"
+  [[ ! -f "$TARGET/OPS.md" ]] || cp -p "$TARGET/OPS.md" "$STAGE/previous/"
   printf '%s\n' staged >"$STAGE/phase"
   mv "$STAGE" "$PENDING"
   STAGE=""
@@ -167,7 +168,7 @@ fi
 # Mark the conservative migration boundary BEFORE replacing anything. A retry can repair a partial
 # file activation, but must never replace the original snapshot or take a post-migration backup.
 set_phase activating
-for file in compose.yaml .env.example DEPLOYMENT.md; do
+for file in compose.yaml .env.example DEPLOYMENT.md OPS.md; do
   atomic_copy "$PENDING/bundle/$file" "$TARGET/$file"
 done
 for file in "$PENDING/bundle/scripts/"*; do
