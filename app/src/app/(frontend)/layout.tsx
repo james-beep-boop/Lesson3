@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { getSession } from '@/lib/session'
 import { AppNav } from '@/components/AppNav'
+import WelcomeDialog from '@/components/WelcomeDialog'
 
 import '../app-tokens.scss'
 import './styles.css'
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </header>
         )}
         <main className="app-main">{children}</main>
+        {user && <WelcomeDialog user={user} />}
       </body>
     </html>
   )

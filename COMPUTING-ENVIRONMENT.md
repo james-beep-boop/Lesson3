@@ -16,16 +16,30 @@ This is the machine map for the whole workspace, so every machine can read the s
 
 - **Device:** Radxa Rock 5B (ARM SBC)
 - **OS:** Ubuntu Desktop 24.04
-- **Hostname:** `rock5b`
+- **Hostname:** `Rock5b`
 - **Tailscale:** `rock5b.tail49b05.ts.net`
+- **Tailscale IP:** `100.88.123.29`
+- **Local IP:** `192.168.4.100` (DHCP — check `tailscale status` if connection fails)
 - **Role:** ARM-based always-on service host
 - **Best use:** Persistent lightweight automation and ARM-native services
+- **User:** `david`
 
 **Hardware:**
-- **CPU:** ARM processor (not x86_64)
+- **CPU:** ARM processor (aarch64, not x86_64) — kernel 6.1 Rockchip
 - **Memory:** 16GB RAM
 - **Storage:** 512GB NVMe
 - **WiFi:** Intel AX210NGW adapter (power management disabled for stability)
+
+**Services:**
+- Lesson3 (Next.js + Payload CMS + Postgres) running on port `3001`
+
+**SSH access from Spark:**
+```
+ssh rock5b   # configured in ~/.ssh/config on jhm-spark
+```
+- Key: `~/.ssh/id_ed25519_spark` on the Spark (comment: `jhm-spark`)
+- UFW rule on Rock 5B allows Spark's Tailscale IP (`100.65.206.95`) on port 22
+- **Note:** SSH works via local network path only. `tailscale set --ssh` is enabled on the Rock 5B but Tailscale SSH ACL `dst` does not accept IPs or `autogroup:member` — only tags or `autogroup:self`. Since the Spark is tagged it is outside `autogroup:self`. Tagging the Rock 5B would fix this but changes its Tailscale ownership. Deferred; not urgent since Spark and Rock 5B are always on the same LAN.
 
 ### Nvidia DGX Spark
 
@@ -33,13 +47,18 @@ This is the machine map for the whole workspace, so every machine can read the s
 - **OS:** DGX OS based on Ubuntu 24.04 LTS
 - **Hostname:** `jhm-spark`
 - **Tailscale:** `jhm-spark.tail49b05.ts.net`
+- **Tailscale IP:** `100.65.206.95`
+- **Local IPs:** `192.168.0.103` (ethernet), `192.168.5.241/22` (WiFi — same /22 subnet as Rock 5B)
 - **Role:** Local-model / GPU-heavy machine
 - **Best use:** Local LLMs, heavy inference, and GPU workloads
+- **User:** `james`
 
 **Hardware:**
 - **RAM:** 128GB
 - **GPU:** GPU-heavy configuration (exact specs TBD)
 - **Primary use case:** Local LLMs and heavy inference tasks
+
+**SSH key for outbound connections:** `~/.ssh/id_ed25519_spark` (public key comment: `jhm-spark`). This key is authorized on Rock 5B for user `david`.
 
 ### Apple MacBook Air M5
 

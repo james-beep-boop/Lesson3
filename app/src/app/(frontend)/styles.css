@@ -2228,3 +2228,92 @@ button.user-menu__item {
   font-size: var(--app-secondary-size);
   text-align: center;
 }
+
+/* ---- Welcome dialog (first-time onboarding, role-tailored) ---- */
+.modal--welcome {
+  max-width: 30rem;
+  position: relative;
+}
+/* × button sits in the title bar's right margin — same pattern as .vp-close in modal--versions. */
+.welcome-close {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.4rem;
+}
+.welcome-close:hover,
+.welcome-close:focus-visible {
+  color: var(--accent);
+}
+.welcome-body {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+}
+/* Mini nav representation — same font as the real nav, chips lightly bordered. */
+.welcome-nav-demo {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 0.6rem 0.8rem;
+  margin: 0 0 0.9rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+.welcome-nav-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.welcome-nav-chip {
+  color: var(--ink);
+  text-decoration: none;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius);
+}
+.welcome-nav-chip--active {
+  color: var(--accent);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.welcome-nav-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}
+/* Site-admin setup checklist. */
+.welcome-checklist {
+  margin: 0 0 0.9rem;
+  padding-left: 1.25rem;
+  font-size: 0.92rem;
+  display: grid;
+  gap: 0.55rem;
+}
+.welcome-checklist__note {
+  color: var(--muted);
+}
+/* "Don't show this again" checkbox row at the bottom of every variant. */
+.welcome-dont-show {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
