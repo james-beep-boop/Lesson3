@@ -24,35 +24,35 @@ function storageKey(userId: number) {
 
 export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
   const [visible, setVisible] = useState(false)
+  const [dontShowAgain, setDontShowAgain] = useState(false)
   const role = getRole(user)
 
   useEffect(() => {
-    if (!localStorage.getItem(storageKey(user.id))) {
+    try {
+      if (!localStorage.getItem(storageKey(user.id))) {
+        setVisible(true)
+      }
+    } catch {
       setVisible(true)
     }
   }, [user.id])
 
   function dismiss() {
-    localStorage.setItem(storageKey(user.id), '1')
+    // Close first — storage failure must never leave the dialog open.
     setVisible(false)
-  }
-
-  function handleDontShow(checked: boolean) {
-    if (checked) {
-      localStorage.setItem(storageKey(user.id), '1')
-    } else {
-      localStorage.removeItem(storageKey(user.id))
+    if (dontShowAgain) {
+      try {
+        localStorage.setItem(storageKey(user.id), '1')
+      } catch {
+        // Storage quota or policy failure; suppress the dialog for this session only.
+      }
     }
   }
 
   if (!visible) return null
 
   return (
-    <Modal
-      title={`Welcome, ${user.name}!`}
-      onClose={dismiss}
-      className="modal--welcome"
-    >
+    <Modal title={`Welcome, ${user.name}!`} onClose={dismiss} className="modal--welcome">
       <button className="welcome-close" onClick={dismiss} aria-label="Dismiss">
         ×
       </button>
@@ -60,7 +60,11 @@ export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
       {role === 'subjectAdmin' && <SubjectAdminContent />}
       {role === 'siteAdmin' && <SiteAdminContent />}
       <label className="welcome-dont-show">
-        <input type="checkbox" onChange={(e) => handleDontShow(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={dontShowAgain}
+          onChange={(e) => setDontShowAgain(e.target.checked)}
+        />
         Don't show this again
       </label>
     </Modal>
@@ -140,8 +144,10 @@ function SiteAdminContent() {
       <p className="welcome-body">A few things to do to get started:</p>
       <ol className="welcome-checklist">
         <li>
-          <a href="/admin/globals/system-settings">Save your backup key</a>
-          <span className="welcome-checklist__note"> — Manage → Settings</span>
+          <a href="/guide?open=site-admins&at=site-admins.backups">
+            Commission off-server backups
+          </a>
+          <span className="welcome-checklist__note"> — follow the Backups guide</span>
         </li>
         <li>
           <a href="/admin/collections/users">Add your teachers</a>
@@ -154,7 +160,8 @@ function SiteAdminContent() {
         <li>
           <a href="/lessons">Review your lesson plans</a>
           <span className="welcome-checklist__note">
-            {' '}— check, update, or add new ones (individually, in groups, or as a ZIP)
+            {' '}
+            — check, update, or add new ones (individually, in groups, or as a ZIP)
           </span>
         </li>
       </ol>

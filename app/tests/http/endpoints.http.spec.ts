@@ -1535,35 +1535,41 @@ describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
     expect(await rateCount(key)).toBe(0) // …and still untouched: the 404 spent no shared budget.
   })
 
-  it.skipIf(!smtpConfigured)('Teacher emails a version → 202 {queued} and the job is enqueued', async () => {
-    // RFC 2606-reserved recipient: send goes to example.com's blackhole. The contract under test
-    // is queue-and-202; skipped when SMTP_HOST is absent (no-SMTP → 503, tested separately).
-    const to = 'mailbox@example.com'
-    const res = await post(fx.version.id, 'teacher', { to })
-    expect(res.status).toBe(202)
-    const body = (await res.json()) as { state?: string; to?: string }
-    expect(body.state).toBe('queued')
-    expect(body.to).toBe(to)
+  it.skipIf(!smtpConfigured)(
+    'Teacher emails a version → 202 {queued} and the job is enqueued',
+    async () => {
+      // RFC 2606-reserved recipient: send goes to example.com's blackhole. The contract under test
+      // is queue-and-202; skipped when SMTP_HOST is absent (no-SMTP → 503, tested separately).
+      const to = 'mailbox@example.com'
+      const res = await post(fx.version.id, 'teacher', { to })
+      expect(res.status).toBe(202)
+      const body = (await res.json()) as { state?: string; to?: string }
+      expect(body.state).toBe('queued')
+      expect(body.to).toBe(to)
 
-    // The enqueue is real: an emailVersionArtifact job row exists for this recipient (completed
-    // rows are retained — see payload.config jobs notes). input is a JSON column → match in-memory.
-    const { docs } = await fx.payload.find({
-      collection: 'payload-jobs',
-      where: { taskSlug: { equals: 'emailVersionArtifact' } },
-      limit: 50,
-      depth: 0,
-      overrideAccess: true,
-    })
-    const mine = docs.find((j) => (j.input as { to?: string } | undefined)?.to === to)
-    expect(mine).toBeTruthy()
-  })
+      // The enqueue is real: an emailVersionArtifact job row exists for this recipient (completed
+      // rows are retained — see payload.config jobs notes). input is a JSON column → match in-memory.
+      const { docs } = await fx.payload.find({
+        collection: 'payload-jobs',
+        where: { taskSlug: { equals: 'emailVersionArtifact' } },
+        limit: 50,
+        depth: 0,
+        overrideAccess: true,
+      })
+      const mine = docs.find((j) => (j.input as { to?: string } | undefined)?.to === to)
+      expect(mine).toBeTruthy()
+    },
+  )
 
-  it.skipIf(smtpConfigured)('without SMTP configured → 503 (valid request, feature unavailable)', async () => {
-    // The gate fires after authz + rate limits so validation errors are still specific; a valid
-    // request that reaches the queue step gets 503, not a silent 202.
-    const res = await post(fx.version.id, 'teacher', { to: 'someone@example.com' })
-    expect(res.status).toBe(503)
-  })
+  it.skipIf(smtpConfigured)(
+    'without SMTP configured → 503 (valid request, feature unavailable)',
+    async () => {
+      // The gate fires after authz + rate limits so validation errors are still specific; a valid
+      // request that reaches the queue step gets 503, not a silent 202.
+      const res = await post(fx.version.id, 'teacher', { to: 'someone@example.com' })
+      expect(res.status).toBe(503)
+    },
+  )
 
   it('the per-user DAILY cap → 429 with Retry-After (invalid bodies spend budget too)', async () => {
     // Run as the teacher with editing access (fresh per-run fixture user, so the bucket starts empty) and post INVALID

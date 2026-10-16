@@ -78,8 +78,7 @@ export function ForgotPasswordForm({ smtpEnabled = true }: { smtpEnabled?: boole
       {!smtpEnabled && (
         <p className="login-note">
           This site is not set up to send emails. Contact your Site Administrator — they can
-          generate a sign-in link for you from{' '}
-          <strong>Manage &rarr; Users &rarr; Accounts</strong>.
+          generate a sign-in link for you from <strong>Manage &rarr; Users &rarr; Accounts</strong>.
         </p>
       )}
       <label>

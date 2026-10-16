@@ -99,6 +99,9 @@ export function RolesAccessPanel({
       })
     }
     setJumpTargetOpened(jumpTarget)
+  } else if (jumpTarget === null && jumpTargetOpened !== null) {
+    // Target was consumed — reset so jumping to the same group again re-opens it.
+    setJumpTargetOpened(null)
   }
 
   // ⚑ IDS RESOLVE AGAINST ONE ROSTER (D11a). The groups carry id lists, not people, so this map is

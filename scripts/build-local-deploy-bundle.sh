@@ -30,6 +30,7 @@ sed \
 cp "$ROOT/.env.example" "$BUNDLE/.env.example"
 cp "$ROOT/deploy/online/install.sh" "$ROOT/deploy/online/update.sh" "$BUNDLE/"
 cp "$ROOT/docs/LOCAL-SERVER-DEPLOYMENT.md" "$BUNDLE/DEPLOYMENT.md"
+cp "$ROOT/docs/OPS.md" "$BUNDLE/OPS.md"
 cp "$ROOT/scripts/backup-db.sh" "$ROOT/scripts/restore-db.sh" "$ROOT/scripts/prune-db.sh" \
   "$ROOT/scripts/heartbeat.sh" "$ROOT/scripts/lib.sh" "$BUNDLE/scripts/"
 printf '%s\n' "$VERSION" >"$BUNDLE/VERSION"

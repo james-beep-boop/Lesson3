@@ -83,6 +83,17 @@ export const forgotPasswordQueuedEndpoint: Endpoint = {
     // this too, identically for everyone, so mirroring it leaks nothing.
     if (!email) throw new APIError('Missing email.', 400)
 
+    // When SMTP is absent this installation uses administrator-issued hand-delivered links.
+    // Calling forgotPasswordOperation here would rotate any live reset token the administrator
+    // already generated, invalidating it — while the queued passwordResetEmail job would silently
+    // complete without delivering anything. Return the uniform response without touching the token.
+    // (Rate limiting from the collection's beforeOperation hooks is not applied in this branch;
+    // that is acceptable because there is no delivery channel for an attacker to exploit.)
+    if (!process.env.SMTP_HOST?.trim()) {
+      await padToFloor(startedAt)
+      return json({ message: UNIFORM_MESSAGE })
+    }
+
     // `disableEmail: true` => the operation never calls sendEmail, so the ONE branch that could
     // throw differently for a real account is gone. Returns the token for a real account, null for
     // an unknown one. Collection `beforeOperation` hooks (the auth rate limit) still run inside.

@@ -308,7 +308,10 @@ export async function downloadPreparedDocument(
  * file can be handed straight to the upload endpoint or scripts/ingest.ts at another school.
  * The filename comes from the server's Content-Disposition header.
  */
-export async function downloadVersionJson(versionId: number, fallbackFilename: string): Promise<void> {
+export async function downloadVersionJson(
+  versionId: number,
+  fallbackFilename: string,
+): Promise<void> {
   const res = await fetch(`/api/lesson-bundle-versions/${versionId}/ares-export`, {
     credentials: 'same-origin',
   })

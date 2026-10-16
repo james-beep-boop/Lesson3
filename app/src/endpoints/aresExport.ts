@@ -30,7 +30,19 @@ export const aresExportEndpoint: Endpoint = {
     const version = await findReadableVersion(req.payload, { id, user: req.user as User, req })
     if (!version) throw new APIError('Version not found', 404)
 
-    const aresData = { schemaVersion: '1.0.0', ...bundleToAresData(version) }
+    // bundleToAresData coerces absent groups for the DOCX generator: UNIT becomes {},
+    // and absent FINAL_EXPLANATION / SUMMARY_TABLE become undefined (dropped by JSON.stringify).
+    // For interchange we need every required key present and absent optional groups as explicit
+    // null so the ingest parser's key-presence check (`k in result`) passes.
+    const raw = bundleToAresData(version)
+    const aresData = {
+      schemaVersion: '1.0.0',
+      META: raw.META,
+      UNIT: version.unit != null ? raw.UNIT : null,
+      LESSONS: raw.LESSONS,
+      FINAL_EXPLANATION: raw.FINAL_EXPLANATION ?? null,
+      SUMMARY_TABLE: raw.SUMMARY_TABLE ?? null,
+    }
     const body = JSON.stringify(aresData, null, 2)
     const prefix = safePrefix(version.meta?.filePrefix)
     const filename = `${prefix}.json`

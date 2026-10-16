@@ -19,11 +19,16 @@ fi
 PAYLOAD_SECRET=$(openssl rand -hex 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 
+# Write through a restricted temp file so secrets are never world-readable,
+# even briefly. umask 077 → file mode 0600.
+TMP=$(mktemp .env.tmp.XXXXXX)
+chmod 600 "${TMP}"
 sed \
   -e "s|^PAYLOAD_SECRET=.*|PAYLOAD_SECRET=${PAYLOAD_SECRET}|" \
   -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" \
   -e "s|REPLACE_WITH_POSTGRES_PASSWORD|${POSTGRES_PASSWORD}|g" \
-  .env.example > .env
+  .env.example > "${TMP}"
+mv "${TMP}" .env
 
 echo "Created .env."
 echo "  PAYLOAD_SECRET  — random 32-byte hex"

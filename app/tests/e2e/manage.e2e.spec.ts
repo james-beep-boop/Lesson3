@@ -1224,7 +1224,9 @@ test.describe('Manage page', () => {
       // `tests/unit/rolesAccessPanel.spec.tsx` covers without a browser.
       const handover = details.getByRole('combobox', { name: /Hand over administration of/ })
       await expect(handover).toBeVisible()
-      await expect(details.getByRole('button', { name: /Hand over administration of/ })).toBeVisible()
+      await expect(
+        details.getByRole('button', { name: /Hand over administration of/ }),
+      ).toBeVisible()
 
       // ⚑ THE POOL, not just the presence — the server permits a handover only to somebody who already
       // holds editing access here, so a picker offering the whole roster would 403 on most choices.
