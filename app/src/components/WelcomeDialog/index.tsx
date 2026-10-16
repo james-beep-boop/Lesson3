@@ -68,25 +68,21 @@ export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
 
 interface NavItem {
   label: string
-  href: string
   highlight?: boolean
   arrowLabel?: string
 }
 
 function NavDemo({ items }: { items: NavItem[] }) {
   return (
-    <div className="welcome-nav-demo" aria-label="Navigation overview" role="presentation">
+    <div className="welcome-nav-demo" aria-hidden="true">
       {items.map((item) => (
         <div key={item.label} className="welcome-nav-col">
-          <a
-            href={item.href}
-            className={`welcome-nav-chip${item.highlight ? ' welcome-nav-chip--active' : ''}`}
-          >
+          <span className={`welcome-nav-chip${item.highlight ? ' welcome-nav-chip--active' : ''}`}>
             {item.label}
-          </a>
+          </span>
           {item.arrowLabel && (
             <span className="welcome-nav-arrow">
-              <span aria-hidden="true">↑</span>
+              <span>↑</span>
               {item.arrowLabel}
             </span>
           )}
@@ -102,14 +98,14 @@ function TeacherContent() {
       <p className="welcome-body">You can browse, search, and download lesson plans.</p>
       <NavDemo
         items={[
-          { label: 'Lessons', href: '/lessons', highlight: true, arrowLabel: 'Browse here' },
-          { label: 'Discuss', href: '/discuss', arrowLabel: 'Comment on lessons' },
-          { label: 'Guide', href: '/guide' },
+          { label: 'Lessons', highlight: true, arrowLabel: 'Browse here' },
+          { label: 'Discuss', arrowLabel: 'Comment on lessons' },
         ]}
       />
       <p className="welcome-body">
-        To edit lesson plans, contact your{' '}
-        <strong>subject or site administrator</strong>.{' '}
+        To edit lesson plans, message your <strong>subject or site administrator</strong> for
+        permission.
+        <br />
         <a href="/messages">Send a message →</a>
       </p>
     </>
@@ -124,10 +120,9 @@ function SubjectAdminContent() {
       </p>
       <NavDemo
         items={[
-          { label: 'Lessons', href: '/lessons', arrowLabel: 'View & edit' },
-          { label: 'Discuss', href: '/discuss' },
-          { label: 'Manage', href: '/admin', highlight: true, arrowLabel: 'Manage teachers' },
-          { label: 'Guide', href: '/guide' },
+          { label: 'Lessons', arrowLabel: 'View & edit' },
+          { label: 'Discuss' },
+          { label: 'Manage', highlight: true, arrowLabel: 'Manage teachers' },
         ]}
       />
       <p className="welcome-body">
@@ -153,7 +148,7 @@ function SiteAdminContent() {
         </li>
         <li>
           <a href="/admin/collections/users">Set user roles</a>
-          <span className="welcome-checklist__note"> — give subject admins and editors access</span>
+          <span className="welcome-checklist__note"> — give teachers advanced privileges</span>
         </li>
         <li>
           <a href="/lessons">Review your lesson plans</a>
