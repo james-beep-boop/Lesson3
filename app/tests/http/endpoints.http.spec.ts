@@ -2043,19 +2043,19 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
   it.skipIf(!smtpConfigured)(
     'queues a delivery job for a REGISTERED address and none for an unknown one',
     async () => {
-    // Delivery is off the request path — that is what lets the two branches answer identically.
-    // Count immediately: succeeded jobs are removed (`deleteJobOnComplete` defaults true).
-    // Skipped when SMTP is absent: the endpoint returns early before calling
-    // forgotPasswordOperation, so no job is ever queued (token rotation is also skipped).
-    await clearBudget()
+      // Delivery is off the request path — that is what lets the two branches answer identically.
+      // Count immediately: succeeded jobs are removed (`deleteJobOnComplete` defaults true).
+      // Skipped when SMTP is absent: the endpoint returns early before calling
+      // forgotPasswordOperation, so no job is ever queued (token rotation is also skipped).
+      await clearBudget()
 
-    const before = await countJobs()
-    await forgot(`${MARK}still-no-such-account@example.invalid`)
-    expect(await countJobs()).toBe(before) // unknown → nothing queued
+      const before = await countJobs()
+      await forgot(`${MARK}still-no-such-account@example.invalid`)
+      expect(await countJobs()).toBe(before) // unknown → nothing queued
 
-    await forgot(fx.users.editor.email)
-    expect(await countJobs()).toBeGreaterThan(before) // registered → queued
-  },
+      await forgot(fx.users.editor.email)
+      expect(await countJobs()).toBeGreaterThan(before) // registered → queued
+    },
   )
 
   it('answers in uniform TIME, not just uniform bytes (timing-oracle regression)', async () => {
@@ -2143,7 +2143,8 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
       )
 
       const jobsBefore = await countJobs()
-      await forgot(fx.users.teacher.email)
+      const res = await forgot(fx.users.teacher.email)
+      expect(res.status).toBe(200)
 
       const userAfter = (await fx.payload.findByID({
         collection: 'users',
@@ -2155,7 +2156,9 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
 
       // Token and expiration must be exactly the administrator-issued values — untouched.
       expect(userAfter.resetPasswordToken).toBe(sentinelToken)
-      expect(userAfter.resetPasswordExpiration).toBeTruthy()
+      expect(new Date(userAfter.resetPasswordExpiration!).getTime()).toBe(
+        new Date(sentinelExp).getTime(),
+      )
       // No delivery job was created — the endpoint returned before reaching forgotPasswordOperation.
       expect(await countJobs()).toBe(jobsBefore)
 
