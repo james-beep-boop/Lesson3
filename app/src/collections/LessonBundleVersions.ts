@@ -29,6 +29,7 @@ import {
 } from '../endpoints/previewVersion'
 import { makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
 import { emailVersionEndpoint } from '../endpoints/emailVersion'
+import { aresExportEndpoint } from '../endpoints/aresExport'
 import { cascadeDeleteVersionFavorites } from './Favorites'
 import { cascadeDeleteVersionRecovery } from './EditRecovery'
 import { recoveryEndpoints } from '../endpoints/recovery'
@@ -129,6 +130,8 @@ export const LessonBundleVersions: CollectionConfig = {
     makeOfficialEndpoint,
     // POST /:id/email — send the export zip to any address (READ-gated, daily-capped). SPEC §10.
     emailVersionEndpoint,
+    // GET /:id/ares-export — download the version as ARES-format JSON (same shape as ingest input).
+    aresExportEndpoint,
   ],
   fields: [
     {

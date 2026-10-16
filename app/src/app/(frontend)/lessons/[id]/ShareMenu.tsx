@@ -26,7 +26,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
-import { downloadExport, type ExportState } from '@/components/exportClient'
+import { downloadExport, downloadVersionJson, type ExportState } from '@/components/exportClient'
 import DocStrip from '@/components/DocStrip'
 import { secondaryDeliverables } from '@/generator/deliverables'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
@@ -70,6 +70,7 @@ export default function ShareMenu({
   const [emailFormat, setEmailFormat] = useState<EmailFormat | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [jsonBusy, setJsonBusy] = useState(false)
 
   // Outside click / Escape close the panel (same behaviour as the user menu's disclosure).
   useEffect(() => {
@@ -101,6 +102,20 @@ export default function ShareMenu({
     }).catch(() => {
       /* state/error already surfaced via onState */
     })
+  }
+
+  const onDownloadJson = () => {
+    if (jsonBusy) return
+    setOpen(false)
+    setNote(null)
+    setError(null)
+    setJsonBusy(true)
+    const filename = `lesson-plan${semver ? `-v${semver}` : ''}.json`
+    downloadVersionJson(versionId, filename)
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : 'Could not download JSON.')
+      })
+      .finally(() => setJsonBusy(false))
   }
 
   const openEmail = (format: EmailFormat) => {
@@ -145,6 +160,9 @@ export default function ShareMenu({
           </button>
           <button type="button" disabled={exporting} onClick={() => onDownloadAll('pdf')}>
             Download all — PDF (.zip)
+          </button>
+          <button type="button" disabled={jsonBusy} onClick={onDownloadJson}>
+            Download as JSON
           </button>
           {/* Per-document downloads (2026-07-17, replacing the page's Documents line; narrowed to
               the SUPPORTING documents 2026-08-30 — see `supporting` above): one row per document,

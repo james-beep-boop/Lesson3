@@ -304,6 +304,19 @@ export async function downloadPreparedDocument(
 }
 
 /**
+ * Download a lesson bundle version as ARES-format JSON (same shape as the ingest input), so the
+ * file can be handed straight to the upload endpoint or scripts/ingest.ts at another school.
+ * The filename comes from the server's Content-Disposition header.
+ */
+export async function downloadVersionJson(versionId: number, fallbackFilename: string): Promise<void> {
+  const res = await fetch(`/api/lesson-bundle-versions/${versionId}/ares-export`, {
+    credentials: 'same-origin',
+  })
+  if (!res.ok) throw new Error(`Could not download JSON (${res.status}).`)
+  saveBlob(await res.blob(), filenameFrom(res, fallbackFilename))
+}
+
+/**
  * Download an export .zip. Ensures the artifacts are warm (`ensureExportReady`), then downloads
  * via the idempotent GET. Resolves once the download has been triggered; rejects with a
  * user-facing message on failure. Drives `onState` through preparing → downloading.
