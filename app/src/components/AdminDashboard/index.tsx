@@ -566,8 +566,7 @@ export default async function AdminDashboard({
             {canSeeRolesAccess && (
               <AccordionPanel id="users.access" title="Roles & Access">
                 <p className="lp-manage__desc">
-                  Who administers each subject grade and who may edit its lesson plans. Granting
-                  editing access lets a teacher edit; removing it returns them to view-only.
+                  Who administers each subject grade and who may edit its lesson plans.
                 </p>
                 {/* ⚑ `'handover'` FOR EVERY NON-SITE-ADMIN WHO REACHES THIS LINE, and that is sound
                     only because of an invariant in another file: `buildRolesAccess` returns NOTHING to
