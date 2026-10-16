@@ -37,8 +37,8 @@ export default function RedirectToManage(): never {
 /** The native Users table is replaced by the lazy Manage panel, opened on arrival (PR 2b). */
 export const RedirectUsersToManage = toManagePanel('users.accounts')
 
-/** Subjects — academic disciplines (PR 3). */
-export const RedirectSubjectsToManage = toManagePanel('curriculum.subjects')
+/** Subjects — academic disciplines (PR 3). Both subjects and grades now live in the unified panel. */
+export const RedirectSubjectsToManage = toManagePanel('curriculum')
 
 /** Subject grades — the units roles and lesson plans attach to (PR 3). */
-export const RedirectSubjectGradesToManage = toManagePanel('curriculum.subject-grades')
+export const RedirectSubjectGradesToManage = toManagePanel('curriculum')

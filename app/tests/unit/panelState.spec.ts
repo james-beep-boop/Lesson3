@@ -70,16 +70,21 @@ describe('parseOpen', () => {
    * is what retiring an entry in it is supposed to feel like from the outside: a normal Manage page
    * with nothing opened, not an error and not a resurrected panel.
    *
-   * ⚑ THE IDS HERE CHANGED ON 2026-08-18 and the previous ones are worth naming, because this case has
-   * now happened twice. Round one: `curriculum` shipped as a holding-pen panel and PR 3 dissolved it
-   * into `subjects` + `subject-grades`. Round two: the four-box regrouping retired those two in turn
-   * (they became `curriculum.subjects` / `curriculum.subject-grades`) along with top-level `access`.
-   * Pinned because the tempting "fix" for a broken old link is to re-add the id it names.
+   * ⚑ THE IDS HERE CHANGED ON 2026-08-18 and again on 2026-10-16 — worth naming each generation
+   * because the tempting "fix" for a broken old link is to re-add the id it names.
+   *   Round one: `curriculum` shipped as a holding-pen panel and PR 3 dissolved it into `subjects` +
+   *     `subject-grades`.
+   *   Round two: the four-box regrouping retired those two (`curriculum.subjects` /
+   *     `curriculum.subject-grades`) along with top-level `access`.
+   *   Round three: the unified matrix (SubjectsAndGradesPanel) retired `curriculum.subjects` and
+   *     `curriculum.subject-grades`; `curriculum` itself remains as a leaf.
    */
   it('drops a RETIRED id, so an old bookmark degrades instead of erroring', () => {
     expect(parseOpen('?open=subjects', SITE_ADMIN)).toEqual([])
     expect(parseOpen('?open=subject-grades', SITE_ADMIN)).toEqual([])
     expect(parseOpen('?open=access,plans', SITE_ADMIN)).toEqual(['plans'])
+    expect(parseOpen('?open=curriculum.subjects', SITE_ADMIN)).toEqual([])
+    expect(parseOpen('?open=curriculum.subject-grades', SITE_ADMIN)).toEqual([])
   })
 
   /**

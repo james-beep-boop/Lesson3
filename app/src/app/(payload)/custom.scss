@@ -1112,6 +1112,106 @@ body {
   }
 }
 
+// Subjects and grades matrix — a checkbox table that replaced the two-panel design (Subjects +
+// Subject grades). Rows are subjects; columns are grade numbers. Horizontal scroll on the wrapper
+// keeps the table intact on narrow viewports. No control geometry lives here: inputs use
+// `.lp-users__input` and buttons use `.lp-btn lp-btn--compact`, both already in the shared system.
+.lp-sg {
+  display: grid;
+  gap: var(--app-space-3);
+
+  // Horizontal scroll so the matrix survives narrow viewports without column collapse.
+  &__scroll {
+    overflow-x: auto;
+  }
+
+  &__table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  &__subject-th {
+    text-align: left;
+    padding: var(--app-space-1) var(--app-space-2) var(--app-space-1) 0;
+    font-size: var(--app-secondary-size);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &__grade-th {
+    text-align: center;
+    padding: var(--app-space-1) var(--app-space-2);
+    font-size: var(--app-secondary-size);
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 5rem;
+  }
+
+  &__add-grade-th,
+  &__actions-th {
+    padding: var(--app-space-1) 0 var(--app-space-1) var(--app-space-2);
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  &__row {
+    border-top: 1px solid var(--theme-elevation-100);
+  }
+
+  &__subject-td {
+    padding: var(--app-space-1) var(--app-space-2) var(--app-space-1) 0;
+    // Grows to absorb the available width so grade columns stay narrow.
+    width: 100%;
+  }
+
+  &__check-td {
+    text-align: center;
+    padding: var(--app-space-1) var(--app-space-2);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  &__add-grade-td,
+  &__actions-td {
+    padding: var(--app-space-1) 0 var(--app-space-1) var(--app-space-2);
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  // Rename form: input stretches, Save button is compact beside it.
+  &__rename {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    min-width: 0;
+  }
+
+  &__name-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  // Add grade form in the column header.
+  &__add-grade {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+  }
+
+  // Narrow number input — grade is one or two digits.
+  &__grade-input {
+    width: 4.5rem;
+  }
+
+  // Add subject form below the table — reuses taxonomy create layout.
+  &__add-subject {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--app-space-3);
+    flex-wrap: wrap;
+  }
+}
+
 // Delete lesson plans — the curriculum tree (2026-08-04 operator request: the flat list had no
 // organisation, with the scope in small type off to the right). Structure and TYPE SCALE mirror the
 // library catalogue's `.sg-head` / `.strand-head` exactly, via the shared tokens: the two surfaces

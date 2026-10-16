@@ -22,8 +22,11 @@ import { SystemFeaturesPanel } from '../Manage/SystemFeaturesPanel'
 import { readFeaturesSettings } from '../Manage/readFeaturesSettings'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
 import { resolveServerPanelState, withAncestors, type PanelId } from '../Manage/panelState'
-import { SubjectGradesPanel, type SubjectGradeRow } from '../Manage/SubjectGradesPanel'
-import { SubjectsPanel, type SubjectRow } from '../Manage/SubjectsPanel'
+import {
+  SubjectsAndGradesPanel,
+  type SubjectRow,
+  type SubjectGradeRow,
+} from '../Manage/SubjectsAndGradesPanel'
 import { UsersPanel } from '../Manage/UsersPanel'
 
 /**
@@ -486,8 +489,7 @@ export default async function AdminDashboard({
       [
         siteAdmin && 'users.accounts',
         canSeeRolesAccess && 'users.access',
-        siteAdmin && 'curriculum.subjects',
-        siteAdmin && 'curriculum.subject-grades',
+        siteAdmin && 'curriculum',
         siteAdmin && 'plans.upload',
         showSaved && 'plans.versions',
         siteAdmin && 'plans.delete',
@@ -552,7 +554,8 @@ export default async function AdminDashboard({
             {siteAdmin && (
               <AccordionPanel id="users.accounts" title="Accounts">
                 <p className="lp-manage__desc">
-                  Search and manage user accounts. Use Disable sign-in when a teacher leaves — this preserves their history without deleting the account.
+                  Search and manage user accounts. Use Disable sign-in when a teacher leaves — this
+                  preserves their history without deleting the account.
                 </p>
                 <UsersPanel />
               </AccordionPanel>
@@ -593,16 +596,7 @@ export default async function AdminDashboard({
 
         {siteAdmin && (
           <AccordionPanel id="curriculum" title="Subjects and grades">
-            <AccordionPanel id="curriculum.subjects" title="Subjects">
-              <SubjectsPanel subjects={taxonomySubjects} />
-            </AccordionPanel>
-
-            <AccordionPanel id="curriculum.subject-grades" title="Subject grades">
-              <p className="lp-manage__desc">
-                Subject grades are a subject and associated school grade level
-              </p>
-              <SubjectGradesPanel rows={taxonomyGrades} subjects={taxonomySubjects} />
-            </AccordionPanel>
+            <SubjectsAndGradesPanel subjects={taxonomySubjects} grades={taxonomyGrades} />
           </AccordionPanel>
         )}
 

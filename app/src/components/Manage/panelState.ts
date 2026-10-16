@@ -34,6 +34,10 @@
  *     page with nothing opened and the parameter scrubbed. That is what retiring an entry in a URL
  *     contract is supposed to feel like from the outside, and it is now the THIRD time this vocabulary
  *     has done it (see `curriculum` below).
+ *   - `curriculum.subjects` and `curriculum.subject-grades` were RETIRED on 2026-10-16 when the two
+ *     nested panels were replaced by the unified SubjectsAndGradesPanel matrix. `curriculum` itself
+ *     remains and is now a leaf rather than a group. Old links carrying the child ids are silently
+ *     dropped; links carrying `curriculum` still open that panel as before.
  *   - `users` now names the GROUP, not the accounts panel — which is `users.accounts`. So an old
  *     `?open=users` link still opens something, one level out from what it used to. That is the
  *     benign direction for a changed meaning, and it is only benign because the group CONTAINS the
@@ -66,9 +70,10 @@ export const PANEL_IDS = [
   'users',
   'users.accounts',
   'users.access',
+  // ⚑ `curriculum.subjects` and `curriculum.subject-grades` were RETIRED when the two-panel design
+  // was replaced by the unified SubjectsAndGradesPanel matrix. Old links carrying those ids are
+  // silently dropped by `parseOpen` — they were valid as of 2026-08-18, retired 2026-10-16.
   'curriculum',
-  'curriculum.subjects',
-  'curriculum.subject-grades',
   'plans',
   'plans.upload',
   'plans.delete',

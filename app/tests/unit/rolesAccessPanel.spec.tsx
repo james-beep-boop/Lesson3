@@ -24,7 +24,7 @@
  * stubbed as the plain `<button>` it renders.
  */
 import React from 'react'
-import { render, screen, cleanup, within } from '@testing-library/react'
+import { render, screen, cleanup, within, act } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@payloadcms/ui', () => ({
@@ -107,6 +107,18 @@ const access = (over: {
   }
 }
 
+/**
+ * The groups now start collapsed (space-conservative design). Click each toggle button so their
+ * content enters the accessibility tree before `getByRole` queries run.
+ */
+function expandGroups() {
+  act(() => {
+    document
+      .querySelectorAll<HTMLButtonElement>('button.lp-users__summary')
+      .forEach((btn) => btn.click())
+  })
+}
+
 afterEach(cleanup)
 
 describe('Roles & Access identifies people by address, not just name', () => {
@@ -124,6 +136,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     render(
       <RolesAccessPanel access={access({ addable: [ada, alan] })} subjectAdminControl="handover" />,
     )
+    expandGroups()
     const picker = screen.getByRole('combobox', {
       name: 'Grant editing access for Biology — Grade 10',
     })
@@ -150,6 +163,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
       render(
         <RolesAccessPanel access={access({ editors: [ada] })} subjectAdminControl="handover" />,
       )
+      expandGroups()
       screen.getByRole('button', { name: /^Remove editing access for/ }).click()
       expect(confirmSpy).toHaveBeenCalledTimes(1)
       expect(confirmSpy.mock.calls[0][0]).toContain('ada.mwangi@school.test')
@@ -167,6 +181,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     render(
       <RolesAccessPanel access={access({ editors: [ada, alan] })} subjectAdminControl="handover" />,
     )
+    expandGroups()
     const names = screen
       .getAllByRole('button', { name: /^Remove editing access for/ })
       .map((b) => b.getAttribute('aria-label'))
@@ -184,6 +199,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
 
   it('names the Add button by its subject-grade', () => {
     render(<RolesAccessPanel access={access({ addable: [ada] })} subjectAdminControl="handover" />)
+    expandGroups()
     const add = screen.getByRole('button', {
       name: 'Grant editing access in Biology — Grade 10',
     })
@@ -198,6 +214,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
         subjectAdminControl="handover"
       />,
     )
+    expandGroups()
     const options = [...screen.getAllByRole('option')].map((o) => o.textContent)
     expect(options).toContain('No Address')
     expect(options.join(' ')).not.toMatch(/undefined|—\s*$/)
@@ -233,6 +250,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     const { container } = render(
       <RolesAccessPanel access={access({ editors: [ada] })} subjectAdminControl="handover" />,
     )
+    expandGroups()
     const remove = screen.getByRole('button', { name: /^Remove editing access for/ })
     expect(remove.className).toContain('lp-btn')
     expect(remove.className).toContain('lp-btn--compact')
@@ -284,6 +302,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
         subjectAdminControl="handover"
       />,
     )
+    expandGroups()
     const picker = screen.getByRole('combobox', {
       name: 'Hand over administration of Biology — Grade 10',
     })
@@ -302,6 +321,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
         subjectAdminControl="full"
       />,
     )
+    expandGroups()
     const full = screen.getByRole('combobox', {
       name: 'Appoint the Subject Administrator of Biology — Grade 10',
     })
@@ -323,6 +343,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
           subjectAdminControl="handover"
         />,
       )
+      expandGroups()
       const picker = screen.getByRole('combobox', {
         name: 'Hand over administration of Biology — Grade 10',
       })
@@ -368,6 +389,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
         subjectAdminControl="full"
       />,
     )
+    expandGroups()
     expect(
       screen.getByRole('combobox', {
         name: 'Appoint the Subject Administrator of Biology — Grade 10',
@@ -393,6 +415,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
           subjectAdminControl="full"
         />,
       )
+      expandGroups()
       // The count appears only in the plural case — "Subject Administrator (1)" reads as a system
       // talking about itself, so the singular label carries no number.
       expect(screen.getByText('Subject Administrators (2)')).toBeTruthy()
@@ -432,6 +455,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
           subjectAdminControl="full"
         />,
       )
+      expandGroups()
       screen.getAllByRole('button', { name: /^Remove .* as Subject Administrator of/ })[0]!.click()
       const twoLeft = confirmSpy.mock.calls[0]?.[0] ?? ''
       expect(twoLeft).not.toContain('no administrator')
@@ -442,6 +466,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
       cleanup()
       confirmSpy.mockClear()
       render(<RolesAccessPanel access={access({ subjectAdmin: ada })} subjectAdminControl="full" />)
+      expandGroups()
       screen.getByRole('button', { name: /^Remove .* as Subject Administrator of/ }).click()
       // The sole-holder case keeps the original warning — this is the pairing that proves the
       // conditional is a conditional and not a rename.
@@ -470,6 +495,7 @@ describe('Subject Administrator: shown to everyone, handed over by its holder, r
           subjectAdminControl="full"
         />,
       )
+      expandGroups()
       const picker = screen.getByRole('combobox', {
         name: 'Appoint the Subject Administrator of Biology — Grade 10',
       })
