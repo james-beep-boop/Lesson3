@@ -29,7 +29,7 @@
  */
 import React, { useState } from 'react'
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ smtpEnabled = true }: { smtpEnabled?: boolean }) {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
@@ -62,14 +62,26 @@ export function ForgotPasswordForm() {
   }
 
   if (sent) {
-    return (
+    return smtpEnabled ? (
       <p className="login-note" role="status">
         If an account exists for that address, a reset link is on its way. Check your inbox.
+      </p>
+    ) : (
+      <p className="login-note" role="status">
+        Contact your Site Administrator. They can generate a sign-in link for you from{' '}
+        <strong>Manage &rarr; Users &rarr; Accounts</strong> — no email needed.
       </p>
     )
   }
   return (
     <form className="login-form" onSubmit={onSubmit}>
+      {!smtpEnabled && (
+        <p className="login-note">
+          This site is not set up to send emails. Contact your Site Administrator — they can
+          generate a sign-in link for you from{' '}
+          <strong>Manage &rarr; Users &rarr; Accounts</strong>.
+        </p>
+      )}
       <label>
         Email
         <input

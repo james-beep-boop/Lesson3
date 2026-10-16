@@ -10,6 +10,7 @@ export const metadata = { title: 'Forgot password — ARES Lesson Plans' }
 export default async function ForgotPasswordPage() {
   const { user } = await getSession()
   if (user) redirect('/')
+  const smtpEnabled = !!process.env.SMTP_HOST?.trim()
   return (
     <section className="login">
       <div className="login-back">
@@ -17,7 +18,7 @@ export default async function ForgotPasswordPage() {
       </div>
       <h1 className="login-title">ARES Lesson Plans</h1>
       <p className="login-subtitle">Reset your password</p>
-      <ForgotPasswordForm />
+      <ForgotPasswordForm smtpEnabled={smtpEnabled} />
     </section>
   )
 }
