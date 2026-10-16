@@ -89,29 +89,31 @@ function SubjectGradeItem({
             onChange={(event) => setGrade(event.target.value)}
           />
         </label>
-        <Button
-          className="lp-btn lp-btn--compact"
-          buttonStyle="primary"
-          size="small"
-          type="submit"
-          disabled={!canSave}
-        >
-          Save
-        </Button>
-        <Button
-          className="lp-btn lp-btn--compact"
-          buttonStyle="error"
-          size="small"
-          type="button"
-          disabled={disabled}
-          aria-label={`Delete ${row.displayName}`}
-          onClick={() => {
-            if (!window.confirm(deleteConsequences(row))) return
-            void actions.remove(row.id, `Deleted ${row.displayName}.`)
-          }}
-        >
-          Delete
-        </Button>
+        <div className="lp-taxonomy__actions">
+          <Button
+            className="lp-btn lp-btn--compact"
+            buttonStyle="primary"
+            size="small"
+            type="submit"
+            disabled={!canSave}
+          >
+            Save
+          </Button>
+          <Button
+            className="lp-btn lp-btn--compact"
+            buttonStyle="error"
+            size="small"
+            type="button"
+            disabled={disabled}
+            aria-label={`Delete ${row.displayName}`}
+            onClick={() => {
+              if (!window.confirm(deleteConsequences(row))) return
+              void actions.remove(row.id, `Deleted ${row.displayName}.`)
+            }}
+          >
+            Delete
+          </Button>
+        </div>
       </form>
     </li>
   )

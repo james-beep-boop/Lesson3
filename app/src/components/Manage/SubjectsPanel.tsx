@@ -72,30 +72,33 @@ function SubjectItem({
             onChange={(event) => setName(event.target.value)}
           />
         </label>
-        <Button
-          className="lp-btn lp-btn--compact"
-          buttonStyle="primary"
-          size="small"
-          type="submit"
-          disabled={!canSave}
-        >
-          Save
-        </Button>
+        <div className="lp-taxonomy__actions">
+          <Button
+            className="lp-btn lp-btn--compact"
+            buttonStyle="primary"
+            size="small"
+            type="submit"
+            disabled={!canSave}
+          >
+            Save
+          </Button>
+          {/* ⚑ Per-row accessible name. The visible label is only "Delete", and this row identifies its
+              subject through an INPUT VALUE — which is not text content, so neither a screen reader's
+              button list nor a test locator can tell two rows apart without this. */}
+          <Button
+            className="lp-btn lp-btn--compact"
+            buttonStyle="error"
+            size="small"
+            type="button"
+            disabled={disabled}
+            aria-label={`Delete ${subject.name}`}
+            onClick={remove}
+          >
+            Delete
+          </Button>
+        </div>
       </form>
       <span className="lp-manage__meta">{plural(subject.subjectGradeCount, 'subject grade')}</span>
-      {/* ⚑ Per-row accessible name. The visible label is only "Delete", and this row identifies its
-          subject through an INPUT VALUE — which is not text content, so neither a screen reader's
-          button list nor a test locator can tell two rows apart without this. */}
-      <Button
-        className="lp-btn lp-btn--compact"
-        buttonStyle="error"
-        size="small"
-        disabled={disabled}
-        aria-label={`Delete ${subject.name}`}
-        onClick={remove}
-      >
-        Delete
-      </Button>
     </li>
   )
 }

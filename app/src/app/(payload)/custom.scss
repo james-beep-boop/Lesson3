@@ -1073,6 +1073,16 @@ body {
     }
   }
 
+  // Save + Delete grouped so they stay side-by-side in both the desktop flex row and the portrait
+  // column layout (where the parent column stretches children full-width, but this row-flex keeps
+  // the buttons at natural width next to each other).
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-1);
+    flex-shrink: 0;
+  }
+
   // The derived "<Subject> — Grade N". Read-only by nature, so it takes the row's primary label
   // treatment rather than a control's.
   &__title {
