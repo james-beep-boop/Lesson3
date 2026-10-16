@@ -595,16 +595,12 @@ export default async function AdminDashboard({
         {siteAdmin && (
           <AccordionPanel id="curriculum" title="Subjects and grades">
             <AccordionPanel id="curriculum.subjects" title="Subjects">
-              <p className="lp-manage__desc">
-                Academic disciplines. Grade is not part of a subject — it lives on a subject grade.
-              </p>
               <SubjectsPanel subjects={taxonomySubjects} />
             </AccordionPanel>
 
             <AccordionPanel id="curriculum.subject-grades" title="Subject grades">
               <p className="lp-manage__desc">
-                Subject + grade units that roles and lesson plans attach to. The displayed name is
-                derived from the two, so renaming a subject updates every grade beneath it.
+                Subject grades are a subject and associated school grade level
               </p>
               <SubjectGradesPanel rows={taxonomyGrades} subjects={taxonomySubjects} />
             </AccordionPanel>
