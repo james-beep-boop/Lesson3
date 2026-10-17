@@ -39,6 +39,14 @@ kept-until date); unsaved-work warning on the four version-delete confirmations,
 wire-tested). ⚑ Edit recovery stays the only store — no "drafts" collection (reserved word; second
 weaker channel).
 
+⚑ **`main` has 28 failing browser tests that predate this work** (measured 2026-10-17 against `main`
+at `2c25ed8` in an isolated stack; the branch fails the identical 28 and no others): all of
+`discussions`/`discussionsModeration`, 10 in `manage`, 2 in `messages`. Two causes: the first-login
+Welcome dialog (changed 2026-10-16) covers the page and intercepts clicks in specs that never dismiss
+it; and `manage.e2e.spec.ts` still opens the `curriculum.subjects` panel that `9ebc844` retired. Fix
+the specs (dismiss/opt out of the dialog in the e2e login helper; update the taxonomy cases) before
+relying on CI's browser gate.
+
 **Next — Combine versions** (operator decisions: build it; Teachers with editing access may combine;
 UI says "Combine versions"). Planned phases: (2) pure merge engine `lib/merge/` + read-only
 `merge-preview` endpoint with tests; (3) Combine screen in the editor, `mergeParent` on save-as-new,

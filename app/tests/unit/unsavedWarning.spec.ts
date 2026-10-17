@@ -30,12 +30,10 @@ describe('unsavedWarningText', () => {
   })
 
   it("ignores the caller's own work when told to (Save retires it anyway)", () => {
-    expect(
-      unsavedWarningText({ otherUsers: 0, includesCaller: true }, { countCaller: false }),
-    ).toBe('')
-    expect(
-      unsavedWarningText({ otherUsers: 2, includesCaller: true }, { countCaller: false }),
-    ).toBe(`2 other people have ${tail}`)
+    expect(unsavedWarningText({ otherUsers: 0, includesCaller: true }, false)).toBe('')
+    expect(unsavedWarningText({ otherUsers: 2, includesCaller: true }, false)).toBe(
+      `2 other people have ${tail}`,
+    )
   })
 })
 

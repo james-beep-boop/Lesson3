@@ -29,7 +29,8 @@
  */
 import type { TaskConfig } from 'payload'
 
-import { CAPTURE_TTL_DAYS, EXPIRY_BATCH_LIMIT, expireCaptures } from '../lib/editRecovery/kernel'
+import { EXPIRY_BATCH_LIMIT, expireCaptures } from '../lib/editRecovery/kernel'
+import { captureExpiryCutoff } from '../lib/editRecovery/ttl'
 import { captureException } from '../lib/errorTracking'
 
 export const EXPIRE_EDIT_RECOVERY_SLUG = 'expireEditRecovery' as const
@@ -44,7 +45,7 @@ export const expireEditRecoveryTask: TaskConfig<{
   slug: EXPIRE_EDIT_RECOVERY_SLUG,
   schedule: [{ cron: EXPIRE_EDIT_RECOVERY_CRON, queue: 'default' }],
   handler: async ({ req }) => {
-    const cutoff = new Date(Date.now() - CAPTURE_TTL_DAYS * 86_400_000)
+    const cutoff = captureExpiryCutoff()
     try {
       const report = await expireCaptures(req, { cutoff, limit: EXPIRY_BATCH_LIMIT })
       return { output: report }

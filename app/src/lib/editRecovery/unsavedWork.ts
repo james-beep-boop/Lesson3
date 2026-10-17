@@ -14,30 +14,29 @@
  *      endpoints 404 without it, so a teacher whose access was revoked cannot restore, and listing
  *      the row would promise something SPEC §5 says must not happen.
  *
- * Content is never read here. Whether a capture can still be applied (`restorable`) is computed from
- * the same two facts the GET endpoint compares, so the list and the restore prompt agree.
+ * Content is never read here. Whether a capture can still be applied (`restorable`) comes from
+ * `captureProvenance`, the same predicate the GET endpoint uses, so the list and the restore prompt
+ * agree. Subject-grade LABELS are left to the caller: Manage already resolves subject-grades for its
+ * other rows, so this returns the id rather than spending a query on names it would fetch twice.
  *
  * Server-only: it imports the kernel, which imports the Postgres adapter.
  */
 import type { PayloadRequest } from 'payload'
 
-import { isEditorFor } from '../../access'
-import { CAPTURE_SCHEMA_VERSION } from '../../endpoints/recovery'
+import { isEditorFor, isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import type { User } from '../../payload-types'
-import { distinctIds, relId } from '../relId'
+import { relId } from '../relId'
 import { lessonDisplayName } from '../substrand'
 import { listOwnCaptures } from './kernel'
-import { captureKeptUntil } from './ttl'
+import { captureProvenance } from './provenance'
 
 export interface UnsavedWorkRow {
   versionId: number
   label: string
   semver: string
-  sgLabel: string
+  subjectGradeId: number | null
   /** ISO timestamp of the last confirmed backup — the row's own `updated_at`. */
   capturedAt: string
-  /** ISO timestamp: guaranteed kept until at least this moment (`captureKeptUntil`). */
-  keptUntil: string
   /** False when the source moved or the field shape changed: the editor offers copy-out only. */
   restorable: boolean
   /** The precondition the existing discard endpoint requires. */
@@ -45,6 +44,11 @@ export interface UnsavedWorkRow {
 }
 
 export async function listUnsavedWork(req: PayloadRequest, user: User): Promise<UnsavedWorkRow[]> {
+  // Filter 3, applied up front: someone with editing access nowhere can resume nothing, so a plain
+  // Teacher's Manage render skips the query entirely.
+  if (!isSiteAdmin(user) && subjectGradeIdsByRole(user, ['editor', 'subjectAdmin']).length === 0) {
+    return []
+  }
   const captures = await listOwnCaptures(req, { userId: user.id })
   if (captures.length === 0) return []
 
@@ -64,39 +68,25 @@ export async function listUnsavedWork(req: PayloadRequest, user: User): Promise<
       meta: { substrand_name: true },
     },
   })
-  const editable = versions.filter((v) => isEditorFor(user, relId(v.subjectGrade) ?? undefined))
-  if (editable.length === 0) return []
-
-  const sgIds = distinctIds(editable.map((v) => relId(v.subjectGrade)))
-  const { docs: grades } = await req.payload.find({
-    collection: 'subject-grades',
-    overrideAccess: false,
-    user,
-    req,
-    depth: 0,
-    pagination: false,
-    where: { id: { in: sgIds } },
-    select: { displayName: true },
-  })
-  const sgLabel = new Map(grades.map((g) => [g.id, g.displayName ?? '']))
-  const byId = new Map(editable.map((v) => [v.id, v]))
+  const byId = new Map(
+    versions
+      .filter((v) => isEditorFor(user, relId(v.subjectGrade) ?? undefined))
+      .map((v) => [v.id, v]),
+  )
 
   // Captures arrive newest first; keep that order rather than the find's.
   return captures.flatMap((c) => {
     const v = byId.get(c.sourceVersionId)
     if (!v) return []
-    const sgId = relId(v.subjectGrade)
+    const { stale, schemaMismatch } = captureProvenance(c, v.updatedAt)
     return [
       {
         versionId: v.id,
         label: lessonDisplayName(v.meta?.substrand_name, v.title),
         semver: v.semver ?? '',
-        sgLabel: (sgId != null ? sgLabel.get(sgId) : undefined) ?? '',
+        subjectGradeId: relId(v.subjectGrade),
         capturedAt: c.token.updatedAt,
-        keptUntil: captureKeptUntil(c.token.updatedAt).toISOString(),
-        restorable:
-          c.schemaVersion === CAPTURE_SCHEMA_VERSION &&
-          c.baseUpdatedAt === new Date(String(v.updatedAt)).toISOString(),
+        restorable: !stale && !schemaMismatch,
         token: { generation: c.token.generation, revision: c.token.revision },
       },
     ]

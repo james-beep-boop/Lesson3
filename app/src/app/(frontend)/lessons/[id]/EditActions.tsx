@@ -13,7 +13,7 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { unsavedWorkWarning } from '@/components/EditRecovery/unsavedWarning'
+import { withUnsavedWarning } from '@/components/EditRecovery/unsavedWarning'
 import Modal from '@/components/Modal'
 import {
   editingAvailableAtWidth,
@@ -66,13 +66,12 @@ export default function EditActions({
     setBusy('official')
     // The previous Official is the version the delete would remove; warn when unsaved work is kept on
     // it (SPEC §5). Advisory and fail-open — see `unsavedWorkWarning`.
-    const warning =
-      officialVersionId != null && String(officialVersionId) !== String(versionId)
-        ? await unsavedWorkWarning(officialVersionId)
-        : ''
+    const question =
+      'Make this the Official version.\n\nAlso delete the previously-Official version? (Cancel keeps it.)'
     const deletePrevious = window.confirm(
-      'Make this the Official version.\n\nAlso delete the previously-Official version? (Cancel keeps it.)' +
-        (warning ? `\n\n${warning}` : ''),
+      officialVersionId != null && String(officialVersionId) !== String(versionId)
+        ? await withUnsavedWarning(question, officialVersionId)
+        : question,
     )
     setError(null)
     try {

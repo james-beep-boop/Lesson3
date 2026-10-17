@@ -30,6 +30,8 @@ import {
 import { UsersPanel } from '../Manage/UsersPanel'
 import { UnsavedWorkList, type UnsavedWorkItem } from '../Manage/UnsavedWorkList'
 import { listUnsavedWork } from '../../lib/editRecovery/unsavedWork'
+import { captureKeptUntil } from '../../lib/editRecovery/ttl'
+import { formatDay } from '../../lib/formatDate'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
@@ -215,6 +217,8 @@ export default async function AdminDashboard({
   const sgIds = distinctIds([
     ...versionDocs.map((v) => relId(v.subjectGrade)),
     ...planDocs.map((p) => relId(p.subjectGrade)),
+    // Labels for "Your unsaved work" ride this lookup rather than a query of their own.
+    ...unsavedWork.map((w) => w.subjectGradeId),
   ])
   const authorIds = distinctIds(versionDocs.map((v) => relId(v.author)))
   const officialIds = distinctIds(planDocs.map((p) => relId(p.officialVersion)))
@@ -336,21 +340,14 @@ export default async function AdminDashboard({
   const officialByPlan = new Map<number, number | null>()
   for (const p of exclusionRes?.docs ?? planDocs) officialByPlan.set(p.id, relId(p.officialVersion))
 
-  const dateFmt = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-  const unsavedRows: UnsavedWorkItem[] = unsavedWork.map((w) => ({
-    versionId: w.versionId,
-    label: w.label,
-    semver: w.semver,
-    sgLabel: w.sgLabel,
-    capturedOn: dateFmt.format(new Date(w.capturedAt)),
-    keptUntil: dateFmt.format(new Date(w.keptUntil)),
-    restorable: w.restorable,
-    token: w.token,
-  }))
+  const unsavedRows: UnsavedWorkItem[] = unsavedWork.map(
+    ({ capturedAt, subjectGradeId, ...rest }) => ({
+      ...rest,
+      sgLabel: (subjectGradeId != null ? sgById.get(subjectGradeId)?.label : undefined) ?? '',
+      capturedOn: formatDay(capturedAt),
+      keptUntil: formatDay(captureKeptUntil(capturedAt)),
+    }),
+  )
   const candidates: CandidateRow[] = versionDocs.flatMap((v) => {
     // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
     // ⚑ Fails CLOSED on an unresolvable plan. The previous version read the POPULATED plan and
@@ -374,7 +371,7 @@ export default async function AdminDashboard({
         semver: v.semver ?? '',
         sgLabel: (sgId != null ? sgById.get(sgId)?.label : undefined) ?? '',
         authorName: (authorId != null ? authorNameById.get(authorId) : undefined) ?? null,
-        savedAt: v.createdAt ? dateFmt.format(new Date(v.createdAt)) : '',
+        savedAt: v.createdAt ? formatDay(v.createdAt) : '',
       },
     ]
   })

@@ -22,7 +22,7 @@ import type { PayloadRequest } from 'payload'
 
 import { rowsOf, toPositiveInt, txDb } from '../txDb'
 import { projectCapture } from './projection'
-import { CAPTURE_TTL_DAYS } from './ttl'
+import { captureExpiryCutoff } from './ttl'
 
 /** What every advancing write returns, and what the client must adopt (§4's token rule). */
 export type RecoveryToken = {
@@ -358,8 +358,8 @@ export const retire = async (
   return row ? { ok: true, token: tokenOf(row) } : { ok: false, reason: 'conflict' }
 }
 
-/** SPEC §5: captures are retained 30 days from last touch. Defined in `./ttl` so the client can share it. */
-export { CAPTURE_TTL_DAYS }
+// SPEC §5's 30-day retention lives in `./ttl` (`CAPTURE_TTL_DAYS`, `captureExpiryCutoff`), import-free
+// so the client can show the same date the expiry pass enforces.
 
 /** Bounded per run, so one job cannot hold a connection open across an unbounded backlog. */
 export const EXPIRY_BATCH_LIMIT = 500
@@ -474,7 +474,7 @@ export const retireSelected = async (
 export const expireCaptures = async (
   req: PayloadRequest,
   opts: { cutoff: Date; limit?: number } = {
-    cutoff: new Date(Date.now() - CAPTURE_TTL_DAYS * 86_400_000),
+    cutoff: captureExpiryCutoff(),
   },
 ): Promise<ExpiryReport> => retireSelected(req, await selectExpiredCaptures(req, opts), opts.cutoff)
 
@@ -643,10 +643,13 @@ export const listOwnCaptures = async (
  * ⚑ A count is the whole disclosure, and it goes only to someone allowed to delete the version (the
  * endpoint's gate). Names, timestamps and content are not selected.
  */
+/** The unsaved-count endpoint's wire shape — imported (as a type) by the client that reads it. */
+export type UnsavedCount = { otherUsers: number; includesCaller: boolean }
+
 export const countUnsavedWorkOnVersion = async (
   req: PayloadRequest,
   args: { sourceVersionId: number; callerId: number },
-): Promise<{ otherUsers: number; includesCaller: boolean }> => {
+): Promise<UnsavedCount> => {
   const db = await txDb(req)
   const row = rowsOf(
     await db.execute(sql`

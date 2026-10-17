@@ -20,3 +20,7 @@ const DAY_MS = 86_400_000
  */
 export const captureKeptUntil = (capturedAt: Date | string | number): Date =>
   new Date(new Date(capturedAt).getTime() + CAPTURE_TTL_DAYS * DAY_MS)
+
+/** The expiry pass's cutoff: captures untouched since this moment are retired. */
+export const captureExpiryCutoff = (now: number = Date.now()): Date =>
+  new Date(now - CAPTURE_TTL_DAYS * DAY_MS)

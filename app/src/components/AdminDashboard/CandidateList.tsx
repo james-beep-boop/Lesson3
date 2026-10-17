@@ -16,7 +16,7 @@ import { Button, toast, useConfig } from '@payloadcms/ui'
 import { apiBaseFrom } from '../../lib/apiBase'
 import { matchesTokenAnd, tokenise } from '../../lib/substrand'
 import CompareToOfficialLink from '../CompareToOfficialLink'
-import { unsavedWorkWarning } from '../EditRecovery/unsavedWarning'
+import { withUnsavedWarning } from '../EditRecovery/unsavedWarning'
 
 export interface CandidateRow {
   id: number
@@ -74,9 +74,12 @@ export function CandidateList({
     // Held across the warning lookup, so a second click cannot open a second confirmation.
     setBusyId(row.id)
     // Deleting a version discards the unsaved work kept on it (SPEC §5) — say so when there is some.
-    const warning = await unsavedWorkWarning(row.id, { apiBase })
-    const question = `Delete “${row.label}” v${row.semver}? This cannot be undone.`
-    if (!window.confirm(warning ? `${question}\n\n${warning}` : question)) {
+    const question = await withUnsavedWarning(
+      `Delete “${row.label}” v${row.semver}? This cannot be undone.`,
+      row.id,
+      { apiBase },
+    )
+    if (!window.confirm(question)) {
       setBusyId(null)
       return
     }

@@ -65,11 +65,9 @@ import {
   retire,
   start,
 } from '../lib/editRecovery/kernel'
+import { CAPTURE_SCHEMA_VERSION, captureProvenance } from '../lib/editRecovery/provenance'
 import { readRecoveryBody, requireCounter, requireDocument } from './recoveryParse'
 import type { LessonBundleVersion, User } from '../payload-types'
-
-/** The schema shape a capture was taken under. Bumped when the prose field set changes. */
-export const CAPTURE_SCHEMA_VERSION = 'v1'
 
 const versionId = (req: PayloadRequest): string => {
   const id = req.routeParams?.id as string | undefined
@@ -224,8 +222,7 @@ export const recoveryGetEndpoint: Endpoint = {
         capturedAt: active.token.updatedAt,
         baseUpdatedAt: active.baseUpdatedAt,
         schemaVersion: active.schemaVersion,
-        stale: active.baseUpdatedAt !== new Date(String(version.updatedAt)).toISOString(),
-        schemaMismatch: active.schemaVersion !== CAPTURE_SCHEMA_VERSION,
+        ...captureProvenance(active, version.updatedAt),
       },
       token: active.token,
     })

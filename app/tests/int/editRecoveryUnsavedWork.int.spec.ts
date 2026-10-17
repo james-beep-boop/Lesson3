@@ -9,12 +9,17 @@
  *
  *   U1  own rows only; retired rows, started-but-empty sessions and `{}` captures are not work
  *   U2  the per-version count separates the caller from everyone else, by count only
- *   U3  the Manage rows: restorability agrees with the GET endpoint, retention is 30 days from the
- *       last write, and a version the caller can no longer edit is not listed
+ *   U3  the Manage rows: restorability agrees with the GET endpoint, the row carries what Manage needs
+ *       to label and date it, and a version the caller can no longer edit is not listed
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import {
+  MARK,
+  minimalBundleContent,
+  setupRoleFixture,
+  type RoleFixture,
+} from '../helpers/fixtures.js'
 import {
   formDoc,
   recoveryHarness,
@@ -25,7 +30,7 @@ import {
 } from '../helpers/editRecovery.js'
 import { countUnsavedWorkOnVersion, listOwnCaptures } from '../../src/lib/editRecovery/kernel.js'
 import { listUnsavedWork } from '../../src/lib/editRecovery/unsavedWork.js'
-import { CAPTURE_SCHEMA_VERSION } from '../../src/endpoints/recovery.js'
+import { CAPTURE_SCHEMA_VERSION } from '../../src/lib/editRecovery/provenance.js'
 import type { User } from '../../src/payload-types.js'
 
 let fx: RoleFixture
@@ -175,7 +180,7 @@ describe('U2 — countUnsavedWorkOnVersion', () => {
 describe('U3 — listUnsavedWork (the Manage rows)', () => {
   const rowsFor = (user: User) => listUnsavedWork({ ...poolReq(), user } as never, user)
 
-  it('a capture taken against the current source is restorable, kept 30 days from its write', async () => {
+  it('a capture taken against the current source is restorable', async () => {
     const v = await makeVersion(nextSemver())
     const token = await keepWork(v.id, fx.users.editor.id, {
       sourceUpdatedAt: new Date(String(v.updatedAt)).toISOString(),
@@ -190,8 +195,8 @@ describe('U3 — listUnsavedWork (the Manage rows)', () => {
       capturedAt: token.updatedAt,
       token: { generation: token.generation, revision: token.revision },
     })
-    expect(Date.parse(rows[0].keptUntil) - Date.parse(token.updatedAt)).toBe(30 * 86_400_000)
-    expect(rows[0].sgLabel).not.toBe('')
+    // The id, not a label: Manage resolves labels through the subject-grade lookup it already runs.
+    expect(rows[0].subjectGradeId).toBe(fx.subjectGrade.id)
   })
 
   it('a moved source or a changed field shape is listed, but not restorable', async () => {
@@ -215,13 +220,59 @@ describe('U3 — listUnsavedWork (the Manage rows)', () => {
     )
   })
 
-  it('a version the caller can no longer edit is not listed', async () => {
-    // The kernel does not check roles — the endpoints do — so this seeds the state a revoked grant
-    // leaves behind: a capture held by someone without editing access for its subject-grade.
+  it('a Teacher with editing access nowhere is answered without a query', async () => {
+    // Seeded as the plain Teacher, whose capture the kernel would return — the early return is
+    // what keeps it off their page (and the query off their Manage render).
     const v = await makeVersion(nextSemver())
     await keepWork(v.id, fx.users.teacher.id)
-
-    expect(await ownIds(fx.users.teacher.id), 'precondition: the row exists').toEqual([v.id])
     expect(await rowsFor(fx.users.teacher)).toEqual([])
+  })
+
+  it('a version in a subject-grade the caller cannot edit is not listed', async () => {
+    // The kernel does not check roles — the endpoints do — so this seeds the state a revoked grant
+    // leaves behind. ⚑ The holder must have editing access SOMEWHERE (the fixture's grade), or the
+    // early return answers first and the per-version filter is never reached.
+    const otherGrade = await fx.payload.create({
+      collection: 'subject-grades',
+      data: { subject: fx.subject.id, grade: 98 },
+      overrideAccess: true,
+    })
+    const otherPlan = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}Other-grade plan`, subjectGrade: otherGrade.id },
+      overrideAccess: true,
+    })
+    const elsewhere = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: otherPlan.id,
+        subjectGrade: otherGrade.id,
+        semver: '1.0.0',
+        title: `${MARK}Other-grade v1.0.0`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const editable = await makeVersion(nextSemver())
+    try {
+      await keepWork(elsewhere.id, fx.users.editor.id)
+      await keepWork(editable.id, fx.users.editor.id)
+
+      expect((await ownIds(fx.users.editor.id)).sort(), 'precondition: both rows exist').toEqual(
+        [elsewhere.id, editable.id].sort(),
+      )
+      expect((await rowsFor(fx.users.editor)).map((r) => r.versionId)).toEqual([editable.id])
+    } finally {
+      await fx.payload.delete({
+        collection: 'lesson-plans',
+        id: otherPlan.id,
+        overrideAccess: true,
+      })
+      await fx.payload.delete({
+        collection: 'subject-grades',
+        id: otherGrade.id,
+        overrideAccess: true,
+      })
+    }
   })
 })

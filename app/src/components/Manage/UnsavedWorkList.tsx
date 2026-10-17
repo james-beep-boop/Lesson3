@@ -23,17 +23,15 @@ import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
+import { CAPTURE_TTL_DAYS } from '../../lib/editRecovery/ttl'
+import type { UnsavedWorkRow } from '../../lib/editRecovery/unsavedWork'
+import { wireErrorMessage } from '../../lib/wireError'
 
-export interface UnsavedWorkItem {
-  versionId: number
-  label: string
-  semver: string
+/** A server row with its dates pre-formatted (so hydration cannot disagree) and its label resolved. */
+export type UnsavedWorkItem = Omit<UnsavedWorkRow, 'capturedAt' | 'subjectGradeId'> & {
   sgLabel: string
-  /** Pre-formatted on the server, so hydration cannot disagree about the date. */
   capturedOn: string
   keptUntil: string
-  restorable: boolean
-  token: { generation: number; revision: number }
 }
 
 export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
@@ -64,12 +62,7 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
           expectedRevision: row.token.revision,
         }),
       })
-      if (res.status === 409) {
-        throw new Error(
-          'These changes were updated since this page loaded. Reload the page before discarding.',
-        )
-      }
-      if (!res.ok) throw new Error(`Discard failed (${res.status})`)
+      if (!res.ok) throw new Error(await wireErrorMessage(res, 'Discard failed'))
       toast.success(`Discarded your unsaved changes to “${row.label}”.`)
       router.refresh()
     } catch (e) {
@@ -85,8 +78,8 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
         Your unsaved work
       </h2>
       <p className="lp-manage__desc">
-        Changes you have not saved as a version yet. Only you can see them. Each is kept for 30 days
-        after you last worked on it.
+        Changes you have not saved as a version yet. Only you can see them. Each is kept for{' '}
+        {CAPTURE_TTL_DAYS} days after you last worked on it.
       </p>
       <ul className="lp-manage__list">
         {rows.map((row) => {

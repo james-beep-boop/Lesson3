@@ -12,15 +12,13 @@
  * would make the warning a gate, which it is not — the delete endpoint remains the authority.
  */
 
-export type UnsavedCount = { otherUsers: number; includesCaller: boolean }
+// The wire shape, owned by the server (a type-only import is erased from the client bundle).
+import type { UnsavedCount } from '../../lib/editRecovery/kernel'
 
 /** Pure: the sentence for a count, or '' when nobody would lose anything. Exported for the tests. */
-export function unsavedWarningText(
-  counts: UnsavedCount,
-  opts: { countCaller: boolean } = { countCaller: true },
-): string {
+export function unsavedWarningText(counts: UnsavedCount, countCaller = true): string {
   const others = counts.otherUsers
-  const mine = opts.countCaller && counts.includesCaller
+  const mine = countCaller && counts.includesCaller
   if (others === 0 && !mine) return ''
   const othersPhrase = others === 1 ? '1 other person' : `${others} other people`
   const who =
@@ -48,11 +46,21 @@ export async function unsavedWorkWarning(
     if (!res.ok) return ''
     const body = (await res.json()) as Partial<UnsavedCount>
     if (typeof body.otherUsers !== 'number' || typeof body.includesCaller !== 'boolean') return ''
-    return unsavedWarningText(
-      { otherUsers: body.otherUsers, includesCaller: body.includesCaller },
-      { countCaller: opts.countCaller ?? true },
-    )
+    return unsavedWarningText(body as UnsavedCount, opts.countCaller ?? true)
   } catch {
     return ''
   }
+}
+
+/**
+ * `question`, followed by the unsaved-work warning when there is one — the text every delete
+ * confirmation passes to `window.confirm`. One place decides how the two are joined.
+ */
+export async function withUnsavedWarning(
+  question: string,
+  versionId: number | string,
+  opts: { apiBase?: string; countCaller?: boolean } = {},
+): Promise<string> {
+  const warning = await unsavedWorkWarning(versionId, opts)
+  return warning ? `${question}\n\n${warning}` : question
 }

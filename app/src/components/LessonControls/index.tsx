@@ -54,8 +54,9 @@ import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
 import { applyCapture, projectCapture } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
 import { useEditRecovery, type KeepResult } from '../EditRecovery/useEditRecovery'
-import { unsavedWorkWarning } from '../EditRecovery/unsavedWarning'
+import { withUnsavedWarning } from '../EditRecovery/unsavedWarning'
 import { captureKeptUntil } from '../../lib/editRecovery/ttl'
+import { formatDay } from '../../lib/formatDate'
 // The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
 import type { RecoveryToken } from '../EditRecovery/protocol'
 import Modal from '../Modal'
@@ -77,10 +78,6 @@ async function errorMessage(res: Response, label: string): Promise<string> {
   return body.errors?.[0]?.message || `${label} failed (${res.status})`
 }
 
-/** Append an unsaved-work warning to a confirmation, or leave it as it was. */
-const withWarning = (question: string, warning: string): string =>
-  warning ? `${question}\n\n${warning}` : question
-
 /** Why "Keep for later" stayed in the editor. Each names what the teacher can do next. */
 const KEEP_FAILED: Record<Extract<KeepResult, { kind: 'notKept' }>['reason'], string> = {
   unavailable:
@@ -90,12 +87,6 @@ const KEEP_FAILED: Record<Extract<KeepResult, { kind: 'notKept' }>['reason'], st
   failed:
     'Your changes could not be backed up just now, so they are still on screen. Try again in a moment, or save them as a version.',
 }
-
-const keptDateFmt = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-})
 
 export default function LessonControls({
   flags,
@@ -127,6 +118,9 @@ export default function LessonControls({
   const [editIntent, setEditIntent] = useState<boolean>(() => searchParams.get('edit') === '1')
   const [saving, setSaving] = useState(false)
   const [keeping, setKeeping] = useState(false)
+  // Either lifecycle action in flight. The guards below also check `saveInFlight`, the synchronous
+  // ref that closes the gap before `saving` re-renders.
+  const busy = saving || keeping
   const saveInFlight = useRef(false)
   useEffect(() => {
     return () => {
@@ -481,7 +475,7 @@ export default function LessonControls({
    * outcome the role-aware indicator exists to prevent.
    */
   const onKeepForLater = async () => {
-    if (keeping || saving || saveInFlight.current || recoveryGate || !editing) return
+    if (busy || saveInFlight.current || recoveryGate || !editing) return
     if (
       canEditStructure &&
       !window.confirm(
@@ -510,13 +504,13 @@ export default function LessonControls({
     clearActiveLinkTarget()
     setEditIntent(false)
     setNotice(
-      `Your changes are kept until ${keptDateFmt.format(captureKeptUntil(result.at))}. ` +
+      `Your changes are kept until ${formatDay(captureKeptUntil(result.at))}. ` +
         'Press Edit to continue, or find them in Manage under Your unsaved work.',
     )
   }
 
   const onSave = async () => {
-    if (saveInFlight.current || saving || keeping || recoveryGate || !editing) return
+    if (busy || saveInFlight.current || recoveryGate || !editing) return
     saveInFlight.current = true
     // Unlike setDisabled, processing disables native fields AND array mutation controls.
     // Flush before taking the snapshot or awaiting recovery, so no keystroke can race the lock.
@@ -536,9 +530,10 @@ export default function LessonControls({
       const deleteSource =
         canDelete &&
         window.confirm(
-          withWarning(
+          await withUnsavedWarning(
             `Save your edits as a new version and delete ${versionPhrase}?`,
-            await unsavedWorkWarning(id ?? '', { countCaller: false }),
+            id ?? '',
+            { countCaller: false },
           ),
         )
       const snapshot = JSON.stringify(currentContent())
@@ -606,11 +601,11 @@ export default function LessonControls({
     if (saving) return
     if (
       !window.confirm(
-        withWarning(
+        await withUnsavedWarning(
           // Version FIRST, title second: the title is shared by every version of the plan, so
           // leading with it was the least informative thing the dialog could say.
           `Delete ${versionPhrase}${title ? ` of “${title}”` : ''}? This cannot be undone.`,
-          await unsavedWorkWarning(id ?? ''),
+          id ?? '',
         ),
       )
     ) {
@@ -800,7 +795,7 @@ export default function LessonControls({
                 buttonStyle="primary"
                 size="small"
                 onClick={onSave}
-                disabled={saving || keeping || !modified}
+                disabled={busy || !modified}
                 tooltip={!saving && !modified ? 'No changes to save' : undefined}
               >
                 {saving ? 'Saving…' : 'Save'}
@@ -811,7 +806,7 @@ export default function LessonControls({
                 buttonStyle="secondary"
                 size="small"
                 onClick={() => void onKeepForLater()}
-                disabled={saving || keeping || !modified || recovery.status.kind === 'unavailable'}
+                disabled={busy || !modified || recovery.status.kind === 'unavailable'}
                 tooltip={
                   recovery.status.kind === 'unavailable'
                     ? 'Backup is not available right now'
@@ -822,12 +817,7 @@ export default function LessonControls({
               >
                 {keeping ? 'Keeping…' : 'Keep for later'}
               </Button>
-              <Button
-                buttonStyle="secondary"
-                size="small"
-                onClick={onDiscard}
-                disabled={saving || keeping}
-              >
+              <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={busy}>
                 Cancel
               </Button>
             </>
