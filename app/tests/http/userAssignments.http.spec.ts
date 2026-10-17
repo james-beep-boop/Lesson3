@@ -39,6 +39,10 @@ import {
 } from '../helpers/fixtures.js'
 import { login, url } from '../helpers/httpWire.js'
 import { toId } from '../../src/access/index.js'
+import { sql } from '@payloadcms/db-postgres'
+import { drizzleOf } from '../helpers/db.js'
+import { stillPendingAfterWindow, whileLockHeld } from '../helpers/rowLocks.js'
+import { ADVISORY_LOCKS } from '../../src/lib/txDb.js'
 
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
 
@@ -425,4 +429,117 @@ describe('Subject Administrator handover — the amended rule at the wire (D6a)'
     expect(await patch(admin.id, { assignments: [] }, admin.jwt)).toBe(403)
     expect(await rolesOf(admin.id)).toEqual([{ subjectGrade: sgId(), role: 'subjectAdmin' }])
   })
+})
+
+/**
+ * ⚑ PERMISSIONS CHANGED WHILE A ROLE CHANGE WAITS (audit 2026-10-17 follow-up). These routes take the
+ * administrator-count lock and the target's row lock, then write as `req.user` — the snapshot sign-in
+ * took. An administrator demoted or disabled while the request waited still passed every check that
+ * reads `req.user` (route gate, collection access, `enforceAssignmentScope`). The route now re-reads
+ * its caller after the wait (`refreshCaller`) and must refuse with 403, writing nothing.
+ *
+ * Same construction as `userAdminActions.http.spec.ts`: an independent transaction holds the
+ * administrator-count lock, the request is proven blocked on it, the caller's authority is removed by
+ * direct SQL (which needs no lock, so it cannot deadlock against the holder), and the lock is
+ * released. Last in the file on purpose: minting a Subject Administrator demotes the fixture's.
+ */
+describe('role changes — the caller’s permissions changed while waiting', () => {
+  let n = 0
+  const mintUser = async (data: Record<string, unknown>) => {
+    const slug = `wait${(n += 1)}`
+    const user = await createUserVerified(fx.payload, {
+      name: `${MARK}${slug}`,
+      email: `${MARK.toLowerCase()}${slug}@example.com`,
+      password: 'test1234',
+      ...data,
+    })
+    return { id: user.id, email: String(user.email) }
+  }
+  const sgAssignment = (role: 'subjectAdmin' | 'editor') => ({
+    assignments: [{ subjectGrade: sgId(), role }],
+  })
+
+  const CASES = [
+    ...(
+      [
+        'assign-editor',
+        'unassign-editor',
+        'assign-subject-admin',
+        'unassign-subject-admin',
+      ] as const
+    ).map((path) => ({
+      name: `${path} by a Site Administrator who is UNVERIFIED`,
+      caller: () => ({ roles: ['siteAdmin'] }),
+      target: () =>
+        path === 'assign-editor'
+          ? {}
+          : sgAssignment(path === 'unassign-subject-admin' ? 'subjectAdmin' : 'editor'),
+      path,
+      strip: (id: number) => sql`UPDATE users SET _verified = false WHERE id = ${id}`,
+    })),
+    {
+      name: 'assign-editor by a Subject Administrator who is DEMOTED',
+      caller: () => sgAssignment('subjectAdmin'),
+      target: () => ({}),
+      path: 'assign-editor',
+      strip: (id: number) =>
+        sql`DELETE FROM users_assignments WHERE _parent_id = ${id} AND role = 'subjectAdmin'`,
+    },
+    {
+      name: 'assign-editor by a Subject Administrator who is DISABLED',
+      caller: () => sgAssignment('subjectAdmin'),
+      target: () => ({}),
+      path: 'assign-editor',
+      strip: (id: number) => sql`UPDATE users SET sign_in_disabled = true WHERE id = ${id}`,
+    },
+    {
+      name: 'a handover by a Subject Administrator who is DEMOTED',
+      caller: () => sgAssignment('subjectAdmin'),
+      target: () => sgAssignment('editor'),
+      path: 'assign-subject-admin',
+      strip: (id: number) =>
+        sql`DELETE FROM users_assignments WHERE _parent_id = ${id} AND role = 'subjectAdmin'`,
+    },
+    {
+      name: 'unassign-subject-admin by a Site Administrator who is DEMOTED',
+      caller: () => ({ roles: ['siteAdmin'] }),
+      target: () => sgAssignment('subjectAdmin'),
+      path: 'unassign-subject-admin',
+      strip: (id: number) =>
+        sql`DELETE FROM users_roles WHERE parent_id = ${id} AND value = 'siteAdmin'`,
+    },
+  ] as const
+
+  for (const c of CASES) {
+    it(`refuses ${c.name} while it waits, and writes nothing`, async () => {
+      // Target BEFORE caller where the caller is a Subject Administrator: minting the caller fires
+      // the ≤1 cascade, and must not demote a target that is meant to be the subject-grade's
+      // administrator. (For the unassign case the caller is a Site Administrator, so order is moot.)
+      const target = await mintUser(c.target() as Record<string, unknown>)
+      const caller = await mintUser(c.caller() as Record<string, unknown>)
+      const callerJwt = await login(caller.email, 'test1234')
+      const beforeRoles = await rolesOf(target.id)
+      const beforeUpdated = await freshUpdatedAt(target.id)
+
+      const { classifier, key } = ADVISORY_LOCKS.adminCount
+      let acting!: Promise<{ status: number; json: Record<string, unknown> }>
+      await whileLockHeld(
+        fx.payload,
+        sql`SELECT pg_advisory_xact_lock(${classifier}, ${key})`,
+        async () => {
+          acting = post(
+            `${target.id}/${c.path}`,
+            { subjectGradeId: sgId(), expectedUpdatedAt: beforeUpdated },
+            { jwt: callerJwt },
+          )
+          expect(await stillPendingAfterWindow(acting), 'must wait on the lock').toBe(true)
+          await drizzleOf(fx.payload).execute(c.strip(caller.id))
+        },
+      )
+
+      expect((await acting).status).toBe(403)
+      expect(await rolesOf(target.id)).toEqual(beforeRoles)
+      expect(await freshUpdatedAt(target.id)).toBe(beforeUpdated)
+    }, 30_000)
+  }
 })

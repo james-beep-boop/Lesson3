@@ -11,6 +11,87 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-17 — Follow-up audit: verification, draft cascades and Combine bounds
+
+Recovered `fa6cb6d` and `20cbe39` by SHA because the remote feature branch still pointed at
+`cdbe34f`. Reviewed and tested against that recovered head. Publishing the recovered history was
+rejected because the git OAuth credential lacks `workflow` scope. The published feature branch
+therefore starts at `cdbe34f` and rolls up the recovered changes plus these fixes, with the CI
+workflow unchanged. The tested app and scripts are byte-identical to the reviewed local commit
+`48068b4`; its original history remains on local branch `review/lesson3-recovered-history`.
+The earlier entry's claim that the restore drill is wired into CI does not apply to this branch:
+the drill is present and verified locally, but that workflow-only wiring was excluded.
+
+- Post-lock refresh must enforce verification as well as disablement and current roles. Installed
+  Payload's JWT strategy requires `_verified` when verification is configured; the same requirement
+  now applies after waiting. Both account-action and role-assignment wire tests revoke verification
+  while the request is blocked and require 403 with no target write.
+- Omitting a retirement token does not protect a draft from its source's deletion cascade. A
+  tokenless save now keeps the source, even for a direct `deleteSource=true` request; the editor
+  obtains the save plan before offering deletion and omits that offer without a checked token.
+- Equal shape does not establish row correspondence. Lessons require unique system upload identities
+  in unchanged order; nested arrays require unique phase/title labels. Resource-link row ids must be
+  stripped from the identity, because those ids regenerate too. Ambiguous arrays are refused;
+  an unaligned ancestor yields two-way comparison. This intentionally reduces automatic combinations
+  until stable row identity is available; it avoids silently attaching prose to another lesson.
+- A request rate limit does not bound synchronous work. The engine now bounds total input values and
+  characters and shares one LCS/hunk-comparison allowance across fields. Exhaustion produces field
+  conflicts; oversized documents get a refusal. Iterative appends and output bounds handle the
+  150,000-line insertion without spreading arrays into function arguments. SPEC §6 records limits.
+
+Validation on the final changes: 1,494 unit tests; 82 account-action, assignment, recovery-save and
+Combine wire tests; 14 existing save-as-new wire tests; all five Save snapshot browser tests,
+including failed-lookup draft preservation; 12 restore-drill cases; TypeScript, ESLint and Prettier.
+Seven focused regression cases fail as expected against untouched `20cbe39` in a separate worktree
+(verification, tokenless Save, reordered lessons, large insertion and shared merge budget).
+The database and app were isolated locally. An exploratory full `endpoints.http` run against the
+development app also had nine unrelated environment-dependent failures: resource-library availability,
+PDF conversion without its sidecar, and production CSP expectations. The affected Save subset was
+then run separately and passed. The complete production/integration suite was not established here.
+
+## 2026-10-17 (night) — Four audit findings against `1572d9d` fixed
+
+An external audit pinned to `1572d9d` confirmed four defects; each fix landed with a test that fails on
+the unfixed code (checked by reverting the fix, or by running against the unfixed build).
+
+- **Account actions trusted a stale `req.user` (Medium; present at v0.96).** `reveal-reset-link`,
+  `set-site-admin` and `set-sign-in-disabled` take the administrator-count lock, then write with
+  `overrideAccess: true`; an administrator demoted or disabled while the request waited still
+  acted — the audit reproduced a 200 granting Site Administrator. They now call `reassertSiteAdmin`
+  after the last lock, as moderation and System Save already did (#374, #376). **Rule, restated
+  because it has now been missed three times: every endpoint that waits on a lock and then writes with
+  `overrideAccess` re-reads its caller after the wait.** Six wire cases in
+  `userAdminActions.http.spec.ts` (three actions × demoted/disabled), which returned 200 against the
+  unfixed build.
+- **The same race in role assignments (found while fixing the above).** `assign-editor`,
+  `unassign-editor`, `assign-subject-admin` and `unassign-subject-admin` take the same locks and then
+  write as `req.user`, so every check that reads it — the route gate, collection access,
+  `enforceAssignmentScope` — saw the pre-wait snapshot: four wire cases returned 200 on the unfixed
+  build. Fixed with a new `refreshCaller(req)` (`endpoints/respond.ts`): after the last lock it re-reads
+  the caller, refuses a gone or disabled account, and replaces `roles`/`assignments`/`signInDisabled`
+  on `req.user` in place, so every downstream check sees current authority; the route re-applies its
+  own gate. `reassertSiteAdmin` is now `refreshCaller` + the Site Administrator test — one mechanism.
+- **A failed restore lookup overwrote an unseen draft (Medium; present at v0.96).** The editor
+  treated a failed or timed-out "is there an earlier draft?" GET as "no draft", and its next capture —
+  authorised by the token `start` had just resumed — replaced the earlier draft without the restore
+  prompt ever appearing. The stale-revision fence could not help: nothing was stale. New `unchecked`
+  entry phase: editing stays available, but no capture is written, Save as new version sends no token
+  (so nothing is retired), Discard changes deletes nothing, the indicator says drafts are not being
+  saved, and the lookup retries every 15 s. `useEditRecovery.spec.tsx` "a failed entry lookup".
+- **The advisory draft-count lookup could block Save forever (Medium; introduced by the drafts
+  work).** Save locks the form and then awaits the warning lookup; a stalled request left "Saving…"
+  on screen with `save-as-new` never sent. The lookup now has a 3 s deadline over the whole request
+  (body included), raced rather than relying on the abort, and fails open. **Lesson: an advisory
+  request awaited under a lock needs a deadline, or it stops being advisory.**
+- **The restore drill called a new installation's backup unrecoverable (Low; present at v0.96).**
+  It required curriculum and lesson-plan tables to be non-empty. Now: those tables must be present,
+  `users` must have rows (every installation has an administrator), and empty content tables print a
+  NOTE saying what it means. `scripts/test-restore-db.sh` (new, in CI) fails the four new-installation
+  cases on the old script and passes all twelve on the new one.
+
+Not fixed here, as the audit left them unverified: Hermes's full `/admin` hydration warning, the
+Cloudflare script warning, and the nine Moderate dependency advisories (no exploit path established).
+
 ## 2026-10-17 (evening) — Combine versions, phase 2: the engine and a read-only preview
 
 Built as SPEC §6 specifies; decisions made while building:

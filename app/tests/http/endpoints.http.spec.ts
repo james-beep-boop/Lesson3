@@ -794,6 +794,22 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     f.set('data', JSON.stringify(content))
     return f
   }
+  // Deletion needs a checked recovery token as well as authorship/Official permission. Give each
+  // delete-scope test a real current token so its refusal cannot pass on the missing-token guard.
+  const checkedSaveForm = async (id: number, content: unknown): Promise<FormData> => {
+    const res = await fetch(url(`/api/lesson-bundle-versions/${id}/recovery/start`), {
+      method: 'POST',
+      headers: auth('editor'),
+    })
+    expect(res.status).toBe(200)
+    const { token: recoveryToken } = (await res.json()) as {
+      token: { generation: number; revision: number }
+    }
+    const form = dataForm(content)
+    form.set('recoveryGeneration', String(recoveryToken.generation))
+    form.set('recoveryExpectedRevision', String(recoveryToken.revision))
+    return form
+  }
   // A minimal REAL prose edit (editor-editable key), for tests whose subject is something other
   // than the content — since the no-op guard (2026-07-17), posting a doc back unchanged is 400.
   const withProseEdit = (doc: unknown) => {
@@ -1124,7 +1140,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       {
         method: 'POST',
         headers: auth('editor'),
-        body: dataForm(withProseEdit(candDoc)),
+        body: await checkedSaveForm(cand.id, withProseEdit(candDoc)),
       },
     )
     expect(res.status).toBe(200)
@@ -1168,7 +1184,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       {
         method: 'POST',
         headers: auth('editor'),
-        body: dataForm(withProseEdit(candDoc)),
+        body: await checkedSaveForm(cand.id, withProseEdit(candDoc)),
       },
     )
     expect(res.status).toBe(200)
@@ -1204,7 +1220,10 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`${saveUrl()}?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm(withProseEdit({ ...(fx.version as unknown as HttpVersion) })),
+      body: await checkedSaveForm(
+        fx.version.id,
+        withProseEdit({ ...(fx.version as unknown as HttpVersion) }),
+      ),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as {

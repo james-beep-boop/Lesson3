@@ -207,9 +207,13 @@ dev stack, which is already the disposable target a drill wants. The decrypted d
 
 ⚑ **The script prints `RESTORE DRILL PASSED` only if verification succeeded**, and exits non-zero
 otherwise. It counts **every table in the restored database** — 29 of them at the time of writing — and
-gates on a short hand-picked list that must be present and non-empty (`lesson_plans`,
-`lesson_bundle_versions`, `users`, `subjects`, `subject_grades`); zero rows elsewhere is legitimate, so
-those are reported rather than failed.
+gates on two things: a short hand-picked list must be **present** (`lesson_plans`,
+`lesson_bundle_versions`, `users`, `subjects`, `subject_grades`), and `users` must have rows, because
+every installation has at least one administrator account. Zero rows elsewhere is reported, not failed.
+⚑ **An empty curriculum or lesson-plan table is a NOTE, not a failure** (corrected 2026-10-17): a backup
+of a new installation taken before any curriculum was added is a real, recoverable backup, and the old
+rule called it unrecoverable. The note says what it means: if the installation *had* lesson plans when
+the backup was taken, this backup does not contain them. Branch cover: `scripts/test-restore-db.sh`.
 
 ⚑ **The list is derived from the database, not maintained by hand, and the hand-maintained version was
 already wrong.** It named twelve tables and silently skipped `favorites`, `messages` and `edit_recovery`

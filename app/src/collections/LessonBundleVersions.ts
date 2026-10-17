@@ -140,7 +140,7 @@ export const LessonBundleVersions: CollectionConfig = {
     {
       // ⚑ IDENTITY, NOT CONTENT — and it was a control that could not do what it offered. Save
       // sets both this and `subjectGrade` FROM THE SOURCE version and discards whatever the form
-      // submitted (`SERVER_REL_KEYS` in `endpoints/versionEdit.ts`: "never from the submission…
+      // submitted (`SERVER_REL_KEYS` in `lib/versionContent.ts`: "never from the submission…
       // they carry no edit signal"). So a Subject Administrator was shown a dropdown over every
       // plan whose only possible effect was none. A control that silently ignores you is worse
       // than no control.

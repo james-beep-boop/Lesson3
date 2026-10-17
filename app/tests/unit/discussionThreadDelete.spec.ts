@@ -22,7 +22,7 @@ describe('thread deletion rechecks administrator permissions after waiting', () 
   beforeEach(() => vi.clearAllMocks())
 
   it.each([
-    ['demoted', { id: 7, roles: [] }],
+    ['demoted', { id: 7, roles: [], _verified: true }],
     ['disabled', { id: 7, roles: ['siteAdmin'], signInDisabled: true }],
     ['deleted', null],
   ])('refuses a %s caller without deleting or logging', async (_change, currentCaller) => {

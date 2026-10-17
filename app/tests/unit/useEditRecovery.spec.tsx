@@ -20,6 +20,7 @@ import {
   CAPTURE_DEBOUNCE_MS,
   CAPTURE_TIMEOUT_MS,
   ENTRY_LOOKUP_TIMEOUT_MS,
+  ENTRY_RETRY_MS,
   useEditRecovery,
 } from '../../src/components/EditRecovery/useEditRecovery.js'
 import type { UseEditRecovery } from '../../src/components/EditRecovery/useEditRecovery.js'
@@ -225,9 +226,12 @@ describe('the capture debounce follows real edits', () => {
 
     harness()
     await flush()
-    // The user types while `start` is still outstanding.
+    // The user types while `start` is still outstanding — for longer than one debounce, but within
+    // `start`'s own deadline. (Past that deadline `start` is abandoned, and with the shared deadline
+    // racing as well as aborting, a stub that ignores the abort is abandoned too — as a real `fetch`
+    // always was.)
     await act(async () => {
-      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS * 2)
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS + 1_000)
     })
     expect(captureCalls()).toHaveLength(0)
 
@@ -761,15 +765,104 @@ describe('the entry state machine', () => {
   })
 
   /**
-   * ⚑ UNLOCK on a failed lookup. Refusing to let someone edit because we could not check for a
-   * backup is a strictly worse failure than not offering them one.
+   * ⚑ A FAILED LOOKUP IS NOT "NO DRAFT" (audit 2026-10-17). It used to enter `clear`, and the next
+   * capture — authorised by the token `start` had just resumed — REPLACED an earlier draft the
+   * teacher was never shown. Now it is `unchecked`: editing stays unlocked (refusing to let someone
+   * edit because we could not check is still the worse failure), but nothing is written or retired
+   * until a retried lookup succeeds, and the indicator says the work is not being saved.
    */
-  it('unlocks when the entry GET fails', async () => {
-    offering({ errors: [{ message: 'nope' }] }, 500)
-    const h = harness()
-    await flush()
+  describe('a failed entry lookup', () => {
+    const failingThen = (afterwards: () => Response) => {
+      let gets = 0
+      handler = async (url, init) => {
+        if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+        if ((init?.method ?? 'GET') === 'GET') {
+          gets += 1
+          return gets === 1 ? jsonResponse(500, { errors: [{ message: 'nope' }] }) : afterwards()
+        }
+        if (init?.method === 'DELETE') return jsonResponse(200, {})
+        return jsonResponse(200, { token: token(2) })
+      }
+    }
 
-    expect(h.ref.current!.entry.phase).toBe('clear')
+    it('is unchecked — editing unlocked, the indicator honest', async () => {
+      failingThen(() => jsonResponse(200, { capture: null }))
+      const h = harness()
+      await flush()
+
+      expect(h.ref.current!.entry.phase).toBe('unchecked')
+      // Not `resolving`/`offer`, which are what lock the editor (`recoveryGate` in LessonControls).
+      expect(['resolving', 'offer']).not.toContain(h.ref.current!.entry.phase)
+      expect(h.ref.current!.status).toEqual({ kind: 'unavailable', reason: 'unchecked' })
+    })
+
+    it('writes nothing over the unseen draft while unchecked', async () => {
+      failingThen(() => jsonResponse(500, {}))
+      const h = harness()
+      await flush()
+      await act(async () => {
+        h.bumpChange()
+      })
+      await act(async () => {
+        vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+      })
+      await flush()
+
+      expect(captureCalls(), 'the debounce must not overwrite the earlier draft').toHaveLength(0)
+
+      // Save as new version proceeds, but WITHOUT a token, so save-as-new retires nothing.
+      let plan: Awaited<ReturnType<UseEditRecovery['prepareForSave']>> | undefined
+      await act(async () => {
+        plan = await h.ref.current!.prepareForSave()
+      })
+      expect(plan).toEqual({ proceed: true, token: null })
+
+      // Discard changes reports that a draft may remain, and sends no DELETE.
+      let deleted: boolean | undefined
+      await act(async () => {
+        deleted = await h.ref.current!.discardDraft()
+      })
+      expect(deleted).toBe(false)
+      expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+      expect(captureCalls()).toHaveLength(0)
+    })
+
+    it('retries, and a draft found on the retry is OFFERED', async () => {
+      failingThen(() => jsonResponse(200, { capture: storedCapture(), token: token(1) }))
+      const h = harness()
+      await flush()
+      expect(h.ref.current!.entry.phase).toBe('unchecked')
+
+      await act(async () => {
+        vi.advanceTimersByTime(ENTRY_RETRY_MS)
+      })
+      await flush()
+
+      expect(h.ref.current!.entry.phase).toBe('offer')
+      expect(h.ref.current!.status.kind, 'the unchecked warning is withdrawn').not.toBe(
+        'unavailable',
+      )
+    })
+
+    it('retries, and when nothing is stored saving resumes', async () => {
+      failingThen(() => jsonResponse(200, { capture: null }))
+      const h = harness()
+      await flush()
+      await act(async () => {
+        vi.advanceTimersByTime(ENTRY_RETRY_MS)
+      })
+      await flush()
+      expect(h.ref.current!.entry.phase).toBe('clear')
+
+      await act(async () => {
+        h.bumpChange()
+      })
+      await act(async () => {
+        vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+      })
+      await flush()
+      expect(captureCalls()).toHaveLength(1)
+    })
   })
 
   it('keeping the offer unlocks and leaves the capture alone', async () => {

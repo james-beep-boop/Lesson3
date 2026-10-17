@@ -116,6 +116,8 @@ describe('G — the gate', () => {
   it.each([
     ['missing', null],
     ['malformed', 'abc'],
+    // Beyond Postgres integer range: must be the documented 400, not a database error (500).
+    ['out of range', '99999999999'],
     ['the same version', 'SELF'],
   ])('400 when `with` is %s', async (_label, withId) => {
     const res = await preview(siblingA, withId === 'SELF' ? siblingA : withId, 'editor')
@@ -190,7 +192,7 @@ describe('H — the happy paths', () => {
     expect(res.status).toBe(200)
     const body = (await res.json()) as { plan: { ok: boolean; refusal: string; message: string } }
     expect(body.plan).toMatchObject({ ok: false, refusal: 'structure' })
-    expect(body.plan.message).toMatch(/different lessons/)
+    expect(body.plan.message).toMatch(/cannot be matched reliably/)
   })
 
   it('H4 no recorded common ancestor: every difference is a choice', async () => {
@@ -206,5 +208,101 @@ describe('H — the happy paths', () => {
     expect(body.plan.ancestry).toBe('two-way')
     expect(body.plan.overlay).toEqual({})
     expect(body.plan.conflicts.map((c) => c.reason)).toEqual(['no-ancestor'])
+  })
+
+  it('matches multiple stored lessons despite regenerated resource-link row ids', async () => {
+    const twoLessons = (c: Content) => {
+      c.lessons = [0, 1].map((i) => ({ ...c.lessons[0], aresKeywords: `resources ${i}` }))
+    }
+    const base = await makeVersion('3.4.0', twoLessons)
+    const a = await makeVersion('3.4.1', twoLessons, { sourceVersion: base })
+    const b = await makeVersion(
+      '3.4.2',
+      (c) => {
+        twoLessons(c)
+        c.lessons[1].teacherReflection = 'Second lesson only.'
+      },
+      { sourceVersion: base },
+    )
+    const body = (await (await preview(a, b, 'editor')).json()) as {
+      plan: { ok: boolean; changes: { heading: string; field: string }[]; conflicts: unknown[] }
+    }
+    const stored = await Promise.all(
+      [a, b].map((id) =>
+        fx.payload.findByID({
+          collection: 'lesson-bundle-versions',
+          id,
+          depth: 0,
+          overrideAccess: true,
+        }),
+      ),
+    )
+    const resourceId = (v: (typeof stored)[number]) => v.lessons?.[0].resourceLinks?.[0].id
+    expect(resourceId(stored[0])).toBeTruthy()
+    expect(resourceId(stored[0])).not.toBe(resourceId(stored[1]))
+    expect(body.plan.ok, JSON.stringify(body.plan)).toBe(true)
+    expect(body.plan.conflicts).toEqual([])
+    expect(body.plan.changes).toMatchObject([{ heading: 'Lesson 2', field: 'teacherReflection' }])
+  })
+
+  it('returns a controlled refusal for ambiguous reordered lessons stored as valid versions', async () => {
+    const twoLessons = (c: Content) => {
+      const first = c.lessons[0]
+      c.lessons = [0, 1].map((i) => ({
+        ...first,
+        title: `Lesson ${i + 1}`,
+        teacherReflection: `Reflection ${i + 1}`,
+      }))
+    }
+    const base = await makeVersion('3.5.0', twoLessons)
+    const a = await makeVersion(
+      '3.5.1',
+      (c) => {
+        twoLessons(c)
+        c.lessons.reverse()
+      },
+      { sourceVersion: base },
+    )
+    const b = await makeVersion(
+      '3.5.2',
+      (c) => {
+        twoLessons(c)
+        c.lessons[0].teacherReflection = 'Lesson 1 edits.'
+      },
+      { sourceVersion: base },
+    )
+    const res = await preview(a, b, 'editor')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ plan: { ok: false, refusal: 'structure' } })
+  })
+
+  it('returns field conflicts when many valid fields exhaust the shared computation budget', async () => {
+    const paragraphs = Array.from({ length: 700 }, (_, i) => `paragraph ${i}`).join('\n')
+    const fill = (c: Content, side: 'base' | 'a' | 'b') => {
+      const text =
+        side === 'a'
+          ? paragraphs.replace('paragraph 0', 'A')
+          : side === 'b'
+            ? paragraphs.replace('paragraph 699', 'B')
+            : paragraphs
+      const lesson = c.lessons[0]
+      c.lessons = [0, 1, 2].map((i) => ({
+        ...lesson,
+        aresKeywords: `resources ${i}`,
+        overview: text,
+        teacherReflection: text,
+      }))
+    }
+    const base = await makeVersion('3.6.0', (c) => fill(c, 'base'))
+    const a = await makeVersion('3.6.1', (c) => fill(c, 'a'), { sourceVersion: base })
+    const b = await makeVersion('3.6.2', (c) => fill(c, 'b'), { sourceVersion: base })
+    const res = await preview(a, b, 'editor')
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      plan: { ok: boolean; conflicts: unknown[]; changes: unknown[] }
+    }
+    expect(body.plan.ok, JSON.stringify(body.plan)).toBe(true)
+    expect(body.plan.changes).toHaveLength(2)
+    expect(body.plan.conflicts).toHaveLength(4)
   })
 })

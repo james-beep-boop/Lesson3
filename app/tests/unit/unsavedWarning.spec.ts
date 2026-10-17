@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   unsavedWarningText,
   unsavedWorkWarning,
+  WARNING_TIMEOUT_MS,
 } from '../../src/components/EditRecovery/unsavedWarning.js'
 
 describe('unsavedWarningText', () => {
@@ -73,5 +74,45 @@ describe('unsavedWorkWarning fails open', () => {
       }),
     )
     expect(await unsavedWorkWarning(42)).toBe('')
+  })
+})
+
+/**
+ * ⚑ THE LOOKUP IS BOUNDED (audit 2026-10-17). Save awaits it with the form locked, so a request that
+ * never answered held the editor on "Saving…" indefinitely. Both halves of a response can stall —
+ * the headers, and the body after them — and both must give up.
+ */
+describe('unsavedWorkWarning gives up after a deadline', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('a request that never answers resolves to no warning, and is aborted', async () => {
+    vi.useFakeTimers()
+    let signal: AbortSignal | undefined
+    // Ignores the abort on purpose: the deadline must not depend on the request honouring it.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) => {
+        signal = init?.signal ?? undefined
+        return new Promise<Response>(() => {})
+      }),
+    )
+    const pending = unsavedWorkWarning(42)
+    await vi.advanceTimersByTimeAsync(WARNING_TIMEOUT_MS)
+    expect(await pending).toBe('')
+    expect(signal?.aborted, 'the abandoned request is released').toBe(true)
+  })
+
+  it('a body that never arrives resolves to no warning', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: () => new Promise(() => {}) }) as unknown as Response),
+    )
+    const pending = unsavedWorkWarning(42)
+    await vi.advanceTimersByTimeAsync(WARNING_TIMEOUT_MS)
+    expect(await pending).toBe('')
   })
 })

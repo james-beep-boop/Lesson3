@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { loginAs } from '../helpers/e2e'
 import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
-import { makeRecoveryVersion } from '../helpers/editRecovery'
+import { makeRecoveryVersion, recoveryRow } from '../helpers/editRecovery'
 import {
   OVERVIEW,
+  indicator,
   awaitCaptured,
   expandLessons,
   openEditor,
@@ -25,6 +26,58 @@ function barrier() {
   })
   return { promise, release }
 }
+
+test('saving after a failed draft lookup preserves the unseen draft and its source', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000)
+  const version = await makeRecoveryVersion(fx.payload, {
+    planId: fx.plan.id,
+    subjectGradeId: fx.subjectGrade.id,
+    sourceVersionId: fx.version.id,
+    semver: '9.3.0',
+  })
+  page.on('dialog', (dialog) => void dialog.accept())
+  await loginAs(page, fx, 'subjectAdmin')
+  await openEditor(page, version.id)
+  await expandLessons(page)
+  await typeProse(page, `${MARK}earlier unseen draft`)
+  await awaitCaptured(page)
+  const before = await recoveryRow(fx.payload, version.id, fx.users.subjectAdmin.id)
+  expect(before?.content).toBeTruthy()
+
+  await page.route(`**/api/lesson-bundle-versions/${version.id}/recovery`, (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 503, json: { errors: [{ message: 'Injected lookup failure' }] } })
+      : route.continue(),
+  )
+  await openEditor(page, version.id)
+  await expect(indicator(page)).toContainText('Could not check for an earlier draft')
+  await expandLessons(page)
+  await typeProse(page, `${MARK}different edits to save`)
+  await page.screenshot({ path: testInfo.outputPath('unchecked-draft.png') })
+  const saving = page.waitForRequest((request) => request.url().includes('/save-as-new'))
+  await page.getByRole('button', { name: 'Save as new version', exact: true }).click()
+  expect((await saving).url()).not.toContain('deleteSource')
+  await expect
+    .poll(() => new URL(page.url()).pathname, { timeout: 30_000 })
+    .not.toBe(`/admin/collections/lesson-bundle-versions/${version.id}`)
+  const savedId = Number(new URL(page.url()).pathname.split('/').at(-1))
+  const saved = await fx.payload.findByID({
+    collection: 'lesson-bundle-versions',
+    id: savedId,
+    overrideAccess: true,
+  })
+  expect(saved.lessons?.[0].overview).toBe(`${MARK}different edits to save`)
+  expect(
+    await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: version.id,
+      overrideAccess: true,
+    }),
+  ).toBeTruthy()
+  expect(await recoveryRow(fx.payload, version.id, fx.users.subjectAdmin.id)).toEqual(before)
+})
 
 for (const role of ['editor', 'subjectAdmin'] as const) {
   for (const failSave of [false, true]) {

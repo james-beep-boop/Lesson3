@@ -55,6 +55,7 @@ vi.mock('@/components/EditRecovery/Indicator', () => ({ EditRecoveryIndicator: (
 vi.mock('@/components/LessonControls/EditJumpNav', () => ({ default: () => null }))
 
 import LessonControls from '@/components/LessonControls'
+import { WARNING_TIMEOUT_MS } from '@/components/EditRecovery/unsavedWarning'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -70,7 +71,7 @@ beforeEach(() => {
   mocks.fields = {}
   mocks.initializing = true
   mocks.getData.mockReturnValue({ overview: 'snapshot A' })
-  mocks.prepareForSave.mockResolvedValue({ proceed: true, token: null })
+  mocks.prepareForSave.mockResolvedValue({ proceed: true, token: { generation: 1, revision: 2 } })
   vi.stubGlobal(
     'confirm',
     vi.fn(() => true),
@@ -84,6 +85,27 @@ afterEach(() => {
 })
 
 describe('save snapshot lifecycle', () => {
+  it('a tokenless save preserves the source without offering deletion or querying draft counts', async () => {
+    mocks.prepareForSave.mockResolvedValue({ proceed: true, token: null })
+    const fetcher = vi.fn((url: string) =>
+      Promise.resolve(
+        Response.json(
+          url.includes('save-as-new') ? { adminUrl: '/new-version' } : { officialVersion: 99 },
+        ),
+      ),
+    )
+    vi.stubGlobal('fetch', fetcher)
+    render(<LessonControls />)
+    await screen.findByText('Not Official')
+    fireEvent.click(screen.getByRole('button', { name: 'Save as new version' }))
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/new-version'))
+    expect(window.confirm).not.toHaveBeenCalled()
+    expect(fetcher.mock.calls.some(([url]) => url.includes('/recovery/unsaved-count'))).toBe(false)
+    expect(fetcher.mock.calls.find(([url]) => url.includes('save-as-new'))![0]).not.toContain(
+      'deleteSource',
+    )
+  })
+
   it.each([false, true])(
     'respects the entry phase in the delayed row-collapse pass (user input: %s)',
     async (interacted) => {
@@ -108,7 +130,10 @@ describe('save snapshot lifecycle', () => {
         'confirm',
         vi.fn(() => deleteSource),
       )
-      const capture = deferred<{ proceed: boolean; token: null }>()
+      const capture = deferred<{
+        proceed: boolean
+        token: { generation: number; revision: number }
+      }>()
       const save = deferred<Response>()
       mocks.prepareForSave.mockImplementation(() => {
         expect(mocks.setProcessing).toHaveBeenLastCalledWith(true)
@@ -127,7 +152,7 @@ describe('save snapshot lifecycle', () => {
       expect(mocks.push).not.toHaveBeenCalled()
       expect(fetcher.mock.calls.filter(([url]) => url.includes('save-as-new'))).toHaveLength(0)
       await act(async () => {
-        capture.resolve({ proceed: true, token: null })
+        capture.resolve({ proceed: true, token: { generation: 1, revision: 2 } })
       })
       const request = (fetcher.mock.calls as unknown as [string, RequestInit][]).find(([url]) =>
         url.includes('save-as-new'),
@@ -153,6 +178,41 @@ describe('save snapshot lifecycle', () => {
       ).toBe(false)
     },
   )
+
+  /**
+   * ⚑ A STALLED ADVISORY LOOKUP MUST NOT HOLD THE SAVE (audit 2026-10-17). Save locks the form, then
+   * asks how many people hold drafts on the version it may delete. That request never answering left
+   * "Saving…" on screen forever and `save-as-new` unsent. It now gives up after a short deadline and
+   * the confirmation opens without the warning.
+   */
+  it('a never-answering draft-count lookup does not block the save', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const confirm = vi.fn((_message?: string) => false)
+    vi.stubGlobal('confirm', confirm)
+    const fetcher = vi.fn((url: string) =>
+      url.includes('/recovery/unsaved-count')
+        ? new Promise<Response>(() => {})
+        : url.includes('save-as-new')
+          ? Promise.resolve(Response.json({ adminUrl: '/new-version' }))
+          : Promise.resolve(Response.json({ officialVersion: 99 })),
+    )
+    vi.stubGlobal('fetch', fetcher)
+    render(<LessonControls />)
+    await screen.findByText('Not Official')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as new version' }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(WARNING_TIMEOUT_MS)
+    })
+
+    // The confirmation opened WITHOUT the warning, and the save went ahead.
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(String(confirm.mock.calls[0][0])).not.toContain('draft')
+    await waitFor(() => expect(mocks.prepareForSave).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(fetcher.mock.calls.some(([url]) => String(url).includes('save-as-new'))).toBe(true),
+    )
+  })
 
   it.each(['conflict', 'capture error', 'save error'])(
     'unlocks and retains dirty content after %s',

@@ -23,16 +23,29 @@
  */
 
 /** Replace `base[start, end)` with `lines`. */
-export type Hunk = { start: number; end: number; lines: string[] }
+type Hunk = { start: number; end: number; lines: string[] }
 
 /** Above this many LCS cells the merge gives up and reports a conflict (≈ 1000 × 1000 lines). */
-export const MAX_CELLS = 1_000_000
+const MAX_CELLS = 1_000_000
+
+/** Shared by every prose field in one preview, including hunk comparisons. */
+export type MergeBudget = { remaining: number }
+export const createMergeBudget = (): MergeBudget => ({ remaining: 2_000_000 })
+const MAX_TEXT_CHARS = 1_000_000
+const MAX_OUTPUT_LINES = 200_000
+
+const spend = (budget: MergeBudget, work: number): boolean => {
+  if (work > budget.remaining) return false
+  budget.remaining -= work
+  return true
+}
 
 /** The hunks that turn `base` into `side`, in base order. Null when the input is too large. */
-export const diffHunks = (base: string[], side: string[]): Hunk[] | null => {
+const diffHunks = (base: string[], side: string[], budget: MergeBudget): Hunk[] | null => {
   const n = base.length
   const m = side.length
-  if ((n + 1) * (m + 1) > MAX_CELLS) return null
+  const cells = (n + 1) * (m + 1)
+  if (cells > MAX_CELLS || !spend(budget, cells)) return null
 
   // lcs[i][j] = LCS length of base[i..] and side[j..], filled from the end.
   const lcs: Uint32Array[] = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
@@ -47,8 +60,9 @@ export const diffHunks = (base: string[], side: string[]): Hunk[] | null => {
   let i = 0
   let j = 0
   let open: Hunk | null = null
+  // Every hunk opened below consumes a base line or adds a side line, so none is ever empty.
   const flush = () => {
-    if (open && (open.end > open.start || open.lines.length > 0)) hunks.push(open)
+    if (open) hunks.push(open)
     open = null
   }
   while (i < n || j < m) {
@@ -56,12 +70,13 @@ export const diffHunks = (base: string[], side: string[]): Hunk[] | null => {
       flush()
       i++
       j++
-    } else if (j < m && (i === n || lcs[i][j + 1] >= lcs[i + 1][j])) {
-      open ??= { start: i, end: i, lines: [] }
+      continue
+    }
+    open ??= { start: i, end: i, lines: [] }
+    if (j < m && (i === n || lcs[i][j + 1] >= lcs[i + 1][j])) {
       open.lines.push(side[j])
       j++
     } else {
-      open ??= { start: i, end: i, lines: [] }
       i++
       open.end = i
     }
@@ -85,33 +100,51 @@ const clash = (x: Hunk, y: Hunk): boolean => {
   return false
 }
 
-export type Merge3Result = { ok: true; text: string } | { ok: false }
+type Merge3Result = { ok: true; text: string } | { ok: false }
 
 /**
  * Merge `a` and `b`, both edited from `base`, one line per paragraph. `ok: false` is a conflict:
  * the caller shows the field to a person rather than guessing.
  */
-export const merge3 = (base: string, a: string, b: string): Merge3Result => {
+export const merge3 = (
+  base: string,
+  a: string,
+  b: string,
+  budget = createMergeBudget(),
+): Merge3Result => {
+  if (budget.remaining <= 0 || [base, a, b].some((text) => text.length > MAX_TEXT_CHARS)) {
+    return { ok: false }
+  }
   const baseLines = base.split('\n')
-  const ha = diffHunks(baseLines, a.split('\n'))
-  const hb = diffHunks(baseLines, b.split('\n'))
+  const ha = diffHunks(baseLines, a.split('\n'), budget)
+  if (!ha) return { ok: false }
+  const hb = diffHunks(baseLines, b.split('\n'), budget)
   if (!ha || !hb) return { ok: false }
+  if (!spend(budget, 2 * ha.length * hb.length)) return { ok: false }
 
   const applied: Hunk[] = [...ha]
   for (const y of hb) {
-    const twin = ha.find((x) => sameHunk(x, y))
-    if (twin) continue // the same change on both sides applies once
+    if (ha.some((x) => sameHunk(x, y))) continue // the same change on both sides applies once
     if (ha.some((x) => clash(x, y))) return { ok: false }
     applied.push(y)
   }
   applied.sort((x, y) => x.start - y.start)
 
   const out: string[] = []
+  let chars = 0
+  const append = (lines: string[], start = 0, end = lines.length): boolean => {
+    for (let i = start; i < end; i++) {
+      chars += lines[i].length + (out.length ? 1 : 0)
+      if (chars > MAX_TEXT_CHARS || out.length >= MAX_OUTPUT_LINES) return false
+      out.push(lines[i])
+    }
+    return true
+  }
   let at = 0
   for (const h of applied) {
-    out.push(...baseLines.slice(at, h.start), ...h.lines)
+    if (!append(baseLines, at, h.start) || !append(h.lines)) return { ok: false }
     at = h.end
   }
-  out.push(...baseLines.slice(at))
+  if (!append(baseLines, at)) return { ok: false }
   return { ok: true, text: out.join('\n') }
 }

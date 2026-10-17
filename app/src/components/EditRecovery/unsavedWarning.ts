@@ -14,6 +14,7 @@
 
 // The wire shape, owned by the server (a type-only import is erased from the client bundle).
 import type { UnsavedCount } from '../../lib/editRecovery/kernel'
+import { withDeadline } from './deadline'
 
 /** Pure: the sentence for a count, or '' when nobody would lose anything. Exported for the tests. */
 export function unsavedWarningText(counts: UnsavedCount, countCaller = true): string {
@@ -33,25 +34,39 @@ export function unsavedWarningText(counts: UnsavedCount, countCaller = true): st
 }
 
 /**
+ * How long the warning lookup may take before the confirmation opens without it.
+ *
+ * ⚑ BOUNDED, because its callers wait on it with the form LOCKED (audit 2026-10-17): Save takes the
+ * lock before asking, so a lookup that never answered left the editor on "Saving…" with every
+ * button disabled and the save never sent — an advisory warning blocking the operation it advises
+ * on. The bound covers the whole lookup, body read included (`fetch` resolves on headers alone).
+ * Exported so the tests advance the real value.
+ */
+export const WARNING_TIMEOUT_MS = 3_000
+
+/**
  * Fetch the warning for `versionId`. `countCaller: false` for Save's delete-source path, where the
  * caller's own capture is retired by the save itself and nothing of theirs is lost.
+ *
+ * Fails open on error, refusal, malformed body AND timeout: the confirmation then reads exactly as it
+ * did before this existed.
  */
 export async function unsavedWorkWarning(
   versionId: number | string,
   opts: { apiBase?: string; countCaller?: boolean } = {},
 ): Promise<string> {
-  try {
+  // Bounded by the shared deadline (abort AND race — see `deadline.ts`); every failure, the
+  // timeout included, falls back to no warning.
+  return withDeadline(WARNING_TIMEOUT_MS, async (signal) => {
     const res = await fetch(
       `${opts.apiBase ?? '/api'}/lesson-bundle-versions/${versionId}/recovery/unsaved-count`,
-      { credentials: 'same-origin' },
+      { credentials: 'same-origin', signal },
     )
     if (!res.ok) return ''
     const body = (await res.json()) as Partial<UnsavedCount>
     if (typeof body.otherUsers !== 'number' || typeof body.includesCaller !== 'boolean') return ''
     return unsavedWarningText(body as UnsavedCount, opts.countCaller ?? true)
-  } catch {
-    return ''
-  }
+  }).catch(() => '')
 }
 
 /**

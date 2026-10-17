@@ -18,7 +18,7 @@ import { findReadableVersion } from '../readBundle'
 import { relId } from '../relId'
 
 /** A chain longer than this is treated as having no ancestor rather than walked further. */
-export const MAX_CHAIN = 500
+const MAX_CHAIN = 500
 
 async function chainOf(
   req: PayloadRequest,
@@ -31,18 +31,15 @@ async function chainOf(
   while (parent !== null && ids.length < MAX_CHAIN && !seen.has(parent)) {
     ids.push(parent)
     seen.add(parent)
-    const doc = await req.payload
-      .findByID({
-        collection: 'lesson-bundle-versions',
-        id: parent,
-        depth: 0,
-        select: { sourceVersion: true },
-        overrideAccess: false,
-        user,
-        req,
-      })
-      .catch(() => null)
-    parent = doc ? relId((doc as { sourceVersion?: unknown }).sourceVersion) : null
+    // Null only for a version the caller cannot see (404/403); any other failure is thrown, so a
+    // database error is reported rather than quietly turning into "no ancestor".
+    const doc = await findReadableVersion(req.payload, {
+      id: parent,
+      user,
+      req,
+      select: { sourceVersion: true },
+    })
+    parent = doc ? relId(doc.sourceVersion) : null
   }
   return ids
 }

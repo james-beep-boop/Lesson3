@@ -561,13 +561,23 @@ export default function LessonControls({
     })
     setMsg(null)
     try {
+      const snapshot = JSON.stringify(currentContent())
+      // A capture transport failure permits a tokenless save; a 409 stops the save. Resolve that
+      // before asking about deletion, since a tokenless save must preserve the source's drafts.
+      const plan = await recovery.prepareForSave()
+      if (!plan.proceed) {
+        throw new Error(
+          'Your draft is out of date. Reload before saving, so newer changes are not lost.',
+        )
+      }
       // Decide up front whether to also delete the version being edited — offered only for a
       // deletable (non-Official) candidate the CALLER may delete (`canDelete`, computed above; the
       // server re-gates in save-as-new). Asking before the request lets save-as-new create + delete
-      // atomically. The caller's own backup is retired by this save, so only OTHER people's unsaved
-      // work is counted.
+      // atomically. A checked token is required: otherwise the source must stay to preserve any
+      // unseen earlier draft. With a token, the caller's draft is retired, so only others are counted.
       const deleteSource =
         canDelete &&
+        plan.token !== null &&
         window.confirm(
           await withUnsavedWarning(
             `Save your edits as a new version and delete ${versionPhrase}?`,
@@ -575,26 +585,6 @@ export default function LessonControls({
             { countCaller: false },
           ),
         )
-      const snapshot = JSON.stringify(currentContent())
-      // ⚑ Flush BEFORE saving, and let the flush decide whether the save may proceed at all
-      // (design §5). The two failure kinds are not alike: a transport failure still saves — the
-      // version save is what matters and the capture is only insurance — while a 409 must stop,
-      // because some precondition on the capture failed and saving on could retire work this
-      // client cannot see. The server does not say WHICH precondition (that would leak whether
-      // another session exists), so neither does this.
-      const plan = await recovery.prepareForSave()
-      if (!plan.proceed) {
-        // ⚑ Deliberately NEUTRAL about the cause. The server returns one undifferentiated 409 for
-        // several states — a newer capture, a superseded session, a retired row — because saying
-        // which would leak whether another session exists. Naming "another tab" here would invent a
-        // certainty the response does not carry. PR 2b's GET reconciliation is what earns specifics.
-        setMsg('Your draft is out of date. Reload before saving, so newer changes are not lost.')
-        setSaving(false)
-        setProcessing(false)
-        saveInFlight.current = false
-        return
-      }
-
       const body = new FormData()
       body.set('data', snapshot)
       // Separate multipart fields, never keys in the document: a Site Admin editing the raw document

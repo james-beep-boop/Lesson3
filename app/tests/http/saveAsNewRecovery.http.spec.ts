@@ -97,7 +97,7 @@ async function seedCapture(versionId: number, title: string) {
 
 /** The multipart body `save-as-new` takes, optionally carrying the recovery token. */
 function saveForm(
-  version: { updatedAt: string; lessons?: unknown[] },
+  version: { updatedAt: string; lessons?: unknown[] | null },
   prose: string,
   token?: { generation: number; revision: number },
 ): FormData {
@@ -532,6 +532,32 @@ describe('C20 — a capture landing DURING the save is never silently retired', 
  * precondition would fail, and a perfectly good save would 409.
  */
 describe('DEL — retirement precedes the source cascade', () => {
+  it.each([false, true])(
+    'a tokenless save keeps the source and any unseen draft (draft exists: %s)',
+    async (hasDraft) => {
+      const source = await makeVersion()
+      const fresh = await fx.payload.update({
+        collection: 'lesson-bundle-versions',
+        id: source.id,
+        data: { author: fx.users.editor.id } as never,
+        overrideAccess: true,
+      })
+      if (hasDraft) await seedCapture(source.id, 'unseen earlier work')
+      const before = await rawRow(source.id)
+      const res = await saveAsNew(
+        source.id,
+        saveForm(fresh, 'tokenless replacement'),
+        '?deleteSource=true',
+      )
+      expect(res.status).toBe(200)
+      const out = (await res.json()) as { id: number; sourceDeleted: boolean }
+      expect(out.sourceDeleted).toBe(false)
+      expect(await versionExists(source.id)).toBe(true)
+      expect(await versionExists(out.id)).toBe(true)
+      expect(await rawRow(source.id)).toEqual(before)
+    },
+  )
+
   it('a token-bearing save WITH deleteSource succeeds and removes both', async () => {
     // The editor must be the author for `deleteSource` to be permitted.
     const source = await makeVersion()

@@ -29,9 +29,10 @@ import { readSaveRecoveryToken } from './recoveryParse'
 import { retire } from '../lib/editRecovery/kernel'
 import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
-import { canonicalJson } from '../lib/canonicalJson'
 import { findReadableVersion } from '../lib/readBundle'
-import { contentOf, DROP_KEYS } from '../lib/versionContent'
+// `comparableContent` is the no-op guard's canonical form: applied identically to the merged
+// submission and the source, so ONE definition decides what counts as "the same content".
+import { comparableContent, DROP_KEYS } from '../lib/versionContent'
 import type { LessonBundleVersion, User } from '../payload-types'
 
 /** How many times to retry `save-as-new` when two concurrent saves race for the same next semver. */
@@ -65,12 +66,6 @@ class RecoveryConflictError extends APIError {
     )
   }
 }
-
-/** The no-op comparison's canonical form: content keys only (no identity metadata, no server-owned
- *  rels), row ids stripped, key-order-insensitive. Applied identically to the merged submission and
- *  the source, so ONE definition decides what counts as "the same content". */
-const comparableContent = (doc: Record<string, unknown>): string =>
-  canonicalJson(stripIds(contentOf(doc)))
 
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(
@@ -263,7 +258,9 @@ export const saveAsNewEndpoint: Endpoint = {
 
         const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
         let sourceDeleted = false
-        if (deleteSource && !sourceIsOfficial && mayDeleteSource) {
+        // Without a checked retirement token an earlier draft may still be unseen. Deleting its
+        // source would cascade that draft away even though the tokenless save itself preserves it.
+        if (deleteSource && recoveryToken && !sourceIsOfficial && mayDeleteSource) {
           await req.payload.delete({
             collection: 'lesson-bundle-versions',
             id: source.id,

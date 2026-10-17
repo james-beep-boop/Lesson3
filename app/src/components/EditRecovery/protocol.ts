@@ -188,7 +188,8 @@ export const offerKind = (
 export type RecoveryStatus =
   | { kind: 'off' }
   | { kind: 'starting' }
-  | { kind: 'unavailable'; reason: 'atCapacity' | 'failed' }
+  /** `unchecked`: the lookup for an earlier draft failed, so nothing is saved until it succeeds. */
+  | { kind: 'unavailable'; reason: 'atCapacity' | 'failed' | 'unchecked' }
   | { kind: 'idle' }
   | { kind: 'saving' }
   | { kind: 'backedUp'; at: number }

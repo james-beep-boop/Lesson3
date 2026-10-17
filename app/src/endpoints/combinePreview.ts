@@ -8,6 +8,7 @@
  * | Case                                              | Status |
  * |---------------------------------------------------|--------|
  * | not signed in                                     | 401    |
+ * | over the per-user `preview` rate limit            | 429    |
  * | `with` missing, malformed, or the same version    | 400    |
  * | either version not found / not readable           | 404    |
  * | the two versions belong to different plans        | 400    |
@@ -28,12 +29,11 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 import { isEditorFor, toId } from '../access'
 import { findCommonAncestor } from '../lib/combine/ancestry'
 import { planCombine } from '../lib/combine/engine'
+import { enforceUserRateLimit } from '../lib/rateLimit'
 import { findReadableVersion } from '../lib/readBundle'
 import { relId } from '../lib/relId'
 import type { LessonBundleVersion, User } from '../payload-types'
 import { json } from './respond'
-
-const POSITIVE_INT = /^[1-9][0-9]{0,15}$/
 
 const label = (v: LessonBundleVersion) => ({ id: v.id, semver: v.semver ?? null })
 
@@ -43,13 +43,16 @@ export const combinePreviewEndpoint: Endpoint = {
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
     const user = req.user as User
+    // Shares the preview admission bucket; planCombine separately bounds synchronous work across
+    // the entire document. A request rate alone cannot bound the cost of one admitted preview.
+    const limited = await enforceUserRateLimit(req, 'preview')
+    if (limited) return limited
 
-    const id = String(req.routeParams?.id ?? '')
-    const withRaw = req.query?.with
-    const withId = typeof withRaw === 'string' ? withRaw : ''
-    if (!POSITIVE_INT.test(id) || !POSITIVE_INT.test(withId)) {
-      throw new APIError('Choose two versions to combine.', 400)
-    }
+    // `relId` is the project's id rule (digits, within Postgres integer range), so an out-of-range id
+    // is a 400 here rather than a database error.
+    const id = relId(req.routeParams?.id)
+    const withId = relId(req.query?.with)
+    if (id === null || withId === null) throw new APIError('Choose two versions to combine.', 400)
     if (id === withId) throw new APIError('Choose a different version to combine with.', 400)
 
     const [a, b] = await Promise.all([
@@ -57,19 +60,16 @@ export const combinePreviewEndpoint: Endpoint = {
       findReadableVersion(req.payload, { id: withId, user, req }),
     ])
     if (!a || !b) throw new APIError('Version not found', 404)
-    if (relId(a.lessonPlan) === null || relId(a.lessonPlan) !== relId(b.lessonPlan)) {
+    const planId = relId(a.lessonPlan)
+    if (planId === null || planId !== relId(b.lessonPlan)) {
       throw new APIError('Both versions must belong to the same lesson plan.', 400)
     }
-    if (!isEditorFor(user, toId(a.subjectGrade as never))) {
+    if (!isEditorFor(user, toId(a.subjectGrade))) {
       throw new APIError('Only someone with editing access can combine versions.', 403)
     }
 
     const base = await findCommonAncestor(req, user, a, b)
-    const plan = planCombine({
-      base: base as unknown as Record<string, unknown> | null,
-      a: a as unknown as Record<string, unknown>,
-      b: b as unknown as Record<string, unknown>,
-    })
+    const plan = planCombine({ base, a, b })
     return json({ a: label(a), b: label(b), base: base ? label(base) : null, plan })
   },
 }

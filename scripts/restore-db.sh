@@ -123,7 +123,14 @@ echo "restore-db: restored ${SOURCE_LABEL} into '$INTO'"
 #
 # ⚑ AND IT IS TWO ROUND TRIPS, NOT ONE PER TABLE. The previous shape spawned a `docker compose exec`
 # per table; this asks for the table list once, then every count in a single query.
-REQUIRED_NONEMPTY=(lesson_plans lesson_bundle_versions users subjects subject_grades)
+# ⚑ PRESENT IS A SCHEMA CHECK; NON-EMPTY IS A CONTENT CLAIM — and only `users` can make that claim for
+# every installation (audit 2026-10-17). Every installation has at least one account: the first sign-up
+# becomes its Site Administrator. Curriculum and lesson plans arrive later, so a backup taken before
+# them is a real, recoverable backup with those tables empty — and the old rule, which required all
+# five non-empty, told the operator "Do NOT treat this backup as recoverable" about it. So: all five
+# must exist; `users` must have rows; an empty content table is reported as a NOTE that says what it
+# means, rather than failed.
+REQUIRED=(lesson_plans lesson_bundle_versions users subjects subject_grades)
 
 psql_q() { docker compose exec -T postgres psql -U "$DB_USER" -d "$INTO" -tA -v ON_ERROR_STOP=1 -c "$1"; }
 
@@ -151,17 +158,24 @@ while IFS=' ' read -r t n; do
   printf '  %-52s %s\n' "$t" "$n"
 done <<< "$COUNTS"
 
-# The gate is a short hand-picked list that must be PRESENT and NON-EMPTY — a real backup never has
-# zero lesson plans. Everything else is reported, because zero is legitimate elsewhere (a fresh
-# installation has no messages) and gating on it would fail a healthy restore.
-for t in "${REQUIRED_NONEMPTY[@]}"; do
+# The gate: the hand-picked tables must be PRESENT (a schema the app can run on), and `users` must have
+# rows (every installation does). Everything else is reported, because zero is legitimate elsewhere.
+EMPTY_CONTENT=()
+for t in "${REQUIRED[@]}"; do
   n="$(printf '%s\n' "$COUNTS" | awk -v k="$t" '$1==k {print $2}')"
   if [[ -z "$n" ]]; then
     echo "  FAIL  $t — table absent from the restored database"; FAILED=1
+  elif [[ "$n" -eq 0 && "$t" == users ]]; then
+    echo "  FAIL  users = 0 — every installation has at least one account"; FAILED=1
   elif [[ "$n" -eq 0 ]]; then
-    echo "  FAIL  $t = 0 — a real backup is never empty here"; FAILED=1
+    EMPTY_CONTENT+=("$t")
   fi
 done
+if [[ "${#EMPTY_CONTENT[@]}" -gt 0 ]]; then
+  echo "  NOTE  no rows in: ${EMPTY_CONTENT[*]}."
+  echo "        That is expected for a new installation that had no curriculum or lesson plans when"
+  echo "        this backup was taken. If it DID have them then, this backup does not contain them."
+fi
 
 if [[ "$FAILED" -ne 0 ]]; then
   die "RESTORE DRILL FAILED — decryption and pg_restore completed, but verification did not. Do NOT treat this backup as recoverable."

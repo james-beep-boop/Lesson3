@@ -77,13 +77,22 @@ export function EditRecoveryIndicator({ status }: { status: RecoveryStatus }) {
         // is what makes specifics honest.
         return ['warn', 'Draft is out of date — reload before saving']
       case 'unavailable':
-        return [
-          'warn',
-          status.reason === 'atCapacity'
-            ? // Names the way out: Manage lists every capture counted against the cap.
-              'Drafts unavailable: you have too many drafts. Save or discard some in the Manage tab, under Your Drafts.'
-            : 'Drafts unavailable — your changes are not being saved automatically',
-        ]
+        switch (status.reason) {
+          case 'unchecked':
+            // Names the consequence AND that it fixes itself: the lookup retries in the background.
+            return [
+              'warn',
+              'Could not check for an earlier draft, so your changes are not being saved as a draft yet. Trying again…',
+            ]
+          case 'atCapacity':
+            // Names the way out: Manage lists every capture counted against the cap.
+            return [
+              'warn',
+              'Drafts unavailable: you have too many drafts. Save or discard some in the Manage tab, under Your Drafts.',
+            ]
+          case 'failed':
+            return ['warn', 'Drafts unavailable — your changes are not being saved automatically']
+        }
       case 'notBackedUp':
         switch (status.reason) {
           case 'tooLarge':

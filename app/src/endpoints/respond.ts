@@ -26,22 +26,47 @@ export function assertSiteAdmin(req: PayloadRequest): void {
 }
 
 /**
- * Re-read the caller's account inside the transaction and refuse unless it is STILL an enabled Site
- * Administrator — the second half of `assertSiteAdmin`, for endpoints that wait on a lock (or verify a
- * password) before their trusted write. `req.user` is the snapshot authentication took; a demotion or
- * disable committed while the request waited does not conflict with any lock it holds, so only a re-read
- * after the wait can see it (#374, #376). Call it AFTER the last lock that can wait.
+ * Re-read the caller's account inside the transaction, refuse if gone, disabled or unverified, and make
+ * `req.user` carry its CURRENT authority — for endpoints that wait on a lock (or verify a password)
+ * before writing. Call it AFTER the last lock that can wait.
+ *
+ * `req.user` is the snapshot authentication took. A demotion, disable or deletion committed while the
+ * request waited does not conflict with any lock it holds, so only a re-read after the wait can see it
+ * (#374, #376; audit 2026-10-17, which found the same race in `userAdminActions` and
+ * `userAssignments`).
+ *
+ * ⚑ THE AUTHORITY FIELDS ARE REPLACED IN PLACE — roles, assignments, sign-in and verification — rather
+ * than `req.user` being swapped for the fetched document. The authenticated object also carries
+ * request-scoped keys (`collection`, the auth strategy) that Payload's own access paths read, and a
+ * plain `findByID` result has none of them. Everything that later asks `req.user` — collection and
+ * field access, `enforceAssignmentScope`, a write passed `user: req.user` — then sees the account as
+ * it is now. Returns that refreshed caller.
  */
-export async function reassertSiteAdmin(req: PayloadRequest): Promise<void> {
-  const caller = await req.payload.findByID({
+export async function refreshCaller(req: PayloadRequest): Promise<User> {
+  if (!req.user) throw new APIError('Unauthorized', 401)
+  const caller = req.user as User
+  const fresh = await req.payload.findByID({
     collection: 'users',
-    id: (req.user as User).id, // `assertSiteAdmin` ran first, so there is a user
+    id: caller.id,
     depth: 0,
     overrideAccess: true,
     disableErrors: true,
     req,
   })
-  if (!isSiteAdmin(caller) || caller?.signInDisabled) throw new APIError('Forbidden', 403)
+  if (!fresh || fresh.signInDisabled || !fresh._verified) throw new APIError('Forbidden', 403)
+  caller.roles = fresh.roles
+  caller.assignments = fresh.assignments
+  caller.signInDisabled = fresh.signInDisabled
+  caller._verified = fresh._verified
+  return caller
+}
+
+/**
+ * {@link refreshCaller}, then refuse unless the caller is STILL a Site Administrator — the second half
+ * of `assertSiteAdmin`, for Site-Admin-only endpoints that wait before their trusted write.
+ */
+export async function reassertSiteAdmin(req: PayloadRequest): Promise<void> {
+  if (!isSiteAdmin(await refreshCaller(req))) throw new APIError('Forbidden', 403)
 }
 
 /**

@@ -56,10 +56,11 @@ import {
   assertSiteAdmin,
   json,
   readJsonBody,
+  refreshCaller,
   requireExpectedUpdatedAt,
   MAX_CONTROL_BODY_BYTES,
 } from './respond'
-import { isSubjectAdminFor, toId, type Assignment } from '../access'
+import { isSiteAdmin, isSubjectAdminFor, toId, type Assignment } from '../access'
 import { assignmentAction, type AssignmentRole } from '../lib/assignmentRoles'
 import type { User } from '../payload-types'
 
@@ -237,6 +238,22 @@ function assignmentEndpoint(mode: 'assign' | 'unassign', role: GrantableRole): E
           expectedUpdatedAt,
           'This user’s roles changed since you loaded the page — reload before changing them.',
         )
+
+        // ⚑ RE-READ THE CALLER AFTER THE WAIT (audit 2026-10-17). Everything that authorizes this
+        // write — the route gates above, collection and field access, `enforceAssignmentScope` — reads
+        // `req.user`, the snapshot sign-in took. An administrator demoted or disabled while this
+        // request waited on either lock would otherwise still be granting and removing roles.
+        // `refreshCaller` refuses a gone or disabled caller and refreshes `req.user`'s roles, so the
+        // checks below and the hook all see the account as it is now; the route gates are then
+        // re-applied, because they ran before the wait.
+        const caller = await refreshCaller(req)
+        const stillPermitted =
+          role === 'subjectAdmin' && mode === 'unassign'
+            ? isSiteAdmin(caller)
+            : role === 'subjectAdmin'
+              ? isSubjectAdminFor(caller, subjectGradeId)
+              : true // editing access: scope is the hook's to decide, now on fresh roles
+        if (!stillPermitted) throw new APIError('Forbidden', 403)
 
         const rows: Assignment[] = (target.assignments ?? []) as Assignment[]
         const next = nextRows(mode, role, rows, subjectGradeId)

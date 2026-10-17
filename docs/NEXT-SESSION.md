@@ -25,6 +25,15 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# FOLLOW-UP AUDIT FIXES — 2026-10-17
+
+`fix/lesson3-audit-followup` recovers `fa6cb6d` and `20cbe39` (the remote Combine branch had not
+advanced past `cdbe34f`) and fixes five remaining findings: verification revoked during lock waits,
+source-deletion cascades on tokenless saves, ambiguous Combine row correspondence, a large-insertion
+stack overflow, and unbounded total synchronous merge work. SPEC §5/§6 and the newest DECISIONS entry
+record the behavior and limits. No migration or deployment is included. Ambiguous arrays are now
+refused; stable row identity remains future work. See the branch's validation record in DECISIONS.
+
 # DRAFTS (PHASE 1) — 2026-10-17; COMBINE VERSIONS APPROVED
 
 Operator asked (1) for a way to put edits aside without saving a version each time, and (2) for a
@@ -47,6 +56,11 @@ dismissed it, and `manage.e2e.spec.ts` still driving the `curriculum.subjects`/`
 panels that `9ebc844` retired). `loginAs` now pre-dismisses the dialog (`showWelcome` opts out;
 `welcomeDialog.e2e.spec.ts` covers it), the taxonomy cases drive the checkbox grid, and the Users /
 Roles & Access locators are scoped. Until this branch merges, `main`'s CI browser gate still fails.
+
+**Audit fixes (2026-10-17, commit `fix: five audit findings…` on `feat/combine-versions`):** four
+findings against `1572d9d`, plus the same stale-permission race in role assignments, fixed with
+failing-first tests — DECISIONS 2026-10-17 (night). They touch no Combine files and can go to `main`
+on their own.
 
 **Combine versions — phase 2 built** (branch `feat/combine-versions`): `lib/combine/` (`planCombine`,
 `merge3`, `findCommonAncestor`) and `GET /api/lesson-bundle-versions/:id/combine-preview?with=:id`

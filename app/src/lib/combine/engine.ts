@@ -8,12 +8,11 @@
  * saved through the unchanged `save-as-new` (field split, no-op guard, stale guard, semver retry).
  * Nothing here writes anything.
  *
- * ⚑ ROWS ARE PAIRED BY POSITION, AFTER A SHAPE CHECK. Every save regenerates row ids (`stripIds` in
- * save-as-new), so no two versions share one and pairing by id finds nothing. `captureAnchors` walks a
- * document's prose rows in document order; two versions with the same structure produce the same
- * sequence of scopes, and the i-th anchor of one IS the i-th anchor of the other. A Teacher with
- * editing access cannot change structure (`applyEditorFieldSplit` rejects it), so two teachers'
- * versions always pair.
+ * Rows pair by position only AFTER shape and correspondence checks. Saves regenerate row ids, so
+ * equal scope sequences alone cannot detect reordering. `rowsCorrespond` requires unique upload
+ * identities for multiple lessons and unique phase/section/summary labels in unchanged order.
+ * Ambiguous arrays are refused until stable row identity is available. An unaligned ancestor is
+ * ignored; the aligned sides can still be compared two-way.
  *
  * ⚑ WHICH VERSION THE EDITOR OPENS. Everything that is not prose — phases, durations, rubrics, answer
  * keys, META, structure — must come whole from ONE side, because the saved result is checked against
@@ -38,21 +37,24 @@ import {
 } from '../../hooks/fieldSplit'
 import { canonicalJson } from '../canonicalJson'
 import {
+  asDoc,
+  asRows,
   captureAnchors,
   parseKey,
   projectCapture,
+  proseText,
   type CaptureMap,
 } from '../editRecovery/projection'
 import { stripIds } from '../stripIds'
-import { contentOf } from '../versionContent'
-import { merge3 } from './diff3'
+import { comparableContent } from '../versionContent'
+import { rowsCorrespond } from './correspondence'
+import { createMergeBudget, merge3, type MergeBudget } from './diff3'
 
 type Doc = Record<string, unknown>
-type Row = Doc
 
 export type CombineSide = 'a' | 'b'
 
-export type CombineRefusal = 'structure' | 'admin-both' | 'system'
+export type CombineRefusal = 'structure' | 'admin-both' | 'system' | 'size'
 
 /** One field a person must decide. Keys are the STARTING version's capture keys. */
 export interface CombineConflict {
@@ -93,18 +95,15 @@ export type CombinePlan =
     }
 
 /** User-facing refusals. Plain language; each says what to do instead. */
-export const REFUSAL_MESSAGES: Record<CombineRefusal, string> = {
+const REFUSAL_MESSAGES: Record<CombineRefusal, string> = {
+  size: 'These versions are too large to combine automatically. Open one and copy across the changes you need from the other.',
   structure:
-    'These versions have different lessons, phases or sections, so they cannot be combined automatically yet. Open one and copy across the changes you need from the other.',
+    'The lessons, phases or sections in these versions cannot be matched reliably, so they cannot be combined automatically yet. Open one and copy across the changes you need from the other.',
   'admin-both':
     'Both versions change content only an administrator can edit, such as phases, durations, rubrics or answer keys, so they cannot be combined automatically. A subject administrator can copy the changes across by hand.',
   system:
     'These versions come from different uploads of the lesson plan, so they cannot be combined.',
 }
-
-const asRows = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : [])
-const asDoc = (v: unknown): Doc | undefined =>
-  v && typeof v === 'object' && !Array.isArray(v) ? (v as Doc) : undefined
 
 const without = (doc: Doc | undefined, keys: readonly string[]): Doc | undefined => {
   if (!doc) return doc
@@ -153,39 +152,81 @@ export const withoutProse = (doc: Doc): Doc => {
   return out
 }
 
-/** Canonical non-prose content: identity metadata and row ids removed, keys sorted. */
-const nonProseForm = (doc: Doc): string => canonicalJson(stripIds(withoutProse(contentOf(doc))))
+/** Canonical non-prose content — the save no-op guard's "same content" rule, applied without prose. */
+const nonProseForm = (doc: Doc): string => comparableContent(withoutProse(doc))
 
 /** System-owned data that no edit can change: the lessons' resolved resource links. */
 const systemForm = (doc: Doc): string =>
   canonicalJson(stripIds(asRows(doc.lessons).map((l) => l.resourceLinks ?? null)))
 
-/** The scope sequence of a document's prose rows — equal sequences mean the rows pair by position. */
+/** The scope sequence checks cardinality and nesting, but does not establish row identity. */
 const shapeOf = (anchors: { key: string }[]): string =>
   anchors.map((a) => parseKey(a.key).scope).join('|')
 
-const text = (v: unknown): string => (typeof v === 'string' ? v : '')
+/** One field's outcome: the combined text and where it came from, or why a person must choose. */
+const decide = (
+  v0: string | null,
+  va: string,
+  vb: string,
+  budget: MergeBudget,
+): { text: string; from: CombineChange['from'] } | { reason: CombineConflict['reason'] } => {
+  if (v0 === null) return { reason: 'no-ancestor' }
+  if (va === v0) return { text: vb, from: 'b' }
+  if (vb === v0) return { text: va, from: 'a' }
+  if (va === '' || vb === '') return { reason: 'emptied' }
+  const merged = merge3(v0, va, vb, budget)
+  return merged.ok ? { text: merged.text, from: 'both' } : { reason: 'both-edited' }
+}
 
-/** Plan a combine of `a` and `b` from their common ancestor `base` (null when none survives). */
-export function planCombine({ base, a, b }: { base: Doc | null; a: Doc; b: Doc }): CombinePlan {
+/**
+ * Plan a combine of `a` and `b` from their common ancestor `base` (null when none survives). Takes
+ * stored version documents as they come from Payload.
+ */
+export function planCombine(input: { base: object | null; a: object; b: object }): CombinePlan {
+  const a = input.a as Doc
+  const b = input.b as Doc
+  const base = input.base as Doc | null
   const refuse = (refusal: CombineRefusal): CombinePlan => ({
     ok: false,
     refusal,
     message: REFUSAL_MESSAGES[refusal],
   })
 
+  // Bound the linear walks, serialisations and response as well as the quadratic paragraph work.
+  // Check before projecting or canonicalising; large fields and many tiny rows both cost work.
+  let chars = 0
+  let nodes = 0
+  const pending: unknown[] = [a, b, base]
+  while (pending.length) {
+    const value = pending.pop()
+    if (++nodes > 100_000) return refuse('size')
+    if (typeof value === 'string') chars += value.length
+    else if (value && typeof value === 'object') {
+      const children = Object.values(value)
+      if (children.length + nodes + pending.length > 100_000) return refuse('size')
+      for (const child of children) pending.push(child)
+    }
+    if (chars > 6_000_000) return refuse('size')
+  }
+
   // Structure FIRST: an extra lesson also carries an extra set of resource links, and reporting that
   // as "different uploads" would send the teacher looking for the wrong cause.
   const anchorsA = captureAnchors(a)
   const anchorsB = captureAnchors(b)
-  if (shapeOf(anchorsA) !== shapeOf(anchorsB)) return refuse('structure')
+  const shape = shapeOf(anchorsA)
+  if (shapeOf(anchorsB) !== shape) return refuse('structure')
   if (systemForm(a) !== systemForm(b)) return refuse('system')
+  if (!rowsCorrespond(a, b)) return refuse('structure')
 
   // An ancestor whose prose rows do not pair with ours (e.g. an older one, from before a structural
   // edit both sides inherited) cannot be used position by position. Fall back to two-way rather
   // than refuse: every difference becomes a person's choice, which is never wrong.
-  const anchorsBase = base ? captureAnchors(base) : null
-  const usableBase = base && anchorsBase && shapeOf(anchorsBase) === shapeOf(anchorsA) ? base : null
+  const candidateAnchors = base ? captureAnchors(base) : null
+  const baseAnchors =
+    candidateAnchors && shapeOf(candidateAnchors) === shape && base && rowsCorrespond(a, base)
+      ? candidateAnchors
+      : null
+  const usableBase = baseAnchors ? base : null
 
   const formA = nonProseForm(a)
   const formB = nonProseForm(b)
@@ -207,56 +248,32 @@ export function planCombine({ base, a, b }: { base: Doc | null; a: Doc; b: Doc }
   const overlay: CaptureMap = {}
   const changes: CombineChange[] = []
   const conflicts: CombineConflict[] = []
+  const budget = createMergeBudget()
 
   startAnchors.forEach((anchor, i) => {
     const keyA = anchorsA[i].key
     const keyB = anchorsB[i].key
-    const keyBase = usableBase && anchorsBase ? anchorsBase[i].key : null
+    const keyBase = baseAnchors ? baseAnchors[i].key : null
     // Every prose field this scope can hold — the union of what either side actually stored.
     const fields = new Set([...Object.keys(proseA[keyA] ?? {}), ...Object.keys(proseB[keyB] ?? {})])
     for (const field of fields) {
-      const va = text(proseA[keyA]?.[field])
-      const vb = text(proseB[keyB]?.[field])
-      const vStart = start === 'a' ? va : vb
+      const va = proseText(proseA[keyA]?.[field])
+      const vb = proseText(proseB[keyB]?.[field])
+      if (va === vb) continue // nothing to reconcile, and nothing differs from the starting side
+
+      const v0 = proseBase && keyBase ? proseText(proseBase[keyBase]?.[field]) : null
       const where = {
         key: anchor.key,
         field,
         heading: anchor.heading,
         label: PROSE_LABELS[field] ?? field,
       }
-
-      let combined: string
-      let from: CombineChange['from']
-      if (va === vb) {
-        continue // nothing to reconcile, and nothing differs from the starting side
-      } else if (!proseBase || keyBase === null) {
-        conflicts.push({ ...where, base: null, a: va, b: vb, reason: 'no-ancestor' })
-        continue
-      } else {
-        const v0 = text(proseBase[keyBase]?.[field])
-        if (va === v0) {
-          combined = vb
-          from = 'b'
-        } else if (vb === v0) {
-          combined = va
-          from = 'a'
-        } else if (va === '' || vb === '') {
-          conflicts.push({ ...where, base: v0, a: va, b: vb, reason: 'emptied' })
-          continue
-        } else {
-          const merged = merge3(v0, va, vb)
-          if (!merged.ok) {
-            conflicts.push({ ...where, base: v0, a: va, b: vb, reason: 'both-edited' })
-            continue
-          }
-          combined = merged.text
-          from = 'both'
-        }
-      }
-
-      if (combined !== vStart) {
-        overlay[anchor.key] = { ...overlay[anchor.key], [field]: combined }
-        changes.push({ ...where, from })
+      const outcome = decide(v0, va, vb, budget)
+      if ('reason' in outcome) {
+        conflicts.push({ ...where, base: v0, a: va, b: vb, reason: outcome.reason })
+      } else if (outcome.text !== (start === 'a' ? va : vb)) {
+        overlay[anchor.key] = { ...overlay[anchor.key], [field]: outcome.text }
+        changes.push({ ...where, from: outcome.from })
       }
     }
   })

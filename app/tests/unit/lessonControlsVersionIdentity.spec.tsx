@@ -74,6 +74,17 @@ vi.mock('@payloadcms/ui', () => ({
 
 vi.mock('payload/shared', () => ({ reduceFieldsToValues: () => ({}) }))
 
+// These cases inspect version labels in confirmations, so provide a completed recovery check.
+vi.mock('@/components/EditRecovery/useEditRecovery', () => ({
+  useEditRecovery: () => ({
+    entry: { phase: 'clear' },
+    status: { kind: 'idle' },
+    start: vi.fn(),
+    prepareForSave: async () => ({ proceed: true, token: { generation: 1, revision: 1 } }),
+    adoptToken: vi.fn(),
+  }),
+}))
+
 import LessonControls from '@/components/LessonControls'
 
 /**

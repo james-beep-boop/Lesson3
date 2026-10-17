@@ -379,6 +379,9 @@ observable contract, and a failed or backed-off capture must say so rather than 
   Retirement on save joins the save-as-new transaction — inside the semver retry attempt, so it can
   neither half-apply nor double-apply — and a precondition failure there fails the **whole save** with
   409 rather than retiring newer work; unlike a semver conflict, it is **not** retryable.
+  A save without a recovery token also **keeps its source version**, even when `deleteSource=true`:
+  deleting it would cascade an unchecked earlier draft away. The editor only offers source deletion
+  after obtaining a checked retirement token. Tokenless saves still create the new version normally.
 - **Save flushes first, and the two flush failures differ.** Save pauses capture, flushes, and awaits
   any in-flight write. A **transport** failure (network, 429, 5xx) is ignored and the save proceeds —
   the version save is the operation that matters and the capture is only insurance, so blocking a real
@@ -474,14 +477,23 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
 - **Base:** the newest surviving common ancestor. `sourceVersion` is nulled when a version is
   deleted, so ancestry needs a delete-proof record (a plain-id lineage list plus a second-parent
   link); if no common ancestor survives, every difference is a conflict.
-- **Alignment is positional after a shape check** — row ids are regenerated on every save, so they
-  cannot pair rows across versions. Teachers cannot change structure, so teacher-vs-teacher combines
-  always align. Version 1 refuses differing structure, admin-field changes on both sides, and differing
-  system fields (`resourceLinks`), each with a clear message.
+- **Alignment requires both shape and reliable correspondence** — regenerated row ids cannot pair
+  versions, and matching shapes cannot detect a reorder. Multiple lessons require distinct, unchanged
+  system upload identities (`substrand`, `aresKeywords`, `resourceLinks`) in the same order. Multiple
+  framework, section and summary rows require unique, unchanged phase/title labels in the same order.
+  Ambiguous or reordered arrays are refused until stable row identity is built. An unaligned ancestor
+  is ignored, yielding a two-way comparison of aligned sides. Version 1 also refuses admin-field
+  changes on both sides and differing system fields, each with a clear message.
 - **Per prose leaf:** one side changed → take it; both made the same change → take it; one emptied
   and one edited → conflict; both changed differently → paragraph-level three-way merge (the grammar's
   `\n` paragraphs and `- ` bullets), conflicting where the same paragraph was edited. No
   character-level merging: it can splice two rewrites into a sentence nobody wrote.
+- **Work is bounded across the whole document.** One preview admits at most 100,000 values and
+  6,000,000 string characters across all three inputs. Paragraph merges share 2,000,000 work units
+  (LCS cells and hunk comparisons); each LCS table also stays below 1,000,000 cells. A prose merge
+  exceeding its remaining allowance becomes a controlled field conflict. Paragraph-merge inputs and
+  output are bounded at 1,000,000 characters and merged output at 200,000 lines; lines are appended
+  iteratively.
 - **Combining does not make anything Official**; that stays an administrator action.
 
 **Phase 2 — built (2026-10-17): the engine and a read-only preview.** Nothing is written yet.
@@ -489,7 +501,7 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   plan names the version to START from, an edit-recovery-shaped `overlay` keyed by that version's
   rows (only fields whose combined text differs from it), the automatic `changes`, and the
   `conflicts` (each with ancestor, A and B text and a reason: `both-edited`, `emptied`,
-  `no-ancestor`). Refusals are `structure`, `admin-both` and `system`, each with a plain message.
+  `no-ancestor`). Refusals are `structure`, `admin-both`, `system` and `size`, each with a plain message.
   Rows pair through `captureAnchors`' document order — the same walk edit recovery uses — and "prose"
   is the field split's whitelists, so the three features cannot disagree about either.
 - `GET /api/lesson-bundle-versions/:id/combine-preview?with=:otherId` → `{ a, b, base, plan }`.

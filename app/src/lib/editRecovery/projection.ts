@@ -78,8 +78,10 @@ export type CaptureMap = Record<string, Record<string, ProseValue>>
 /** The one key with no row id, because `finalExplanation` is a group rather than an array row. */
 export const FINAL_EXPLANATION_KEY = 'finalExplanation'
 
-const asRows = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : [])
-const asDoc = (v: unknown): Doc | undefined =>
+/** An array field's rows, or none. Exported so Combine versions reads rows exactly as this does. */
+export const asRows = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : [])
+/** A group field, or undefined. Exported for the same reason as {@link asRows}. */
+export const asDoc = (v: unknown): Doc | undefined =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Doc) : undefined
 
 /**
@@ -112,6 +114,12 @@ export const parseKey = (key: string): { scope: string; rowId: string | null } =
 
 /** A prose leaf: a string, or `null` for a cleared field. Anything else is malformed. */
 const isProseValue = (v: unknown): v is ProseValue => v === null || typeof v === 'string'
+
+/**
+ * A prose leaf as text: `null` (cleared) and absent both read as `''`. The ONE definition of "empty"
+ * for comparing prose — the restore preview and Combine versions must agree about what differs.
+ */
+export const proseText = (v: ProseValue | undefined): string => v ?? ''
 
 /**
  * Code units the storage column cannot carry, replaced with U+FFFD.
@@ -345,8 +353,8 @@ export const captureDiff = (saved: CaptureMap, capture: CaptureMap): CaptureDiff
     const changed: Record<string, CaptureChange> = {}
     for (const field of Object.keys(leaves)) {
       if (!willApply(leaves, field)) continue
-      const now = leaves[field] ?? ''
-      const was = savedLeaves?.[field] ?? ''
+      const now = proseText(leaves[field])
+      const was = proseText(savedLeaves?.[field])
       if (was !== now) changed[field] = { was, now }
     }
     if (Object.keys(changed).length > 0) out[key] = changed

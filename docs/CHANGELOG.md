@@ -10,6 +10,17 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Follow-up audit fixes: administrative requests refuse callers whose email verification was revoked
+  while waiting; saves without a checked recovery token preserve the source version and its drafts.
+  Combine refuses ambiguous row correspondence, handles large paragraph insertions without a stack
+  overflow, and bounds total document and merge work, returning conflicts when the allowance runs out.
+
+- Security and reliability fixes from the post-`1572d9d` audit: account actions re-check that the
+  caller is still a Site Administrator after waiting on a lock, and role changes re-check the
+  caller's current roles the same way; a failed check for an earlier draft
+  no longer lets the editor overwrite that draft; the draft warning on delete can no longer leave Save
+  stuck; and the restore drill accepts a backup of a new installation with no lesson plans yet.
+
 - Drafts: the editor's buttons are now *Save as new version*, *Save as draft* and *Discard changes*.
   *Save as draft* keeps changes privately without a new version, confirms they are saved, and closes
   the editor; *Discard changes* (formerly Cancel) now really deletes the draft after asking. Edit

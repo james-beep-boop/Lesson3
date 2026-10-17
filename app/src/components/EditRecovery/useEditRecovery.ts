@@ -24,6 +24,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { withDeadline } from './deadline'
 import type { Registration } from './flushRegistry'
 import { captureAnchors } from '../../lib/editRecovery/projection'
 import {
@@ -58,6 +59,12 @@ export const CAPTURE_DEBOUNCE_MS = 8_000
 export const ENTRY_LOOKUP_TIMEOUT_MS = 10_000
 
 /**
+ * How long to wait before asking again after the entry lookup FAILED (the `unchecked` phase).
+ * Exported for the same reason as the debounce: the tests advance the real value.
+ */
+export const ENTRY_RETRY_MS = 15_000
+
+/**
  * How long one CAPTURE may take before it is abandoned.
  *
  * ⚑ Bounded for a different reason than the lookup above, and a worse one. A capture that never
@@ -71,32 +78,10 @@ export const ENTRY_LOOKUP_TIMEOUT_MS = 10_000
  */
 export const CAPTURE_TIMEOUT_MS = 20_000
 
-/**
- * Run `work` under a deadline, aborting it if the deadline passes.
- *
- * ⚑ **The bound spans the BODY READ, not just the headers.** `fetch` resolves as soon as headers
- * arrive, so clearing the timer around the `fetch` alone — which the first version of this did —
- * leaves `await res.json()` unbounded, and a stalled body reproduces the whole failure the deadline
- * exists to prevent: `inFlight` is held forever, no later capture runs, and `prepareForSave` waits on
- * it. Callers therefore do the fetch AND the parse inside the callback.
- *
- * ⚑ Hand-rolled rather than `AbortSignal.timeout(ms)` (which `generator/docxToPdf.ts` uses
- * server-side). Node implements that timer natively rather than through `globalThis.setTimeout`, so
- * vitest's fake timers cannot drive it — and the tests prove these bounds by advancing fake time.
- */
-const withDeadline = async <T>(
-  ms: number,
-  work: (signal: AbortSignal) => Promise<T>,
-): Promise<T> => {
-  const giveUp = new AbortController()
-  const timer = setTimeout(() => giveUp.abort(), ms)
-  try {
-    // `await` inside the try, deliberately: returning the un-awaited promise would clear the timer
-    // immediately and leave the request unbounded again.
-    return await work(giveUp.signal)
-  } finally {
-    clearTimeout(timer)
-  }
+/** Cancel a timer held in a ref, and forget it. A no-op when none is pending. */
+const clearRef = (ref: { current: ReturnType<typeof setTimeout> | null }): void => {
+  if (ref.current) clearTimeout(ref.current)
+  ref.current = null
 }
 
 /**
@@ -109,6 +94,17 @@ const withDeadline = async <T>(
 export type RecoveryEntry =
   | { phase: 'idle' }
   | { phase: 'resolving' }
+  /**
+   * The lookup for an earlier draft FAILED (error or timeout), so we do not know whether one exists.
+   *
+   * ⚑ NOT THE SAME AS `clear`, and treating it as `clear` lost work (audit 2026-10-17). `start` had
+   * already resumed the row, so this session's token was current for it: the next capture REPLACED
+   * the earlier draft without the teacher ever seeing the restore decision, and the stale-revision
+   * fence could not help because nothing was stale. Here editing stays available, but no capture
+   * is written and nothing is retired until the lookup succeeds — it is retried every
+   * {@link ENTRY_RETRY_MS} — and the indicator says the session is not being saved as a draft.
+   */
+  | { phase: 'unchecked' }
   | { phase: 'clear' }
   | {
       phase: 'offer'
@@ -244,14 +240,20 @@ export function useEditRecovery(args: {
    * reopen that hole silently, with nothing to catch it.
    */
   /**
-   * Is an offer still waiting on the user?
+   * Is the earlier draft still unresolved — not yet looked up, offered and undecided, or the lookup
+   * failed? While it is, the stored row may hold work the teacher has not seen, so nothing may write
+   * over it or retire it.
    *
-   * ⚑ ONE owner for a predicate two guards depend on — this file already states the rule against a
-   * "second weaker copy of that predicate" for the token/active/modified test. A fourth entry phase,
-   * or a rename, must not have to be caught in two places.
+   * ⚑ ONE owner for a predicate every write guard depends on — this file already states the rule
+   * against a "second weaker copy of that predicate" for the token/active/modified test. A new entry
+   * phase, or a rename, must not have to be caught in several places. (Named `offerUnresolved` until
+   * the `unchecked` phase joined it, 2026-10-17.)
    */
-  const offerUnresolved = useCallback(
-    () => entryPhase.current === 'resolving' || entryPhase.current === 'offer',
+  const entryUnresolved = useCallback(
+    () =>
+      entryPhase.current === 'resolving' ||
+      entryPhase.current === 'offer' ||
+      entryPhase.current === 'unchecked',
     [],
   )
 
@@ -264,6 +266,8 @@ export function useEditRecovery(args: {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** Backoff retry, held apart from `timer` so the debounce's cleanup cannot cancel it. */
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** The next entry lookup after a failed one (the `unchecked` phase). Session-scoped like the rest. */
+  const entryRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /**
    * Bumped whenever the session this hook is serving changes — deactivation, or a different version.
@@ -294,20 +298,13 @@ export function useEditRecovery(args: {
    */
   const capturedSignal = useRef<unknown>(null)
 
-  const clearTimer = useCallback(() => {
-    if (timer.current) {
-      clearTimeout(timer.current)
-      timer.current = null
-    }
-  }, [])
+  const clearTimer = useCallback(() => clearRef(timer), [])
 
-  /** Both timers — session teardown only. The debounce alone must never cancel a backoff. */
+  /** Every timer — session teardown only. The debounce alone must never cancel a backoff. */
   const clearAllTimers = useCallback(() => {
     clearTimer()
-    if (retryTimer.current) {
-      clearTimeout(retryTimer.current)
-      retryTimer.current = null
-    }
+    clearRef(retryTimer)
+    clearRef(entryRetryTimer)
   }, [clearTimer])
 
   /** One capture attempt. Returns the classified outcome; never throws. */
@@ -331,7 +328,7 @@ export function useEditRecovery(args: {
     // so `useForm().setDisabled` gates SUBMISSION, not field editability. The prompt is a portalled
     // modal with a focus trap, which is the interaction barrier; this is the guarantee underneath it,
     // and it holds whether or not any of that works.
-    if (offerUnresolved()) return { kind: 'definite', reason: 'rejected' }
+    if (entryUnresolved()) return { kind: 'definite', reason: 'rejected' }
 
     // The single gate every caller passes through — debounce, blur, pre-expiry flush and the
     // pre-save flush alike. Refusing here is what makes the limiter's instruction actually binding.
@@ -391,7 +388,7 @@ export function useEditRecovery(args: {
       // Network error, abort, timeout — the request may or may not have committed.
       return { kind: 'indeterminate' }
     }
-  }, [recoveryUrl, offerUnresolved])
+  }, [recoveryUrl, entryUnresolved])
 
   /** Capture, honouring the single-flight guard. Callers await the SAME promise. */
   const capture = useCallback(async (): Promise<CaptureOutcome> => {
@@ -441,7 +438,7 @@ export function useEditRecovery(args: {
       // was not being saved when nothing had gone wrong. Reachable both ways: fields are not
       // read-only while an offer is open (DECISIONS 2026-08-07 i), so typing restarts the debounce;
       // and the 10 s lookup bound is longer than the 8 s debounce, so a slow lookup meets it too.
-      if (offerUnresolved()) return
+      if (entryUnresolved()) return
       // ⚑ Nothing to send when the server already has this exact content. Covers the blur and
       // visibilitychange flushes and the 429 retry — `modified` cannot stop them, being Payload's
       // touched flag, which flips once and never clears. Without this, every alt-tab re-serialised
@@ -460,13 +457,13 @@ export function useEditRecovery(args: {
       if (outcome.kind === 'definite' && outcome.reason === 'rateLimited') {
         // Its OWN timer: the debounce's cleanup runs on every edit and would otherwise cancel this,
         // leaving the user on "retrying in Ns" with nothing scheduled to retry (matrix case 13).
-        if (retryTimer.current) clearTimeout(retryTimer.current)
+        clearRef(retryTimer)
         retryTimer.current = setTimeout(() => void run(), (outcome.retryAfterSec ?? 30) * 1000)
       }
     },
     // `clearTimer` is gone from here deliberately: backoff now owns `retryTimer`, and this function
     // no longer touches the debounce at all.
-    [capture, isSafe, offerUnresolved],
+    [capture, isSafe, entryUnresolved],
   )
 
   /**
@@ -526,22 +523,28 @@ export function useEditRecovery(args: {
     [recoveryUrl],
   )
 
-  const start = useCallback(() => {
-    if (session.current.started) return
-    session.current.started = true
-    const mine = epoch.current
-    setStatus({ kind: 'starting' })
-    void (async () => {
+  /**
+   * Ask whether an earlier draft is waiting, and enter the phase the answer calls for.
+   *
+   * ⚑ Runs AFTER `start`, deliberately. `start` is the only path that creates or reactivates the row,
+   * so asking first would race it: a brand-new session would be told "nothing stored" by a request
+   * that arrived before the row existed.
+   *
+   * ⚑ A FAILED lookup is `unchecked`, never `clear` — see that phase. It retries itself.
+   */
+  const lookUpEntry = useCallback(
+    async function lookUp(mine: number): Promise<void> {
+      const unchecked = () => {
+        if (epoch.current !== mine) return
+        enterPhase({ phase: 'unchecked' })
+        setStatus({ kind: 'unavailable', reason: 'unchecked' })
+        clearRef(entryRetryTimer)
+        entryRetryTimer.current = setTimeout(() => {
+          entryRetryTimer.current = null
+          if (epoch.current === mine) void lookUp(mine)
+        }, ENTRY_RETRY_MS)
+      }
       try {
-        if (!(await requestStart(mine))) {
-          if (epoch.current === mine) enterPhase({ phase: 'clear' })
-          return
-        }
-
-        // ⚑ The GET runs AFTER `start`, deliberately. `start` is the only path that creates or
-        // reactivates the row, so asking first would race it: a brand-new session would be told
-        // "nothing stored" by a request that arrived before the row existed.
-        enterPhase({ phase: 'resolving' })
         const { offer, offered } = await withDeadline(ENTRY_LOOKUP_TIMEOUT_MS, async (signal) => {
           const r = await fetch(recoveryUrl(), {
             method: 'GET',
@@ -556,14 +559,12 @@ export function useEditRecovery(args: {
           }
         })
         if (epoch.current !== mine) return
-        if (!offer.ok) {
-          // A failed read is not a failed session: capture still works, there is simply nothing to
-          // offer back. Moving on is the right outcome — refusing to let someone work because we
-          // could not check for a backup would be a worse failure than not offering one.
-          enterPhase({ phase: 'clear' })
-          return
-        }
-        // ⚑ A capture we cannot DATE is not offered. The prompt's "Captured …" line is the whole
+        if (!offer.ok) return unchecked()
+        // The lookup succeeded, so a previous `unchecked` warning no longer applies.
+        setStatus((s) =>
+          s.kind === 'unavailable' && s.reason === 'unchecked' ? { kind: 'idle' } : s,
+        )
+        // ⚑ A capture we cannot DATE is not offered. The prompt's "Saved …" line is the whole
         // reason `capturedAt` exists, and an offer without it could only be labelled from
         // `baseUpdatedAt` — the source version's mtime — which is the exact lie the field was added
         // to remove, arriving under a malformed response where nobody would look.
@@ -580,20 +581,42 @@ export function useEditRecovery(args: {
               },
         )
       } catch {
+        unchecked()
+      }
+    },
+    [enterPhase, recoveryUrl],
+  )
+
+  const start = useCallback(() => {
+    if (session.current.started) return
+    session.current.started = true
+    const mine = epoch.current
+    setStatus({ kind: 'starting' })
+    void (async () => {
+      try {
+        if (!(await requestStart(mine))) {
+          if (epoch.current === mine) enterPhase({ phase: 'clear' })
+          return
+        }
+      } catch {
         // Same guard: a failed start from an abandoned session must not mark the CURRENT one
         // unavailable, which would tell the user their live session has no backup when it does.
         if (epoch.current !== mine) return
         enterPhase({ phase: 'clear' })
-        // ⚑ Only a failed START means no backup. A thrown or timed-out entry LOOKUP leaves a perfectly
-        // good session — the token is already installed above — so painting "unavailable" here would
-        // tell the teacher their work is not being saved when it is.
-        if (!session.current.token) setStatus({ kind: 'unavailable', reason: 'failed' })
+        setStatus({ kind: 'unavailable', reason: 'failed' })
+        return
       }
+      if (epoch.current !== mine) return
+      enterPhase({ phase: 'resolving' })
+      await lookUpEntry(mine)
     })()
-  }, [enterPhase, requestStart, recoveryUrl])
+  }, [enterPhase, requestStart, lookUpEntry])
 
   const prepareForSave = useCallback(async (): Promise<SavePlan> => {
     clearTimer()
+    // ⚑ An unresolved earlier draft is never retired by a save: send no token, so save-as-new
+    // leaves the row alone and the draft is still offered next time (audit 2026-10-17).
+    if (entryUnresolved()) return { proceed: true, token: null }
     // Drain anything already running BEFORE capturing, or the two would share an `expectedRevision`.
     //
     // ⚑ And ACT on what it returned rather than discarding it. If that write committed but its
@@ -614,7 +637,7 @@ export function useEditRecovery(args: {
     const plan = planSave(outcome, session.current.token)
     setStatus(statusForOutcome(outcome))
     return plan
-  }, [capture, clearTimer])
+  }, [capture, clearTimer, entryUnresolved])
 
   /**
    * "Save as draft": drain, capture if the screen is ahead of the server, and report whether the
@@ -631,7 +654,8 @@ export function useEditRecovery(args: {
    * an unconfirmed capture means the editor must stay open.
    */
   const keepForLater = useCallback(async (): Promise<KeepResult> => {
-    if (offerUnresolved()) return { kind: 'notKept', reason: 'failed' }
+    if (entryPhase.current === 'unchecked') return { kind: 'notKept', reason: 'unavailable' }
+    if (entryUnresolved()) return { kind: 'notKept', reason: 'failed' }
     clearTimer()
     if (inFlight.current) await inFlight.current.catch(() => undefined)
     if (!session.current.token) return { kind: 'notKept', reason: 'unavailable' }
@@ -644,7 +668,7 @@ export function useEditRecovery(args: {
     const held = session.current.token
     if (!held || !isSafe()) return { kind: 'notKept', reason: 'failed' }
     return { kind: 'kept', at: Date.parse(held.updatedAt) }
-  }, [capture, clearTimer, isSafe, offerUnresolved])
+  }, [capture, clearTimer, isSafe, entryUnresolved])
 
   /**
    * "Discard changes": drain, then retire the row with the CURRENT token.
@@ -658,6 +682,9 @@ export function useEditRecovery(args: {
    * row we are retiring. Leaving edit mode then ends the session (`endSession`).
    */
   const discardDraft = useCallback(async (): Promise<boolean> => {
+    // ⚑ An earlier draft the teacher has not seen is not ours to delete — and while the lookup has
+    // failed we cannot know one is not there. Report that a draft may remain.
+    if (entryUnresolved()) return false
     clearTimer()
     if (inFlight.current) await inFlight.current.catch(() => undefined)
     const held = session.current.token
@@ -680,7 +707,7 @@ export function useEditRecovery(args: {
     } catch {
       return false
     }
-  }, [clearTimer, recoveryUrl])
+  }, [clearTimer, recoveryUrl, entryUnresolved])
 
   const adoptToken = useCallback((next: RecoveryToken | null | undefined) => {
     if (next) session.current.token = next

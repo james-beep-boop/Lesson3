@@ -29,6 +29,13 @@
  * key) before Payload issues the DML that takes the row lock, so advisory-then-row is what every
  * other writer already does. An earlier version of this file did the opposite, which deadlocks a
  * same-user endpoint request against a concurrent PATCH. Pinned by `tests/unit/lockOrder.spec.ts`.
+ *
+ * ⚑ THE CALLER IS RE-AUTHORIZED AFTER BOTH LOCKS (audit 2026-10-17). `req.user` is the snapshot sign-in
+ * took. An administrator demoted or disabled while this request waited on either lock still carried
+ * that snapshot, and could then grant Site Administrator, disable an account or mint a reset link
+ * with `overrideAccess: true` — reproduced as a 200. `reassertSiteAdmin` re-reads the caller inside
+ * the transaction after the last wait, the same rule moderation and System Save follow (#374, #376).
+ * Pinned over the wire in `tests/http/userAdminActions.http.spec.ts`.
  */
 import {
   APIError,
@@ -50,6 +57,7 @@ import {
   assertSiteAdmin,
   json,
   readJsonBody,
+  reassertSiteAdmin,
   requireExpectedUpdatedAt,
   MAX_CONTROL_BODY_BYTES,
 } from './respond'
@@ -151,6 +159,8 @@ const revealResetLinkEndpoint: Endpoint = {
         expectedUpdatedAt,
         'This account changed since you loaded the page — reload before changing it.',
       )
+      // After the last lock that can wait — see the header.
+      await reassertSiteAdmin(req)
       if (target.signInDisabled) {
         throw new APIError(
           'This account’s sign-in is disabled — re-enable it before generating a reset link.',
@@ -244,6 +254,8 @@ function booleanSetterEndpoint(kind: 'site-admin' | 'sign-in-disabled'): Endpoin
           expectedUpdatedAt,
           'This account changed since you loaded the page — reload before changing it.',
         )
+        // After the last lock that can wait — see the header.
+        await reassertSiteAdmin(req)
 
         const data =
           kind === 'site-admin'

@@ -6,6 +6,8 @@
  * answer: two copies of "which keys are metadata" would let save-as-new's no-op guard and the
  * combine engine disagree about whether two versions differ.
  */
+import { canonicalJson } from './canonicalJson'
+import { stripIds } from './stripIds'
 
 /** Content keys NOT carried into a forked copy (identity/version metadata + Payload internals).
  *  `author` is stamped server-side from the authenticated caller — a submitted value is never trusted. */
@@ -21,10 +23,14 @@ export const DROP_KEYS = new Set([
 /** Relationship keys the server sets from the SOURCE on create (never from the submission). They
  *  carry no edit signal, and their representation varies with fetch depth (id vs populated doc), so
  *  content comparisons exclude them on both sides. */
-export const SERVER_REL_KEYS = new Set(['lessonPlan', 'subjectGrade'])
+const SERVER_REL_KEYS = new Set(['lessonPlan', 'subjectGrade'])
 
 /** The version's content keys only: everything that is neither identity metadata nor a server rel. */
 export const contentOf = (doc: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(
     Object.entries(doc).filter(([k]) => !DROP_KEYS.has(k) && !SERVER_REL_KEYS.has(k)),
   )
+
+/** The canonical form "same content" is decided on: content keys only, row ids stripped, keys sorted. */
+export const comparableContent = (doc: Record<string, unknown>): string =>
+  canonicalJson(stripIds(contentOf(doc)))

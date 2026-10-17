@@ -18,7 +18,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { merge3 } from '../../src/lib/combine/diff3.js'
+import { createMergeBudget, merge3 } from '../../src/lib/combine/diff3.js'
 import { planCombine, withoutProse } from '../../src/lib/combine/engine.js'
 import { projectCapture } from '../../src/lib/editRecovery/projection.js'
 
@@ -60,6 +60,7 @@ function content() {
     meta: { subject: 'Biology', grade: 10, substrand_name: 'Cells' },
     lessons: [0, 1].map((n) => ({
       title: `Lesson ${n + 1}`,
+      aresKeywords: `lesson ${n + 1} resources`,
       duration: '40 min',
       overview: `Overview ${n + 1}, first paragraph.\nOverview ${n + 1}, second paragraph.\nOverview ${n + 1}, third paragraph.`,
       teacherReflection: `Reflect ${n + 1}.`,
@@ -103,6 +104,29 @@ const frameworkKey = (doc: Doc, i: number) =>
   `framework:${((doc.lessons as Doc[])[i].framework as Doc[])[0].id}`
 
 describe('D — merge3, one line per paragraph', () => {
+  it('appends 150,000 inserted paragraphs without overflowing the argument stack', () => {
+    const added = Array.from({ length: 150_000 }, () => 'x').join('\n')
+    expect(merge3('one\ntwo\nthree', `one\ntwo\nthree\n${added}`, 'ONE\ntwo\nthree')).toEqual({
+      ok: true,
+      text: `ONE\ntwo\nthree\n${added}`,
+    })
+  })
+
+  it('refuses a combined output exceeding the text bound even if each input fits', () => {
+    const text = 'x'.repeat(550_000)
+    expect(merge3('one\ntwo\nthree', `${text}\ntwo\nthree`, `one\ntwo\n${text}`)).toEqual({
+      ok: false,
+    })
+  })
+
+  it('shares a finite work allowance across fields', () => {
+    const budget = createMergeBudget()
+    budget.remaining = 31 // two 4-by-4 tables need 32 cells
+    expect(merge3('one\ntwo\nthree', 'ONE\ntwo\nthree', 'one\ntwo\nTHREE', budget)).toEqual({
+      ok: false,
+    })
+  })
+
   const base = 'one\ntwo\nthree'
 
   it('edits to different paragraphs combine', () => {
@@ -287,6 +311,54 @@ describe('P4 — content only an administrator can edit', () => {
 })
 
 describe('P5 — structure, system data, and an unusable ancestor', () => {
+  it('refuses indistinguishable lessons rather than putting reordered prose in another lesson', () => {
+    const ambiguous = (c: ReturnType<typeof content>) => {
+      c.lessons.forEach((l) => {
+        l.aresKeywords = 'shared resources'
+      })
+    }
+    const base = version(ambiguous)
+    const a = version((c) => {
+      ambiguous(c)
+      c.lessons.reverse()
+    })
+    const b = version((c) => {
+      ambiguous(c)
+      c.lessons[0].teacherReflection = 'Lesson 1 edits.'
+    })
+    expect(planCombine({ base, a, b })).toMatchObject({ ok: false, refusal: 'structure' })
+  })
+
+  it('refuses lessons with distinct system identities reordered on one side', () => {
+    expect(
+      planCombine({ base: version(), a: version((c) => c.lessons.reverse()), b: version() }),
+    ).toMatchObject({ ok: false, refusal: 'structure' })
+  })
+
+  it('does not use an ancestor whose row correspondence is ambiguous', () => {
+    const base = version((c) => c.lessons.reverse())
+    const plan = ok(
+      planCombine({
+        base,
+        a: version(),
+        b: version((c) => {
+          c.lessons[0].overview = 'Edit.'
+        }),
+      }),
+    )
+    expect(plan.ancestry).toBe('two-way')
+    expect(plan.conflicts).toHaveLength(1)
+  })
+
+  it('refuses repeated teaching phases whose row correspondence is ambiguous', () => {
+    const repeated = (c: ReturnType<typeof content>) => {
+      c.lessons[0].framework.push({ ...c.lessons[0].framework[0] })
+    }
+    expect(
+      planCombine({ base: version(repeated), a: version(repeated), b: version(repeated) }),
+    ).toMatchObject({ ok: false, refusal: 'structure' })
+  })
+
   it('a different number of lessons → refused', () => {
     const a = version()
     const b = version((c) => c.lessons.push({ ...c.lessons[0], title: 'Lesson 3' }))
@@ -329,6 +401,46 @@ describe('P6 — combining a version with its own ancestor', () => {
     const plan = ok(planCombine({ base: parent, a: parent, b: child }))
     expect(plan.conflicts).toEqual([])
     expect(plan.overlay).toEqual({ [lessonKey(parent, 0)]: { overview: 'Rewritten.' } })
+  })
+})
+
+describe('Combine work bounds', () => {
+  it('turns expensive later fields into controlled conflicts after the document budget is spent', () => {
+    const prose = Array.from({ length: 700 }, (_, i) => `paragraph ${i}`).join('\n')
+    const fill = (c: ReturnType<typeof content>, side: 'base' | 'a' | 'b') => {
+      const text =
+        side === 'a'
+          ? prose.replace('paragraph 0', 'A')
+          : side === 'b'
+            ? prose.replace('paragraph 699', 'B')
+            : prose
+      c.lessons.forEach((l) => {
+        l.overview = text
+        l.teacherReflection = text
+      })
+    }
+    const plan = ok(
+      planCombine({
+        base: version((c) => fill(c, 'base')),
+        a: version((c) => fill(c, 'a')),
+        b: version((c) => fill(c, 'b')),
+      }),
+    )
+    expect(plan.changes).toHaveLength(2)
+    expect(plan.conflicts).toHaveLength(2)
+    expect(plan.conflicts.every((c) => c.reason === 'both-edited')).toBe(true)
+  })
+
+  it('refuses an oversized document before projection and merge work', () => {
+    expect(
+      planCombine({
+        base: version(),
+        a: version((c) => {
+          c.lessons[0].overview = 'x'.repeat(6_000_001)
+        }),
+        b: version(),
+      }),
+    ).toMatchObject({ ok: false, refusal: 'size' })
   })
 })
 

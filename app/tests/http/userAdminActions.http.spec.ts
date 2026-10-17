@@ -15,7 +15,19 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { MARK, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures.js'
+import { sql } from '@payloadcms/db-postgres'
+
+import {
+  createUserVerified,
+  deleteUserFixture,
+  MARK,
+  setupRoleFixture,
+  type RoleFixture,
+  type RoleKey,
+} from '../helpers/fixtures.js'
+import { clearRateLimitBuckets, drizzleOf } from '../helpers/db.js'
+import { stillPendingAfterWindow, whileLockHeld } from '../helpers/rowLocks.js'
+import { ADVISORY_LOCKS } from '../../src/lib/txDb.js'
 // `HTTP_BASE`/`url`/`login` from the shared wire helper — its own docblock records that it exists
 // because the third copy had drifted, and its `login` throws with the address and status on failure
 // (a hand-rolled one dies inside `beforeAll` on a proxy HTML page with no clue which account).
@@ -304,4 +316,74 @@ describe('admin reset-link rate limit', () => {
     expect(Number(blocked?.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1)
     expect(blocked?.headers.get('Cache-Control')).toBe('no-store')
   })
+})
+
+/**
+ * ⚑ PERMISSIONS CHANGED WHILE AN ACTION WAITS (audit 2026-10-17). Each action takes the
+ * administrator-count lock before it writes. An administrator demoted or disabled while the action
+ * waits on that lock kept the authority of the sign-in snapshot (`req.user`) and was allowed to grant
+ * Site Administrator, disable an account or mint a reset link — reproduced as a 200. The action must
+ * re-read the caller after the wait and refuse with 403, writing nothing.
+ *
+ * HOW THE CHANGE LANDS MID-WAIT, by construction rather than timing: an independent transaction holds
+ * the administrator-count lock; the request is started and proven to be blocked on it; the caller is
+ * then demoted or disabled by direct SQL — which needs no lock, so it cannot deadlock against the
+ * holder — and the lock is released. A Payload-level demotion would itself queue for the same lock.
+ */
+describe('account actions — permissions changed while waiting', () => {
+  const ACTIONS = [
+    { path: 'reveal-reset-link', extra: {} },
+    { path: 'set-site-admin', extra: { enabled: true } },
+    { path: 'set-sign-in-disabled', extra: { enabled: true } },
+  ] as const
+
+  for (const { path, extra } of ACTIONS) {
+    for (const change of ['demoted', 'disabled', 'unverified'] as const) {
+      it(`${path}: refuses an administrator ${change} while it waits, and writes nothing`, async () => {
+        const caller = await createUserVerified(fx.payload, {
+          email: `${MARK}waiting-${path}-${change}@example.test`.toLowerCase(),
+          name: `${MARK}Waiting ${path} ${change}`,
+          password: fx.password,
+          roles: ['siteAdmin'],
+        })
+        try {
+          const callerToken = await login(caller.email, fx.password)
+          const before = await freshUpdatedAt()
+          const { classifier, key } = ADVISORY_LOCKS.adminCount
+          let acting!: Promise<Response>
+          await whileLockHeld(
+            fx.payload,
+            sql`SELECT pg_advisory_xact_lock(${classifier}, ${key})`,
+            async () => {
+              acting = fetch(url(`/api/users/${targetId}/${path}`), {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `JWT ${callerToken}`,
+                },
+                body: JSON.stringify({ expectedUpdatedAt: before, ...extra }),
+              })
+              expect(await stillPendingAfterWindow(acting), 'must wait on the lock').toBe(true)
+              await drizzleOf(fx.payload).execute(
+                change === 'demoted'
+                  ? sql`DELETE FROM users_roles WHERE parent_id = ${caller.id} AND value = 'siteAdmin'`
+                  : change === 'disabled'
+                    ? sql`UPDATE users SET sign_in_disabled = true WHERE id = ${caller.id}`
+                    : sql`UPDATE users SET _verified = false WHERE id = ${caller.id}`,
+              )
+            },
+          )
+          const res = await acting
+          expect(res.status).toBe(403)
+          // Every one of these actions moves the target's `updatedAt` when it writes (the reset
+          // link included — minting a token updates the row), so an unchanged value is "nothing
+          // was written".
+          expect(await freshUpdatedAt()).toBe(before)
+        } finally {
+          await clearRateLimitBuckets(fx.payload, `login:${caller.email.toLowerCase()}`)
+          await deleteUserFixture(fx.payload, caller.id)
+        }
+      }, 30_000)
+    }
+  }
 })
