@@ -28,6 +28,8 @@ import {
   type SubjectGradeRow,
 } from '../Manage/SubjectsAndGradesPanel'
 import { UsersPanel } from '../Manage/UsersPanel'
+import { UnsavedWorkList, type UnsavedWorkItem } from '../Manage/UnsavedWorkList'
+import { listUnsavedWork } from '../../lib/editRecovery/unsavedWork'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
@@ -92,6 +94,7 @@ export default async function AdminDashboard({
     assignmentCounts,
     systemFacts,
     systemSettings,
+    unsavedWork,
   ] = await Promise.all([
     t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
     // ---- Saved versions (deletable candidates) ----
@@ -184,6 +187,10 @@ export default async function AdminDashboard({
     siteAdmin ? t.time('systemFacts', () => collectSystemFacts()) : null,
     // Never throws: a failed read renders Features as "unavailable" (`readFeaturesSettings`).
     siteAdmin ? t.time('systemSettings', () => readFeaturesSettings(payload, { user, req })) : null,
+    // ---- Your unsaved work (every role that can edit; empty for everyone else) ----
+    // The CALLER's own captures only — `listUnsavedWork` keys on `user.id` and re-applies the read
+    // and editing-access gates the restore path would. See `lib/editRecovery/unsavedWork.ts`.
+    user ? t.time('unsavedWork', () => listUnsavedWork(req, user)) : [],
   ])
   const versionDocs = versionsRes?.docs ?? []
   // Hoisted beside the other unwraps because `sgById` below reads it for a Site Admin — see wave 2.
@@ -334,6 +341,16 @@ export default async function AdminDashboard({
     month: 'short',
     year: 'numeric',
   })
+  const unsavedRows: UnsavedWorkItem[] = unsavedWork.map((w) => ({
+    versionId: w.versionId,
+    label: w.label,
+    semver: w.semver,
+    sgLabel: w.sgLabel,
+    capturedOn: dateFmt.format(new Date(w.capturedAt)),
+    keptUntil: dateFmt.format(new Date(w.keptUntil)),
+    restorable: w.restorable,
+    token: w.token,
+  }))
   const candidates: CandidateRow[] = versionDocs.flatMap((v) => {
     // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
     // ⚑ Fails CLOSED on an unresolvable plan. The previous version read the POPULATED plan and
@@ -548,6 +565,10 @@ export default async function AdminDashboard({
           role-dependent: a Site Admin sees Users, Curriculum, Lesson plans and System, and previously
           also saw a Candidate versions box — but only while candidates existed (`showSaved`). Every
           fixed count this comment has carried has gone stale, most recently by forgetting System. */}
+      {/* Above the accordion, and only when non-empty — see the ⚑ in UnsavedWorkList for why this is
+          not a panel. */}
+      <UnsavedWorkList rows={unsavedRows} />
+
       <AccordionProvider available={availablePanels} initialOpen={serverOpen} initialAt={serverAt}>
         {(siteAdmin || canSeeRolesAccess) && (
           <AccordionPanel id="users" title="Users">

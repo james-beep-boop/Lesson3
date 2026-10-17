@@ -1,7 +1,8 @@
 /**
- * Edit-recovery endpoints over the WIRE — SIX operations across FOUR URL paths (design §2's table
- * lists five rows; it bundles metadata and cleanup). The wire-authz rule counts OPERATIONS, which is
- * why this file runs its matrix six times and not four or five.
+ * Edit-recovery endpoints over the WIRE — SEVEN operations across FIVE URL paths (design §2's table
+ * lists five rows; it bundles metadata and cleanup, and predates op 7, the delete warning's count,
+ * added 2026-10-17). The wire-authz rule counts OPERATIONS, which is why this file runs its matrix
+ * seven times.
  *
  * CLAUDE.md's standing rule is that a custom endpoint ships with wire-level 401/403/404 plus happy
  * path in the same PR, because these handlers authorize the caller and then write with
@@ -16,6 +17,8 @@
  *   S4  cleanup is Site-Admin-only AND carries a revision, so a capture that changed between
  *       looking and acting is refused
  *   S5  a malformed `document` is refused AND the previously captured prose survives it
+ *   S6  op 7 discloses COUNTS only, only to someone allowed to delete the version, and separates the
+ *       caller from everyone else
  *
  * ⚑ **What this file deliberately does NOT own.** The body guards themselves — `requireDocument`,
  * `requireCounter` and the `Content-Length` ceiling — are pure HTTP semantics and are unit tested in
@@ -103,7 +106,7 @@ afterAll(async () => {
 })
 
 /**
- * The six operations, as data. Each row is one operation; every one owes 401 and wrong-role, which is
+ * The seven operations, as data. Each row is one operation; every one owes 401 and wrong-role, which is
  * the rule's actual unit — an earlier reading of the design counted five, because §2's table bundles
  * metadata and cleanup on a single line.
  */
@@ -164,6 +167,16 @@ const OPERATIONS: {
     allowed: 'siteAdmin',
     denied: { as: 'editor', status: 403 },
     payload: { userId: 1, expectedRevision: 1 },
+  },
+  {
+    name: '7 GET /recovery/unsaved-count',
+    path: '/recovery/unsaved-count',
+    method: 'GET',
+    // Gated on DELETE permission. `sharedVersionId` has no author, so the teacher with editing access
+    // may not delete it — the denial is the editing-access holder, not only the plain Teacher, which
+    // proves the gate is the delete rule and not the edit rule.
+    allowed: 'subjectAdmin',
+    denied: { as: 'editor', status: 403 },
   },
 ]
 
@@ -449,5 +462,75 @@ describe('recovery endpoints: the guarantees a status-code matrix cannot see', (
 
     const gone = (await (await call(v, '/recovery', 'GET', 'editor')).json()) as { capture: null }
     expect(gone.capture, 'the admin retired it').toBeNull()
+  })
+})
+
+/**
+ * S6 — op 7, the count behind the delete confirmations' warning (SPEC §5, "Keep for later").
+ *
+ * The matrix above proves the gate runs. These prove what crosses it: two numbers and nothing else,
+ * the delete rule's author path (a teacher with editing access deleting their OWN version), and the
+ * caller kept apart from everyone else.
+ */
+describe('S6 — op 7 discloses counts, only to someone who may delete', () => {
+  /** A version AUTHORED by the editor, so the author path of the delete rule applies. */
+  async function makeAuthoredVersion(semver: string): Promise<number> {
+    const v = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver,
+        author: fx.users.editor.id,
+        title: `${MARK}HTTP-${semver}`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    return v.id
+  }
+
+  async function keepWorkAs(versionId: number, as: RoleKey) {
+    const t = await startAs(versionId, as)
+    const res = await call(versionId, '/recovery', 'POST', as, {
+      generation: t.generation,
+      expectedRevision: t.revision,
+      document: { lessons: [{ id: 'L1', title: `kept by ${as}` }] },
+    })
+    expect(res.status, 'fixture: capture must succeed').toBe(200)
+  }
+
+  const countAs = async (versionId: number, as: RoleKey) => {
+    const res = await call(versionId, '/recovery/unsaved-count', 'GET', as)
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> }
+  }
+
+  it('an empty version: zero, and the body is exactly the two counts', async () => {
+    const v = await makeAuthoredVersion('2.7.1')
+    const { status, body } = await countAs(v, 'subjectAdmin')
+    expect(status).toBe(200)
+    expect(body).toEqual({ otherUsers: 0, includesCaller: false })
+  })
+
+  it('separates the caller from everyone else, and names nobody', async () => {
+    const v = await makeAuthoredVersion('2.7.2')
+    await keepWorkAs(v, 'editor')
+    await keepWorkAs(v, 'subjectAdmin')
+
+    const admin = await countAs(v, 'siteAdmin')
+    expect(admin.body).toEqual({ otherUsers: 2, includesCaller: false })
+    // The author path: a teacher with editing access may delete their own version, so may ask.
+    const author = await countAs(v, 'editor')
+    expect(author.status).toBe(200)
+    expect(author.body).toEqual({ otherUsers: 1, includesCaller: true })
+    expect(Object.keys(author.body).sort()).toEqual(['includesCaller', 'otherUsers'])
+  })
+
+  it('a plain Teacher is refused even where unsaved work exists', async () => {
+    const v = await makeAuthoredVersion('2.7.3')
+    await keepWorkAs(v, 'editor')
+    const { status, body } = await countAs(v, 'teacher')
+    expect(status).toBe(403)
+    expect(body).not.toHaveProperty('otherUsers')
   })
 })

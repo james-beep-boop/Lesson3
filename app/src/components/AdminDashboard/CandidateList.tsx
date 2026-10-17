@@ -16,6 +16,7 @@ import { Button, toast, useConfig } from '@payloadcms/ui'
 import { apiBaseFrom } from '../../lib/apiBase'
 import { matchesTokenAnd, tokenise } from '../../lib/substrand'
 import CompareToOfficialLink from '../CompareToOfficialLink'
+import { unsavedWorkWarning } from '../EditRecovery/unsavedWarning'
 
 export interface CandidateRow {
   id: number
@@ -70,8 +71,15 @@ export function CandidateList({
 
   const onDelete = async (row: CandidateRow) => {
     if (busyId != null) return
-    if (!window.confirm(`Delete “${row.label}” v${row.semver}? This cannot be undone.`)) return
+    // Held across the warning lookup, so a second click cannot open a second confirmation.
     setBusyId(row.id)
+    // Deleting a version discards the unsaved work kept on it (SPEC §5) — say so when there is some.
+    const warning = await unsavedWorkWarning(row.id, { apiBase })
+    const question = `Delete “${row.label}” v${row.semver}? This cannot be undone.`
+    if (!window.confirm(warning ? `${question}\n\n${warning}` : question)) {
+      setBusyId(null)
+      return
+    }
     try {
       const res = await fetch(`${apiBase}/lesson-bundle-versions/${row.id}`, {
         method: 'DELETE',

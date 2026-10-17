@@ -80,7 +80,8 @@ export function EditRecoveryIndicator({ status }: { status: RecoveryStatus }) {
         return [
           'warn',
           status.reason === 'atCapacity'
-            ? 'Backup unavailable: too many lesson plans open with unsaved changes'
+            ? // Names the way out: Manage lists every capture counted against the cap.
+              'Backup unavailable: too many lesson plans have unsaved changes. Save or discard some under Your unsaved work in Manage.'
             : 'Backup unavailable — your changes are not being saved automatically',
         ]
       case 'notBackedUp':

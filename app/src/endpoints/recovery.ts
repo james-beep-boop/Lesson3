@@ -1,5 +1,5 @@
 /**
- * Edit-recovery endpoints — **SIX operations across FOUR URL paths**, mounted on
+ * Edit-recovery endpoints — **SEVEN operations across FIVE URL paths**, mounted on
  * `lesson-bundle-versions` beside `/:id/preview` and `/:id/save-as-new`.
  *
  * ⚑ Three counts describe this surface and they are all different, so state which one you mean.
@@ -17,6 +17,13 @@
  * | 4 | `DELETE /:id/recovery`   (discard)   | editing access      | 401    | 404        |
  * | 5 | `GET    /:id/recovery/meta`          | Site Admin  | 401    | 403        |
  * | 6 | `POST   /:id/recovery/meta/cleanup`  | Site Admin  | 401    | 403        |
+ * | 7 | `GET    /:id/recovery/unsaved-count` | may delete  | 401    | 403        |
+ *
+ * ⚑ Op 7 (added 2026-10-17) is not part of design §2's table: it feeds the delete confirmations'
+ * warning that deleting a version discards other people's unsaved work (SPEC §5, "Keep for later").
+ * It returns COUNTS only, and only to a caller allowed to delete that version — the one audience
+ * for whom the number changes a decision. 403 rather than 404 for the same reason as ops 5-6: every
+ * signed-in user may read a version, so its existence is not the secret.
  *
  * **404 vs 403 is deliberate.** Ops 1-4 give a non-editor 404, matching `previewVersion`: a 403 would
  * confirm the version exists to someone with no read access to it. Ops 5-6 give 403 — the caller is a
@@ -46,11 +53,13 @@
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isEditorFor, isSiteAdmin, toId } from '../access'
+import { canDeleteVersionDoc } from '../access/versioning'
 import { findReadableVersion } from '../lib/readBundle'
 import { relId } from '../lib/relId'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import {
   capture,
+  countUnsavedWorkOnVersion,
   readActiveCapture,
   readCaptureMetadata,
   retire,
@@ -144,7 +153,7 @@ export const recoveryStartEndpoint: Endpoint = {
           errors: [
             {
               message:
-                'You have too many lesson plans open with unsaved changes. Save or discard one, then try again.',
+                'You have too many lesson plans with unsaved changes. Save or discard one under Your unsaved work in Manage, then try again.',
             },
           ],
           reason: result.reason,
@@ -178,7 +187,7 @@ export const recoveryCaptureEndpoint: Endpoint = {
     if (result.ok) return json({ token: result.token })
     if (result.reason === 'too-large') {
       return json(
-        { errors: [{ message: 'This draft is too large to back up.' }], bytes: result.bytes },
+        { errors: [{ message: 'These changes are too large to back up.' }], bytes: result.bytes },
         413,
       )
     }
@@ -294,6 +303,35 @@ export const recoveryCleanupEndpoint: Endpoint = {
   },
 }
 
+/**
+ * 7. How many people would lose unsaved work if this version were deleted — counts, never names.
+ *
+ * Gated on `canDeleteVersionDoc`, the per-document form of the delete access, so only someone who
+ * could act on the warning sees it. It does not repeat the Official-not-deletable rule: the number is
+ * advisory, and the delete itself remains the authority on whether deletion happens.
+ */
+export const recoveryUnsavedCountEndpoint: Endpoint = {
+  path: '/:id/recovery/unsaved-count',
+  method: 'get',
+  handler: async (req) => {
+    if (!req.user) throw new APIError('Unauthorized', 401)
+    const version = await findReadableVersion(req.payload, {
+      id: versionId(req),
+      user: req.user as User,
+      req,
+    })
+    if (!version) throw new APIError('Version not found', 404)
+    if (!canDeleteVersionDoc(req.user as User, version)) {
+      throw new APIError('Only someone who may delete this version can see this.', 403)
+    }
+    const counts = await countUnsavedWorkOnVersion(req, {
+      sourceVersionId: version.id,
+      callerId: (req.user as User).id,
+    })
+    return json(counts)
+  },
+}
+
 export const recoveryEndpoints: Endpoint[] = [
   recoveryStartEndpoint,
   recoveryCaptureEndpoint,
@@ -301,4 +339,5 @@ export const recoveryEndpoints: Endpoint[] = [
   recoveryDiscardEndpoint,
   recoveryMetaEndpoint,
   recoveryCleanupEndpoint,
+  recoveryUnsavedCountEndpoint,
 ]

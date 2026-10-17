@@ -11,6 +11,47 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-17 — Keep for later instead of a drafts store; Combine versions approved
+
+**Question (operator):** can a teacher with editing access save work for later without making a new
+version each time, and can two divergent versions (1.0.1, 1.0.2) be combined into 1.0.3?
+
+**Keep for later — decided and built.** Edit recovery already kept unsaved work on the server, across
+devices, for 30 days; what was missing was a deliberate way to put work aside and a way to find it
+again. Built: a *Keep for later* editor button, *Your unsaved work* on Manage, the kept-until date, and
+a warning on the four version-delete paths. Rejected: a separate `Drafts` collection (proposed in an
+earlier planning session). Two reasons, both already in SPEC §5: "draft" is reserved for a saved
+version, and a full-snapshot store would carry admin/system fields — the second, weaker channel that
+section forbids. Operator confirmed the 30-day retention.
+
+Decisions worth keeping:
+
+- **Keep for later leaves the editor only on a server-confirmed `isSafe()`**, not on the capture's
+  outcome — typing during the flush makes a successful capture stale. A transport failure is NOT
+  tolerated here, unlike Save's flush: Save writes a version, Keep for later has no other copy.
+  Administrators confirm first, because only prose is captured.
+- **The list is not an accordion panel.** A second child under Lesson plans would defeat
+  `initialOpen`'s lone-child rule and put a teacher's saved versions behind a click. It sits above the
+  accordion and renders only when non-empty.
+- **The list re-applies the restore path's refusals** (readable version, current editing access), so it
+  never offers a row the editor would turn away. Server-rendered from the session user — no listing
+  endpoint.
+- **The delete warning is a new, bounded disclosure** (`GET /:id/recovery/unsaved-count`): counts only,
+  only to a caller for whom `canDeleteVersionDoc` holds, fail-open. Until now only Site Admins could
+  learn that another user had a capture. Whole-plan deletion is not covered.
+- **Save locks the form BEFORE the warning lookup.** The lookup awaits; locking first keeps the
+  existing "locked on the click" guarantee (`lessonControlsSave.spec.tsx`) and makes a second click
+  inert, rather than weakening that test to fit.
+- In passing: the capture endpoint's 413 said "This draft is too large to back up" — a reserved-word
+  violation on a user-visible string. Now "These changes are too large to back up."
+
+**Combine versions — approved, specified, not built.** Operator decisions: build it; a Teacher with
+editing access may combine; the UI says "Combine versions". Design in SPEC §6. The points that
+correct the earlier planning session's design: row ids are regenerated on every save, so rows cannot
+be paired by id (positional after a shape check); `sourceVersion` is nulled on delete, so ancestry
+needs a delete-proof lineage; never auto-commit; paragraph-level, not character-level, merging; and
+a combine is an edit session saved through the existing `save-as-new`, not a second write path.
+
 ## 2026-10-16 — Eight post-v0.96 audit findings corrected
 
 GPT-assisted audit of commits c1f250b→827c245 found eight defects. All fixed in 1252e07 (initial

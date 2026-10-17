@@ -10,6 +10,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Keep for later: the editor's new *Keep for later* button stores unsaved changes without saving a
+  version, confirms they are stored, and closes the editor. *Manage → Your unsaved work* lists kept
+  changes with their kept-until date (30 days), *Resume* and *Discard*. Deleting a version now warns
+  when it would discard someone's unsaved changes (a count only, shown to people who may delete it).
+  No migration. SPEC §5 "Keep for later"; DECISIONS 2026-10-17.
+- Combine versions is approved and specified (SPEC §6); not yet built.
+
 - Retire the completed one-off v0.95 publication job; future releases use the normal tag publisher.
 
 - Subject/grade forms and the upload chooser fit narrow phone screens, while preserving the compact

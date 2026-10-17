@@ -130,6 +130,16 @@ export type RecoveryEntry =
       anchors: { key: string; heading: string }[]
     }
 
+/**
+ * What "Keep for later" found (SPEC §5, 2026-10-17).
+ *
+ * `kept` carries the moment of the server-CONFIRMED capture, which is what the editor states back to
+ * the teacher and what the 30-day retention runs from. `notKept` means the work on screen is not
+ * known to be stored, so the editor must stay open with it — leaving would clear the screen.
+ */
+export type KeepResult =
+  { kind: 'kept'; at: number } | { kind: 'notKept'; reason: 'unavailable' | 'conflict' | 'failed' }
+
 export type UseEditRecovery = {
   status: RecoveryStatus
   entry: RecoveryEntry
@@ -137,6 +147,11 @@ export type UseEditRecovery = {
   start: () => void
   /** Pause, drain, capture, and report how the save should proceed. */
   prepareForSave: () => Promise<SavePlan>
+  /**
+   * Make sure the work on screen is stored, without saving a version — the "Keep for later" button.
+   * Resolves `kept` only when the server has confirmed THIS content.
+   */
+  keepForLater: () => Promise<KeepResult>
   /** Adopt the token a successful save-as-new returned (retirement advances it one last time). */
   adoptToken: (token: RecoveryToken | null | undefined) => void
   /** Dismiss the offer and begin editing, leaving the capture untouched. */
@@ -596,6 +611,36 @@ export function useEditRecovery(args: {
     return plan
   }, [capture, clearTimer])
 
+  /**
+   * "Keep for later": drain, capture if the screen is ahead of the server, and report whether the
+   * work on screen is now stored.
+   *
+   * ⚑ The verdict is `isSafe()`, not the capture's outcome. They differ when the teacher types while
+   * the flush is in flight: the capture succeeds, but of the content before that keystroke, and the
+   * editor is about to clear the screen. `isSafe` compares the confirmed snapshot with what is on
+   * screen NOW, which is the question the caller is about to act on — the same reason the pre-expiry
+   * flush asks it.
+   *
+   * Unlike `prepareForSave`, a transport failure is NOT tolerated here. Save proceeds without the
+   * backup because the version it writes is the durable copy; Keep for later has no other copy, so
+   * an unconfirmed capture means the editor must stay open.
+   */
+  const keepForLater = useCallback(async (): Promise<KeepResult> => {
+    if (offerUnresolved()) return { kind: 'notKept', reason: 'failed' }
+    clearTimer()
+    if (inFlight.current) await inFlight.current.catch(() => undefined)
+    if (!session.current.token) return { kind: 'notKept', reason: 'unavailable' }
+    if (!isSafe()) {
+      setStatus({ kind: 'saving' })
+      const outcome = await capture()
+      setStatus(statusForOutcome(outcome))
+      if (outcome.kind === 'conflict') return { kind: 'notKept', reason: 'conflict' }
+    }
+    const held = session.current.token
+    if (!held || !isSafe()) return { kind: 'notKept', reason: 'failed' }
+    return { kind: 'kept', at: Date.parse(held.updatedAt) }
+  }, [capture, clearTimer, isSafe, offerUnresolved])
+
   const adoptToken = useCallback((next: RecoveryToken | null | undefined) => {
     if (next) session.current.token = next
   }, [])
@@ -752,6 +797,7 @@ export function useEditRecovery(args: {
     entry: active ? entry : { phase: 'idle' },
     start,
     prepareForSave,
+    keepForLater,
     adoptToken,
     keepOffer,
     discardOffer,

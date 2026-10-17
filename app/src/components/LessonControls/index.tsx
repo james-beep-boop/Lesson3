@@ -6,11 +6,13 @@
  * disabled lifecycle button ever shows:
  *
  *   view mode:  Viewing: <title> [Official] │ [Edit] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
- *   edit mode:  Editing: <title> [Official] │ [Save · Cancel] · [Insert link] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
+ *   edit mode:  Editing: <title> [Official] │ [Save · Keep for later · Cancel] · [Insert link] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
  *
  * Read-only by default through the collection's edit-mode styling; "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
- * the Official pointer) and opens it. "Cancel" reverts unsaved changes and re-locks. "Quick preview"
+ * the Official pointer) and opens it. "Keep for later" confirms the edit-recovery backup holds what
+ * is on screen, then re-locks without saving a version (SPEC §5). "Cancel" reverts unsaved changes
+ * and re-locks. "Quick preview"
  * (fast mammoth HTML, structure only) and "Formatted PDF" (the accurate DOCX→PDF rendering — cached
  * export PDF when pristine, generated from the live form when there are unsaved edits) both act on
  * the current form state. The old Download button + kind checkboxes were removed 2026-07-15: they
@@ -51,7 +53,9 @@ import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
 import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
 import { applyCapture, projectCapture } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
-import { useEditRecovery } from '../EditRecovery/useEditRecovery'
+import { useEditRecovery, type KeepResult } from '../EditRecovery/useEditRecovery'
+import { unsavedWorkWarning } from '../EditRecovery/unsavedWarning'
+import { captureKeptUntil } from '../../lib/editRecovery/ttl'
 // The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
 import type { RecoveryToken } from '../EditRecovery/protocol'
 import Modal from '../Modal'
@@ -72,6 +76,26 @@ async function errorMessage(res: Response, label: string): Promise<string> {
   const body = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
   return body.errors?.[0]?.message || `${label} failed (${res.status})`
 }
+
+/** Append an unsaved-work warning to a confirmation, or leave it as it was. */
+const withWarning = (question: string, warning: string): string =>
+  warning ? `${question}\n\n${warning}` : question
+
+/** Why "Keep for later" stayed in the editor. Each names what the teacher can do next. */
+const KEEP_FAILED: Record<Extract<KeepResult, { kind: 'notKept' }>['reason'], string> = {
+  unavailable:
+    'Your changes could not be kept because backup is not available right now. Save them as a version instead, or keep this page open.',
+  conflict:
+    'Your unsaved work changed in another tab. Reload before continuing, so newer changes are not lost.',
+  failed:
+    'Your changes could not be backed up just now, so they are still on screen. Try again in a moment, or save them as a version.',
+}
+
+const keptDateFmt = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
 
 export default function LessonControls({
   flags,
@@ -102,6 +126,7 @@ export default function LessonControls({
   // ?edit=1 load.
   const [editIntent, setEditIntent] = useState<boolean>(() => searchParams.get('edit') === '1')
   const [saving, setSaving] = useState(false)
+  const [keeping, setKeeping] = useState(false)
   const saveInFlight = useRef(false)
   useEffect(() => {
     return () => {
@@ -120,6 +145,9 @@ export default function LessonControls({
   const [helpOpen, setHelpOpen] = useState(false)
   const [tooNarrow, setTooNarrow] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  // A GOOD outcome to report — "Keep for later" succeeded. Separate from `msg`, which renders as a red
+  // alert: telling a teacher their work is safe in the error colour reads as the opposite.
+  const [notice, setNotice] = useState<string | null>(null)
 
   // Every visit starts compact, even when Payload has an older per-user "Show All" preference.
   // `initCollapsed` remains the no-flash first-render default; this once-per-document form-state
@@ -415,6 +443,7 @@ export default function LessonControls({
     clearActiveLinkTarget()
     setEditIntent(true)
     setMsg(null)
+    setNotice(null)
   }
 
   const onToggleDetails = () => {
@@ -438,22 +467,80 @@ export default function LessonControls({
     setMsg(null)
   }
 
+  /**
+   * "Keep for later" (SPEC §5, 2026-10-17): store the work on screen without saving a version, then
+   * leave edit mode. Edit recovery already backs up as you type; this is the explicit, confirmed
+   * version of that, so a teacher knows it is safe to walk away.
+   *
+   * ⚑ The screen is cleared ONLY after the server confirms this exact content (`keepForLater`
+   * resolves `kept` from `isSafe()`). Any other answer leaves the editor open with the work in it —
+   * clearing on an unconfirmed backup would delete the only copy.
+   *
+   * ⚑ Administrators are asked first, because recovery holds prose only (SPEC §5): structural
+   * changes and answer keys would be dropped when the form resets, and silently losing them is the
+   * outcome the role-aware indicator exists to prevent.
+   */
+  const onKeepForLater = async () => {
+    if (keeping || saving || saveInFlight.current || recoveryGate || !editing) return
+    if (
+      canEditStructure &&
+      !window.confirm(
+        'Only your wording is kept for later. Changes to lessons, phases, durations, rubrics and answer keys are not, and will be discarded.\n\nKeep your wording for later?',
+      )
+    ) {
+      return
+    }
+    // Locked like Save, for the same reason: a keystroke during the flush would make the confirmed
+    // capture older than the screen, and `keepForLater` would rightly refuse — so prevent the race
+    // rather than report it.
+    flushSync(() => {
+      setKeeping(true)
+      setProcessing(true)
+    })
+    setMsg(null)
+    setNotice(null)
+    const result = await recovery.keepForLater()
+    setProcessing(false)
+    setKeeping(false)
+    if (result.kind !== 'kept') {
+      setMsg(KEEP_FAILED[result.reason])
+      return
+    }
+    void reset(savedDocumentData ?? {})
+    clearActiveLinkTarget()
+    setEditIntent(false)
+    setNotice(
+      `Your changes are kept until ${keptDateFmt.format(captureKeptUntil(result.at))}. ` +
+        'Press Edit to continue, or find them in Manage under Your unsaved work.',
+    )
+  }
+
   const onSave = async () => {
-    if (saveInFlight.current || saving || recoveryGate || !editing) return
-    // Decide up front whether to also delete the version being edited — offered only for a deletable
-    // (non-Official) candidate the CALLER may delete (`canDelete`, computed above; the server re-gates
-    // in save-as-new). Asking before the request lets save-as-new create + delete atomically.
-    const deleteSource =
-      canDelete && window.confirm(`Save your edits as a new version and delete ${versionPhrase}?`)
+    if (saveInFlight.current || saving || keeping || recoveryGate || !editing) return
     saveInFlight.current = true
     // Unlike setDisabled, processing disables native fields AND array mutation controls.
     // Flush before taking the snapshot or awaiting recovery, so no keystroke can race the lock.
+    // ⚑ Also before the unsaved-work lookup below (2026-10-17): that awaits, and the lock is what
+    // keeps the form still — and a second click inert — while it does.
     flushSync(() => {
       setSaving(true)
       setProcessing(true)
     })
     setMsg(null)
     try {
+      // Decide up front whether to also delete the version being edited — offered only for a
+      // deletable (non-Official) candidate the CALLER may delete (`canDelete`, computed above; the
+      // server re-gates in save-as-new). Asking before the request lets save-as-new create + delete
+      // atomically. The caller's own backup is retired by this save, so only OTHER people's unsaved
+      // work is counted.
+      const deleteSource =
+        canDelete &&
+        window.confirm(
+          withWarning(
+            `Save your edits as a new version and delete ${versionPhrase}?`,
+            await unsavedWorkWarning(id ?? '', { countCaller: false }),
+          ),
+        )
       const snapshot = JSON.stringify(currentContent())
       // ⚑ Flush BEFORE saving, and let the flush decide whether the save may proceed at all
       // (design §5). The two failure kinds are not alike: a transport failure still saves — the
@@ -519,9 +606,12 @@ export default function LessonControls({
     if (saving) return
     if (
       !window.confirm(
-        // Version FIRST, title second: the title is shared by every version of the plan, so leading
-        // with it was the least informative thing the dialog could say.
-        `Delete ${versionPhrase}${title ? ` of “${title}”` : ''}? This cannot be undone.`,
+        withWarning(
+          // Version FIRST, title second: the title is shared by every version of the plan, so
+          // leading with it was the least informative thing the dialog could say.
+          `Delete ${versionPhrase}${title ? ` of “${title}”` : ''}? This cannot be undone.`,
+          await unsavedWorkWarning(id ?? ''),
+        ),
       )
     ) {
       return
@@ -710,12 +800,34 @@ export default function LessonControls({
                 buttonStyle="primary"
                 size="small"
                 onClick={onSave}
-                disabled={saving || !modified}
+                disabled={saving || keeping || !modified}
                 tooltip={!saving && !modified ? 'No changes to save' : undefined}
               >
                 {saving ? 'Saving…' : 'Save'}
               </Button>
-              <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={saving}>
+              {/* Between Save and Cancel: the three ways out of an edit session, in order of how much
+                  they keep. Disabled on a pristine form like Save — there is nothing to keep. */}
+              <Button
+                buttonStyle="secondary"
+                size="small"
+                onClick={() => void onKeepForLater()}
+                disabled={saving || keeping || !modified || recovery.status.kind === 'unavailable'}
+                tooltip={
+                  recovery.status.kind === 'unavailable'
+                    ? 'Backup is not available right now'
+                    : !modified
+                      ? 'No changes to keep'
+                      : 'Keep your changes without saving a version, and come back to them later'
+                }
+              >
+                {keeping ? 'Keeping…' : 'Keep for later'}
+              </Button>
+              <Button
+                buttonStyle="secondary"
+                size="small"
+                onClick={onDiscard}
+                disabled={saving || keeping}
+              >
                 Cancel
               </Button>
             </>
@@ -841,6 +953,11 @@ export default function LessonControls({
             This opens in a new tab. Close that tab to return to your edits.
           </span>
         )}
+        {notice ? (
+          <span role="status" className="lesson-controls__status lesson-controls__notice">
+            {notice}
+          </span>
+        ) : null}
         {msg ? (
           <span role="alert" className="lesson-controls__msg">
             {msg}

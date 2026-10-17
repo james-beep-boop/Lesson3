@@ -22,6 +22,7 @@ import type { PayloadRequest } from 'payload'
 
 import { rowsOf, toPositiveInt, txDb } from '../txDb'
 import { projectCapture } from './projection'
+import { CAPTURE_TTL_DAYS } from './ttl'
 
 /** What every advancing write returns, and what the client must adopt (§4's token rule). */
 export type RecoveryToken = {
@@ -357,8 +358,8 @@ export const retire = async (
   return row ? { ok: true, token: tokenOf(row) } : { ok: false, reason: 'conflict' }
 }
 
-/** SPEC §5: captures are retained 30 days from last touch. */
-export const CAPTURE_TTL_DAYS = 30
+/** SPEC §5: captures are retained 30 days from last touch. Defined in `./ttl` so the client can share it. */
+export { CAPTURE_TTL_DAYS }
 
 /** Bounded per run, so one job cannot hold a connection open across an unbounded backlog. */
 export const EXPIRY_BATCH_LIMIT = 500
@@ -578,4 +579,86 @@ export const readCaptureMetadata = async (
     updatedAt: new Date(String(row.updated_at)).toISOString(),
     bytes: Number(row.bytes ?? 0),
   }))
+}
+
+/**
+ * The one definition of "this row holds unsaved work": active, and with captured prose in it.
+ *
+ * ⚑ `retired_at IS NULL` alone is not enough. `start` creates an active row with `content` NULL the
+ * moment a teacher presses Edit, before they type anything — so an active row is a SESSION, not
+ * necessarily work. Listing those would offer "Resume" on something with nothing to resume, and the
+ * delete warning would warn about losing nothing. `'{}'` is excluded for the same reason: it is a
+ * capture of a document with no prose leaves, which restores nothing (`offerKind` treats it as none).
+ */
+const holdsUnsavedWork = sql`retired_at IS NULL AND content IS NOT NULL AND content <> '{}'::jsonb`
+
+/** One of the caller's own captures, for the Manage list. ⚑ Deliberately has NO `content` field. */
+export type OwnCapture = {
+  sourceVersionId: number
+  token: RecoveryToken
+  /** The source's `updatedAt` when the session began — a mismatch means view/copy only. */
+  baseUpdatedAt: string
+  schemaVersion: string
+}
+
+/**
+ * Every capture holding unsaved work for ONE user, newest first — "Your unsaved work" on Manage.
+ *
+ * ⚑ The user id is a parameter the CALLER must take from the session, exactly as the endpoints do;
+ * there is no variant that lists anyone else's. The content column is not selected: the list shows
+ * where the work is and when it was backed up, and the prose stays behind the restore prompt, which
+ * re-authorizes on every read.
+ *
+ * Bounded by `MAX_ACTIVE_CAPTURES` in practice (the cap is approximate, so this does not rely on it).
+ */
+export const listOwnCaptures = async (
+  req: PayloadRequest,
+  args: { userId: number },
+): Promise<OwnCapture[]> => {
+  const db = await txDb(req)
+  const rows = rowsOf(
+    await db.execute(sql`
+      SELECT source_version_id, generation, revision, updated_at, base_updated_at, schema_version
+      FROM edit_recovery
+      WHERE user_id = ${args.userId}
+        AND ${holdsUnsavedWork}
+      ORDER BY updated_at DESC
+    `),
+  )
+  return rows.map((row) => ({
+    sourceVersionId: toPositiveInt(row.source_version_id),
+    token: tokenOf(row),
+    baseUpdatedAt: new Date(String(row.base_updated_at)).toISOString(),
+    schemaVersion: String(row.schema_version),
+  }))
+}
+
+/**
+ * Who would lose unsaved work if this version were deleted — as COUNTS, never identities.
+ *
+ * Deleting a version cascades its recovery rows away (SPEC §5), so the delete confirmations use this
+ * to warn first. `otherUsers` excludes the caller; `includesCaller` says whether the caller's own
+ * work is among it, because the Delete button can be pressed by someone holding a capture too.
+ *
+ * ⚑ A count is the whole disclosure, and it goes only to someone allowed to delete the version (the
+ * endpoint's gate). Names, timestamps and content are not selected.
+ */
+export const countUnsavedWorkOnVersion = async (
+  req: PayloadRequest,
+  args: { sourceVersionId: number; callerId: number },
+): Promise<{ otherUsers: number; includesCaller: boolean }> => {
+  const db = await txDb(req)
+  const row = rowsOf(
+    await db.execute(sql`
+      SELECT COUNT(*) FILTER (WHERE user_id <> ${args.callerId}) AS others,
+             BOOL_OR(user_id = ${args.callerId}) AS mine
+      FROM edit_recovery
+      WHERE source_version_id = ${args.sourceVersionId}
+        AND ${holdsUnsavedWork}
+    `),
+  )[0]
+  return {
+    otherUsers: Number(row?.others ?? 0),
+    includesCaller: row?.mine === true,
+  }
 }

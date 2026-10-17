@@ -399,6 +399,39 @@ observable contract, and a failed or backed-off capture must say so rather than 
   retirement/cleanup operation (for "this teacher's capture is stuck"), served by the same
   content-free endpoint. There is no admin read bypass for capture content.
 
+#### Keep for later (decided 2026-10-17)
+
+Operator question: can a teacher put work aside without saving a version each time? Edit recovery
+already keeps unsaved work on the server, across devices, for 30 days — so the answer is to make
+that **visible and deliberate**, not to add a second store. ⚑ **No "drafts" collection**: the word is
+reserved (above), and a full-snapshot store would carry admin and system fields, which is the
+"second, weaker channel" this section forbids. Four additions, no schema change:
+
+- **"Keep for later" in the editor**, between Save and Cancel. It flushes the capture and leaves edit
+  mode **only after the server confirms the content on screen** (the same `isSafe` test the pre-expiry
+  flush uses); on any other outcome the editor stays open with the work in it, because leaving clears
+  the screen. Unlike Save, a transport failure is not tolerated — there is no other copy. Disabled on
+  a pristine form. An administrator is asked first, because only prose is captured and structural or
+  answer-key changes would be discarded.
+- **"Your unsaved work" on Manage**: the caller's own captures that hold work (active, non-empty),
+  with version, subject-grade, last backup date and **kept-until date** (last write + 30 days, the date
+  the nightly expiry honours), plus Resume (opens the editor, where the existing restore prompt takes
+  over) and Discard (the existing discard endpoint, with the rendered precondition). Rows are listed
+  only where the restore path would accept them: the version is readable and the caller still has
+  editing access. Shown above the accordion and only when non-empty — not a panel, so a teacher's
+  Manage page still opens straight onto their saved versions. Server-rendered from the session user;
+  no listing endpoint.
+- **The 30-day retention is stated** wherever work is kept (the editor's confirmation, the Manage
+  rows). It is unchanged (operator confirmed 30 days, 2026-10-17).
+- **Deleting a version warns when it discards unsaved work.** The parent cascade removes captures
+  with their version, so the four deliberate delete paths — the editor's Delete, Manage's version
+  list, Save's delete-the-source, Make Official's delete-previous — fold a warning into their existing
+  confirmation. ⚑ **A new, bounded disclosure:** `GET /:id/recovery/unsaved-count` returns `{
+  otherUsers, includesCaller }` — counts only, never names, times or content — and only to a caller
+  for whom `canDeleteVersionDoc` holds, the one audience whose decision it changes. Advisory and
+  fail-open: a refused lookup leaves the confirmation as it was. Whole-plan deletion (Site Admin) is
+  not covered.
+
 ---
 
 ## 6. Versioning
@@ -409,6 +442,31 @@ observable contract, and a failed or backed-off capture must say so rather than 
 - Any version regenerates its documents (up to four) on demand.
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
+
+### Combine versions (approved 2026-10-17; not yet built)
+
+Two teachers can each save from the same version (e.g. 1.0.1 and 1.0.2 from 1.0.0). **Combine
+versions** reconciles them into a new version (1.0.3). Operator decisions: the feature is approved;
+**a Teacher with editing access may combine** versions in their subject-grade; the UI calls it
+**"Combine versions"** (not "merge"). Design summary — the detail lands with the build:
+
+- **A combine is an edit session with two parents, not a new write path.** The merged prose arrives
+  as an edit-recovery-shaped overlay on one parent, shown with the existing restore-preview diff;
+  conflicts are settled in the normal editor; Save is the unchanged `save-as-new` plus one recorded
+  second parent. Preview, validation, the no-op guard, the stale-source guard, the field split and
+  semver retry all apply as they do today. **Never auto-committed**, even with zero conflicts.
+- **Base:** the newest surviving common ancestor. `sourceVersion` is nulled when a version is
+  deleted, so ancestry needs a delete-proof record (a plain-id lineage list plus a second-parent
+  link); if no common ancestor survives, every difference is a conflict.
+- **Alignment is positional after a shape check** — row ids are regenerated on every save, so they
+  cannot pair rows across versions. Teachers cannot change structure, so teacher-vs-teacher combines
+  always align. Version 1 refuses differing structure, admin-field changes on both sides, and differing
+  system fields (`resourceLinks`), each with a clear message.
+- **Per prose leaf:** one side changed → take it; both made the same change → take it; one emptied
+  and one edited → conflict; both changed differently → paragraph-level three-way merge (the grammar's
+  `\n` paragraphs and `- ` bullets), conflicting where the same paragraph was edited. No
+  character-level merging: it can splice two rewrites into a sentence nobody wrote.
+- **Combining does not make anything Official**; that stays an administrator action.
 
 ---
 

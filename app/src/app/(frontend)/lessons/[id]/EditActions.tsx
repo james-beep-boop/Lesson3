@@ -13,6 +13,7 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { unsavedWorkWarning } from '@/components/EditRecovery/unsavedWarning'
 import Modal from '@/components/Modal'
 import {
   editingAvailableAtWidth,
@@ -61,10 +62,18 @@ export default function EditActions({
     // (atomically, server-side). Cancel keeps it. When deleting, we also send WHICH version the user
     // consented to delete (the Official as this page rendered it) — the server 409s if the pointer
     // moved meanwhile, so a concurrent admin's promotion is never destroyed by stale consent.
-    const deletePrevious = window.confirm(
-      'Make this the Official version.\n\nAlso delete the previously-Official version? (Cancel keeps it.)',
-    )
+    // Held across the warning lookup, so a second click cannot open a second confirmation.
     setBusy('official')
+    // The previous Official is the version the delete would remove; warn when unsaved work is kept on
+    // it (SPEC §5). Advisory and fail-open — see `unsavedWorkWarning`.
+    const warning =
+      officialVersionId != null && String(officialVersionId) !== String(versionId)
+        ? await unsavedWorkWarning(officialVersionId)
+        : ''
+    const deletePrevious = window.confirm(
+      'Make this the Official version.\n\nAlso delete the previously-Official version? (Cancel keeps it.)' +
+        (warning ? `\n\n${warning}` : ''),
+    )
     setError(null)
     try {
       const expected = deletePrevious

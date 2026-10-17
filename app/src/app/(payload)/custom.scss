@@ -448,6 +448,17 @@ body {
     max-width: 46rem;
   }
 
+  // "Your unsaved work" (2026-10-17) sits above the accordion and renders only when non-empty, so it
+  // needs its own spacing rather than a panel's. Same row idiom as the candidate list below it.
+  &__unsaved {
+    margin: var(--app-space-3) 0 var(--app-space-4);
+  }
+
+  &__unsaved-title {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+
   .muted {
     color: var(--theme-elevation-600);
     font-size: 0.9rem;
@@ -2182,6 +2193,11 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     flex-basis: 100%;
     color: var(--theme-elevation-700);
     font-size: 0.8rem;
+  }
+  // "Keep for later" succeeded (2026-10-17): the same green as the recovery indicator's "backed up",
+  // so the two statements that the work is safe look alike — and unlike the red `__msg` errors.
+  &__notice {
+    color: #2f6b3a;
   }
 
   // In-form jump nav (2026-07-13): the edit-page counterpart to the lesson page's .doc-nav, and

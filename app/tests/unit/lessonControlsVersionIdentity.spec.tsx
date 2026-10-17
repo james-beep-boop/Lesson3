@@ -22,7 +22,7 @@
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   /** Overridable per test — the point of several cases is a MISSING semver. */
@@ -167,11 +167,18 @@ describe('comparison before candidate deletion', () => {
 })
 
 describe('the destructive confirmations name the version', () => {
-  const clickAndReadConfirm = (name: string): string => {
+  // ⚑ ASYNC since 2026-10-17: both confirmations first ask whether deleting would discard someone's
+  // unsaved work (`unsavedWorkWarning`), so the dialog opens after that lookup, not on the click.
+  const clickAndReadConfirm = async (name: string): Promise<string> => {
+    const before = mocks.confirm.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name }))
-    const text = mocks.confirm.mock.calls.at(-1)?.[0]
-    expect(text, `${name} must ask for confirmation before acting`).toBeTruthy()
-    return String(text)
+    await waitFor(() =>
+      expect(
+        mocks.confirm.mock.calls.length,
+        `${name} must ask for confirmation before acting`,
+      ).toBeGreaterThan(before),
+    )
+    return String(mocks.confirm.mock.calls.at(-1)?.[0])
   }
 
   it('Delete leads with the version, and keeps the title as secondary context', async () => {
@@ -180,7 +187,7 @@ describe('the destructive confirmations name the version', () => {
     const del = await screen.findByRole('button', { name: 'Delete' })
     expect(del).toBeTruthy()
 
-    const text = clickAndReadConfirm('Delete')
+    const text = await clickAndReadConfirm('Delete')
     expect(text).toContain('version 1.2.0')
     expect(text).toContain('Biology Grade 10: Cell Structure')
     expect(text).toContain('cannot be undone')
@@ -193,7 +200,7 @@ describe('the destructive confirmations name the version', () => {
     render(<LessonControls />)
     await screen.findByRole('button', { name: 'Delete' })
 
-    expect(clickAndReadConfirm('Delete')).toContain('this version')
+    expect(await clickAndReadConfirm('Delete')).toContain('this version')
   })
 
   it('Save-as-new names the version it is about to delete', async () => {
@@ -209,18 +216,45 @@ describe('the destructive confirmations name the version', () => {
     await screen.findByRole('button', { name: 'Delete' })
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
-    const text = clickAndReadConfirm('Save')
+    const text = await clickAndReadConfirm('Save')
     expect(text).toContain('version 1.2.0')
     expect(text).not.toContain('the one you are editing')
   })
 
-  it('a cancelled Delete confirmation performs no request', async () => {
+  it('a cancelled Delete confirmation performs no delete', async () => {
     render(<LessonControls />)
     await screen.findByRole('button', { name: 'Delete' })
-    const callsBefore = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length
 
-    clickAndReadConfirm('Delete') // the stub returns false — the caller said no
+    await clickAndReadConfirm('Delete') // the stub returns false — the caller said no
 
-    expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBefore)
+    // The unsaved-work lookup (a GET) precedes the dialog by design; what must not happen is the
+    // DELETE the dialog was asking permission for.
+    const deletes = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'DELETE',
+    )
+    expect(deletes).toHaveLength(0)
+  })
+
+  it('the Delete confirmation adds the unsaved-work warning when there is some', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve(
+              String(url).endsWith('/recovery/unsaved-count')
+                ? { otherUsers: 2, includesCaller: false }
+                : { officialVersion: 99 },
+            ),
+        }),
+      ),
+    )
+    render(<LessonControls />)
+    await screen.findByRole('button', { name: 'Delete' })
+
+    const text = await clickAndReadConfirm('Delete')
+    expect(text).toContain('cannot be undone')
+    expect(text).toContain('2 other people have unsaved changes on this version')
   })
 })

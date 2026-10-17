@@ -333,11 +333,19 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             )}
 
             {can('editing.recovery') && (
-              <GuideAccordionPanel id="editing.recovery" title="Recover unsaved work">
+              <GuideAccordionPanel id="editing.recovery" title="Keep or recover unsaved work">
                 <p>
                   While you edit, a note below the buttons shows when Lesson3 last saved a temporary
                   copy of your changes. Only you can see it, even if someone else uses the same
                   computer. Lesson3 will not restore it unless you choose to.
+                </p>
+                <p>
+                  To stop for now without saving a version, choose <em>Keep for later</em>. Lesson3
+                  checks that your changes are stored, then closes the editor. They are kept for 30
+                  days after you last worked on them. <em>Manage → Your unsaved work</em> lists
+                  everything you have kept, with <em>Resume</em> and <em>Discard</em>.
+                  Administrators: only wording is kept, not changes to lessons, phases, durations,
+                  rubrics or answer keys.
                 </p>
                 <ol className="guide-steps">
                   <li>

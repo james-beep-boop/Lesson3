@@ -25,6 +25,30 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# KEEP FOR LATER (PHASE 1) — 2026-10-17; COMBINE VERSIONS APPROVED
+
+Operator asked (1) for a way to put edits aside without saving a version each time, and (2) for a
+way to combine two divergent versions (1.0.1 + 1.0.2 → 1.0.3). Both answered and approved; phase 1
+is built on `feat/keep-for-later`. SPEC §5 "Keep for later", SPEC §6 "Combine versions",
+DECISIONS 2026-10-17.
+
+**Built (no migration):** *Keep for later* editor button (leaves edit mode only on a server-confirmed
+capture); *Your unsaved work* on Manage (above the accordion, only when non-empty; Resume/Discard;
+kept-until date); unsaved-work warning on the four version-delete confirmations, backed by
+`GET /api/lesson-bundle-versions/:id/recovery/unsaved-count` (counts only, delete-permission gate,
+wire-tested). ⚑ Edit recovery stays the only store — no "drafts" collection (reserved word; second
+weaker channel).
+
+**Next — Combine versions** (operator decisions: build it; Teachers with editing access may combine;
+UI says "Combine versions"). Planned phases: (2) pure merge engine `lib/merge/` + read-only
+`merge-preview` endpoint with tests; (3) Combine screen in the editor, `mergeParent` on save-as-new,
+`mergedFrom` + delete-proof `lineage` fields and migration; (4) rebase unsaved work onto a newer
+version with the same engine; (5, separate decision) stable row identity, which also unlocks
+structural combines, admin edit recovery and the compare page's ordinal-key cascade. Read SPEC §6
+first — it records why id-based pairing, `sourceVersion`-walking and auto-commit are wrong here.
+
+---
+
 # UI CLARITY READY FOR MERGE — 2026-10-12
 
 v0.95 is published. The operator authorised committing and pushing the reviewed changes and will

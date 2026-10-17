@@ -108,6 +108,11 @@ Lesson3, not in a Word file.
 - **Unsaved work:** while you edit, a note below the buttons shows when Lesson3 last saved a
   temporary copy of your changes. Only you can see it, even if someone else uses the same computer.
   Lesson3 will not restore it unless you choose to.
+- **Keep for later:** to stop for now without saving a version, choose *Keep for later*. Lesson3
+  checks that your changes are stored, then closes the editor. They are kept for 30 days after you
+  last worked on them. *Manage → Your unsaved work* lists everything you have kept, with *Resume*
+  and *Discard*. Administrators: only wording is kept, not changes to lessons, phases, durations,
+  rubrics or answer keys.
 - **Restore unsaved work:** if you leave without saving, reopen that version. Lesson3 will ask
   whether you want to restore your changes. New wording appears in green; saved wording that will be
   replaced is struck through in red. Lesson3 normally shows only the changes you have not saved.
