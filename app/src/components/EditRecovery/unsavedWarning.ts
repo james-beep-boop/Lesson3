@@ -1,9 +1,9 @@
 /**
  * The sentence a delete confirmation adds when deleting a version would discard unsaved work
- * (SPEC §5, "Keep for later", 2026-10-17).
+ * (SPEC §5, "Drafts", 2026-10-17).
  *
- * Deleting a version cascades its edit-recovery rows away, so work someone kept for later on it is
- * lost with it. Every surface that deletes a version on purpose — the editor's Delete, Manage's
+ * Deleting a version cascades its edit-recovery rows away, so a draft someone has on it is lost
+ * with it. Every surface that deletes a version on purpose — the editor's Delete, Manage's
  * saved-version list, Save's "delete the version you opened", and Make Official's "delete the
  * previous Official" — asks this first and folds the answer into its existing `confirm`.
  *
@@ -27,7 +27,9 @@ export function unsavedWarningText(counts: UnsavedCount, countCaller = true): st
       : mine
         ? `You and ${othersPhrase} have`
         : `${othersPhrase} ${others === 1 ? 'has' : 'have'}`
-  return `${who} unsaved changes on this version. Deleting it discards them.`
+  // One draft per person per version, so a single holder has "a draft".
+  const drafts = others + (mine ? 1 : 0) === 1 ? 'a draft' : 'drafts'
+  return `${who} ${drafts} based on this version. Deleting it discards ${drafts === 'a draft' ? 'it' : 'them'}.`
 }
 
 /**

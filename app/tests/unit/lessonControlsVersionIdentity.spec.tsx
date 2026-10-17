@@ -216,7 +216,7 @@ describe('the destructive confirmations name the version', () => {
     await screen.findByRole('button', { name: 'Delete' })
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
-    const text = await clickAndReadConfirm('Save')
+    const text = await clickAndReadConfirm('Save as new version')
     expect(text).toContain('version 1.2.0')
     expect(text).not.toContain('the one you are editing')
   })
@@ -255,6 +255,6 @@ describe('the destructive confirmations name the version', () => {
 
     const text = await clickAndReadConfirm('Delete')
     expect(text).toContain('cannot be undone')
-    expect(text).toContain('2 other people have unsaved changes on this version')
+    expect(text).toContain('2 other people have drafts based on this version')
   })
 })

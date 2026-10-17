@@ -42,18 +42,18 @@ const textFor = (status: RecoveryStatus): string => {
 describe('every outcome is visible TEXT, not a colour', () => {
   // ⚑ Colour is not the only signal: a teacher with a colour-vision deficiency, or a monochrome
   // classroom projector, must get the same information. Each of these asserts the words.
-  it('says work will be backed up before the first capture lands', () => {
-    expect(textFor({ kind: 'idle' })).toMatch(/will be backed up/i)
+  it('says work will be saved as a draft before the first capture lands', () => {
+    expect(textFor({ kind: 'idle' })).toMatch(/will be saved as a draft/i)
   })
 
   it('says so, and when, once a capture has landed', () => {
-    expect(textFor({ kind: 'backedUp', at: Date.now() })).toMatch(/backed up/i)
+    expect(textFor({ kind: 'backedUp', at: Date.now() })).toMatch(/draft saved/i)
   })
 
-  it('says NOT backed up on every failure kind, and names the reason', () => {
-    expect(textFor({ kind: 'notBackedUp', reason: 'tooLarge' })).toMatch(/not backed up/i)
-    expect(textFor({ kind: 'notBackedUp', reason: 'transport' })).toMatch(/not backed up/i)
-    expect(textFor({ kind: 'notBackedUp', reason: 'rateLimited' })).toMatch(/not backed up/i)
+  it('says the draft was NOT saved on every failure kind, and names the reason', () => {
+    expect(textFor({ kind: 'notBackedUp', reason: 'tooLarge' })).toMatch(/draft not saved/i)
+    expect(textFor({ kind: 'notBackedUp', reason: 'transport' })).toMatch(/draft not saved/i)
+    expect(textFor({ kind: 'notBackedUp', reason: 'rateLimited' })).toMatch(/draft not saved/i)
     // The transport failure in particular must not read as reassurance.
     expect(textFor({ kind: 'notBackedUp', reason: 'transport' })).not.toMatch(/will be backed up/i)
   })

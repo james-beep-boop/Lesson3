@@ -56,7 +56,7 @@ test.describe('case 13 — a rate limit is visible, not silent', () => {
    * SPEC §5: the timestamp IS the contract. A capture that is being refused must SAY so — silence
    * would leave the teacher believing work is backed up when the server has explicitly refused it.
    */
-  test('a 429 shows NOT backed up with the retry delay, and the form stays dirty', async ({
+  test('a 429 shows the draft was NOT saved, with the retry delay, and the form stays dirty', async ({
     page,
   }) => {
     await loginAsRole(page, fx, 'editor')
@@ -75,7 +75,7 @@ test.describe('case 13 — a rate limit is visible, not silent', () => {
     await openUnlockedEditor(page, versionId)
     await typeSomething(page, 'rate-limited edit')
 
-    await expect(indicator(page)).toContainText('NOT backed up', { timeout: 20_000 })
+    await expect(indicator(page)).toContainText('Draft NOT saved', { timeout: 20_000 })
     await expect(indicator(page), 'the backoff must be visible, not merely internal').toContainText(
       '45s',
     )
@@ -83,7 +83,7 @@ test.describe('case 13 — a rate limit is visible, not silent', () => {
 
     // ⚑ The form stays dirty: a refused backup must never look like a completed one, and Save must
     // remain available so the user can rescue the work themselves.
-    await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Save as new version' })).toBeEnabled()
   })
 })
 
@@ -109,7 +109,7 @@ test.describe('case 26 — a conflicting flush stops the save', () => {
       })
     })
 
-    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByRole('button', { name: 'Save as new version' }).click()
 
     // ⚑ Scoped to the SAVE message specifically. A bare text match is ambiguous here because the
     // indicator says "out of date" too — which is the neutral wording agreeing across both surfaces,
@@ -122,7 +122,7 @@ test.describe('case 26 — a conflicting flush stops the save', () => {
 
     // ⚑ The assertion that matters: it did NOT save. Still on the same document, still editing.
     await expect(page).toHaveURL(new RegExp(`/lesson-bundle-versions/${versionId}`))
-    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save as new version' })).toBeVisible()
   })
 })
 
@@ -145,7 +145,7 @@ test.describe('case 27 — a transport failure must NOT block the save', () => {
       await route.abort('failed')
     })
 
-    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByRole('button', { name: 'Save as new version' }).click()
 
     // A successful save navigates to the new candidate version.
     await expect(page).not.toHaveURL(new RegExp(`/lesson-bundle-versions/${versionId}$`), {

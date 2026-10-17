@@ -71,8 +71,8 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     expect(html).toContain('lesson-controls-wrap--editing')
     expect(html).toContain('lesson-controls-wrap--prose-only')
     expect(html).toContain('Editing:')
-    expect(html).toMatch(/<button[^>]*>Save<\/button>/)
-    expect(html).toMatch(/<button[^>]*>Cancel<\/button>/)
+    expect(html).toMatch(/<button[^>]*>Save as new version<\/button>/)
+    expect(html).toMatch(/<button[^>]*>Discard changes<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Edit<\/button>/)
   })
 
@@ -82,7 +82,7 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     expect(html).not.toContain('lesson-controls-wrap--editing')
     expect(html).toContain('Viewing:')
     expect(html).toMatch(/<button[^>]*>Edit<\/button>/)
-    expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
+    expect(html).not.toMatch(/<button[^>]*>Save as new version<\/button>/)
     // ⚑ THE ↗ IS NOW A SEPARATE aria-hidden SPAN so phone width can drop it (custom.scss). Assert the
     // LABEL and the glyph's decorative wrapper separately — a single `toContain('Quick preview ↗')`
     // would pass again the moment someone inlined the glyph back into the label and undid that.
@@ -105,10 +105,12 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
   it('renders Save disabled while the form is pristine, enabled once modified', () => {
     mocks.search = 'edit=1'
     mocks.modified = false
-    expect(renderToString(<LessonControls />)).toMatch(/<button[^>]*disabled[^>]*>Save<\/button>/)
+    expect(renderToString(<LessonControls />)).toMatch(
+      /<button[^>]*disabled[^>]*>Save as new version<\/button>/,
+    )
     mocks.modified = true
     expect(renderToString(<LessonControls />)).not.toMatch(
-      /<button[^>]*disabled[^>]*>Save<\/button>/,
+      /<button[^>]*disabled[^>]*>Save as new version<\/button>/,
     )
     mocks.modified = false
   })
@@ -129,7 +131,7 @@ describe('LessonControls offers the edit lifecycle only to someone who may edit 
     mocks.user = OUT_OF_SCOPE
     const html = renderToString(<LessonControls />)
     expect(html).not.toMatch(/<button[^>]*>Edit<\/button>/)
-    expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
+    expect(html).not.toMatch(/<button[^>]*>Save as new version<\/button>/)
     expect(html).toContain('Viewing:')
     // The read-only affordances they came for must survive.
     // `<!-- -->` is React's text separator between the label and the glyph span — tolerated rather
@@ -148,7 +150,7 @@ describe('LessonControls offers the edit lifecycle only to someone who may edit 
     const html = renderToString(<LessonControls />)
     expect(html).not.toContain('lesson-controls-wrap--editing')
     expect(html).toContain('Viewing:')
-    expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
+    expect(html).not.toMatch(/<button[^>]*>Save as new version<\/button>/)
   })
 
   it('renders no Edit button for a Teacher (authenticated, no grant at all)', () => {

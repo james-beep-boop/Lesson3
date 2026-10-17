@@ -99,7 +99,7 @@ export function EditRecoveryRestorePrompt({
     // not be the thing that destroys the capture. It is also vetoed while a restore is in flight, so
     // the panel cannot vanish mid-`reset`.
     <Modal
-      title="You have unsaved changes from an earlier session"
+      title="You have a draft from an earlier session"
       onClose={() => {
         if (!busy) onKeep()
       }}
@@ -110,16 +110,16 @@ export function EditRecoveryRestorePrompt({
           A real `<time>`: the rendered text is a LOCALE string, so `dateTime` is the only form of this
           value a test — or anything else — can read back without guessing at the browser's locale. */}
       <p className="modal__body">
-        Captured <time dateTime={capture.capturedAt}>{when(capture.capturedAt)}</time>.
+        Saved <time dateTime={capture.capturedAt}>{when(capture.capturedAt)}</time>.
       </p>
 
       {readOnly && (
         <p className="lp-restore__warn">
           {capture.stale
-            ? 'This lesson plan has been saved by someone since these changes were captured, so they cannot be put back automatically.'
-            : 'These changes were captured by an older version of the editor, so they cannot be put back automatically.'}{' '}
-          You can read and copy them here — the list below is what differs from the version saved
-          now, so it may include someone else&apos;s edits.
+            ? 'This lesson plan has been saved by someone since your draft was saved, so it cannot be put back automatically.'
+            : 'Your draft was saved by an older version of the editor, so it cannot be put back automatically.'}{' '}
+          You can read and copy it here — the list below is what differs from the version saved now,
+          so it may include someone else&apos;s edits.
         </p>
       )}
 
@@ -133,7 +133,7 @@ export function EditRecoveryRestorePrompt({
               to — unified output butts a removal straight against its replacement), so a chip at the
               END of the sentence pushes the full stop away from it and reads as "struck through ."
               Subject-first keeps plain text on both sides of every chip. */}
-          <span data-match-type="create">Green</span> is your unsaved wording;{' '}
+          <span data-match-type="create">Green</span> is your draft’s wording;{' '}
           <span data-match-type="delete">struck through</span> is what the saved version says.
         </p>
       )}
@@ -143,7 +143,7 @@ export function EditRecoveryRestorePrompt({
           // Reached when the capture matches what is already stored — usually because the session
           // ended after a save. Nothing to list is the honest answer, and far better than the whole
           // document.
-          <p className="modal__body">Nothing in these changes differs from the saved version.</p>
+          <p className="modal__body">Nothing in your draft differs from the saved version.</p>
         ) : (
           groups.map((group) => (
             <section key={group.id} className="lp-restore__group">
@@ -193,14 +193,14 @@ export function EditRecoveryRestorePrompt({
             the condition that would enable it, and there is none they can reach. */}
         {!readOnly && (
           <Button buttonStyle="primary" size="small" onClick={onRestore} disabled={busy}>
-            {busy ? 'Putting them back…' : 'Put the changes back'}
+            {busy ? 'Restoring…' : 'Restore my draft'}
           </Button>
         )}
         <Button buttonStyle="secondary" size="small" onClick={onKeep} disabled={busy}>
           {readOnly ? 'Continue editing' : 'Decide later'}
         </Button>
         <Button buttonStyle="error" size="small" onClick={onDiscard} disabled={busy}>
-          Discard the changes
+          Discard the draft
         </Button>
       </div>
     </Modal>

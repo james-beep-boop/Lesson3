@@ -105,10 +105,17 @@ const openDeletePanel = async (page: Page) => {
   await openPanel(page, 'Delete a plan (all versions)')
 }
 
+/** Roles & Access groups — the `lp-users__row`s that carry a group's details, not account rows. */
+const accessGroups = (page: Page): Locator =>
+  page.locator('.lp-users__row:has(> .lp-manage__group-details)')
+
 /** Search the lazy directory for exactly one fixture account and disclose its mounted details. */
 const openUser = async (page: Page, email: string): Promise<Locator> => {
   await page.getByLabel('Search users by name or email').fill(email)
-  const row = page.locator('.lp-users__row').filter({ hasText: email })
+  // ⚑ SCOPED TO THE USERS PANEL (`.lp-users`). Roles & Access reuses the `lp-users__row` idiom for its
+  // collapsible groups, and a collapsed group still CONTAINS its members' addresses in hidden markup,
+  // so an unscoped filter matched the account row and the access group together (2026-10-17).
+  const row = page.locator('.lp-users .lp-users__row').filter({ hasText: email })
   await expect(row).toBeVisible()
   const summary = row.locator('.lp-users__summary')
   if ((await summary.getAttribute('aria-expanded')) !== 'true') await summary.click()
@@ -347,15 +354,12 @@ test.describe('Manage page', () => {
     // redirect's literal query was RACING that write and passed only when it polled first: it survived
     // one run and failed the next with no code change between them. Match where the URL comes to rest.
     await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=users${SEP}users\\.accounts$`))
-    // PR 3: the two taxonomy tables are replaced by panels the same way.
+    // Both taxonomy tables land on the ONE unified panel (2026-10-16, `9ebc844`): `curriculum` is
+    // now a leaf, so there is no child id to open beside it.
     await page.goto(`${BASE}/admin/collections/subjects`)
-    await expect(page).toHaveURL(
-      new RegExp(`${BASE}/admin\\?open=curriculum${SEP}curriculum\\.subjects$`),
-    )
+    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=curriculum$`))
     await page.goto(`${BASE}/admin/collections/subject-grades`)
-    await expect(page).toHaveURL(
-      new RegExp(`${BASE}/admin\\?open=curriculum${SEP}curriculum\\.subject-grades$`),
-    )
+    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=curriculum$`))
   })
 
   test('Site Admin: Set an Official version lists plans missing an Official version; full panel set present', async ({
@@ -1192,7 +1196,7 @@ test.describe('Manage page', () => {
 
       // The FACT is shown — scoped information they already effectively hold.
       // Rows are now collapsible (lp-users__row); expand before asserting detail content.
-      const group = page.locator('.lp-users__row').first()
+      const group = accessGroups(page).first()
       await group.locator('.lp-users__summary').click()
       const details = group.locator('.lp-manage__group-details')
       await expect(details.getByText('Subject Administrator')).toBeVisible()
@@ -1250,6 +1254,12 @@ test.describe('Manage page', () => {
     test('a Site Administrator gets the picker and the remove control', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin?open=users.access`)
+
+      // Groups start collapsed (2026-10-16): the picker lives inside the disclosed group.
+      const group = accessGroups(page)
+        .filter({ hasText: `${MARK}Biology` })
+        .first()
+      await group.locator('.lp-users__summary').click()
 
       await expect(
         page.getByRole('combobox', { name: /Appoint the Subject Administrator/ }).first(),
@@ -1386,43 +1396,41 @@ test.describe('Manage page', () => {
    * collapsed a 409 into "Delete failed" would leave the guards working and useless.
    */
   test.describe('Taxonomy panels', () => {
-    test('desktop subject and grade forms retain compact controls', async ({ page }) => {
+    /**
+     * ⚑ REWRITTEN 2026-10-17 FOR THE UNIFIED MATRIX (`9ebc844`). The two panels these cases drove —
+     * `curriculum.subjects` with an "Add a subject" form, `curriculum.subject-grades` with an "Add a
+     * subject grade" form and one row per grade — were replaced by ONE grid: subjects are rows, grades
+     * are columns, and a subject-grade exists exactly where its checkbox is ticked. The behaviours
+     * worth pinning survived the redesign and are pinned again here: compact desktop controls, no
+     * page overflow on a phone, the cascade-naming confirmation, the guard's own refusal text, and
+     * the subject-with-grades refusal. The old "duplicate subject grade" case is gone because the
+     * grid cannot ask for one — a ticked cell IS the existing record, and "+ Grade" refuses a grade
+     * column that already exists (asserted below). The server-side duplicate guard is unchanged.
+     */
+    const grid = (page: Page) => page.locator('.lp-sg')
+    const gridError = (page: Page) => page.locator('.lp-sg .lp-manage__error')
+
+    test('desktop subject controls stay compact', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       for (const width of [1024, 1280, 1440]) {
         await page.setViewportSize({ width, height: 900 })
-        await page.goto(`${BASE}/admin?open=curriculum.subjects`)
-        const panel = page.locator('.lp-taxonomy').filter({
-          has: page.getByRole('form', { name: 'Add a subject', exact: true }),
-        })
-        const bounds = await panel.boundingBox()
-        for (const input of await panel.locator('input:not([type="search"])').all()) {
+        await page.goto(`${BASE}/admin?open=curriculum`)
+        const bounds = await grid(page).boundingBox()
+        const add = page.getByRole('form', { name: 'Add a subject', exact: true })
+        for (const input of await add.locator('input').all()) {
           const rect = await input.boundingBox()
           expect(rect!.width).toBeLessThan(bounds!.width / 2)
         }
-        await page.goto(`${BASE}/admin?open=curriculum.subject-grades`)
-        const gradePanel = page.locator('.lp-taxonomy').filter({
-          has: page.getByRole('form', { name: 'Add a subject grade', exact: true }),
-        })
-        await expect(gradePanel.locator('.lp-taxonomy__form').first()).toBeVisible()
-        for (const form of await gradePanel.locator('.lp-taxonomy__form').all()) {
-          const subject = await form
-            .getByRole('combobox', { name: 'Subject', exact: true })
-            .boundingBox()
-          const grade = await form.getByLabel('Grade', { exact: true }).boundingBox()
-          // Inline labels can wrap one control onto the next line; desktop must not gain the
-          // tall stacked field layout needed on a phone.
-          expect(Math.abs(grade!.y - subject!.y)).toBeLessThanOrEqual(subject!.height + 6)
-        }
+        await expect(page.getByRole('checkbox', { name: `${MARK}Biology Grade 99` })).toBeVisible()
       }
     })
 
-    test('subject, grade and upload controls fit narrow phone screens', async ({ page }) => {
+    test('subject and upload controls fit narrow phone screens', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       for (const width of [360, 390]) {
         await page.setViewportSize({ width, height: 800 })
         for (const [panel, heading] of [
-          ['curriculum.subjects', 'Subjects'],
-          ['curriculum.subject-grades', 'Subject grades'],
+          ['curriculum', 'Subjects and grades'],
           ['plans.upload', 'Upload lesson plans'],
         ]) {
           await page.goto(`${BASE}/admin?open=${panel}`)
@@ -1437,13 +1445,15 @@ test.describe('Manage page', () => {
               buffer: Buffer.from('{}'),
             })
           }
+          // The PAGE never scrolls sideways. The grid itself may — it sits in its own horizontal
+          // scroller by design, so its cells are not held to the viewport; the controls outside it are.
           await expect
             .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
             .toBe(width)
           const controls = page.locator(
             panel === 'plans.upload'
               ? '.lp-manage__upload input, .lp-manage__upload button'
-              : '.lp-taxonomy input, .lp-taxonomy select, .lp-taxonomy button',
+              : '.lp-sg__add-subject input, .lp-sg__add-subject button',
           )
           for (const control of await controls.all()) {
             if (!(await control.isVisible())) continue
@@ -1460,89 +1470,69 @@ test.describe('Manage page', () => {
       }
     })
 
-    test("a blocked delete shows the guard's own message, and the confirm names the cascade", async ({
+    test("unticking a used subject grade names the cascade, then shows the guard's refusal", async ({
       page,
     }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=curriculum.subject-grades`)
+      await page.goto(`${BASE}/admin?open=curriculum`)
 
-      // ⚑ LOCATED BY THE DELETE CONTROL'S ACCESSIBLE NAME, not by row text. These rows identify
-      // themselves through input VALUES and <option> text, and `hasText` matches neither the way it
-      // looks like it does — the first draft of this locator matched by accident, or not at all.
-      const remove = page.getByRole('button', { name: `Delete ${MARK}Biology — Grade 99` })
-      await expect(remove).toBeVisible()
+      const cell = page.getByRole('checkbox', { name: `${MARK}Biology Grade 99` })
+      await expect(cell).toBeChecked()
 
-      /**
-       * ⚑ THE CONFIRMATION NAMES WHAT THE DELETE WOULD TAKE AWAY. `guardSubjectGradeDelete` blocks on
-       * lesson plans, but role assignments do NOT block it — they are cascaded away silently. The
-       * fixture puts exactly one editing-access holder and one Subject Administrator on this
-       * subject-grade, so both halves of the sentence are exercised, and asserting the text is what
-       * stops the warning being quietly dropped later (it costs a query, which is what gets removed
-       * when nothing is watching).
-       */
-      const prompt = await acceptConfirmation(page, () => remove.click())
-      // ⚑ STRUCTURE, NOT A CENSUS. The first draft asserted "1 person loses editing access" and CI
-      // returned "2 people lose…" — the FEATURE was right and the assertion was counting fixtures.
-      // How many accounts this spec happens to seed with a grant is not what the warning is for, and
-      // pinning it means any future fixture breaks a test about a sentence. The pluralisation itself
-      // is pinned properly in tests/unit/subjectGradeDelete.spec.ts, where it is a pure function.
-      // Shape only. The unit spec owns the grammar (tests/unit/subjectGradeDelete.spec.ts); a regex
-      // here would restate logic that is already pinned against a pure function.
+      // The fixture puts one editing-access holder and one Subject Administrator on this
+      // subject-grade, so both halves of the consequence sentence are exercised. Shape only — the
+      // grammar is pinned in tests/unit/subjectGradeDelete.spec.ts.
+      const prompt = await acceptConfirmation(page, () => cell.click())
       expect(prompt).toContain('editing access')
       expect(prompt).toContain('demoted')
       expect(prompt).toContain('This cannot be undone.')
 
-      // The delete then FAILS on the content guard, and its 409 text — not a generic failure — is
-      // what the panel renders. `Manage → Delete a plan (all versions)` is the actionable part of that
-      // message and the reason surfacing it verbatim matters.
-      const error = page.locator('.lp-taxonomy .lp-manage__error')
-      await expect(error).toContainText('still use this subject grade')
-      await expect(error).toContainText('Manage → Lesson plans → Delete a plan (all versions)')
-      // Still there: a refused delete must not look like a successful one.
-      await expect(remove).toBeVisible()
+      // The delete FAILS on the content guard (the fixture plan uses it), and its 409 text — not a
+      // generic failure — is what the grid shows, including the actionable path.
+      await expect(gridError(page)).toContainText('still use this subject grade')
+      await expect(gridError(page)).toContainText(
+        'Manage → Lesson plans → Delete a plan (all versions)',
+      )
+      // Still ticked: a refused delete must not look like a successful one.
+      await expect(cell).toBeChecked()
     })
 
-    test('a duplicate subject grade shows the friendly message, not an opaque failure', async ({
+    test('ticking an unused cell creates the subject grade; unticking removes it', async ({
       page,
     }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=curriculum.subject-grades`)
+      await page.goto(`${BASE}/admin?open=curriculum`)
 
-      /**
-       * The `beforeValidate` duplicate check exists ONLY to replace an opaque failure with a readable
-       * one, and for its whole life it produced an opaque failure of its own — it threw a bare `Error`,
-       * which Payload renders as a 500 "Something went wrong." (fixed 2026-08-03; see the ⚑ in
-       * SubjectGrade.ts). This asserts the readable message actually lands in the panel, which is the
-       * only place that regression would ever be visible again.
-       */
-      // ⚑ BY NAME, not `.first()`. Both taxonomy panels stay MOUNTED while collapsed, so `.first()`
-      // resolved to the Subjects panel's create form — hidden, so the action timed out after 30s
-      // against an element that was never the intended one.
-      const create = page.getByRole('form', { name: 'Add a subject grade' })
-      await create.getByLabel('Subject').selectOption({ label: `${MARK}Biology` })
-      await create.getByLabel('Grade').fill('99')
-      await create.getByRole('button', { name: 'Add subject grade' }).click()
+      // "+ Grade" refuses a column that already exists — the grid's answer to a duplicate.
+      const gradeInput = grid(page).getByPlaceholder('Grade')
+      const addGrade = grid(page).getByRole('button', { name: '+ Grade' })
+      await gradeInput.fill('99')
+      await expect(addGrade).toBeDisabled()
 
-      await expect(page.locator('.lp-taxonomy .lp-manage__error')).toContainText(
-        'Grade 99 already exists for that subject.',
-      )
-      // The typed values survive the refusal — retyping a rejected value to read its message again is
-      // how a refusal starts reading like a broken page.
-      await expect(create.getByLabel('Grade')).toHaveValue('99')
+      await gradeInput.fill('97')
+      await addGrade.click()
+      const cell = page.getByRole('checkbox', { name: `${MARK}Biology Grade 97` })
+      await expect(cell).not.toBeChecked()
+
+      await cell.click()
+      await expect(cell).toBeChecked()
+      await expect(gridError(page)).toHaveCount(0)
+
+      // Nothing uses it, so the delete goes through after the confirmation.
+      await acceptConfirmation(page, () => cell.click())
+      await expect(cell).not.toBeChecked()
     })
 
     test('a subject that still has grades cannot be deleted, and says why', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=curriculum.subjects`)
+      await page.goto(`${BASE}/admin?open=curriculum`)
 
       const remove = page.getByRole('button', { name: `Delete ${MARK}Biology`, exact: true })
       await expect(remove).toBeVisible()
       // No cascade warning here, and the asymmetry with subject grades is deliberate: a Subject with
       // grades cannot be deleted at all, so there is nothing silent to warn about.
       await acceptConfirmation(page, () => remove.click())
-      await expect(page.locator('.lp-taxonomy .lp-manage__error')).toContainText(
-        'still belong to this subject',
-      )
+      await expect(gridError(page)).toContainText('still belong to this subject')
       await expect(remove).toBeVisible()
     })
   })

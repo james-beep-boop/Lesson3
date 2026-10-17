@@ -131,7 +131,7 @@ export type RecoveryEntry =
     }
 
 /**
- * What "Keep for later" found (SPEC §5, 2026-10-17).
+ * What "Save as draft" found (SPEC §5, 2026-10-17).
  *
  * `kept` carries the moment of the server-CONFIRMED capture, which is what the editor states back to
  * the teacher and what the 30-day retention runs from. `notKept` means the work on screen is not
@@ -148,10 +148,15 @@ export type UseEditRecovery = {
   /** Pause, drain, capture, and report how the save should proceed. */
   prepareForSave: () => Promise<SavePlan>
   /**
-   * Make sure the work on screen is stored, without saving a version — the "Keep for later" button.
+   * Make sure the work on screen is stored, without saving a version — the "Save as draft" button.
    * Resolves `kept` only when the server has confirmed THIS content.
    */
   keepForLater: () => Promise<KeepResult>
+  /**
+   * Delete the stored draft for this session — the "Discard changes" button. Resolves true when
+   * nothing is left stored; false when a draft may remain (refused, failed, or no session).
+   */
+  discardDraft: () => Promise<boolean>
   /** Adopt the token a successful save-as-new returned (retirement advances it one last time). */
   adoptToken: (token: RecoveryToken | null | undefined) => void
   /** Dismiss the offer and begin editing, leaving the capture untouched. */
@@ -612,7 +617,7 @@ export function useEditRecovery(args: {
   }, [capture, clearTimer])
 
   /**
-   * "Keep for later": drain, capture if the screen is ahead of the server, and report whether the
+   * "Save as draft": drain, capture if the screen is ahead of the server, and report whether the
    * work on screen is now stored.
    *
    * ⚑ The verdict is `isSafe()`, not the capture's outcome. They differ when the teacher types while
@@ -622,7 +627,7 @@ export function useEditRecovery(args: {
    * flush asks it.
    *
    * Unlike `prepareForSave`, a transport failure is NOT tolerated here. Save proceeds without the
-   * backup because the version it writes is the durable copy; Keep for later has no other copy, so
+   * backup because the version it writes is the durable copy; a draft has no other copy, so
    * an unconfirmed capture means the editor must stay open.
    */
   const keepForLater = useCallback(async (): Promise<KeepResult> => {
@@ -640,6 +645,42 @@ export function useEditRecovery(args: {
     if (!held || !isSafe()) return { kind: 'notKept', reason: 'failed' }
     return { kind: 'kept', at: Date.parse(held.updatedAt) }
   }, [capture, clearTimer, isSafe, offerUnresolved])
+
+  /**
+   * "Discard changes": drain, then retire the row with the CURRENT token.
+   *
+   * ⚑ Drained first because opening the confirmation blurs the window, and blur flushes a capture —
+   * so by the time the teacher says yes, a capture may be in flight. Retiring with the token from
+   * before it would 409 against our own write and leave the draft behind.
+   *
+   * ⚑ The token is dropped BEFORE the request, as in `discardOffer`: a debounce tick or blur flush
+   * between the DELETE and leaving edit mode would otherwise write the reverted screen back into a
+   * row we are retiring. Leaving edit mode then ends the session (`endSession`).
+   */
+  const discardDraft = useCallback(async (): Promise<boolean> => {
+    clearTimer()
+    if (inFlight.current) await inFlight.current.catch(() => undefined)
+    const held = session.current.token
+    session.current.token = null
+    setReady(false)
+    // No token: either no session began (nothing of this session's is stored), or `start` failed —
+    // in which case an earlier draft may exist that we cannot fence, so do not claim it is gone.
+    if (!held) return !session.current.started
+    try {
+      const res = await withDeadline(CAPTURE_TIMEOUT_MS, (signal) =>
+        fetch(recoveryUrl(), {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ generation: held.generation, expectedRevision: held.revision }),
+          signal,
+        }),
+      )
+      return res.ok
+    } catch {
+      return false
+    }
+  }, [clearTimer, recoveryUrl])
 
   const adoptToken = useCallback((next: RecoveryToken | null | undefined) => {
     if (next) session.current.token = next
@@ -798,6 +839,7 @@ export function useEditRecovery(args: {
     start,
     prepareForSave,
     keepForLater,
+    discardDraft,
     adoptToken,
     keepOffer,
     discardOffer,

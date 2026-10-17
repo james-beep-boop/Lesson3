@@ -11,6 +11,42 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-17 (later) — "Draft" becomes the user-facing word; Discard changes replaces Cancel
+
+**Operator decisions** after seeing the first build: the editor's buttons are **Save as new version ·
+Save as draft · Discard changes** (the longer set, accepted despite the width); the Manage section is
+**Your Drafts**; rows say "Based on version 1.0.4"; after saving a draft, Edit reads **Continue
+editing** and the notice says "Find it in **Manage** tab, under Your Drafts". Reason given: "version"
+reads as a version NUMBER, so unnumbered kept work should not be called one.
+
+- **The "draft" reservation (SPEC §5/§13, CLAUDE.md, 2026-07-20) is lifted, not ignored.** Its only
+  evidence was a Guide sentence calling saved versions "drafts" that no longer existed; its worry was
+  an automatic backup being mistaken for a saved version, which an explicit "Save as draft" beside
+  "Save as new version" answers by naming them apart. The rule is rewritten as its inverse: a draft
+  is private and unnumbered, and a numbered version is never called a draft. Internal names stay, as
+  with the `editor` identifier after the account-type rename.
+- **Cancel was a silent Save as draft.** It reverted the screen but never retired the capture, so the
+  draft stayed and was offered back. With an explicit Save as draft beside it that is incoherent, so
+  it became Discard changes: confirm, retire, revert. A pristine form just leaves, without asking.
+- **"Continue editing" whenever a draft exists**, not only straight after saving one (the operator
+  had no preference; recommended because returning the next day is the case the label is for). One
+  existence query at page load (`hasUnsavedWork`), editor and lesson page.
+- The later decisions in this file's earlier 2026-10-17 entry that say "Keep for later" and "Your
+  unsaved work" describe the first build; they are left as written.
+- **The editor's button row now wraps at every width.** The longer labels ran it 52px past the right
+  edge at 1280px (measured: 1,332px of content), hiding Show details and Help. It had wrapped only at
+  ≤640px since the recovery notice once lived inside it; that notice moved out on 2026-08-23, so the
+  restriction outlived its reason. A browser test (`drafts.e2e.spec.ts` J5) fails at 1280/1024/800px
+  if any control leaves the screen — checked against the pre-fix build, where it fails.
+- **28 browser tests that already failed on `main` are repaired** (operator request). Two causes, both
+  from 2026-10-16 changes landing without their specs: the first-login Welcome dialog, a modal that
+  reappears on every full page load until "Don't show this again" is ticked, covered the pages of
+  specs whose fixture accounts are new every run; and the subject/grade panels were replaced by one
+  checkbox grid. `loginAs` pre-dismisses the dialog through the same storage key the dialog reads
+  (`lib/welcomeDismissal.ts`, so the two cannot drift), and `welcomeDialog.e2e.spec.ts` keeps the
+  dialog itself covered. The dialog's width (30rem) was checked at the operator's question and is
+  fine; its blocking is the modal, not the size.
+
 ## 2026-10-17 — Keep for later instead of a drafts store; Combine versions approved
 
 **Question (operator):** can a teacher with editing access save work for later without making a new

@@ -254,16 +254,22 @@ Saving holds Payload's processing lock across recovery preparation, submission a
 native prose and structural controls must not accept changes after the submitted snapshot is taken.
 A rejected or failed save releases the lock without clearing the dirty form.
 
-**Vocabulary — "draft" is reserved and must not be used for this feature.** In this product a
-*draft* already means an unofficial **saved version**, and the live evidence is the Guide, which
-defines the word for users in as many words: "Your drafts live in Manage → **My saved versions**".
-Calling a recovery capture a "draft" would tell a teacher their version had been saved when it has
-not. The feature is **edit recovery**; the collection is `edit-recovery`; the UI says **"Unsaved
-changes backed up · <when>"**. Same class of reserved-word rule as `class` → `SubjectGrade` (§13).
+**Vocabulary — what users see is a "draft" (operator decision 2026-10-17, superseding the
+2026-07-20 reservation).** A *draft* is a user's private, **unnumbered** copy of changes not yet
+saved as a version; a *version* is a **numbered** save (1.0.1, 1.0.2 …). The feature's internal
+name stays **edit recovery** — the collection is `edit-recovery`, the endpoints are `/recovery`,
+and the code says "capture" — exactly as the stored `editor` value survived the "Editor" account-type
+rename (CLAUDE.md). The UI says **"Draft saved automatically · <when>"**.
+*Why the reservation was lifted:* it held "draft" for unofficial saved versions on the evidence of a
+Guide sentence ("Your drafts live in Manage → My saved versions") that no longer exists — by
+2026-10-17 no screen or Guide text used the word for versions. Its worry was that calling an
+automatic backup a "draft" would tell a teacher a VERSION had been saved; with an explicit "Save as
+draft" beside "Save as new version", the two are named apart instead. ⚑ **Never call a numbered
+version a draft**, in UI text or Guide: "My saved versions" lists versions; "Your Drafts" lists
+drafts, each "Based on version 1.0.4".
 *(A `Draft` status pill also exists in `LibraryBrowser.tsx`, but it is dead code — catalogue rows are
-built with `status: 'published'` hardcoded, and Official/Not-Official became bold status text rather
-than pills. It is not evidence for this rule; it is a latent second collision if `status` ever goes
-dynamic.)*
+built with `status: 'published'` hardcoded. If `status` ever goes dynamic, that pill would call a
+version a draft and must be renamed first.)*
 
 **What is guaranteed, precisely.** The guarantee is **the last server-confirmed capture survives** —
 not every keystroke. Three windows are necessarily outside it and must be stated rather than implied:
@@ -399,33 +405,43 @@ observable contract, and a failed or backed-off capture must say so rather than 
   retirement/cleanup operation (for "this teacher's capture is stuck"), served by the same
   content-free endpoint. There is no admin read bypass for capture content.
 
-#### Keep for later (decided 2026-10-17)
+#### Drafts — Save as draft, Discard changes, Your Drafts (decided 2026-10-17)
 
 Operator question: can a teacher put work aside without saving a version each time? Edit recovery
 already keeps unsaved work on the server, across devices, for 30 days — so the answer is to make
-that **visible and deliberate**, not to add a second store. ⚑ **No "drafts" collection**: the word is
-reserved (above), and a full-snapshot store would carry admin and system fields, which is the
-"second, weaker channel" this section forbids. Four additions, no schema change:
+that **visible and deliberate**, not to add a second store. ⚑ **No separate drafts collection**: a
+full-snapshot store would carry admin and system fields, which is the "second, weaker channel" this
+section forbids. The user-facing word is **draft** (vocabulary note above). No schema change.
 
-- **"Keep for later" in the editor**, between Save and Cancel. It flushes the capture and leaves edit
-  mode **only after the server confirms the content on screen** (the same `isSafe` test the pre-expiry
-  flush uses); on any other outcome the editor stays open with the work in it, because leaving clears
-  the screen. Unlike Save, a transport failure is not tolerated — there is no other copy. Disabled on
-  a pristine form. An administrator is asked first, because only prose is captured and structural or
-  answer-key changes would be discarded.
-- **"Your unsaved work" on Manage**: the caller's own captures that hold work (active, non-empty),
-  with version, subject-grade, last backup date and **kept-until date** (last write + 30 days, the date
-  the nightly expiry honours), plus Resume (opens the editor, where the existing restore prompt takes
+- **Editor buttons: "Save as new version" · "Save as draft" · "Discard changes".**
+  - *Save as draft* flushes the capture and leaves edit mode **only after the server confirms the
+    content on screen** (the same `isSafe` test the pre-expiry flush uses); on any other outcome the
+    editor stays open with the work in it, because leaving clears the screen. Unlike Save, a
+    transport failure is not tolerated — there is no other copy. The form is locked during the
+    flush. Disabled on a pristine form. An administrator is asked first, because only prose is
+    captured and structural or answer-key changes would be discarded. Afterwards: "Your draft is
+    saved until <date>. Find it in **Manage** tab, under Your Drafts."
+  - *Discard changes* replaced Cancel, which reverted the screen but left the automatic draft on
+    the server — a less reliable Save as draft under a misleading name. It now confirms ("Discard
+    your unsaved changes? This cannot be undone."), retires the draft, and reverts. A pristine form
+    just leaves edit mode, without asking and without touching an existing draft.
+- **"Continue editing"** replaces the Edit label (editor and lesson page) whenever the signed-in
+  user has a draft on that version — a server-side existence check (`hasUnsavedWork`) at page load,
+  updated in the editor by Save as draft and Discard.
+- **"Your Drafts" on Manage**: the caller's own drafts (active, non-empty captures), each row with
+  its subject-grade, **"Based on version 1.0.4"** (never "Version 1.0.4" — the number belongs to the
+  version, not the draft), saved date and **kept-until date** (last write + 30 days, the date the
+  nightly expiry honours), plus Continue editing (opens the editor, where the restore prompt takes
   over) and Discard (the existing discard endpoint, with the rendered precondition). Rows are listed
   only where the restore path would accept them: the version is readable and the caller still has
   editing access. Shown above the accordion and only when non-empty — not a panel, so a teacher's
-  Manage page still opens straight onto their saved versions. Server-rendered from the session user;
-  no listing endpoint.
-- **The 30-day retention is stated** wherever work is kept (the editor's confirmation, the Manage
-  rows). It is unchanged (operator confirmed 30 days, 2026-10-17).
-- **Deleting a version warns when it discards unsaved work.** The parent cascade removes captures
-  with their version, so the four deliberate delete paths — the editor's Delete, Manage's version
-  list, Save's delete-the-source, Make Official's delete-previous — fold a warning into their existing
+  Manage page still opens straight onto "My saved versions" (numbered versions). Server-rendered from
+  the session user; no listing endpoint.
+- **The 30-day retention is stated** wherever drafts appear. It is unchanged (operator confirmed 30
+  days, 2026-10-17).
+- **Deleting a version warns when it discards drafts.** The parent cascade removes captures with
+  their version, so the four deliberate delete paths — the editor's Delete, Manage's version list,
+  Save's delete-the-source, Make Official's delete-previous — fold a warning into their existing
   confirmation. ⚑ **A new, bounded disclosure:** `GET /:id/recovery/unsaved-count` returns `{
   otherUsers, includesCaller }` — counts only, never names, times or content — and only to a caller
   for whom `canDeleteVersionDoc` holds, the one audience whose decision it changes. Advisory and
@@ -859,9 +875,9 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
      do not yet. This is a frontend-wide follow-up, and when fixed it applies to every frontend page alike.
      No frontend page holds an exception to it (`docs/DESIGN-discussions-2026-10-09.md` §16.1).
 - **Reserved words — a name that already means something else is a bug, not a preference.** `class`
-  is reserved: the entity is always `SubjectGrade`. **`draft` is reserved** for an unofficial *saved
-  version* — the Guide tells users "your drafts live in Manage → Lesson plans → My saved versions" — so
-  the unsaved-work feature is **edit recovery**, never "drafts" (§5). Before naming a new concept,
+  is reserved: the entity is always `SubjectGrade`. **`draft` means a private, unnumbered draft**
+  (edit recovery's user-facing name, decided 2026-10-17, §5) and never a numbered version; a version
+  is never called a draft. Before naming a new concept,
   grep the frontend and the Guide for the word: a label that asserts something the code does not mean
   spends other people's attention, exactly like a stale docstring.
 - **Payload-first.** Before adding any new custom endpoint, editor, permission layer, workflow,

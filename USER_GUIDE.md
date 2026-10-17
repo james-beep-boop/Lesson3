@@ -91,36 +91,37 @@ With editing access, you can change most lesson content in Lesson3. The subjects
 edit depend on your role. Subject-grade and Site administrators can also edit. Make changes in
 Lesson3, not in a Word file.
 
-- **Edit from the lesson:** open a lesson in the library and press *Edit*. The editing page opens
-  ready to type, showing only the fields you may change. *Quick preview ↗* checks your content,
-  while *Formatted PDF ↗* shows the final layout. Both open in a new tab and include unsaved edits;
-  close that tab to return to the editor. Use *Help* for the short writing rules. *Back* at the top
-  right returns you when you are done.
-- **Saving makes a new version:** *Save* stores your edits as a new version and leaves the version
-  you opened unchanged. A Subject-grade or Site administrator marks a saved version Official when
-  it is ready.
+- **Edit from the lesson:** open a lesson in the library and press *Edit* (or *Continue editing*,
+  when you have a draft). The editing page opens ready to type, showing only the fields you may
+  change. *Quick preview ↗* checks your content, while *Formatted PDF ↗* shows the final layout.
+  Both open in a new tab and include unsaved edits; close that tab to return to the editor. Use
+  *Help* for the short writing rules. *Back* at the top right returns you when you are done.
+- **Saving makes a new version:** *Save as new version* stores your edits as a new version and
+  leaves the version you opened unchanged. A Subject-grade or Site administrator marks a saved
+  version Official when it is ready.
 - **Find your saved versions:** *Manage → Lesson plans → My saved versions* lists versions you
   saved. Choose one to continue editing, or delete one you no longer need.
 - **Post about these changes:** after saving a version, choose this button beside **Compare to
   Official** on your saved version. It opens a discussion with that version attached. Explain what
   changed and invite colleagues’ suggestions. Starting a discussion that references someone else’s
   saved version includes its author in the discussion’s blue-dot notifications.
-- **Unsaved work:** while you edit, a note below the buttons shows when Lesson3 last saved a
-  temporary copy of your changes. Only you can see it, even if someone else uses the same computer.
-  Lesson3 will not restore it unless you choose to.
-- **Keep for later:** to stop for now without saving a version, choose *Keep for later*. Lesson3
-  checks that your changes are stored, then closes the editor. They are kept for 30 days after you
-  last worked on them. *Manage → Your unsaved work* lists everything you have kept, with *Resume*
-  and *Discard*. Administrators: only wording is kept, not changes to lessons, phases, durations,
-  rubrics or answer keys.
-- **Restore unsaved work:** if you leave without saving, reopen that version. Lesson3 will ask
-  whether you want to restore your changes. New wording appears in green; saved wording that will be
-  replaced is struck through in red. Lesson3 normally shows only the changes you have not saved.
+- **Drafts:** a draft is your private copy of changes you have not saved as a new version. While
+  you edit, Lesson3 saves a draft automatically, and a note below the buttons shows when. Only you
+  can see your drafts, even if someone else uses the same computer, and Lesson3 never restores a
+  draft unless you choose to.
+- **Save as draft:** to stop for now, choose *Save as draft*. Lesson3 checks that your draft is
+  saved, then closes the editor. A draft is kept for 30 days after you last worked on it. The
+  **Manage** tab lists your drafts under *Your Drafts*, with *Continue editing* and *Discard*. To
+  throw your changes away instead, choose *Discard changes*. Administrators: a draft holds only
+  wording, not changes to lessons, phases, durations, rubrics or answer keys.
+- **Continue a draft:** when you have a draft, the *Edit* button says *Continue editing*. Lesson3
+  asks whether to restore your draft. Your draft's wording appears in green; saved wording that
+  will be replaced is struck through in red. Lesson3 normally shows only what your draft changes.
   Some changes cannot be shown word by word: *Emptied* means a field will be cleared, *Paragraph
   breaks changed* means only line breaks changed, and *Spacing only* means the words stayed the same.
-  You can restore the changes, decide later, or discard them. Discarding cannot be undone.
-- **If someone else saves a newer version while you are away:** Lesson3 cannot restore your changes
-  automatically. Lesson3 shows all your unsaved work so you can copy what you still need.
+  Choose *Restore my draft*, *Decide later*, or *Discard the draft*. Discarding cannot be undone.
+- **If someone saves a newer version while you are away:** Lesson3 cannot restore your draft
+  automatically. It shows the whole draft so you can copy what you still need.
 - **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and
   additions in green. Lesson3 lists the parts that changed; choose one to jump to it. Turn off
   *Changes only* to read both versions in full. If a part says *Spacing or document structure

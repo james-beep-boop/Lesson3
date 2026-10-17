@@ -1,21 +1,23 @@
 'use client'
 
 /**
- * Manage — "Your unsaved work" (SPEC §5, "Keep for later", 2026-10-17).
+ * Manage — "Your Drafts" (SPEC §5, "Drafts", 2026-10-17).
  *
- * The caller's own edit-recovery captures, so work kept for later can be found again without
- * remembering which version it was on. Resume opens the editor with edit intent, where the existing
- * restore prompt takes over; Discard calls the existing discard endpoint with the precondition the
+ * The caller's own drafts (edit-recovery captures), so a draft can be found again without
+ * remembering which version it was based on. Continue editing opens the editor with edit intent,
+ * where the existing restore prompt takes over; Discard calls the existing discard endpoint with the
+ * precondition the
  * server rendered, so a capture that moved since the page loaded (another tab still typing) is
  * refused rather than destroyed.
  *
  * ⚑ NOT an accordion panel, deliberately. Every non-administrator's Manage page is one box with one
  * child that `initialOpen`'s lone-child rule opens for them; a second child would close both and put
- * their saved versions behind a click. Unsaved work is also the one thing on this page that expires,
- * so it is shown above the accordion — and only when there is some, so nobody's page grows.
+ * their saved versions behind a click. A draft is also the one thing on this page that expires, so
+ * drafts are shown above the accordion — and only when there are some, so nobody's page grows.
  *
- * ⚑ Vocabulary: this is "unsaved work", never "drafts". A draft in this product is a saved version
- * (SPEC §5, §13).
+ * ⚑ Vocabulary (operator decision 2026-10-17, SPEC §13): a DRAFT is private, unnumbered work; a
+ * VERSION is a numbered save. So rows say "Based on version 1.0.4", never "Version 1.0.4" — the
+ * number belongs to the version the draft started from, not to the draft.
  */
 import React, { useState } from 'react'
 import Link from 'next/link'
@@ -46,7 +48,7 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
     if (busyId != null) return
     if (
       !window.confirm(
-        `Discard your unsaved changes to “${row.label}” v${row.semver}? This cannot be undone.`,
+        `Discard your draft of “${row.label}” (based on version ${row.semver})? This cannot be undone.`,
       )
     ) {
       return
@@ -63,7 +65,7 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
         }),
       })
       if (!res.ok) throw new Error(await wireErrorMessage(res, 'Discard failed'))
-      toast.success(`Discarded your unsaved changes to “${row.label}”.`)
+      toast.success(`Discarded your draft of “${row.label}”.`)
       router.refresh()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Discard failed')
@@ -75,19 +77,19 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
   return (
     <section className="lp-manage__unsaved" aria-labelledby="lp-unsaved-heading">
       <h2 id="lp-unsaved-heading" className="lp-manage__unsaved-title">
-        Your unsaved work
+        Your Drafts
       </h2>
       <p className="lp-manage__desc">
-        Changes you have not saved as a version yet. Only you can see them. Each is kept for{' '}
-        {CAPTURE_TTL_DAYS} days after you last worked on it.
+        Changes you have not saved as a new version yet. Only you can see them. Each draft is kept
+        for {CAPTURE_TTL_DAYS} days after you last worked on it.
       </p>
       <ul className="lp-manage__list">
         {rows.map((row) => {
           const href = `/admin/collections/lesson-bundle-versions/${row.versionId}?edit=1`
           const meta = [
             row.sgLabel,
-            `Version ${row.semver}`,
-            `Backed up ${row.capturedOn}`,
+            `Based on version ${row.semver}`,
+            `Saved ${row.capturedOn}`,
             `Kept until ${row.keptUntil}`,
           ].filter(Boolean)
           return (
@@ -99,14 +101,14 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
                 <p className="lp-manage__meta">{meta.join(' · ')}</p>
                 {!row.restorable && (
                   <p className="lp-manage__meta">
-                    This version has changed since you worked on it, so your changes cannot be put
-                    back automatically. Open it to copy what you still need.
+                    The version this draft is based on has changed, so the draft cannot be put back
+                    automatically. Open it to copy what you still need.
                   </p>
                 )}
               </div>
               <div className="lp-manage__row-actions">
                 <Link className="btn lp-btn" href={href}>
-                  {row.restorable ? 'Resume' : 'Open to copy'}
+                  {row.restorable ? 'Continue editing' : 'Open to copy'}
                 </Link>
                 <Button
                   className="lp-btn"

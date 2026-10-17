@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
 /**
- * The editor's "Keep for later" button (SPEC §5, 2026-10-17).
+ * The editor's draft buttons — "Save as draft" and "Discard changes" — and the "Continue editing"
+ * label (SPEC §5 "Drafts", 2026-10-17).
  *
  * `keepForLater.spec.tsx` pins the hook's verdict; this pins what the EDITOR does with it, because
  * the destructive step — resetting the form, which clears the screen — lives here:
  *
- *   B1  `kept` resets the form, leaves edit mode, and says until when the work is kept
+ *   B1  `kept` resets the form, leaves edit mode, and says until when the draft is kept
  *   B2  `notKept` leaves the form alone: no reset, still in edit mode, and an explanation
  *   B3  an administrator is warned first that structure and answer keys are not kept, and saying
  *       no does nothing at all
  *   B4  nothing to keep (a pristine form) means the button is disabled
  *   B5  the form is locked while the flush runs, and released afterwards either way
+ *   D1  Discard changes asks, deletes the draft, then reverts; "no" does nothing
+ *   D2  a draft that could not be deleted is reported, and the label still says it exists
+ *   D3  a pristine form just leaves edit mode — no question, and no draft deleted
+ *   C1  Edit reads "Continue editing" when the server says a draft exists
  */
 import React from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -21,6 +26,8 @@ const ADMIN = { id: 1, roles: ['siteAdmin'], assignments: [] }
 
 const mocks = vi.hoisted(() => ({
   keepForLater: vi.fn(),
+  discardDraft: vi.fn(),
+  search: 'edit=1',
   reset: vi.fn(),
   setProcessing: vi.fn(),
   user: {} as unknown,
@@ -29,7 +36,7 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams('edit=1'),
+  useSearchParams: () => new URLSearchParams(mocks.search),
 }))
 vi.mock('@payloadcms/ui', () => ({
   Button: ({ children, disabled, onClick }: React.ComponentProps<'button'>) => (
@@ -61,6 +68,7 @@ vi.mock('@/components/EditRecovery/useEditRecovery', () => ({
     start: vi.fn(),
     prepareForSave: vi.fn(),
     keepForLater: mocks.keepForLater,
+    discardDraft: mocks.discardDraft,
     adoptToken: vi.fn(),
   }),
 }))
@@ -72,6 +80,7 @@ import LessonControls from '@/components/LessonControls'
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.user = TEACHER
+  mocks.search = 'edit=1'
   mocks.modified = true
   mocks.confirm = vi.fn((_message?: string) => true)
   vi.stubGlobal('confirm', mocks.confirm)
@@ -83,9 +92,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const keepButton = () => screen.getByRole('button', { name: 'Keep for later' })
+const keepButton = () => screen.getByRole('button', { name: 'Save as draft' })
 
-describe('Keep for later', () => {
+describe('Save as draft', () => {
   it('B1 kept: clears the screen, leaves edit mode and says until when', async () => {
     mocks.keepForLater.mockResolvedValue({ kind: 'kept', at: Date.parse('2026-10-17T09:00:00Z') })
     render(<LessonControls />)
@@ -94,12 +103,16 @@ describe('Keep for later', () => {
 
     // A status, not an alert: success must not render in the error colour.
     const status = await screen.findByRole('status')
-    expect(status.textContent).toContain('kept until 16 Nov 2026')
-    expect(status.textContent).toContain('Your unsaved work')
+    expect(status.textContent).toBe(
+      'Your draft is saved until 16 Nov 2026. Find it in Manage tab, under Your Drafts.',
+    )
+    // "Manage" is bold — the word to look for in the navigation.
+    expect(status.querySelector('strong')?.textContent).toBe('Manage')
     expect(screen.queryByRole('alert')).toBeNull()
     expect(mocks.reset).toHaveBeenCalledWith(expect.objectContaining({ overview: 'saved' }))
-    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    // A draft now exists, so the way back in says so.
+    expect(screen.getByRole('button', { name: 'Continue editing' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save as new version' })).toBeNull()
     // A teacher with editing access is not asked anything: everything they can edit is kept.
     expect(mocks.confirm).not.toHaveBeenCalled()
   })
@@ -117,7 +130,7 @@ describe('Keep for later', () => {
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain(phrase)
     expect(mocks.reset, 'the only copy must not be cleared').not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save as new version' })).toBeTruthy()
   })
 
   it('B3 an administrator is warned first, and "no" does nothing', async () => {
@@ -165,5 +178,65 @@ describe('Keep for later', () => {
     mocks.modified = false
     render(<LessonControls />)
     expect(keepButton().hasAttribute('disabled')).toBe(true)
+  })
+})
+
+const discardButton = () => screen.getByRole('button', { name: 'Discard changes' })
+
+describe('Discard changes', () => {
+  it('D1 asks, deletes the draft, then reverts — and "no" does nothing', async () => {
+    mocks.confirm = vi.fn((_message?: string) => false)
+    vi.stubGlobal('confirm', mocks.confirm)
+    const { unmount } = render(<LessonControls />)
+
+    fireEvent.click(discardButton())
+    expect(String(mocks.confirm.mock.calls[0][0])).toContain('cannot be undone')
+    expect(mocks.discardDraft).not.toHaveBeenCalled()
+    expect(mocks.reset).not.toHaveBeenCalled()
+    unmount()
+
+    mocks.confirm = vi.fn((_message?: string) => true)
+    vi.stubGlobal('confirm', mocks.confirm)
+    mocks.discardDraft.mockResolvedValue(true)
+    render(<LessonControls />)
+
+    fireEvent.click(discardButton())
+
+    await waitFor(() => expect(mocks.reset).toHaveBeenCalled())
+    expect(mocks.discardDraft).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('D2 a draft that could not be deleted is reported, and still counts as existing', async () => {
+    mocks.discardDraft.mockResolvedValue(false)
+    render(<LessonControls />)
+
+    fireEvent.click(discardButton())
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('could not be deleted')
+    expect(alert.textContent).toContain('Your Drafts')
+    expect(screen.getByRole('button', { name: 'Continue editing' })).toBeTruthy()
+  })
+
+  it('D3 a pristine form just leaves — no question, and no draft deleted', async () => {
+    mocks.modified = false
+    render(<LessonControls />)
+
+    fireEvent.click(discardButton())
+
+    await waitFor(() => expect(mocks.reset).toHaveBeenCalled())
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.discardDraft).not.toHaveBeenCalled()
+  })
+})
+
+describe('Continue editing', () => {
+  it('C1 Edit reads "Continue editing" when the server says a draft exists', async () => {
+    // Out of edit mode, so the lifecycle shows the Edit button rather than Save.
+    mocks.search = ''
+    render(<LessonControls hasDraft />)
+    expect(await screen.findByRole('button', { name: 'Continue editing' })).toBeTruthy()
   })
 })

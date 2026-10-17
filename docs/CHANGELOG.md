@@ -10,11 +10,17 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
-- Keep for later: the editor's new *Keep for later* button stores unsaved changes without saving a
-  version, confirms they are stored, and closes the editor. *Manage → Your unsaved work* lists kept
-  changes with their kept-until date (30 days), *Resume* and *Discard*. Deleting a version now warns
-  when it would discard someone's unsaved changes (a count only, shown to people who may delete it).
-  No migration. SPEC §5 "Keep for later"; DECISIONS 2026-10-17.
+- Drafts: the editor's buttons are now *Save as new version*, *Save as draft* and *Discard changes*.
+  *Save as draft* keeps changes privately without a new version, confirms they are saved, and closes
+  the editor; *Discard changes* (formerly Cancel) now really deletes the draft after asking. Edit
+  reads *Continue editing* when you have a draft. The **Manage** tab lists *Your Drafts* with their
+  kept-until date (30 days), *Continue editing* and *Discard*. Deleting a version warns when it would
+  discard someone's draft (a count only, shown to people who may delete it). "Draft" now means this
+  private, unnumbered work; numbered saves stay "versions". No migration. SPEC §5 "Drafts";
+  DECISIONS 2026-10-17.
+- The editor's button row wraps instead of running off the screen on a 1280px laptop.
+- The browser test suite passes again (90/90): its sign-in pre-dismisses the Welcome dialog, which a
+  new test still covers, and the subject/grade tests drive the new checkbox grid.
 - Combine versions is approved and specified (SPEC §6); not yet built.
 
 - Retire the completed one-off v0.95 publication job; future releases use the normal tag publisher.

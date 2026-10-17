@@ -35,7 +35,8 @@ export const restorePrompt = (page: Page) => page.locator('.lp-restore')
  */
 export async function openEditor(page: Page, versionId: number): Promise<void> {
   await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${versionId}`)
-  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  // "Continue editing" when this user already has a draft on the version (SPEC §5 Drafts).
+  await page.getByRole('button', { name: /^(Edit|Continue editing)$/ }).click()
   await expect(indicator(page)).toBeVisible()
 }
 
@@ -67,12 +68,12 @@ export async function typeProse(page: Page, value: string): Promise<void> {
 /**
  * Wait until the indicator CONFIRMS the work is stored.
  *
- * ⚑ Waits on the `--ok` TONE, not on the text "backed up". The idle copy is "Unsaved changes WILL BE
- * backed up", so a `toContainText('backed up')` matches instantly, before anything has been sent —
+ * ⚑ Waits on the `--ok` TONE, not on the text alone. The idle copy is "Your changes will be SAVED AS
+ * A DRAFT automatically", so a loose text match passes instantly, before anything has been sent —
  * every assertion downstream then runs against an empty capture. The tone is the one signal that is
  * false until the server has confirmed the write.
  */
 export async function awaitCaptured(page: Page): Promise<void> {
   await expect(indicator(page)).toHaveClass(/lp-recovery--ok/, { timeout: 30_000 })
-  await expect(indicator(page)).toContainText('Unsaved changes backed up')
+  await expect(indicator(page)).toContainText('Draft saved automatically')
 }

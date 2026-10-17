@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Modal from '@/components/Modal'
+import { welcomeDismissedKey } from '@/lib/welcomeDismissal'
 
 interface WelcomeUser {
   id: number
@@ -19,15 +20,11 @@ function getRole(user: WelcomeUser): UserRole {
   return 'teacher'
 }
 
-function storageKey(userId: number) {
-  return `welcome-dismissed-${userId}`
-}
-
 export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
   const [visible, setVisible] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     try {
-      return !localStorage.getItem(storageKey(user.id))
+      return !localStorage.getItem(welcomeDismissedKey(user.id))
     } catch {
       return true
     }
@@ -40,7 +37,7 @@ export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
     setVisible(false)
     if (dontShowAgain) {
       try {
-        localStorage.setItem(storageKey(user.id), '1')
+        localStorage.setItem(welcomeDismissedKey(user.id), '1')
       } catch {
         // Storage quota or policy failure; suppress the dialog for this session only.
       }

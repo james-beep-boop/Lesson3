@@ -1,6 +1,6 @@
 /**
- * "Keep for later" reads (SPEC §5, 2026-10-17) against a real database:
- * `listOwnCaptures`, `countUnsavedWorkOnVersion`, and the Manage list built on them.
+ * Draft reads (SPEC §5 "Drafts", 2026-10-17) against a real database:
+ * `listOwnCaptures`, `countUnsavedWorkOnVersion`, `hasUnsavedWork`, and the Manage list.
  *
  * ⚑ The security-relevant property is U1's first case: the list is keyed on ONE user id and returns
  * nobody else's rows. The endpoints get that from `req.user.id`; this query gets it from its
@@ -11,6 +11,8 @@
  *   U2  the per-version count separates the caller from everyone else, by count only
  *   U3  the Manage rows: restorability agrees with the GET endpoint, the row carries what Manage needs
  *       to label and date it, and a version the caller can no longer edit is not listed
+ *   U4  `hasUnsavedWork` — the "Continue editing" label — is per user, per version, and ignores
+ *       anything that is not a draft
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -28,7 +30,11 @@ import {
   setRecoveryContent,
   setRecoveryProvenance,
 } from '../helpers/editRecovery.js'
-import { countUnsavedWorkOnVersion, listOwnCaptures } from '../../src/lib/editRecovery/kernel.js'
+import {
+  countUnsavedWorkOnVersion,
+  hasUnsavedWork,
+  listOwnCaptures,
+} from '../../src/lib/editRecovery/kernel.js'
 import { listUnsavedWork } from '../../src/lib/editRecovery/unsavedWork.js'
 import { CAPTURE_SCHEMA_VERSION } from '../../src/lib/editRecovery/provenance.js'
 import type { User } from '../../src/payload-types.js'
@@ -274,5 +280,30 @@ describe('U3 — listUnsavedWork (the Manage rows)', () => {
         overrideAccess: true,
       })
     }
+  })
+})
+
+describe('U4 — hasUnsavedWork (the "Continue editing" label)', () => {
+  const has = (versionId: number, userId: number) =>
+    hasUnsavedWork(poolReq(), { userId, sourceVersionId: versionId })
+
+  it("true only for the draft's own user and version", async () => {
+    const v = await makeVersion(nextSemver())
+    const other = await makeVersion(nextSemver())
+    await keepWork(v.id, fx.users.editor.id)
+
+    expect(await has(v.id, fx.users.editor.id)).toBe(true)
+    expect(await has(v.id, fx.users.subjectAdmin.id), 'another user').toBe(false)
+    expect(await has(other.id, fx.users.editor.id), 'another version').toBe(false)
+  })
+
+  it('false for an Edit click with no typing, and after the draft is retired', async () => {
+    const v = await makeVersion(nextSemver())
+    await startFor(v.id, { userId: fx.users.editor.id })
+    expect(await has(v.id, fx.users.editor.id), 'a session is not a draft').toBe(false)
+
+    await keepWork(v.id, fx.users.editor.id)
+    await retireDirectly(fx.payload, v.id, fx.users.editor.id)
+    expect(await has(v.id, fx.users.editor.id), 'a retired draft is gone').toBe(false)
   })
 })

@@ -1,5 +1,5 @@
 /**
- * "Your unsaved work" on Manage (SPEC §5, "Keep for later", 2026-10-17) — the caller's own captures,
+ * "Your Drafts" on Manage (SPEC §5, "Drafts", 2026-10-17) — the caller's own captures,
  * resolved to rows a person can act on.
  *
  * Edit recovery already kept unsaved work on the server for 30 days, but the only way back to it was

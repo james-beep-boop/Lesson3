@@ -64,39 +64,39 @@ export function EditRecoveryIndicator({ status }: { status: RecoveryStatus }) {
     switch (status.kind) {
       case 'starting':
       case 'idle':
-        return ['muted', 'Unsaved changes will be backed up']
+        return ['muted', 'Your changes will be saved as a draft automatically']
       case 'saving':
-        return ['muted', 'Backing up…']
+        return ['muted', 'Saving draft…']
       case 'backedUp':
-        return ['ok', `Unsaved changes backed up · ${ago(now - status.at)}`]
+        return ['ok', `Draft saved automatically · ${ago(now - status.at)}`]
       case 'conflict':
         // ⚑ NEUTRAL about the cause, deliberately. The server collapses several states into one
         // undifferentiated 409 — a newer capture, a superseded session, a retired row — precisely so
         // it cannot leak whether another session exists. "Another tab" would be a guess dressed as a
         // fact, and wrong whenever the real cause was a reactivated session. PR 2b's reconciling GET
         // is what makes specifics honest.
-        return ['warn', 'Backup is out of date — reload before saving']
+        return ['warn', 'Draft is out of date — reload before saving']
       case 'unavailable':
         return [
           'warn',
           status.reason === 'atCapacity'
             ? // Names the way out: Manage lists every capture counted against the cap.
-              'Backup unavailable: too many lesson plans have unsaved changes. Save or discard some under Your unsaved work in Manage.'
-            : 'Backup unavailable — your changes are not being saved automatically',
+              'Drafts unavailable: you have too many drafts. Save or discard some in the Manage tab, under Your Drafts.'
+            : 'Drafts unavailable — your changes are not being saved automatically',
         ]
       case 'notBackedUp':
         switch (status.reason) {
           case 'tooLarge':
-            return ['warn', 'NOT backed up: these changes are too large to back up']
+            return ['warn', 'Draft NOT saved: these changes are too large']
           case 'rateLimited':
             return [
               'warn',
-              `NOT backed up: retrying${
+              `Draft NOT saved: retrying${
                 status.retryAfterSec ? ` in ${status.retryAfterSec}s` : ' shortly'
               }`,
             ]
           case 'transport':
-            return ['warn', 'NOT backed up: could not reach the server']
+            return ['warn', 'Draft NOT saved: could not reach the server']
         }
     }
   })()

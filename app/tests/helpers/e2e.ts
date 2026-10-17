@@ -10,6 +10,7 @@ import type { Page } from '@playwright/test'
 import { clearRateLimitBuckets } from './db'
 import { login } from './login'
 import type { RoleFixture, RoleKey } from './fixtures'
+import { welcomeDismissedKey } from '../../src/lib/welcomeDismissal'
 
 /** The base URL every browser spec drives. Overridden by `E2E_BASE_URL` (e.g. the Rock over Tailscale). */
 export const E2E_BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
@@ -34,8 +35,27 @@ export const E2E_BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').re
  * address (triaged 2026-10-11 with retries off: it failed every time). These specs test the pages behind
  * sign-in, not the throttle — that has its own wire tests — so each sign-in starts with a clean budget.
  */
-export async function loginAs(page: Page, fx: RoleFixture, key: RoleKey): Promise<void> {
+export async function loginAs(
+  page: Page,
+  fx: RoleFixture,
+  key: RoleKey,
+  opts: { showWelcome?: boolean } = {},
+): Promise<void> {
   await clearRateLimitBuckets(fx.payload, `login:${fx.users[key].email.toLowerCase()}`)
+  // ⚑ THE WELCOME DIALOG IS PRE-DISMISSED. Fixture accounts are brand new every run, so the first-login
+  // dialog — a modal over the whole page — appeared on every page these specs open and intercepted
+  // their clicks: 28 failures across Discussions, Manage and Messages (2026-10-17). These specs test
+  // the pages, not the dialog; `welcomeDialog.e2e.spec.ts` tests the dialog and opts out with
+  // `showWelcome`. An init script, so it holds for every navigation and reload on this page.
+  if (!opts.showWelcome) {
+    await page.addInitScript((storageKey) => {
+      try {
+        window.localStorage.setItem(storageKey, '1')
+      } catch {
+        // Storage disabled: the dialog would show, and the spec will say so on its first click.
+      }
+    }, welcomeDismissedKey(fx.users[key].id))
+  }
   await login({
     page,
     serverURL: E2E_BASE,

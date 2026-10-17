@@ -6,13 +6,13 @@
  * disabled lifecycle button ever shows:
  *
  *   view mode:  Viewing: <title> [Official] │ [Edit] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
- *   edit mode:  Editing: <title> [Official] │ [Save · Keep for later · Cancel] · [Insert link] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
+ *   edit mode:  Editing: <title> [Official] │ [Save as new version · Save as draft · Discard changes] · [Insert link] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
  *
  * Read-only by default through the collection's edit-mode styling; "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
- * the Official pointer) and opens it. "Keep for later" confirms the edit-recovery backup holds what
- * is on screen, then re-locks without saving a version (SPEC §5). "Cancel" reverts unsaved changes
- * and re-locks. "Quick preview"
+ * the Official pointer) and opens it. "Save as draft" confirms the draft (edit recovery) holds what
+ * is on screen, then re-locks without saving a version (SPEC §5). "Discard changes" deletes the draft
+ * after a confirmation, reverts and re-locks. "Quick preview"
  * (fast mammoth HTML, structure only) and "Formatted PDF" (the accurate DOCX→PDF rendering — cached
  * export PDF when pristine, generated from the live form when there are unsaved edits) both act on
  * the current form state. The old Download button + kind checkboxes were removed 2026-07-15: they
@@ -78,21 +78,24 @@ async function errorMessage(res: Response, label: string): Promise<string> {
   return body.errors?.[0]?.message || `${label} failed (${res.status})`
 }
 
-/** Why "Keep for later" stayed in the editor. Each names what the teacher can do next. */
-const KEEP_FAILED: Record<Extract<KeepResult, { kind: 'notKept' }>['reason'], string> = {
+/** Why "Save as draft" stayed in the editor. Each names what the teacher can do next. */
+const DRAFT_FAILED: Record<Extract<KeepResult, { kind: 'notKept' }>['reason'], string> = {
   unavailable:
-    'Your changes could not be kept because backup is not available right now. Save them as a version instead, or keep this page open.',
+    'Your draft could not be saved because drafts are not available right now. Save your changes as a new version instead, or keep this page open.',
   conflict:
-    'Your unsaved work changed in another tab. Reload before continuing, so newer changes are not lost.',
+    'Your draft changed in another tab. Reload before continuing, so newer changes are not lost.',
   failed:
-    'Your changes could not be backed up just now, so they are still on screen. Try again in a moment, or save them as a version.',
+    'Your draft could not be saved just now, so your changes are still on screen. Try again in a moment, or save them as a new version.',
 }
 
 export default function LessonControls({
   flags,
+  hasDraft: hasDraftOnLoad = false,
 }: {
   /** From the server wrapper (`./server.tsx`). Absent means every capability off. */
   flags?: SystemFlags
+  /** From the server wrapper: the signed-in user has a draft on this version at page load. */
+  hasDraft?: boolean
 }) {
   const { id, savedDocumentData } = useDocumentInfo()
   const { dispatchFields, getData, initializing, setDisabled, setProcessing, reset, setModified } =
@@ -118,9 +121,10 @@ export default function LessonControls({
   const [editIntent, setEditIntent] = useState<boolean>(() => searchParams.get('edit') === '1')
   const [saving, setSaving] = useState(false)
   const [keeping, setKeeping] = useState(false)
-  // Either lifecycle action in flight. The guards below also check `saveInFlight`, the synchronous
-  // ref that closes the gap before `saving` re-renders.
-  const busy = saving || keeping
+  const [discarding, setDiscarding] = useState(false)
+  // Any lifecycle action in flight. The guards below also check `saveInFlight`, the synchronous ref
+  // that closes the gap before `saving` re-renders.
+  const busy = saving || keeping || discarding
   const saveInFlight = useRef(false)
   useEffect(() => {
     return () => {
@@ -139,9 +143,14 @@ export default function LessonControls({
   const [helpOpen, setHelpOpen] = useState(false)
   const [tooNarrow, setTooNarrow] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
-  // A GOOD outcome to report — "Keep for later" succeeded. Separate from `msg`, which renders as a red
-  // alert: telling a teacher their work is safe in the error colour reads as the opposite.
-  const [notice, setNotice] = useState<string | null>(null)
+  // A GOOD outcome to report — "Save as draft" succeeded, holding the date the draft is kept until.
+  // Separate from `msg`, which renders as a red alert: telling a teacher their work is safe in the
+  // error colour reads as the opposite.
+  const [draftKeptUntil, setDraftKeptUntil] = useState<string | null>(null)
+  // Whether a draft exists here, which labels Edit "Continue editing". Starts from the server's
+  // answer at load; the actions below that create or delete the draft record their outcome, scoped
+  // to the version so a client-side move to another version falls back to that version's own answer.
+  const [draftOverride, setDraftOverride] = useState<{ id: unknown; exists: boolean } | null>(null)
 
   // Every visit starts compact, even when Payload has an older per-user "Show All" preference.
   // `initCollapsed` remains the no-flash first-render default; this once-per-document form-state
@@ -295,7 +304,7 @@ export default function LessonControls({
   const recoveryGate = recovery.entry.phase === 'resolving' || recovery.entry.phase === 'offer'
 
   // Keep the form's submit state in sync with our edit/view mode (starts from the `?edit=1` intent;
-  // the Edit/Cancel buttons flip it), extended over the recovery entry so a save cannot land while an
+  // the Edit/Discard changes buttons flip it), extended over the recovery entry so a save cannot land while an
   // offer is undecided.
   //
   // ⚑ **`setDisabled` does NOT make fields read-only.** Payload's `useField()` derives its
@@ -437,7 +446,7 @@ export default function LessonControls({
     clearActiveLinkTarget()
     setEditIntent(true)
     setMsg(null)
-    setNotice(null)
+    setDraftKeptUntil(null)
   }
 
   const onToggleDetails = () => {
@@ -453,18 +462,49 @@ export default function LessonControls({
     })
   }
 
-  const onDiscard = () => {
-    // Revert the form to the saved document (drop unsaved edits) and re-lock to view mode.
+  /** Revert the form to the saved document and re-lock to view mode. */
+  const leaveEditMode = () => {
     void reset(savedDocumentData ?? {})
     clearActiveLinkTarget()
     setEditIntent(false)
-    setMsg(null)
   }
 
   /**
-   * "Keep for later" (SPEC §5, 2026-10-17): store the work on screen without saving a version, then
-   * leave edit mode. Edit recovery already backs up as you type; this is the explicit, confirmed
-   * version of that, so a teacher knows it is safe to walk away.
+   * "Discard changes" (replaced Cancel, 2026-10-17). Cancel reverted the screen but left the
+   * automatic draft on the server, so it quietly behaved like a less reliable "Save as draft". Now
+   * the two differ: this asks, then DELETES the draft, then reverts.
+   *
+   * A pristine form has nothing to discard, so it simply leaves edit mode — without asking, and
+   * without touching a draft the teacher may have chosen to "Decide later" about.
+   */
+  const onDiscardChanges = async () => {
+    if (busy || saveInFlight.current) return
+    setMsg(null)
+    if (!modified) {
+      leaveEditMode()
+      return
+    }
+    if (!window.confirm('Discard your unsaved changes? This cannot be undone.')) return
+    flushSync(() => {
+      setDiscarding(true)
+      setProcessing(true)
+    })
+    const deleted = await recovery.discardDraft()
+    setProcessing(false)
+    setDiscarding(false)
+    leaveEditMode()
+    setDraftOverride({ id, exists: !deleted })
+    if (!deleted) {
+      setMsg(
+        'Your changes were removed from this screen, but the saved draft could not be deleted. You can discard it in the Manage tab, under Your Drafts.',
+      )
+    }
+  }
+
+  /**
+   * "Save as draft" (SPEC §5, 2026-10-17): store the work on screen without saving a version, then
+   * leave edit mode. Edit recovery already saves a draft as you type; this is the explicit,
+   * confirmed version of that, so a teacher knows it is safe to walk away.
    *
    * ⚑ The screen is cleared ONLY after the server confirms this exact content (`keepForLater`
    * resolves `kept` from `isSafe()`). Any other answer leaves the editor open with the work in it —
@@ -479,7 +519,7 @@ export default function LessonControls({
     if (
       canEditStructure &&
       !window.confirm(
-        'Only your wording is kept for later. Changes to lessons, phases, durations, rubrics and answer keys are not, and will be discarded.\n\nKeep your wording for later?',
+        'Only your wording is saved in a draft. Changes to lessons, phases, durations, rubrics and answer keys are not, and will be discarded.\n\nSave your wording as a draft?',
       )
     ) {
       return
@@ -492,22 +532,21 @@ export default function LessonControls({
       setProcessing(true)
     })
     setMsg(null)
-    setNotice(null)
+    setDraftKeptUntil(null)
     const result = await recovery.keepForLater()
     setProcessing(false)
     setKeeping(false)
     if (result.kind !== 'kept') {
-      setMsg(KEEP_FAILED[result.reason])
+      setMsg(DRAFT_FAILED[result.reason])
       return
     }
-    void reset(savedDocumentData ?? {})
-    clearActiveLinkTarget()
-    setEditIntent(false)
-    setNotice(
-      `Your changes are kept until ${formatDay(captureKeptUntil(result.at))}. ` +
-        'Press Edit to continue, or find them in Manage under Your unsaved work.',
-    )
+    leaveEditMode()
+    setDraftOverride({ id, exists: true })
+    setDraftKeptUntil(formatDay(captureKeptUntil(result.at)))
   }
+
+  const draftExists =
+    draftOverride && draftOverride.id === id ? draftOverride.exists : hasDraftOnLoad
 
   const onSave = async () => {
     if (busy || saveInFlight.current || recoveryGate || !editing) return
@@ -549,9 +588,7 @@ export default function LessonControls({
         // several states — a newer capture, a superseded session, a retired row — because saying
         // which would leak whether another session exists. Naming "another tab" here would invent a
         // certainty the response does not carry. PR 2b's GET reconciliation is what earns specifics.
-        setMsg(
-          'Your unsaved work is out of date. Reload before saving, so newer changes are not lost.',
-        )
+        setMsg('Your draft is out of date. Reload before saving, so newer changes are not lost.')
         setSaving(false)
         setProcessing(false)
         saveInFlight.current = false
@@ -730,7 +767,7 @@ export default function LessonControls({
   return (
     <div className={wrapClass}>
       {/* One header row: what you're looking at · status · lifecycle · previews · help · exit.
-          The lifecycle swaps Edit ⇄ Save/Cancel with the mode (D3/§13: no dead lifecycle button
+          The lifecycle swaps Edit ⇄ Save/Discard with the mode (D3/§13: no dead lifecycle button
           ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}
       <div className="lesson-controls">
         <div className="lesson-controls__group">
@@ -787,7 +824,7 @@ export default function LessonControls({
               or a teacher with editing access looking at another subject-grade, actually came for. */}
           {!canEdit ? null : !editing ? (
             <Button buttonStyle="primary" size="small" onClick={onEdit}>
-              Edit
+              {draftExists ? 'Continue editing' : 'Edit'}
             </Button>
           ) : (
             <>
@@ -798,10 +835,10 @@ export default function LessonControls({
                 disabled={busy || !modified}
                 tooltip={!saving && !modified ? 'No changes to save' : undefined}
               >
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? 'Saving…' : 'Save as new version'}
               </Button>
-              {/* Between Save and Cancel: the three ways out of an edit session, in order of how much
-                  they keep. Disabled on a pristine form like Save — there is nothing to keep. */}
+              {/* The three ways out of an edit session, in order of how much they keep. Save as
+                  draft is disabled on a pristine form like Save — there is nothing to keep. */}
               <Button
                 buttonStyle="secondary"
                 size="small"
@@ -809,16 +846,21 @@ export default function LessonControls({
                 disabled={busy || !modified || recovery.status.kind === 'unavailable'}
                 tooltip={
                   recovery.status.kind === 'unavailable'
-                    ? 'Backup is not available right now'
+                    ? 'Drafts are not available right now'
                     : !modified
-                      ? 'No changes to keep'
-                      : 'Keep your changes without saving a version, and come back to them later'
+                      ? 'No changes to save'
+                      : 'Keep your changes privately without saving a new version'
                 }
               >
-                {keeping ? 'Keeping…' : 'Keep for later'}
+                {keeping ? 'Saving draft…' : 'Save as draft'}
               </Button>
-              <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={busy}>
-                Cancel
+              <Button
+                buttonStyle="secondary"
+                size="small"
+                onClick={() => void onDiscardChanges()}
+                disabled={busy}
+              >
+                {discarding ? 'Discarding…' : 'Discard changes'}
               </Button>
             </>
           )}
@@ -943,9 +985,10 @@ export default function LessonControls({
             This opens in a new tab. Close that tab to return to your edits.
           </span>
         )}
-        {notice ? (
+        {draftKeptUntil ? (
           <span role="status" className="lesson-controls__status lesson-controls__notice">
-            {notice}
+            Your draft is saved until {draftKeptUntil}. Find it in <strong>Manage</strong> tab,
+            under Your Drafts.
           </span>
         ) : null}
         {msg ? (
@@ -975,7 +1018,10 @@ export default function LessonControls({
           busy={restoring}
           onRestore={onRestore}
           onKeep={recovery.keepOffer}
-          onDiscard={recovery.discardOffer}
+          onDiscard={async () => {
+            await recovery.discardOffer()
+            setDraftOverride({ id, exists: false })
+          }}
         />
       )}
       {/* Pressing Edit below the width threshold explains itself here instead of unlocking the form.

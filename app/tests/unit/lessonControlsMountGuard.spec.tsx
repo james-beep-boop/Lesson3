@@ -154,8 +154,8 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     render(<LessonControls />)
 
     // The guard fired: edit intent was dropped, so the bar shows the view-mode lifecycle.
-    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save as new version' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Discard changes' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
     // …and the form ends locked. setDisabled(true) is the last word after editing flips back.
     expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(true)
@@ -188,7 +188,7 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     expect(screen.getByRole('dialog')).toBeTruthy()
     expect(screen.getByText(/You can still view this lesson here/i)).toBeTruthy()
     // ...and the form did NOT unlock: Edit is still the lifecycle button, Save never appeared.
-    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save as new version' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
     expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(true)
 
@@ -205,7 +205,7 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save as new version' })).toBeTruthy()
   })
 
   it('at 1280px, the SAME ?edit=1 load stays in EDIT mode (Save shown, no Edit; form enabled)', () => {
@@ -215,7 +215,7 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     render(<LessonControls />)
 
     // The guard is width-conditional — on a wide viewport it must not touch edit intent.
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save as new version' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(false)
   })
@@ -224,7 +224,7 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     mocks.search = 'edit=1'
     setViewportWidth(1280)
     render(<LessonControls />)
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy() // mounted editing
+    expect(screen.getByRole('button', { name: 'Save as new version' })).toBeTruthy() // mounted editing
 
     // The user drags the window below 640px mid-edit. The guard evaluated once on mount and adds no
     // resize listener, so edit mode must survive — yanking someone out mid-sentence and discarding
@@ -232,7 +232,7 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     setViewportWidth(390)
     act(() => window.dispatchEvent(new Event('resize')))
 
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save as new version' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(false)
   })

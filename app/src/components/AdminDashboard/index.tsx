@@ -189,7 +189,7 @@ export default async function AdminDashboard({
     siteAdmin ? t.time('systemFacts', () => collectSystemFacts()) : null,
     // Never throws: a failed read renders Features as "unavailable" (`readFeaturesSettings`).
     siteAdmin ? t.time('systemSettings', () => readFeaturesSettings(payload, { user, req })) : null,
-    // ---- Your unsaved work (every role that can edit; empty for everyone else) ----
+    // ---- Your Drafts (every role that can edit; empty for everyone else) ----
     // The CALLER's own captures only — `listUnsavedWork` keys on `user.id` and re-applies the read
     // and editing-access gates the restore path would. See `lib/editRecovery/unsavedWork.ts`.
     user ? t.time('unsavedWork', () => listUnsavedWork(req, user)) : [],
@@ -217,7 +217,7 @@ export default async function AdminDashboard({
   const sgIds = distinctIds([
     ...versionDocs.map((v) => relId(v.subjectGrade)),
     ...planDocs.map((p) => relId(p.subjectGrade)),
-    // Labels for "Your unsaved work" ride this lookup rather than a query of their own.
+    // Labels for "Your Drafts" ride this lookup rather than a query of their own.
     ...unsavedWork.map((w) => w.subjectGradeId),
   ])
   const authorIds = distinctIds(versionDocs.map((v) => relId(v.author)))

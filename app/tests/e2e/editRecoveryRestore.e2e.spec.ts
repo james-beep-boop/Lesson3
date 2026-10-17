@@ -197,14 +197,14 @@ test.describe('case 4 — the same user is OFFERED their work, never given it ba
     // same class of harm as losing the work, pointing the other way.
     await expect(page.locator(OVERVIEW)).toHaveValue(saved)
 
-    await page.getByRole('button', { name: 'Put the changes back' }).click()
+    await page.getByRole('button', { name: 'Restore my draft' }).click()
     await expect(prompt(page)).toHaveCount(0)
 
     // Applied exactly, and the form is DIRTY: restored work is unsaved work, and a clean form would
     // let the teacher navigate away and lose it a second time.
     await expandLessons(page)
     await expect(page.locator(OVERVIEW)).toHaveValue(typed)
-    await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Save as new version' })).toBeEnabled()
   })
 })
 
@@ -310,7 +310,7 @@ test.describe('case 8 — an explicit discard retires the capture', () => {
     await expect(prompt(page)).toBeVisible()
 
     const before = await recoveryRow(fx.payload, versionId, editorId)
-    await page.getByRole('button', { name: 'Discard the changes' }).click()
+    await page.getByRole('button', { name: 'Discard the draft' }).click()
     await expect(prompt(page)).toHaveCount(0)
 
     // DELETE first clears and retires the row; the following POST /start then reactivates it. Polling
@@ -405,8 +405,8 @@ test.describe('cases 9 and 10 — a capture that cannot be trusted is READ-ONLY'
 
       // ⚑ ABSENT, not disabled. A disabled Restore button sends the user hunting for the condition
       // that would enable it, and there is none they can reach.
-      await expect(page.getByRole('button', { name: 'Put the changes back' })).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Discard the changes' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Restore my draft' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Discard the draft' })).toBeVisible()
 
       // Continuing leaves the form on the SAVED content — nothing untrusted reaches it.
       await page.getByRole('button', { name: 'Continue editing' }).click()

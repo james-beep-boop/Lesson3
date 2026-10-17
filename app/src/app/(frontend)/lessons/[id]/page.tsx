@@ -12,6 +12,7 @@ import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
 import { type PreviewSection } from '@/generator/previewBundle'
 import { annotateSections, docNavItems, docSectionId } from '@/lib/lessonAnchors'
 import EditActions from './EditActions'
+import { hasUnsavedWork } from '@/lib/editRecovery/kernel'
 import ShareMenu from './ShareMenu'
 import DocButtons from '@/components/DocButtons'
 import { PRIMARY_DELIVERABLE } from '@/generator/deliverables'
@@ -100,6 +101,15 @@ export default async function LessonView({
   const sgId = toId(plan.subjectGrade as never)
   const canEdit = isEditorFor(user, sgId)
   const canMakeOfficial = isSubjectAdminFor(user, sgId)
+  // "Continue editing" when the signed-in user has a draft on THIS version (SPEC §5). Only asked of
+  // someone who will see the Edit button at all.
+  const hasDraft =
+    canEdit && user != null
+      ? await hasUnsavedWork(
+          { payload, transactionID: undefined },
+          { userId: user.id, sourceVersionId: selectedId },
+        )
+      : false
 
   // The caller's favorite row for the VIEWED version (§10, per-version by design 2026-07-06:
   // favoriting 1.0.2 pins that snapshot). Explicitly own-only, including Site Admins; presence + row
@@ -189,6 +199,7 @@ export default async function LessonView({
               versionId={selectedId}
               canMakeOfficial={canMakeOfficial}
               officialVersionId={officialId ?? null}
+              hasDraft={hasDraft}
             />
           )}
           {/* T3: viewers without edit rights can ask for them — recipients resolve server-side. */}

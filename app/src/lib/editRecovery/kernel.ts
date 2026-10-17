@@ -20,7 +20,7 @@
 import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
-import { rowsOf, toPositiveInt, txDb } from '../txDb'
+import { rowsOf, toPositiveInt, txDb, type TxSource } from '../txDb'
 import { projectCapture } from './projection'
 import { captureExpiryCutoff } from './ttl'
 
@@ -602,7 +602,7 @@ export type OwnCapture = {
 }
 
 /**
- * Every capture holding unsaved work for ONE user, newest first — "Your unsaved work" on Manage.
+ * Every capture holding unsaved work for ONE user, newest first — "Your Drafts" on Manage.
  *
  * ⚑ The user id is a parameter the CALLER must take from the session, exactly as the endpoints do;
  * there is no variant that lists anyone else's. The content column is not selected: the list shows
@@ -664,4 +664,26 @@ export const countUnsavedWorkOnVersion = async (
     otherUsers: Number(row?.others ?? 0),
     includesCaller: row?.mine === true,
   }
+}
+
+/**
+ * Whether ONE user holds a draft on ONE version — the "Continue editing" label (SPEC §5, 2026-10-17).
+ *
+ * Existence only: no content, no token. The caller supplies the session user's id, exactly as the
+ * Manage list does; there is no variant that asks about anyone else.
+ */
+export const hasUnsavedWork = async (
+  req: TxSource,
+  args: { userId: number; sourceVersionId: number },
+): Promise<boolean> => {
+  const db = await txDb(req)
+  const row = rowsOf(
+    await db.execute(sql`
+      SELECT 1 AS found FROM edit_recovery
+      WHERE user_id = ${args.userId}
+        AND source_version_id = ${args.sourceVersionId}
+        AND ${holdsUnsavedWork}
+    `),
+  )[0]
+  return row != null
 }

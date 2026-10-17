@@ -122,7 +122,7 @@ describe('save snapshot lifecycle', () => {
       vi.stubGlobal('fetch', fetcher)
       const view = render(<LessonControls />)
       await screen.findByText('Not Official')
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save as new version' }))
       expect(mocks.setProcessing).toHaveBeenLastCalledWith(true)
       expect(mocks.push).not.toHaveBeenCalled()
       expect(fetcher.mock.calls.filter(([url]) => url.includes('save-as-new'))).toHaveLength(0)
@@ -148,7 +148,9 @@ describe('save snapshot lifecycle', () => {
       mocks.id = 3
       view.rerender(<LessonControls />)
       expect(mocks.setProcessing).toHaveBeenLastCalledWith(false)
-      expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(false)
+      expect(
+        screen.getByRole('button', { name: 'Save as new version' }).hasAttribute('disabled'),
+      ).toBe(false)
     },
   )
 
@@ -169,14 +171,16 @@ describe('save snapshot lifecycle', () => {
         ),
       )
       render(<LessonControls />)
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save as new version' }))
       await screen.findByRole('alert')
       expect(mocks.setProcessing).toHaveBeenLastCalledWith(false)
       expect(mocks.setModified).not.toHaveBeenCalledWith(false)
       expect(mocks.push).not.toHaveBeenCalled()
       expect(mocks.getData()).toEqual({ overview: 'snapshot A' })
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(false),
+        expect(
+          screen.getByRole('button', { name: 'Save as new version' }).hasAttribute('disabled'),
+        ).toBe(false),
       )
     },
   )

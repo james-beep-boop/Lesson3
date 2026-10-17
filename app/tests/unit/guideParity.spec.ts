@@ -80,6 +80,11 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   { what: 'the version discussion entry point', claim: 'Discuss this version' },
   { what: 'the after-save discussion entry point', claim: 'Post about these changes' },
+  // SPEC §5 Drafts (2026-10-17): the retention a teacher plans around, stated identically on both.
+  {
+    what: 'how long a draft is kept',
+    claim: 'A draft is kept for 30 days after you last worked on',
+  },
   { what: 'the dot changes only on navigation', claim: 'The dot updates on navigation or reload' },
   { what: 'forum drafts are not persisted', claim: 'Your forum text stays only in the form' },
   { what: 'the switch defaults on', claim: 'Discussions are on by default' },
@@ -201,19 +206,19 @@ const CLAIMS: { what: string; claim: string }[] = [
   // colours. These four are the facts they could act on and be wrong about.
   {
     what: 'recovery is OFFERED, never silently applied (SPEC §5) — the guarantee that makes the whole feature safe to have',
-    claim: 'will not restore it unless you choose to',
+    claim: 'never restores a draft unless you choose to',
   },
   {
     what: 'the capture is per-user, so a shared computer does not leak one teacher’s prose to the next',
-    claim: 'Only you can see it',
+    claim: 'Only you can see your drafts',
   },
   {
     what: 'the panel lists only DIFFERENCES, not the whole document (operator decision 2026-08-23)',
-    claim: 'shows only the changes you have not saved',
+    claim: 'shows only what your draft changes',
   },
   {
     what: 'a stale capture is read-only — it can be copied out but not restored, which is why the prose is still shown in full',
-    claim: 'cannot restore your changes automatically',
+    claim: 'cannot restore your draft automatically',
   },
   {
     what: 'discarding is irreversible, and the dialog offers it as a plain button',

@@ -25,27 +25,28 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# KEEP FOR LATER (PHASE 1) — 2026-10-17; COMBINE VERSIONS APPROVED
+# DRAFTS (PHASE 1) — 2026-10-17; COMBINE VERSIONS APPROVED
 
 Operator asked (1) for a way to put edits aside without saving a version each time, and (2) for a
 way to combine two divergent versions (1.0.1 + 1.0.2 → 1.0.3). Both answered and approved; phase 1
-is built on `feat/keep-for-later`. SPEC §5 "Keep for later", SPEC §6 "Combine versions",
-DECISIONS 2026-10-17.
+is built on `feat/keep-for-later` (branch name predates the wording). SPEC §5 "Drafts", SPEC §6
+"Combine versions", DECISIONS 2026-10-17 (two entries).
 
-**Built (no migration):** *Keep for later* editor button (leaves edit mode only on a server-confirmed
-capture); *Your unsaved work* on Manage (above the accordion, only when non-empty; Resume/Discard;
-kept-until date); unsaved-work warning on the four version-delete confirmations, backed by
-`GET /api/lesson-bundle-versions/:id/recovery/unsaved-count` (counts only, delete-permission gate,
-wire-tested). ⚑ Edit recovery stays the only store — no "drafts" collection (reserved word; second
-weaker channel).
+**Built (no migration):** editor buttons *Save as new version · Save as draft · Discard changes*
+(Save as draft leaves edit mode only on a server-confirmed capture; Discard changes now deletes the
+draft); Edit reads *Continue editing* when a draft exists; *Your Drafts* on Manage (above the
+accordion, only when non-empty; Continue editing / Discard; kept-until date); a draft warning on the
+four version-delete confirmations, backed by `GET /api/lesson-bundle-versions/:id/recovery/unsaved-count`
+(counts only, delete-permission gate, wire-tested). ⚑ **Vocabulary changed:** "draft" = private,
+unnumbered work; "version" = numbered save, never called a draft. Internal names (`edit-recovery`)
+stay.
 
-⚑ **`main` has 28 failing browser tests that predate this work** (measured 2026-10-17 against `main`
-at `2c25ed8` in an isolated stack; the branch fails the identical 28 and no others): all of
-`discussions`/`discussionsModeration`, 10 in `manage`, 2 in `messages`. Two causes: the first-login
-Welcome dialog (changed 2026-10-16) covers the page and intercepts clicks in specs that never dismiss
-it; and `manage.e2e.spec.ts` still opens the `curriculum.subjects` panel that `9ebc844` retired. Fix
-the specs (dismiss/opt out of the dialog in the e2e login helper; update the taxonomy cases) before
-relying on CI's browser gate.
+**Browser suite repaired on this branch: 90/90** (was 59/87 on `main` — 28 failures that predated
+this work, all from two causes: the first-login Welcome dialog covering pages in specs that never
+dismissed it, and `manage.e2e.spec.ts` still driving the `curriculum.subjects`/`.subject-grades`
+panels that `9ebc844` retired). `loginAs` now pre-dismisses the dialog (`showWelcome` opts out;
+`welcomeDialog.e2e.spec.ts` covers it), the taxonomy cases drive the checkbox grid, and the Users /
+Roles & Access locators are scoped. Until this branch merges, `main`'s CI browser gate still fails.
 
 **Next — Combine versions** (operator decisions: build it; Teachers with editing access may combine;
 UI says "Combine versions"). Planned phases: (2) pure merge engine `lib/merge/` + read-only

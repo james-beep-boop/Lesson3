@@ -63,7 +63,7 @@ const SEMVER_CONFLICT_RETRIES = 4
 class RecoveryConflictError extends APIError {
   constructor() {
     super(
-      'Your unsaved work changed in another tab while this save was in flight — reload before saving.',
+      'Your draft changed in another tab while this save was in flight — reload before saving.',
       409,
     )
   }

@@ -2175,8 +2175,14 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   // The action buttons (Save/Cancel/previews/help) sit on their own row beneath the title+Back
   // row: flex-basis:100% forces the wrap. The old lifecycle|output divider is gone with the
   // single-row layout it used to separate.
+  // ⚑ IT WRAPS AT EVERY WIDTH (2026-10-17). It used to wrap only at ≤640px; the longer draft labels
+  // ("Save as new version · Save as draft · Discard changes", operator decision) then ran the row off
+  // the right edge at 1280px, the editing width SPEC §5 protects — Show details and Help went
+  // off-screen. The reason it once could not wrap (the recovery notice collapsing to one word per
+  // line inside it) is gone: that notice is a sibling now, on its own row.
   &__group--output {
     flex-basis: 100%;
+    flex-wrap: wrap;
   }
   // Back rides the title row at the far right — the page exit, above the action buttons, matching
   // the frontend's Back-next-to-title placement.
@@ -2194,7 +2200,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     color: var(--theme-elevation-700);
     font-size: 0.8rem;
   }
-  // "Keep for later" succeeded (2026-10-17): the same green as the recovery indicator's "backed up",
+  // "Save as draft" succeeded (2026-10-17): the same green as the recovery indicator's "backed up",
   // so the two statements that the work is safe look alike — and unlike the red `__msg` errors.
   &__notice {
     color: #2f6b3a;
@@ -2910,13 +2916,6 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   }
   // (The old #1 mobile title-wrap rule is gone with the native title itself — the control bar's
   // "Viewing:/Editing: <title>" wraps naturally via overflow-wrap.)
-
-  // The output group is inline-flex with no wrap; at this width the notice + Quick preview / PDF /
-  // details / help / Delete can't fit on one line, so let them wrap instead of shrinking the notice
-  // into a one-word-per-line column that collides with the form beneath it.
-  .lesson-controls__group--output {
-    flex-wrap: wrap;
-  }
 
   // ⚑ THE ↗ GOES AT PHONE WIDTH, and it buys a whole row. Measured at 375px: the bar wrapped to FOUR
   // rows, and dropping this one decorative glyph took "Quick preview" 138→123px and "Formatted PDF"

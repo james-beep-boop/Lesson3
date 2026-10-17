@@ -1,6 +1,6 @@
 /**
  * Whether a stored capture may still be APPLIED to its source (SPEC §5) — one definition, used by
- * the restore prompt's GET endpoint and by Manage's "Your unsaved work" list, so the list never
+ * the restore prompt's GET endpoint and by Manage's "Your Drafts" list, so the list never
  * offers Resume on a capture the editor will then show as copy-only, or the reverse.
  *
  * Pure and import-free, so `lib` does not reach into `endpoints` for the constant.

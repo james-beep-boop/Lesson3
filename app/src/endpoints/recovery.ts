@@ -20,7 +20,7 @@
  * | 7 | `GET    /:id/recovery/unsaved-count` | may delete  | 401    | 403        |
  *
  * ⚑ Op 7 (added 2026-10-17) is not part of design §2's table: it feeds the delete confirmations'
- * warning that deleting a version discards other people's unsaved work (SPEC §5, "Keep for later").
+ * warning that deleting a version discards other people's unsaved work (SPEC §5, "Drafts").
  * It returns COUNTS only, and only to a caller allowed to delete that version — the one audience
  * for whom the number changes a decision. 403 rather than 404 for the same reason as ops 5-6: every
  * signed-in user may read a version, so its existence is not the secret.
@@ -151,7 +151,7 @@ export const recoveryStartEndpoint: Endpoint = {
           errors: [
             {
               message:
-                'You have too many lesson plans with unsaved changes. Save or discard one under Your unsaved work in Manage, then try again.',
+                'You have too many drafts. Save or discard one in the Manage tab, under Your Drafts, then try again.',
             },
           ],
           reason: result.reason,
@@ -185,13 +185,13 @@ export const recoveryCaptureEndpoint: Endpoint = {
     if (result.ok) return json({ token: result.token })
     if (result.reason === 'too-large') {
       return json(
-        { errors: [{ message: 'These changes are too large to back up.' }], bytes: result.bytes },
+        { errors: [{ message: 'This draft is too large to save.' }], bytes: result.bytes },
         413,
       )
     }
     // Deliberately undifferentiated: saying WHICH precondition failed would leak whether another
     // session exists for a row this caller may not read. The client's response is the same — refetch.
-    return json({ errors: [{ message: 'This backup is out of date — reload to continue.' }] }, 409)
+    return json({ errors: [{ message: 'This draft is out of date — reload to continue.' }] }, 409)
   },
 }
 
@@ -249,10 +249,7 @@ export const recoveryDiscardEndpoint: Endpoint = {
       },
     )
     if (!result.ok) {
-      return json(
-        { errors: [{ message: 'This backup is out of date — reload to continue.' }] },
-        409,
-      )
+      return json({ errors: [{ message: 'This draft is out of date — reload to continue.' }] }, 409)
     }
     return json({ token: result.token })
   },

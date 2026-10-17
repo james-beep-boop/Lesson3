@@ -303,8 +303,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <ol className="guide-steps">
                   <li>Review your changes in Quick preview or Formatted PDF.</li>
                   <li>
-                    Choose <em>Save</em>. Lesson3 saves your changes as a new version and leaves the
-                    version you opened unchanged.
+                    Choose <em>Save as new version</em>. Lesson3 saves your changes as a new version
+                    and leaves the version you opened unchanged.
                   </li>
                   <li>
                     A Subject-grade or Site administrator can mark the saved version Official when
@@ -333,42 +333,43 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             )}
 
             {can('editing.recovery') && (
-              <GuideAccordionPanel id="editing.recovery" title="Keep or recover unsaved work">
+              <GuideAccordionPanel id="editing.recovery" title="Save a draft and continue later">
                 <p>
-                  While you edit, a note below the buttons shows when Lesson3 last saved a temporary
-                  copy of your changes. Only you can see it, even if someone else uses the same
-                  computer. Lesson3 will not restore it unless you choose to.
+                  A draft is your private copy of changes you have not saved as a new version. While
+                  you edit, Lesson3 saves a draft automatically, and a note below the buttons shows
+                  when. Only you can see your drafts, even if someone else uses the same computer,
+                  and Lesson3 never restores a draft unless you choose to.
                 </p>
                 <p>
-                  To stop for now without saving a version, choose <em>Keep for later</em>. Lesson3
-                  checks that your changes are stored, then closes the editor. They are kept for 30
-                  days after you last worked on them. <em>Manage → Your unsaved work</em> lists
-                  everything you have kept, with <em>Resume</em> and <em>Discard</em>.
-                  Administrators: only wording is kept, not changes to lessons, phases, durations,
-                  rubrics or answer keys.
+                  To stop for now, choose <em>Save as draft</em>. Lesson3 checks that your draft is
+                  saved, then closes the editor. A draft is kept for 30 days after you last worked
+                  on it. The <strong>Manage</strong> tab lists your drafts under{' '}
+                  <em>Your Drafts</em>, with <em>Continue editing</em> and <em>Discard</em>. To
+                  throw your changes away instead, choose <em>Discard changes</em>. Administrators:
+                  a draft holds only wording, not changes to lessons, phases, durations, rubrics or
+                  answer keys.
                 </p>
                 <ol className="guide-steps">
                   <li>
-                    If you leave without saving, reopen that version. Lesson3 will ask whether you
-                    want to restore your changes.
+                    When you have a draft, the <em>Edit</em> button says <em>Continue editing</em>.
+                    Choose it, and Lesson3 asks whether to restore your draft.
                   </li>
                   <li>
-                    Review the listed differences. Your unsaved wording is green; saved wording
+                    Review the listed differences. Your draft’s wording is green; saved wording
                     being replaced is struck through in red.
                   </li>
                   <li>
-                    Choose to restore the changes, decide later, or discard them. Discarding cannot
-                    be undone.
+                    Choose <em>Restore my draft</em>, <em>Decide later</em>, or{' '}
+                    <em>Discard the draft</em>. Discarding cannot be undone.
                   </li>
                 </ol>
                 <p>
-                  Normally, Lesson3 shows only the changes you have not saved. Some changes cannot
-                  be shown word by word. <em>Emptied</em> means a field will be cleared;{' '}
+                  Normally, Lesson3 shows only what your draft changes. Some changes cannot be shown
+                  word by word. <em>Emptied</em> means a field will be cleared;{' '}
                   <em>Paragraph breaks changed</em> means only the line breaks changed; and{' '}
-                  <em>Spacing only</em> means the words stayed the same. If someone else saves a
-                  newer version while you are away, Lesson3 cannot restore your changes
-                  automatically. Lesson3 shows all your unsaved work so you can copy what you still
-                  need.
+                  <em>Spacing only</em> means the words stayed the same. If someone saves a newer
+                  version while you are away, Lesson3 cannot restore your draft automatically. It
+                  shows the whole draft so you can copy what you still need.
                 </p>
               </GuideAccordionPanel>
             )}

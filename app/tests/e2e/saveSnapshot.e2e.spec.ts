@@ -74,7 +74,7 @@ for (const role of ['editor', 'subjectAdmin'] as const) {
       page.on('dialog', (dialog) => void dialog.accept())
       const text = `${MARK}snapshot saved after delayed requests`
       await typeProse(page, text)
-      await page.getByRole('button', { name: 'Save', exact: true }).click()
+      await page.getByRole('button', { name: 'Save as new version', exact: true }).click()
       try {
         await expect.poll(() => captureSeen).toBe(true)
         await expect(page.locator(OVERVIEW)).toBeDisabled()
@@ -99,7 +99,9 @@ for (const role of ['editor', 'subjectAdmin'] as const) {
           ).toBeVisible()
           await expect(page.locator(OVERVIEW)).toBeEditable()
           await expect(page.locator(OVERVIEW)).toHaveValue(text)
-          await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
+          await expect(
+            page.getByRole('button', { name: 'Save as new version', exact: true }),
+          ).toBeEnabled()
         } else {
           // Save and its navigation are asynchronous. The default five-second assertion expired
           // even though the failure snapshot already showed the saved version; use the normal
@@ -128,7 +130,7 @@ for (const role of ['editor', 'subjectAdmin'] as const) {
               ).totalDocs,
             ).toBe(0)
           }
-          await page.getByRole('button', { name: 'Edit', exact: true }).click()
+          await page.getByRole('button', { name: /^(Edit|Continue editing)$/ }).click()
           await expandLessons(page)
           await expect(page.locator(OVERVIEW)).toBeEditable()
           await expect(page.locator(OVERVIEW)).toHaveValue(text)

@@ -13,18 +13,19 @@ import {
 } from '../../src/components/EditRecovery/unsavedWarning.js'
 
 describe('unsavedWarningText', () => {
-  const tail = 'unsaved changes on this version. Deleting it discards them.'
+  const one = 'a draft based on this version. Deleting it discards it.'
+  const many = 'drafts based on this version. Deleting it discards them.'
 
   it('says nothing when nobody would lose anything', () => {
     expect(unsavedWarningText({ otherUsers: 0, includesCaller: false })).toBe('')
   })
 
   it.each([
-    [{ otherUsers: 1, includesCaller: false }, `1 other person has ${tail}`],
-    [{ otherUsers: 3, includesCaller: false }, `3 other people have ${tail}`],
-    [{ otherUsers: 0, includesCaller: true }, `You have ${tail}`],
-    [{ otherUsers: 1, includesCaller: true }, `You and 1 other person have ${tail}`],
-    [{ otherUsers: 2, includesCaller: true }, `You and 2 other people have ${tail}`],
+    [{ otherUsers: 1, includesCaller: false }, `1 other person has ${one}`],
+    [{ otherUsers: 3, includesCaller: false }, `3 other people have ${many}`],
+    [{ otherUsers: 0, includesCaller: true }, `You have ${one}`],
+    [{ otherUsers: 1, includesCaller: true }, `You and 1 other person have ${many}`],
+    [{ otherUsers: 2, includesCaller: true }, `You and 2 other people have ${many}`],
   ])('%o → the right sentence', (counts, expected) => {
     expect(unsavedWarningText(counts)).toBe(expected)
   })
@@ -32,7 +33,7 @@ describe('unsavedWarningText', () => {
   it("ignores the caller's own work when told to (Save retires it anyway)", () => {
     expect(unsavedWarningText({ otherUsers: 0, includesCaller: true }, false)).toBe('')
     expect(unsavedWarningText({ otherUsers: 2, includesCaller: true }, false)).toBe(
-      `2 other people have ${tail}`,
+      `2 other people have ${many}`,
     )
   })
 })

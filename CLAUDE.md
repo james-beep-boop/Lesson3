@@ -86,9 +86,10 @@ and breaks a stored enum, a URL and a migration. What must never appear is an **
 `/guide`, `README.md` and `AGENTS.md` contain the word zero times, and no `Editor` string literal reaches
 a screen). Treat a new occurrence in any of those as a defect, not a style preference.
 
-`Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one — to a Teacher with editing access for that subject-grade — in one transaction. `class` is reserved — the entity is always `SubjectGrade`. **`draft` is likewise reserved** (SPEC §13): it
-already means an unofficial *saved version* — the Guide tells users "your drafts live in Manage → My
-saved versions" — so the unsaved-work feature is **edit recovery**, never "drafts". Non–Site-Admins never see others' emails —
+`Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one — to a Teacher with editing access for that subject-grade — in one transaction. `class` is reserved — the entity is always `SubjectGrade`. **`draft` has one meaning** (SPEC §5/§13,
+operator decision 2026-10-17, superseding the earlier reservation): a user's private, *unnumbered*
+draft — edit recovery's user-facing name ("Save as draft", "Your Drafts"). A numbered save is a
+*version* and is never called a draft. Internal names (`edit-recovery`, `/recovery`, "capture") stay. Non–Site-Admins never see others' emails —
 **with one carve-out (SPEC §8, amended 2026-08-02): Manage → Roles & Access shows addresses to Subject
 Administrators too**, so an administrator can tell two identical display names apart before granting or
 revoking editing access. `emailReadAccess` is unchanged (Site-Admin-or-self), so every other surface

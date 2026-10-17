@@ -25,9 +25,12 @@ export default function EditActions({
   versionId,
   canMakeOfficial,
   officialVersionId,
+  hasDraft = false,
 }: {
   versionId: number
   canMakeOfficial: boolean
+  /** The signed-in user has a draft on this version: Edit reads "Continue editing" (SPEC §5). */
+  hasDraft?: boolean
   /** The plan's Official version id as rendered — drives the "is this one already Official?"
    *  display AND the stale-consent anchor for delete-previous. */
   officialVersionId: number | null
@@ -105,7 +108,7 @@ export default function EditActions({
           hand-typed `?edit=1` lands read-only regardless. Make Official stays at all widths — a
           small confirm-gated action, not content editing. */}
       <button type="button" className="btn" disabled={busy !== null} onClick={onEdit}>
-        Edit
+        {hasDraft ? 'Continue editing' : 'Edit'}
       </button>
       {tooNarrow && (
         <Modal
