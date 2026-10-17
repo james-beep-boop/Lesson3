@@ -33,6 +33,7 @@ import { aresExportEndpoint } from '../endpoints/aresExport'
 import { cascadeDeleteVersionFavorites } from './Favorites'
 import { cascadeDeleteVersionRecovery } from './EditRecovery'
 import { recoveryEndpoints } from '../endpoints/recovery'
+import { combinePreviewEndpoint } from '../endpoints/combinePreview'
 import {
   collapseOnEntry,
   lessonEditableContentFields,
@@ -107,8 +108,10 @@ export const LessonBundleVersions: CollectionConfig = {
     ],
   },
   endpoints: [
-    // Edit recovery (SPEC §5): six operations across four URL paths. Each re-authorizes on every call.
+    // Edit recovery (SPEC §5): seven operations across five URL paths. Each re-authorizes on every call.
     ...recoveryEndpoints,
+    // GET /:id/combine-preview?with=:otherId — Combine versions, read-only (SPEC §6).
+    combinePreviewEndpoint,
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.
     exportVersionEndpoint,
     // GET /:id/export/doc?doc=<tag> — serve ONE deliverable: PDF inline, DOCX attachment (T1).

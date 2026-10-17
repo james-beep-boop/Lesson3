@@ -31,11 +31,8 @@ import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
 import { canonicalJson } from '../lib/canonicalJson'
 import { findReadableVersion } from '../lib/readBundle'
+import { contentOf, DROP_KEYS } from '../lib/versionContent'
 import type { LessonBundleVersion, User } from '../payload-types'
-
-/** Content keys NOT carried into a forked copy (identity/version metadata + Payload internals).
- *  `author` is stamped server-side from the authenticated caller — a submitted value is never trusted. */
-const DROP_KEYS = new Set(['id', 'semver', 'sourceVersion', 'author', 'createdAt', 'updatedAt'])
 
 /** How many times to retry `save-as-new` when two concurrent saves race for the same next semver. */
 const SEMVER_CONFLICT_RETRIES = 4
@@ -69,22 +66,11 @@ class RecoveryConflictError extends APIError {
   }
 }
 
-/** Relationship keys the server sets from the SOURCE on create (never from the submission). They
- *  carry no edit signal, and their representation varies with fetch depth (id vs populated doc), so
- *  the no-op comparison excludes them on both sides. */
-const SERVER_REL_KEYS = new Set(['lessonPlan', 'subjectGrade'])
-
 /** The no-op comparison's canonical form: content keys only (no identity metadata, no server-owned
  *  rels), row ids stripped, key-order-insensitive. Applied identically to the merged submission and
  *  the source, so ONE definition decides what counts as "the same content". */
 const comparableContent = (doc: Record<string, unknown>): string =>
-  canonicalJson(
-    stripIds(
-      Object.fromEntries(
-        Object.entries(doc).filter(([k]) => !DROP_KEYS.has(k) && !SERVER_REL_KEYS.has(k)),
-      ),
-    ),
-  )
+  canonicalJson(stripIds(contentOf(doc)))
 
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(

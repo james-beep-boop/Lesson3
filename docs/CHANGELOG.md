@@ -21,7 +21,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - The editor's button row wraps instead of running off the screen on a 1280px laptop.
 - The browser test suite passes again (90/90): its sign-in pre-dismisses the Welcome dialog, which a
   new test still covers, and the subject/grade tests drive the new checkbox grid.
-- Combine versions is approved and specified (SPEC §6); not yet built.
+- Combine versions, phase 2: the engine that works out what combining two versions produces, and a
+  read-only preview endpoint (`GET /api/lesson-bundle-versions/:id/combine-preview?with=:id`). No
+  screen yet; nothing is written. SPEC §6.
 
 - Retire the completed one-off v0.95 publication job; future releases use the normal tag publisher.
 

@@ -459,7 +459,7 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
 
-### Combine versions (approved 2026-10-17; not yet built)
+### Combine versions (approved 2026-10-17; phase 2 of 5 built)
 
 Two teachers can each save from the same version (e.g. 1.0.1 and 1.0.2 from 1.0.0). **Combine
 versions** reconciles them into a new version (1.0.3). Operator decisions: the feature is approved;
@@ -483,6 +483,23 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   `\n` paragraphs and `- ` bullets), conflicting where the same paragraph was edited. No
   character-level merging: it can splice two rewrites into a sentence nobody wrote.
 - **Combining does not make anything Official**; that stays an administrator action.
+
+**Phase 2 — built (2026-10-17): the engine and a read-only preview.** Nothing is written yet.
+- `lib/combine/engine.ts` (`planCombine`) and `lib/combine/diff3.ts` (`merge3`) — pure, DB-free. The
+  plan names the version to START from, an edit-recovery-shaped `overlay` keyed by that version's
+  rows (only fields whose combined text differs from it), the automatic `changes`, and the
+  `conflicts` (each with ancestor, A and B text and a reason: `both-edited`, `emptied`,
+  `no-ancestor`). Refusals are `structure`, `admin-both` and `system`, each with a plain message.
+  Rows pair through `captureAnchors`' document order — the same walk edit recovery uses — and "prose"
+  is the field split's whitelists, so the three features cannot disagree about either.
+- `GET /api/lesson-bundle-versions/:id/combine-preview?with=:otherId` → `{ a, b, base, plan }`.
+  401 unauthenticated; 400 for a missing/malformed/identical `with` or versions of different plans;
+  404 for either version unreadable; 403 without editing access for the subject-grade. A refused
+  combine is a 200 with `plan.ok: false`. Wire-tested (`tests/http/combinePreview.http.spec.ts`).
+- The ancestor is found by walking `sourceVersion`, which a deletion nulls — so phase 2 can miss an
+  ancestor and fall back to two-way (safe, less automatic). Phase 3's lineage record fixes that.
+- `DROP_KEYS`/`SERVER_REL_KEYS` moved from `endpoints/versionEdit.ts` to `lib/versionContent.ts`
+  (unchanged values), so the save no-op guard and the engine share one definition of content.
 
 ---
 

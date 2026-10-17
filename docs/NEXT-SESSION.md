@@ -48,13 +48,16 @@ panels that `9ebc844` retired). `loginAs` now pre-dismisses the dialog (`showWel
 `welcomeDialog.e2e.spec.ts` covers it), the taxonomy cases drive the checkbox grid, and the Users /
 Roles & Access locators are scoped. Until this branch merges, `main`'s CI browser gate still fails.
 
-**Next — Combine versions** (operator decisions: build it; Teachers with editing access may combine;
-UI says "Combine versions"). Planned phases: (2) pure merge engine `lib/merge/` + read-only
-`merge-preview` endpoint with tests; (3) Combine screen in the editor, `mergeParent` on save-as-new,
-`mergedFrom` + delete-proof `lineage` fields and migration; (4) rebase unsaved work onto a newer
-version with the same engine; (5, separate decision) stable row identity, which also unlocks
-structural combines, admin edit recovery and the compare page's ordinal-key cascade. Read SPEC §6
-first — it records why id-based pairing, `sourceVersion`-walking and auto-commit are wrong here.
+**Combine versions — phase 2 built** (branch `feat/combine-versions`): `lib/combine/` (`planCombine`,
+`merge3`, `findCommonAncestor`) and `GET /api/lesson-bundle-versions/:id/combine-preview?with=:id`
+(read-only, wire-tested). SPEC §6 records the plan shape and the refusals.
+
+**Next — phase 3:** the Combine screen in the editor (a "Combine versions" action, the plan applied as
+a restore-style overlay, each conflict resolved as keep A / use B / edit), `mergeParent` on
+`save-as-new` recorded as `mergedFrom`, and a delete-proof `lineage` field (plain ids, with a
+migration backfilling from `sourceVersion`) so `findCommonAncestor` can step past deleted versions.
+Then (4) rebase a stale draft onto a newer version with the same engine; (5, separate decision) stable
+row identity for structural combines.
 
 ---
 

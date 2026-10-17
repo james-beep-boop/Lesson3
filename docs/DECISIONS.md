@@ -11,6 +11,27 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-17 (evening) — Combine versions, phase 2: the engine and a read-only preview
+
+Built as SPEC §6 specifies; decisions made while building:
+
+- **Rows pair through `captureAnchors`, not a new walker.** Edit recovery already walks a version's
+  prose rows in document order; equal scope sequences mean two versions pair position by position.
+  Reusing it means "which rows exist" has one owner across recovery, restore and combine.
+- **Structure is checked before system data.** An extra lesson also carries an extra set of resource
+  links, and the first build reported it as "different uploads" — the wrong cause to send a teacher
+  after. Caught by the engine's own test before it shipped.
+- **An ancestor of a different shape is ignored, not refused.** With no usable ancestor every
+  difference is a conflict ("two-way"): more clicks, never a wrong merge. Refusing would block a
+  combine that a person can still do field by field.
+- **Administrator content without an ancestor is refused.** If A and B differ in phases, durations,
+  rubrics or answer keys and nothing says which side changed them, the engine cannot choose a side
+  to start from, and guessing would silently undo someone's administrator edit.
+- **Refusals are 200s with a message.** The request is valid; the versions just cannot be combined
+  automatically, and the UI needs the reason to show.
+- **A Teacher with editing access may preview a combine** (operator decision). The endpoint grants
+  nothing: the later save goes through `save-as-new`'s own field split.
+
 ## 2026-10-17 (later) — "Draft" becomes the user-facing word; Discard changes replaces Cancel
 
 **Operator decisions** after seeing the first build: the editor's buttons are **Save as new version ·
