@@ -2021,7 +2021,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   // border was still `rgb(31, 95, 168)`). The frontend's `.btn.btn--quiet` sets the properties
   // directly for the same reason; this now mirrors it exactly.
   &.lp-btn--quiet {
-    color: var(--theme-elevation-800);
+    color: var(--app-btn-quiet-ink);
     border-color: var(--app-btn-quiet-line);
 
     &:hover,
@@ -2031,12 +2031,12 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
       background: var(--app-btn-bg);
     }
 
-    // ⚑ The INK is the admin's own `--theme-elevation-800`, not the frontend's `--ink`, because
-    // `app-tokens.scss` shares scale and not colour: "Per-surface palettes stay native … the admin
-    // follows light/dark and cannot take a fixed hex." Only the LINE is shared, and it is shared
-    // already — `--app-btn-quiet-line` is one of the three button-system palette values the token
-    // file names as deliberate exceptions.
-    --color: var(--theme-elevation-800);
+    // ⚑ The INK is FIXED (`--app-btn-quiet-ink`), not the admin's theme-following
+    // `--theme-elevation-800`. It used to be the latter, on the grounds that the admin follows
+    // light/dark — but the BACKGROUND here is the fixed `--app-btn-bg` in both themes, so in dark
+    // mode the ink turned near-white on a light fill and Back rendered blank (2026-10-18). A fixed
+    // fill needs a fixed ink; both now come from the shared button palette in `app-tokens.scss`.
+    --color: var(--app-btn-quiet-ink);
     --btn-border: 1px solid var(--app-btn-quiet-line);
     --hover-color: var(--app-accent);
     --hover-bg: var(--app-btn-bg);
