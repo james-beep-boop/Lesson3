@@ -22,19 +22,14 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** `origin/main` at `316531e`, including Combine 3b (PR #400, merge `4ae0889`) and
-subsequent documentation. Phases 1–3b and the Next.js/Payload security upgrade are merged.
-No merge or deployment is part of the current task. Deployment status should be checked with the
-operator; merging code does not establish that the Rock has it.
+**Base:** `origin/main` at `f25b6fa`. **Deployed to the Rock 2026-10-18 (operator-confirmed)**:
+phases 1–3b of Combine versions, the 3b review corrections (PR #401), the `/simplify` pass (PR #403),
+the dark-mode Back fix (PR #402) and the Next.js 16.4.2 / Payload 3.91.0 security upgrade (PR #399).
+Two migrations ran in that deploy window: `combine_lineage` (3a) and `combine_draft_context` (3b).
 
-**Phase 3b is merged** (PR #400, `4ae0889`, 2026-10-18), including draft resumption previously
-called 3c. Review found six failures to fix before deployment. Corrections are on
-`fix/combine-recovery-failures` for a ready PR, not merged or deployed. They add retry actions,
-remove comparison work from prose capture and overlay application, rate-limit restore validation
-with a prose fallback, preserve the second parent on unconfirmed 404s, and store SQL NULL.
-The picker now reads only id/semver for callers who can combine, and an ordinary-draft restore
-explains cancellation. No new migration: 3b still adds `edit_recovery.combine_context` and must be
-migrated before starting the updated app.
+**Combine 3b was reviewed after merge** (`/code-review`: six fixes in #401) **and simplified** (#403:
+restore now returns the stored second parent and the following Combine preview is the one gate, so a
+rate limit at restore offers Retry instead of dropping the parent).
 
 The screen picks two versions, reviews automatic changes and conflicts, and opens the engine's
 starting version (URL included). Conflict choices name version numbers and can change until Save;
@@ -48,25 +43,22 @@ authorizes it and computes current conflicts, preserving text and asking for unr
 **Operator decision: do not retain drafts after the editing source is deleted.** Keep the existing
 cascade; an editor still open explains a failed save and leaves text available for copying.
 
-Validation: types, lint, format and production build; unit **1,541**, integration **313**, browser
-**104/104 without retries**; wire **389 passed + 4 SMTP-dependent skips**. Main CI at `316531e`
-passed all three checks. Use an isolated stack with both a distinct project
+Validation at `f25b6fa`: types, lint, format and production build; unit **1,538**, integration
+**313**, browser **104** (plus the dark-mode Back test: 105 on that branch); wire **389 passed + 4
+SMTP-dependent skips**; CI green on #401, #402 and #403. Use an isolated stack with both a distinct project
 name and port: Codex uses `lesson3-codex-probe`, `127.0.0.1:3103`. Claude uses a separate clone and
 stack. Never tear down another agent's stack. Always fetch before comparing branches or commits.
 
 ## Remaining work
 
-1. Review the correction PR on `fix/combine-recovery-failures`; merge or deploy only on the
-   operator’s instruction. Do not deploy 3b before these corrections are reviewed. Run the planned
-   `/simplify` where available after correctness review.
-2. **Insert link for ARES** — `docs/DESIGN-insert-link-ares-2026-10-18.md` (approved). Plan A (editor:
+1. **Insert link for ARES** (next; Codex) — `docs/DESIGN-insert-link-ares-2026-10-18.md` (approved). Plan A (editor:
    accept `http`, four framework columns only, optional label, store pasted ARES addresses as
    `http://ares.local…`, Rock PDF folder opt-in, public PDF serving) then Plan A+ (rewrite
    `ares.local` when generating, for the future online version).
-3. Rebase a stale draft onto a newer version using the engine. Safe Combine metadata capture and
+2. Rebase a stale draft onto a newer version using the engine. Safe Combine metadata capture and
    restoration are already included with the screen because automatic drafts must not lose their
    second parent.
-4. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
+3. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
    allow drafts to hold structural edits.
 
 **Deferred from /simplify (2026-10-18), each its own change:** one state machine for LessonControls'
