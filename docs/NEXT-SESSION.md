@@ -25,53 +25,44 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# FOLLOW-UP AUDIT FIXES — 2026-10-17
+# CURRENT STATE — 2026-10-18: drafts, audit fixes and Combine phase 2 are on `main`
 
-`fix/lesson3-audit-followup` recovers `fa6cb6d` and `20cbe39` (the remote Combine branch had not
-advanced past `cdbe34f`) and fixes five remaining findings: verification revoked during lock waits,
-source-deletion cascades on tokenless saves, ambiguous Combine row correspondence, a large-insertion
-stack overflow, and unbounded total synchronous merge work. SPEC §5/§6 and the newest DECISIONS entry
-record the behavior and limits. No migration or deployment is included. Ambiguous arrays are now
-refused; stable row identity remains future work. See the branch's validation record in DECISIONS.
+Everything from the 2026-10-17 sessions is merged; `main` is the only branch. Seven commits since
+**v0.97** (`2c25ed8`), **no migration** — a source deploy is `scripts/deploy.sh`; no release is tagged
+and the demo server has not been redeployed (operator's call). Full suite on the merged code: unit
+1,494, integration 310, wire 336 (+4 SMTP skips), browser 92/92; CI passed on `7d51645`.
 
-# DRAFTS (PHASE 1) — 2026-10-17; COMBINE VERSIONS APPROVED
+**Shipped:**
+- **Drafts** (SPEC §5 "Drafts"): editor buttons *Save as new version · Save as draft · Discard
+  changes*; Edit reads *Continue editing* when a draft exists; *Your Drafts* on Manage; a draft warning
+  on the four version-delete confirmations. ⚑ Vocabulary: "draft" = private, unnumbered work;
+  "version" = a numbered save, never called a draft. Internal names (`edit-recovery`) stay.
+- **Audit fixes** (DECISIONS 2026-10-17 "night" and "Follow-up audit"): every lock-then-write
+  endpoint re-reads its caller after the wait (`refreshCaller`: gone, disabled, unverified or demoted
+  → 403); a failed draft lookup is `unchecked`, never "no draft", and a tokenless save never deletes
+  its source; the draft-count warning has a deadline; the restore drill accepts a new installation.
+- **Combine versions, phase 2** (SPEC §6): `lib/combine/` and the read-only
+  `GET /api/lesson-bundle-versions/:id/combine-preview?with=:id`, with a total work budget and a strict
+  row-correspondence rule.
+- **Browser suite repaired** (was 59/87 on `main`): `loginAs` pre-dismisses the Welcome dialog
+  (`welcomeDialog.e2e.spec.ts` covers it); the subject/grade cases drive the checkbox grid.
+- **CI** now runs `scripts/test-restore-db.sh` (`3587b22`, added by the operator in the GitHub web
+  editor). ⚑ Our push credentials lack GitHub's `workflow` scope: any change under
+  `.github/workflows/` is refused on push, so hand such edits to the operator.
 
-Operator asked (1) for a way to put edits aside without saving a version each time, and (2) for a
-way to combine two divergent versions (1.0.1 + 1.0.2 → 1.0.3). Both answered and approved; phase 1
-is built on `feat/keep-for-later` (branch name predates the wording). SPEC §5 "Drafts", SPEC §6
-"Combine versions", DECISIONS 2026-10-17 (two entries).
+**Combine's strict rule costs nothing for current content** (DECISIONS 2026-10-18): all 95 ARES plans
+pass it; all 806 lessons share one five-phase sequence. A refusal needs an administrator to duplicate a
+lesson or repeat a phase inside Lesson3. Re-check future exports with the operator-kept scan script
+(`/tmp/ares-scan-tools/scan.py <folder of ARES JSON>`; not in the repo).
 
-**Built (no migration):** editor buttons *Save as new version · Save as draft · Discard changes*
-(Save as draft leaves edit mode only on a server-confirmed capture; Discard changes now deletes the
-draft); Edit reads *Continue editing* when a draft exists; *Your Drafts* on Manage (above the
-accordion, only when non-empty; Continue editing / Discard; kept-until date); a draft warning on the
-four version-delete confirmations, backed by `GET /api/lesson-bundle-versions/:id/recovery/unsaved-count`
-(counts only, delete-permission gate, wire-tested). ⚑ **Vocabulary changed:** "draft" = private,
-unnumbered work; "version" = numbered save, never called a draft. Internal names (`edit-recovery`)
-stay.
-
-**Browser suite repaired on this branch: 90/90** (was 59/87 on `main` — 28 failures that predated
-this work, all from two causes: the first-login Welcome dialog covering pages in specs that never
-dismissed it, and `manage.e2e.spec.ts` still driving the `curriculum.subjects`/`.subject-grades`
-panels that `9ebc844` retired). `loginAs` now pre-dismisses the dialog (`showWelcome` opts out;
-`welcomeDialog.e2e.spec.ts` covers it), the taxonomy cases drive the checkbox grid, and the Users /
-Roles & Access locators are scoped. Until this branch merges, `main`'s CI browser gate still fails.
-
-**Audit fixes (2026-10-17, commit `fix: five audit findings…` on `feat/combine-versions`):** four
-findings against `1572d9d`, plus the same stale-permission race in role assignments, fixed with
-failing-first tests — DECISIONS 2026-10-17 (night). They touch no Combine files and can go to `main`
-on their own.
-
-**Combine versions — phase 2 built** (branch `feat/combine-versions`): `lib/combine/` (`planCombine`,
-`merge3`, `findCommonAncestor`) and `GET /api/lesson-bundle-versions/:id/combine-preview?with=:id`
-(read-only, wire-tested). SPEC §6 records the plan shape and the refusals.
-
-**Next — phase 3:** the Combine screen in the editor (a "Combine versions" action, the plan applied as
-a restore-style overlay, each conflict resolved as keep A / use B / edit), `mergeParent` on
-`save-as-new` recorded as `mergedFrom`, and a delete-proof `lineage` field (plain ids, with a
+**Next — Combine phase 3** (recommended order: 3 now, 5 when wanted): the Combine screen in the editor
+(a "Combine versions" action, the plan applied as a restore-style overlay, each conflict resolved as
+keep A / use B / edit, and a refusal message that says plainly when two rows cannot be told apart);
+`mergeParent` on `save-as-new` recorded as `mergedFrom`; and a delete-proof `lineage` field (plain ids,
 migration backfilling from `sourceVersion`) so `findCommonAncestor` can step past deleted versions.
-Then (4) rebase a stale draft onto a newer version with the same engine; (5, separate decision) stable
-row identity for structural combines.
+Then (4) rebase a stale draft onto a newer version with the same engine; (5) stable row identity —
+removes the strict rule, and also fixes the compare page's ordinal cascade and lets drafts hold
+structural edits.
 
 ---
 

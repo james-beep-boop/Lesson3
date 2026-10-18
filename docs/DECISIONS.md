@@ -11,6 +11,25 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Combine's strict row matching costs nothing for current ARES plans
+
+Question before Phase 3: the follow-up audit made Combine refuse any pair whose rows cannot be matched
+with certainty — repeated phase names within a lesson, lessons with identical upload data, duplicate
+Final Explanation section or Summary Table titles. SPEC §3 allows phase rows to repeat, so would most
+real plans be refused?
+
+Measured, not assumed: the operator's full ARES export (95 plans, 806 lessons) was scanned with the
+same rule (`rowsCorrespond`, applied to each plan against itself). **Zero plans are refused.** Every
+lesson has the same five phases in the same order (Predict → Observe → Explain → Driving Question
+Board → Model Building); no section, summary-row or lesson-identity duplicates. The scan was checked
+for sensitivity by planting a repeated phase and a duplicated lesson, both caught.
+
+Decision (recommended to the operator): keep the strict rule, build Phase 3 next, and treat stable row
+identity (Phase 5) as an improvement rather than a blocker. Refusals can only follow an
+administrator's structural edit inside Lesson3 (duplicating a lesson, repeating a phase), and Phase 3's
+refusal message should name that cause. SPEC §3's "may repeat" describes the format, not current
+content — re-measure if ARES output changes.
+
 ## 2026-10-17 — Follow-up audit: verification, draft cascades and Combine bounds
 
 Recovered `fa6cb6d` and `20cbe39` by SHA because the remote feature branch still pointed at
