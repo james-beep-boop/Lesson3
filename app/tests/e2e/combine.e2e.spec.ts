@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type Request } from '@playwright/test'
 import { setupRoleFixture, minimalBundleContent, type RoleFixture } from '../helpers/fixtures'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import {
@@ -257,21 +257,30 @@ for (const bothDeleted of [false, true]) {
         overrideAccess: true,
       })
     const probes: string[] = []
-    page.on('request', (req) => {
+    let saveStarted = false
+    const trackProbe = (req: Request) => {
       if (
+        req.method() === 'POST' &&
+        new URL(req.url()).pathname === `/api/lesson-bundle-versions/${a.id}/save-as-new`
+      )
+        saveStarted = true
+      if (
+        saveStarted &&
         req.method() === 'GET' &&
         [a.id, b.id].some(
           (id) => new URL(req.url()).pathname === `/api/lesson-bundle-versions/${id}`,
         )
       )
         probes.push(req.url())
-    })
+    }
+    page.on('request', trackProbe)
     await saveButton(page).click()
     await expect(
       page.getByText(
         'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
       ),
     ).toBeVisible()
+    page.off('request', trackProbe)
     expect(probes).toEqual([])
     await page.getByRole('button', { name: 'Show All', exact: true }).first().click()
     await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Other text')
@@ -341,7 +350,9 @@ test('retries a failed restored comparison and keeps its second parent after unr
   await expandLessons(page)
   await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Other retry text')
   const requests: string[] = []
+  let saving = false
   await page.route('**/save-as-new*', async (route) => {
+    saving = true
     requests.push(route.request().postDataBuffer()?.toString() ?? '')
     await route.fulfill({
       status: 404,
@@ -354,7 +365,7 @@ test('retries a failed restored comparison and keeps its second parent after unr
   })
   const probes: string[] = []
   await page.route(`**/api/lesson-bundle-versions/${b.id}`, async (route) => {
-    probes.push(route.request().url())
+    if (saving) probes.push(route.request().url())
     await route.abort('failed')
   })
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -362,6 +373,7 @@ test('retries a failed restored comparison and keeps its second parent after unr
     await expect(
       page.getByText('Could not save this combination. Your text is still on screen. Try again.'),
     ).toBeVisible()
+    saving = false
     await expect(saveButton(page)).toBeEnabled()
     await expect(page.locator('.lp-combine')).toBeVisible()
   }

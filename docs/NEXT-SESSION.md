@@ -61,12 +61,16 @@ The operator applied the one-line workflow change in
 **Unavailable-parent follow-up:** save-as-new returns its own JSON 404 with
 `unavailable: 'source' | 'secondParent'`, retaining the existing error message. Both parents are
 rechecked under the plan lock, source first; deleted/unreadable versions are indistinguishable.
+Editing access is checked immediately after refreshing the caller, before those reads; revoked
+access plus a deleted source returns 403 without unavailable metadata. Rollback stays in the catch.
 The client consumes that response with no parent probes. Unknown 404s retain provenance for retry;
 only `secondParent` makes the live combination ordinary. Source deletion still removes its draft.
-Validation of this follow-up: types, lint, format, production build, **1,574 unit tests**,
-**313 integration tests**, **394 wire tests + 4 existing SMTP skips**, and **113 browser tests
+Validation after review corrections: types, lint, format, production build, **1,575 unit tests**,
+**313 integration tests**, **396 wire tests + 4 existing SMTP skips**, and **113 browser tests
 without retries** all passed. The wire tests assert the exact built-app JSON and source precedence
-when both parents disappear during a plan-lock wait; endpoint unit tests cover unreadable parents.
+when both parents disappear during a plan-lock wait. Revoked access plus a deleted source returns
+403 without unavailable metadata; cross-plan, stale and no-op errors also carry no marker. Endpoint
+unit tests cover unreadable parents and ensure revoked access prevents parent re-reads.
 Tracked test configuration was restored. No dependency or schema change.
 
 Use an isolated stack with both a distinct project name and port: Codex uses `lesson3-codex-probe`,

@@ -11,6 +11,20 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Recheck editing access before classifying unavailable parents
+
+Review of #405 found that revoking editing access and deleting the source during a plan-lock wait
+could return `unavailable` before the editing gate ran. Immediately after refreshing the caller,
+check editing access against the original source's subject-grade, before any parent re-read. A
+revoked caller gets 403 without unavailable metadata, even when the source is gone. Wire-test the
+combined race rather than testing deletion and revocation only in isolation.
+
+Keep `authorize()` throwing; only save-as-new converts the typed unavailable error to its own JSON.
+Locked parent checks use labelled id pairs and throw that same internal error, so the existing catch
+owns rollback before response conversion. No serialization of custom error data is involved. Pin
+cross-plan, stale and no-op responses as having no unavailable marker. Browser probe assertions
+observe only requests from the Save request until its error message appears.
+
 ## 2026-10-18 — Save identifies unavailable Combine parents without client probes
 
 Save-as-new returns endpoint-owned 404 JSON via `respond.json`, retaining the `errors` array and

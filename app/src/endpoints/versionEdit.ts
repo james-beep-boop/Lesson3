@@ -70,6 +70,13 @@ class RecoveryConflictError extends APIError {
   }
 }
 
+/** Internal control flow only: the endpoint serializes its own response after rollback. */
+class VersionUnavailableError extends APIError {
+  constructor(readonly unavailable: 'source' | 'secondParent') {
+    super('Version not found', 404)
+  }
+}
+
 /** Endpoint-owned JSON survives Payload error formatting and identifies no inaccessible content. */
 const unavailableVersion = (unavailable: 'source' | 'secondParent'): Response =>
   json({ errors: [{ message: 'Version not found' }], unavailable }, 404)
@@ -78,13 +85,13 @@ const unavailableVersion = (unavailable: 'source' | 'secondParent'): Response =>
 async function authorize(
   req: PayloadRequest,
   role: 'editor' | 'admin',
-): Promise<LessonBundleVersion | null> {
+): Promise<LessonBundleVersion> {
   if (!req.user) throw new APIError('Unauthorized', 401)
   const id = req.routeParams?.id as string | undefined
   if (!id) throw new APIError('Missing version id', 400)
 
   const version = await findReadableVersion(req.payload, { id, user: req.user as User, req })
-  if (!version) return null
+  if (!version) throw new VersionUnavailableError('source')
   const sgId = toId(version.subjectGrade as never)
   const ok =
     role === 'admin'
@@ -115,8 +122,13 @@ export const saveAsNewEndpoint: Endpoint = {
   path: '/:id/save-as-new',
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
-    const source = await authorize(req, 'editor')
-    if (!source) return unavailableVersion('source')
+    let source: LessonBundleVersion
+    try {
+      source = await authorize(req, 'editor')
+    } catch (e) {
+      if (e instanceof VersionUnavailableError) return unavailableVersion(e.unavailable)
+      throw e
+    }
     const planId = toId(source.lessonPlan as never)
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
 
@@ -235,17 +247,20 @@ export const saveAsNewEndpoint: Endpoint = {
           // a concurrent deletion must be a controlled 404, not a failed foreign-key insert.
           await lockRows(req, 'lesson_plans', [planId])
           const currentCaller = await refreshCaller(req)
-          for (const parentId of [source.id, mergeParent]) {
+          if (!isEditorFor(currentCaller, toId(source.subjectGrade))) {
+            throw new APIError('Not allowed', 403)
+          }
+          for (const [label, parentId] of [
+            ['source', source.id],
+            ['secondParent', mergeParent],
+          ] as const) {
             const parent = await findReadableVersion(req.payload, {
               id: parentId,
               user: currentCaller,
               req,
               select: { lessonPlan: true, subjectGrade: true },
             })
-            if (!parent) {
-              await killTransaction(req)
-              return unavailableVersion(parentId === source.id ? 'source' : 'secondParent')
-            }
+            if (!parent) throw new VersionUnavailableError(label)
             if (relId(parent.lessonPlan) !== planId) {
               throw new APIError('Both versions must belong to the same lesson plan.', 400)
             }
@@ -357,6 +372,7 @@ export const saveAsNewEndpoint: Endpoint = {
         })
       } catch (e) {
         await killTransaction(req)
+        if (e instanceof VersionUnavailableError) return unavailableVersion(e.unavailable)
         // ⚑ A recovery conflict is NEVER retried, and it is tested before the semver check rather
         // than relying on the two being distinguishable. The token is fixed at request time, so a
         // retry re-runs an identical, identically-failing precondition — wasted transactions ending
@@ -386,7 +402,6 @@ export const makeOfficialEndpoint: Endpoint = {
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
     const version = await authorize(req, 'admin')
-    if (!version) throw new APIError('Version not found', 404)
     const planId = toId(version.lessonPlan as never)
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
 

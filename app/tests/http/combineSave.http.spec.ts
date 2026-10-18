@@ -142,7 +142,17 @@ describe('Combine save gate', () => {
         ...minimalBundleContent(),
       } as never,
     })
-    expect((await save(form(other.id), tokens.editor)).status).toBe(400)
+    const res = await save(form(other.id), tokens.editor)
+    expect(res.status).toBe(400)
+    expect(await res.json()).not.toHaveProperty('unavailable')
+  })
+  it('stale source timestamps return 409 without unavailable', async () => {
+    const res = await save(
+      form(parent.id, { updatedAt: '2000-01-01T00:00:00.000Z' }),
+      tokens.editor,
+    )
+    expect(res.status).toBe(409)
+    expect(await res.json()).not.toHaveProperty('unavailable')
   })
   it('rejects source deletion and keeps both parents without creating a version', async () => {
     const before = await count()
@@ -194,7 +204,9 @@ describe('Combine save provenance', () => {
     const body = new FormData()
     body.set('data', JSON.stringify({ ...fx.version, mergedFrom: parent.id, lineage: [parent.id] }))
     body.set('mergeParent', String(parent.id))
-    expect((await save(body, tokens.editor)).status).toBe(400)
+    const res = await save(body, tokens.editor)
+    expect(res.status).toBe(400)
+    expect(await res.json()).not.toHaveProperty('unavailable')
   })
   it('uses both-parent lineage after a parent is deleted', async () => {
     const a = await version()
@@ -391,6 +403,40 @@ describe('Combine save provenance', () => {
     },
     30_000,
   )
+  it('revoked editing access takes precedence over a source deleted during the lock wait', async () => {
+    const user = await createUserVerified(fx.payload, {
+      name: `${MARK}revoked source`,
+      email: `${MARK}revoked-source@example.test`,
+      password: fx.password,
+      assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'editor' }],
+    })
+    const jwt = await login(user.email, fx.password)
+    const source = await version()
+    const body = form()
+    body.set(
+      'data',
+      JSON.stringify({
+        ...source,
+        lessons: source.lessons!.map((lesson) => ({ ...lesson, overview: `${MARK}revoked save` })),
+      }),
+    )
+    const before = await count()
+    let pending!: Promise<Response>
+    await whileRowLocked(fx.payload, 'lesson_plans', fx.plan.id, async () => {
+      pending = save(body, jwt, '', source.id)
+      expect(await stillPendingAfterWindow(pending)).toBe(true)
+      await drizzleOf(fx.payload).execute(
+        sql`DELETE FROM users_assignments WHERE _parent_id = ${user.id}`,
+      )
+      await drizzleOf(fx.payload).execute(
+        sql`DELETE FROM lesson_bundle_versions WHERE id = ${source.id}`,
+      )
+    })
+    const res = await pending
+    expect(res.status).toBe(403)
+    expect(await res.json()).not.toHaveProperty('unavailable')
+    expect(await count()).toBe(before - 1)
+  }, 30_000)
   it.each(['disabled', 'unverified', 'signed-out', 'revoked'])(
     '403 without a candidate when the caller is %s during a plan-lock wait',
     async (change) => {

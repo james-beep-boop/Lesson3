@@ -627,7 +627,8 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
 - Save-as-new identifies an unavailable parent in its own 404 JSON response, alongside the existing
   `errors` array: `unavailable: 'source' | 'secondParent'`. Deleted and unreadable versions produce
   identical responses. Both parents are rechecked under the plan lock, source first; if both are
-  unavailable, the source takes precedence. Only an explicit `secondParent` response converts the
+  unavailable, the source takes precedence. After waiting for the lock, editing access is checked
+  before parent reads; revoked access returns 403 without an unavailable marker. Only an explicit `secondParent` response converts the
   live edit to an ordinary edit, explaining that its text is still on screen. Other 404s preserve
   both-parent provenance and allow another save attempt; the client makes no follow-up parent reads.
   Restoring an earlier ordinary draft explains that the newly selected combination was cancelled.

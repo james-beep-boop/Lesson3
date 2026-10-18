@@ -83,6 +83,13 @@ it.each([403, 404])(
     expect(mock.rollback).toHaveBeenCalledTimes(1)
   },
 )
+it('rejects revoked editing access before any locked parent re-read', async () => {
+  mock.refresh.mockResolvedValue({ id: 3, roles: [], assignments: [] })
+  const find = vi.fn().mockResolvedValueOnce(source).mockRejectedValue({ status: 404 })
+  await expect(saveAsNewEndpoint.handler(request(find))).rejects.toMatchObject({ status: 403 })
+  expect(find).toHaveBeenCalledTimes(1)
+  expect(mock.rollback).toHaveBeenCalledTimes(1)
+})
 it('does not turn a database failure into a missing-parent response', async () => {
   const failure = new Error('Database unavailable')
   const find = vi

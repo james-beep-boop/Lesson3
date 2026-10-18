@@ -12,7 +12,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 - Combine save failures now identify which parent is unavailable directly in the server response.
   The screen keeps the current text and draft rules without making follow-up parent requests;
-  when both versions are unavailable, it reports the editing source first.
+  when both versions are unavailable, it reports the editing source first. Editing access revoked
+  during the save is refused before checking whether either parent has disappeared.
 
 - Insert link review fixes verify resolved tracker origins, match exact ARES base ports/path prefixes,
   and retain normalized HTTP/HTTPS URLs. Public PDFs stream after signature checks and oversized
