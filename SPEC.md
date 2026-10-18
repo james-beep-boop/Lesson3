@@ -467,7 +467,7 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
 
-### Combine versions (approved 2026-10-17; phase 2 of 5 built)
+### Combine versions (approved 2026-10-17; phase 3a adds data and save support)
 
 Two teachers can each save from the same version (e.g. 1.0.1 and 1.0.2 from 1.0.0). **Combine
 versions** reconciles them into a new version (1.0.3). Operator decisions: the feature is approved;
@@ -513,10 +513,47 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   401 unauthenticated; 400 for a missing/malformed/identical `with` or versions of different plans;
   404 for either version unreadable; 403 without editing access for the subject-grade. A refused
   combine is a 200 with `plan.ok: false`. Wire-tested (`tests/http/combinePreview.http.spec.ts`).
-- The ancestor is found by walking `sourceVersion`, which a deletion nulls — so phase 2 can miss an
-  ancestor and fall back to two-way (safe, less automatic). Phase 3's lineage record fixes that.
+- Phase 3a replaces the original, lossy `sourceVersion` ancestor walk with delete-proof lineage
+  (below). The preview remains read-only.
 - `DROP_KEYS`/`SERVER_REL_KEYS` moved from `endpoints/versionEdit.ts` to `lib/versionContent.ts`
   (unchanged values), so the save no-op guard and the engine share one definition of content.
+
+**Phase 3a — data and save support (2026-10-18), before the Combine screen.**
+
+- `mergedFrom` is the optional second-parent relationship alongside `sourceVersion`. Both links may
+  become null on later deletion. `lineage` is a native array of plain numeric ancestor ids, without
+  foreign keys to those ancestors. Every creation path stamps the deduplicated union of both parents
+  and their lineage; submitted lineage is never copied. Provenance is excluded from content equality
+  and cannot bypass the no-op guard.
+- Lineage holds at most **2,000 distinct ancestor ids per version**. An overflowing save is refused
+  with 409; history is never truncated. Migration backfills surviving chains without changing content
+  or timestamps. Already-deleted links cannot be reconstructed. Cyclic legacy chains fail migration
+  explicitly. Reapplying the migration preserves existing delete-proof records.
+- The common ancestor is the **highest numeric semver** among surviving, readable common ancestors
+  in the same plan; ties use newest creation timestamp, then highest id. Semver is unique per plan,
+  so the latter two are defensive. Both parents participate, including in histories with multiple
+  common ancestors. When no common ancestor survives, the engine falls back to two-way comparison.
+- `POST /:id/save-as-new` accepts optional multipart **`mergeParent`**, separate from `data`.
+  It must name a different, existing, readable version of the same plan, and the caller needs current
+  editing access. Invalid/self/cross-plan inputs are 400, missing/unreadable parents 404, insufficient
+  editing access 403, unauthenticated requests 401. The server records provenance; it does **not**
+  certify submitted prose as a correct combination or rerun the merge engine at save time.
+- **A Combine save refuses `deleteSource=true` (400) and deletes neither parent.** The parent plan
+  is locked and both parents re-read after waiting, coordinating with native version deletion.
+  Existing field split, stale/no-op guards, semver retry, transaction rollback, recovery-token fencing
+  and closing authority checks remain in force. Combining never moves the Official pointer.
+
+**Approved remaining split:** 3b adds the picker, restore-style review and editor, including explicit
+navigation to the engine-selected starting version and bounded automatic capture of Combine metadata.
+3c completes resuming unfinished combinations. Ship 3b only with safe metadata preservation, or release
+3b/3c together. Recovery stores only the other parent's id and resolved field keys (at most 64 KiB,
+with keys restricted to the recomputed conflict set), separately from captured prose; no full snapshots. Restore reruns
+preview; if the other parent is missing/unreadable, preserve the text as an ordinary draft and explain
+why. Field ids alone cannot establish that earlier conflict choices remain valid after recomputation:
+keep the saved prose and require review when the earlier comparison cannot be verified. Conflict
+buttons name version numbers ("Use 1.0.1's text", "Use 1.0.2's text", "Write my own"). An "already
+includes everything" message requires a conflict-free engine result identical to the descendant's
+content; ancestry alone is insufficient because inherited prose may have been removed or rewritten.
 
 ---
 

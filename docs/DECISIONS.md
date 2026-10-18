@@ -11,6 +11,43 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Combine phase 3 split; second-parent saves preserve both inputs
+
+Operator approved three reviewable parts: 3a data/migration/save, 3b the screen, 3c complete draft
+resumption. No merge or deployment is authorised. 3b must preserve Combine metadata automatically,
+or ship with 3c: ordinary recovery otherwise restores text while silently losing the second parent.
+The approved metadata is only the other parent id and resolved field keys, separately from prose,
+with a 64 KiB cap and keys bounded by the recomputed conflict set (existing recovery has a byte
+cap, not a separate field-count cap). Recomputed conflicts cannot be trusted solely because their field ids match;
+keep saved text and ask for review if the earlier comparison cannot be verified. A missing other
+parent becomes an explained ordinary-draft restore, not an error that strands the text.
+
+3a stamps a numeric lineage closure on every version creation, including trusted Local API paths.
+This is native Payload `number` with `hasMany`, verified against installed 3.90.2 types; ancestor ids
+are values without foreign keys, while the array itself belongs to its version through Payload's
+normal parent cascade. The cap is 2,000 ancestors, with refusal rather than truncation. Backfill is
+iterative, rejects cyclic chains, preserves timestamps, and retains recorded deleted ancestry on
+rerun. `mergedFrom` stays a normal optional relationship alongside `sourceVersion`.
+
+Save accepts a multipart `mergeParent`; it authorises the parent rather than claiming to verify the
+teacher's prose as a correct combine. It refuses `deleteSource=true` outright. A plan lock coordinates
+with native parent deletion; both parents and current authority are checked after waiting, and the
+existing final authority/field-split checks still precede commit. Ancestry selection is highest numeric
+semver, then newest creation timestamp, then id. Unique per-plan semver makes the last two defensive.
+
+Two screen corrections are approved for 3b: conflict buttons name the versions, and changing to the
+engine's starting parent changes the actual editor URL. "Already includes everything" must follow a
+conflict-free engine result identical to the descendant; ancestry does not prove inclusion after a
+later rewrite or deletion of prose. Do not implement that shortcut from lineage alone.
+
+Validation on the isolated local stack: TypeScript, ESLint, full formatting check and production
+build passed; 1,513 unit, 311 integration, 386 wire (four SMTP-dependent skips) and 92 Chromium
+browser tests without retries passed. All 23 new save/ancestry wire cases passed. Migration tests
+exercise populated pre-change tables, repeated up/down, timestamp/content preservation and rerun
+with deleted ancestry; the fresh production stack applied all migrations successfully. Contract
+check: 16 cases; restore drill: 12. Tracked `app/test.env` was restored. The two new provenance fields
+stay hidden in 3a. No frontend, generator, dependency or workflow changes; no merge or deployment.
+
 ## 2026-10-18 — NEXT-SESSION holds current state only; its history moved to the archive
 
 `docs/NEXT-SESSION.md` had grown to ~5,100 lines of dated handoff blocks above which the current state

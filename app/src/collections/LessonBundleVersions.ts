@@ -34,6 +34,7 @@ import { cascadeDeleteVersionFavorites } from './Favorites'
 import { cascadeDeleteVersionRecovery } from './EditRecovery'
 import { recoveryEndpoints } from '../endpoints/recovery'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
+import { MAX_LINEAGE, stampVersionLineage } from '../lib/combine/lineage'
 import { combinePreviewEndpoint } from '../endpoints/combinePreview'
 import {
   collapseOnEntry,
@@ -99,7 +100,7 @@ export const LessonBundleVersions: CollectionConfig = {
     // grant above (see access/versionImmutability.ts). Authoring goes through the save-as-new
     // endpoint (a CREATE, applying the field-split + stale-check itself). `enforceVersionFieldSplit`
     // still exists for the preview endpoint's direct use; not wired here.
-    beforeChange: [enforceVersionImmutable],
+    beforeChange: [enforceVersionImmutable, stampVersionLineage],
     // Retention: the Official version cannot be deleted (would orphan the plan pointer). Favorites
     // are per-version (§10) with a NOT NULL version FK — cascade them before the row goes; this
     // runs per row on bulk deletes too, so the plan-delete cascade path is covered here as well.
@@ -177,6 +178,21 @@ export const LessonBundleVersions: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
       },
+    },
+    {
+      name: 'mergedFrom',
+      type: 'relationship',
+      relationTo: 'lesson-bundle-versions',
+      access: { create: systemOnly, update: systemOnly },
+      admin: { hidden: true },
+    },
+    {
+      name: 'lineage',
+      type: 'number',
+      hasMany: true,
+      maxRows: MAX_LINEAGE,
+      access: { create: systemOnly, update: systemOnly },
+      admin: { hidden: true },
     },
     {
       // Who saved this candidate — stamped by save-as-new from the authenticated caller; empty for

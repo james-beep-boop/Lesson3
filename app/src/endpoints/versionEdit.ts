@@ -29,6 +29,8 @@ import { parsePreviewForm } from './previewParse'
 import { readSaveRecoveryToken } from './recoveryParse'
 import { retire } from '../lib/editRecovery/kernel'
 import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
+import { lockRows } from '../lib/txDb'
+import { relId } from '../lib/relId'
 import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
 // `comparableContent` is the no-op guard's canonical form: applied identically to the merged
@@ -134,6 +136,20 @@ export const saveAsNewEndpoint: Endpoint = {
     // OPTIONAL (design §8 / the PR-1 contract): no token ⇒ the pre-existing save behaviour, retiring
     // nothing. Both fields ⇒ retirement is mandatory below. Exactly one ⇒ 400, thrown in here.
     const recoveryToken = readSaveRecoveryToken(parsed.form)
+    const mergeValues = parsed.form.getAll('mergeParent')
+    const mergeParent = mergeValues.length ? relId(mergeValues[0]) : null
+    if (mergeValues.length > 1 || (mergeValues.length && mergeParent === null)) {
+      throw new APIError('Choose two versions to combine.', 400)
+    }
+    if (mergeParent === source.id) {
+      throw new APIError('Choose a different version to combine with.', 400)
+    }
+    if (mergeParent !== null && req.query?.deleteSource === 'true') {
+      throw new APIError(
+        'Combining versions keeps both original versions. Turn off source deletion and try again.',
+        400,
+      )
+    }
     parsed = null
 
     // Stale-source guard (mandatory): the submitted base `updatedAt` must be present, valid, and MATCH
@@ -206,6 +222,26 @@ export const saveAsNewEndpoint: Endpoint = {
     for (let attempt = 0; ; attempt++) {
       const shouldCommit = await initTransaction(req)
       try {
+        if (mergeParent !== null) {
+          // Native parent deletion takes this same plan lock. Re-read both parents after waiting;
+          // a concurrent deletion must be a controlled 404, not a failed foreign-key insert.
+          await lockRows(req, 'lesson_plans', [planId])
+          const currentCaller = await refreshCaller(req)
+          for (const parentId of [source.id, mergeParent]) {
+            const parent = await findReadableVersion(req.payload, {
+              id: parentId,
+              user: currentCaller,
+              req,
+            })
+            if (!parent) throw new APIError('Version not found', 404)
+            if (relId(parent.lessonPlan) !== planId) {
+              throw new APIError('Both versions must belong to the same lesson plan.', 400)
+            }
+            if (!isEditorFor(currentCaller, toId(parent.subjectGrade))) {
+              throw new APIError('Not allowed', 403)
+            }
+          }
+        }
         // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
         // also lets a teacher with editing access create a version (the collection create access is admin-only).
         const created = await req.payload.create({
@@ -216,6 +252,7 @@ export const saveAsNewEndpoint: Endpoint = {
             subjectGrade: toId(source.subjectGrade as never),
             semver: await nextSemverForPlan(req.payload, planId, req),
             sourceVersion: source.id,
+            mergedFrom: mergeParent,
             // Authorship stamp: the authenticated caller saved this candidate. Never taken from the
             // submitted content (DROP_KEYS) — drives the teacher with editing access delete scope ("My saved versions").
             author: caller.id,

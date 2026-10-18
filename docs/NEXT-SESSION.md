@@ -22,7 +22,7 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**`main` is the only branch** (`3749bfe` plus documentation). No migration since **v0.97**
+**Base:** `origin/main` at `7667315` (`3749bfe` plus documentation). No migration since **v0.97**
 (`2c25ed8`); no release tagged since. Full suite on `3749bfe`: unit 1,506, integration 310, wire 363
 (+4 SMTP skips), browser 92/92; CI green. **Deployed:** the operator ran `scripts/deploy.sh` on the
 Rock after PR #397 (`7105abf`); `3749bfe` ("Exit edit mode") is not known to be deployed. Deploying is
@@ -47,12 +47,26 @@ the operator's call: `cd /srv/lesson3 && scripts/deploy.sh` (takes an encrypted 
 **Combine versions — the five phases:**
 1. ✅ Drafts (above).
 2. ✅ Engine and read-only preview (above).
-3. ⏭ **Next: the Combine screen.** A "Combine versions" action in the editor; the plan applied as a
-   restore-style overlay; each conflict resolved as keep A / use B / edit by hand; a refusal message
-   that says plainly why (e.g. two rows that cannot be told apart); saved through the existing
+3. ⏭ **Combine phase 3, approved as three separately reviewed changes.**
+   **3a:** data/save support on `feat/combine-data-save` (not merged or deployed): `mergedFrom`,
+   delete-proof numeric lineage (2,000-id cap), migration/backfill, deterministic ancestor selection,
+   and multipart `mergeParent` on `save-as-new`. Combine saves refuse source deletion. SPEC §6 has
+   the contract. Validation: types/lint/format/build passed; unit 1,513, integration 311, wire 386
+   (+4 SMTP skips), browser 92 without retries; migration backfill/rollback/rerun, contract and
+   restore checks passed on the isolated stack. New provenance fields are hidden; no UI yet.
+   **3b:** the Combine screen, including safe automatic capture of Combine metadata.
+   **3c:** complete draft resumption; ship 3b only with safe metadata preservation, or release
+   3b/3c together. Metadata is only the other parent id and resolved field keys (64 KiB cap); restored
+   text survives an unavailable parent as an ordinary draft. Recompute preview and require review
+   when earlier choices cannot be verified.
+   Screen scope: A "Combine versions" action in the editor; the plan applied as a
+   restore-style overlay; each conflict resolved with version-labelled text choices / Write my own;
+   a refusal message that says plainly why (e.g. two rows that cannot be told apart); saved through the existing
    `save-as-new` with the second parent recorded (`mergedFrom`); and a delete-proof `lineage` field
    (plain ids, migration backfilling from `sourceVersion`) so the common ancestor can be found past
-   deleted versions.
+   deleted versions. The editor switches to the engine-selected parent, URL included. An
+   "already includes" message requires a conflict-free result identical to the descendant, not
+   just an ancestry relationship.
 4. Rebase a stale draft onto a newer version with the same engine.
 5. Stable row identity: removes the strict matching rule, fixes the compare page's ordinal cascade,
    and lets drafts hold structural edits.

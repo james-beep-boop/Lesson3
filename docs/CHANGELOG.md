@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Combine versions backend (phase 3a): saves can record a second parent while preserving both input
+  versions. Delete-proof ancestry finds shared versions past deleted intermediates, with deterministic
+  selection and a bounded history. Includes a schema migration and backfill; the Combine screen is
+  a subsequent change.
+
 - The draft prompt's middle button is now *Exit edit mode*: it leaves the editor and keeps the draft
   for next time (previously *Decide later*, where typing replaced the draft). The administrator
   warning on *Save as draft* is shorter.

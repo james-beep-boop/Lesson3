@@ -1,4 +1,3 @@
-import * as migration_20261012_012355_add_message_version_labels from './20261012_012355_add_message_version_labels'
 import * as migration_20260608_024132_initial from './20260608_024132_initial'
 import * as migration_20260608_145602_lesson_entities from './20260608_145602_lesson_entities'
 import * as migration_20260608_224715_bundle_versioning from './20260608_224715_bundle_versioning'
@@ -29,6 +28,8 @@ import * as migration_20260822_011614_drop_outbound_email_flag from './20260822_
 import * as migration_20260919_222201_add_reset_password_requested_at from './20260919_222201_add_reset_password_requested_at'
 import * as migration_20261009_082909_add_forum_enabled from './20261009_082909_add_forum_enabled'
 import * as migration_20261009_125057_add_discussions from './20261009_125057_add_discussions'
+import * as migration_20261012_012355_add_message_version_labels from './20261012_012355_add_message_version_labels'
+import * as migration_20261018_072213_combine_lineage from './20261018_072213_combine_lineage'
 
 export const migrations = [
   {
@@ -185,5 +186,10 @@ export const migrations = [
     up: migration_20261012_012355_add_message_version_labels.up,
     down: migration_20261012_012355_add_message_version_labels.down,
     name: '20261012_012355_add_message_version_labels',
+  },
+  {
+    up: migration_20261018_072213_combine_lineage.up,
+    down: migration_20261018_072213_combine_lineage.down,
+    name: '20261018_072213_combine_lineage',
   },
 ]
