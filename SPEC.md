@@ -525,17 +525,20 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   foreign keys to those ancestors. Every creation path stamps the deduplicated union of both parents
   and their lineage; submitted lineage is never copied. Provenance is excluded from content equality
   and cannot bypass the no-op guard.
-- Lineage holds at most **2,000 distinct ancestor ids per version**. An overflowing save is refused
-  with 409; history is never truncated. Migration backfills surviving chains without changing content
-  or timestamps. Already-deleted links cannot be reconstructed. Cyclic legacy chains fail migration
-  explicitly. Reapplying the migration preserves existing delete-proof records.
+- Lineage retains the **newest 2,000 distinct ancestor ids per version**, ordered by serial id.
+  Older ids are dropped rather than preventing future saves. A full window cannot prove complete
+  ancestry, so preview conservatively uses two-way comparison when either input has a full window
+  (even at the exact cap). It must not silently select an older common ancestor from partial history.
+  Migration backfills surviving chains without changing content or timestamps, using the same window.
+  Already-deleted links cannot be reconstructed. Cyclic legacy chains fail migration explicitly.
+  Reapplying the migration retains recorded deleted ancestors within the bounded window.
 - The common ancestor is the **highest numeric semver** among surviving, readable common ancestors
   in the same plan; ties use newest creation timestamp, then highest id. Semver is unique per plan,
   so the latter two are defensive. Both parents participate, including in histories with multiple
   common ancestors. When no common ancestor survives, the engine falls back to two-way comparison.
 - `POST /:id/save-as-new` accepts optional multipart **`mergeParent`**, separate from `data`.
-  It must name a different, existing, readable version of the same plan, and the caller needs current
-  editing access. Invalid/self/cross-plan inputs are 400, missing/unreadable parents 404, insufficient
+  An empty string is treated as absent, allowing an ordinary save. A non-empty value must name a
+  different, existing, readable version of the same plan, and the caller needs current editing access. Invalid/self/cross-plan inputs are 400, missing/unreadable parents 404, insufficient
   editing access 403, unauthenticated requests 401. The server records provenance; it does **not**
   certify submitted prose as a correct combination or rerun the merge engine at save time.
 - **A Combine save refuses `deleteSource=true` (400) and deletes neither parent.** The parent plan

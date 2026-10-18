@@ -138,7 +138,10 @@ export const saveAsNewEndpoint: Endpoint = {
     const recoveryToken = readSaveRecoveryToken(parsed.form)
     const mergeValues = parsed.form.getAll('mergeParent')
     const mergeParent = mergeValues.length ? relId(mergeValues[0]) : null
-    if (mergeValues.length > 1 || (mergeValues.length && mergeParent === null)) {
+    if (
+      mergeValues.length > 1 ||
+      (mergeValues.length && mergeValues[0] !== '' && mergeParent === null)
+    ) {
       throw new APIError('Choose two versions to combine.', 400)
     }
     if (mergeParent === source.id) {
@@ -232,6 +235,7 @@ export const saveAsNewEndpoint: Endpoint = {
               id: parentId,
               user: currentCaller,
               req,
+              select: { lessonPlan: true, subjectGrade: true },
             })
             if (!parent) throw new APIError('Version not found', 404)
             if (relId(parent.lessonPlan) !== planId) {

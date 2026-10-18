@@ -86,8 +86,17 @@ describe('Combine save gate', () => {
   it('404 for a missing second parent', async () => {
     expect((await save(form(999_999_999), tokens.editor)).status).toBe(404)
   })
-  it.each(['bad', '', '99999999999', '0'])('400 for malformed parent %j', async (id) => {
+  it.each(['bad', '99999999999', '0'])('400 for malformed parent %j', async (id) => {
     expect((await save(form(id), tokens.editor)).status).toBe(400)
+  })
+  it('treats an empty mergeParent as an ordinary save', async () => {
+    const res = await save(form(''), tokens.editor)
+    expect(res.status, await res.clone().text()).toBe(200)
+    const { id } = (await res.json()) as { id: number }
+    const saved = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id, depth: 0 })
+    expect(saved.mergedFrom).toBeNull()
+    expect(saved.sourceVersion).toBe(fx.version.id)
+    expect(saved.lineage).toEqual([fx.version.id])
   })
   it('400 for duplicate inputs or the source itself', async () => {
     const body = form()
@@ -260,17 +269,49 @@ describe('Combine save provenance', () => {
     expect(await count()).toBe(beforeCount)
     expect(await recoveryRow(fx.payload, fx.version.id, fx.users.editor.id)).toEqual(before)
   })
-  it('refuses lineage overflow without creating a truncated version', async () => {
+  it('keeps Combine and ordinary saves available beyond the lineage window', async () => {
     const capped = await version()
     await fx.payload.update({
       collection: 'lesson-bundle-versions',
       id: capped.id,
       overrideAccess: true,
-      data: { lineage: Array.from({ length: 2000 }, (_, i) => 100_000 + i) },
+      data: {
+        title: fx.version.title,
+        lineage: Array.from({ length: 2000 }, (_, i) => 100_000 + i),
+      },
     })
     const before = await count()
-    expect((await save(form(capped.id), tokens.editor)).status).toBe(409)
-    expect(await count()).toBe(before)
+    const res = await save(form(capped.id), tokens.editor)
+    expect(res.status, await res.clone().text()).toBe(200)
+    const { id } = (await res.json()) as { id: number }
+    const saved = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id, depth: 0 })
+    expect(saved.lineage).toEqual(Array.from({ length: 2000 }, (_, i) => 100_000 + i))
+    const preview = await fetch(
+      url(`/api/lesson-bundle-versions/${id}/combine-preview?with=${capped.id}`),
+      {
+        headers: { Authorization: `JWT ${tokens.editor}` },
+      },
+    )
+    expect(preview.status).toBe(200)
+    expect(await preview.json()).toMatchObject({
+      base: null,
+      plan: { ok: true, ancestry: 'two-way' },
+    })
+    const body = new FormData()
+    body.set(
+      'data',
+      JSON.stringify({
+        ...saved,
+        lessons: saved.lessons!.map((l) => ({ ...l, overview: `${MARK}next ordinary save` })),
+      }),
+    )
+    const next = await fetch(url(`/api/lesson-bundle-versions/${id}/save-as-new`), {
+      method: 'POST',
+      headers: { Authorization: `JWT ${tokens.editor}` },
+      body,
+    })
+    expect(next.status, await next.clone().text()).toBe(200)
+    expect(await count()).toBe(before + 2)
   })
   it('404 when the second parent disappears during the plan-lock wait', async () => {
     const deleted = await version()

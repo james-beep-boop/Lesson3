@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Review correction: bounded lineage must not prevent future saves
+
+Review of `40e93b4` correctly identified that the approved 2,000-id refusal could permanently stop
+ordinary saves: deleted ids intentionally remain, so deleting versions cannot free space and there
+is no administrator reset tool. Revised rule: retain the newest 2,000 distinct serial ids and drop
+older ids. Backfill uses the same rule, including long legacy chains. Saving remains available.
+
+A partial overlap does not prove the newest common ancestor when histories are incomplete. Preview
+therefore treats a full window on either side as unknown ancestry and uses safe two-way comparison,
+even at exactly 2,000 ids. This is deliberately conservative, including recent forks at that size;
+it avoids another schema field and never silently chooses an older base from a partial history.
+The former unreachable over-cap guard is replaced by this reachable completeness check.
+
+An explicitly empty multipart `mergeParent` now means absent. Duplicate inputs and non-empty invalid
+values still fail. Wire tests require both a successful ordinary empty-parent save and successful
+Combine/ordinary saves after lineage fills, plus preview's two-way fallback. Unit tests cover eviction,
+both full-window inputs, and a legacy chain beyond the cap. Existing 401/403/404 coverage remains.
+Both wire regressions were also run against the original PR production image: empty input returned
+400 and full lineage returned 409; both tests failed there and passed on the revised image.
+
+Parent rechecks under the plan lock now project only `lessonPlan` and `subjectGrade`. Keep the
+same-plan hook invariant for trusted creation paths and the endpoint's early validation; keep early
+post-wait authorization and the closing check after later writes can wait. Their timing and scopes
+are different. Defer backfill batching, routine lineage-read cost and main's ordinary-save deletion
+race; the latter two are noted in NEXT-SESSION. No Next.js, dependency or workflow changes here.
+
+Validation after review fixes: TypeScript, ESLint, full formatting check and production build passed;
+1,516 unit, 311 integration, 386 wire (four SMTP-dependent skips), and 92 Chromium tests without
+retries passed on the isolated stack. Contract: 16 cases; restore drill: 12. Tracked test configuration
+was restored. No schema addition, dependency/workflow change, merge or deployment.
+
 ## 2026-10-18 — Combine phase 3 split; second-parent saves preserve both inputs
 
 Operator approved three reviewable parts: 3a data/migration/save, 3b the screen, 3c complete draft

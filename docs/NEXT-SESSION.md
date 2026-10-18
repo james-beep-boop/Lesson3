@@ -49,9 +49,9 @@ the operator's call: `cd /srv/lesson3 && scripts/deploy.sh` (takes an encrypted 
 2. ✅ Engine and read-only preview (above).
 3. ⏭ **Combine phase 3, approved as three separately reviewed changes.**
    **3a:** data/save support on `feat/combine-data-save` (not merged or deployed): `mergedFrom`,
-   delete-proof numeric lineage (2,000-id cap), migration/backfill, deterministic ancestor selection,
+   delete-proof numeric lineage (newest 2,000 ids), migration/backfill, deterministic ancestor selection,
    and multipart `mergeParent` on `save-as-new`. Combine saves refuse source deletion. SPEC §6 has
-   the contract. Validation: types/lint/format/build passed; unit 1,513, integration 311, wire 386
+   the contract. Validation: types/lint/format/build passed; unit 1,516, integration 311, wire 386
    (+4 SMTP skips), browser 92 without retries; migration backfill/rollback/rerun, contract and
    restore checks passed on the isolated stack. New provenance fields are hidden; no UI yet.
    **3b:** the Combine screen, including safe automatic capture of Combine metadata.
@@ -70,6 +70,17 @@ the operator's call: `cd /srv/lesson3 && scripts/deploy.sh` (takes an encrypted 
 4. Rebase a stale draft onto a newer version with the same engine.
 5. Stable row identity: removes the strict matching rule, fixes the compare page's ordinal cascade,
    and lets drafts hold structural edits.
+
+**3a review correction (PR #398):** lineage evicts oldest ids rather than preventing future saves.
+When either history window is full, preview uses two-way comparison because completeness is unknown.
+An empty multipart `mergeParent` is an ordinary save. Parent reads under the lock are projected.
+
+**Separate follow-ups, outside 3a:** ordinary saves can still return a 500 if their source is deleted
+mid-save; this race already exists on main (Combine saves hold the plan lock). Routine version reads
+also load lineage; consider excluding it from routine projections if plans reach hundreds of versions.
+Backfill batching is optional at much larger histories. Claude's proposed Next.js security upgrade
+belongs in its own checkout/PR and was recommended before deploying 3a. No upgrade or deployment is
+part of this change.
 
 **On the strict matching rule** (DECISIONS 2026-10-18): all 95 current ARES plans (806 lessons) pass
 it, so it costs nothing for uploaded content; refusals follow administrator structural edits
