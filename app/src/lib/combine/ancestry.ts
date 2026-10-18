@@ -27,8 +27,11 @@ export async function findCommonAncestor(
   a: LessonBundleVersion,
   b: LessonBundleVersion,
 ): Promise<LessonBundleVersion | null> {
-  // Never silently truncate a closure: that could select an older, incorrect common ancestor.
-  if ((a.lineage?.length ?? 0) > MAX_LINEAGE || (b.lineage?.length ?? 0) > MAX_LINEAGE) return null
+  // A full window may have lost ancestors. A retained overlap alone does not prove that it is
+  // the newest common ancestor, especially after both-parent combines. Use safe two-way comparison
+  // rather than silently selecting an older base. Exact-cap histories are conservative too.
+  if ((a.lineage?.length ?? 0) >= MAX_LINEAGE || (b.lineage?.length ?? 0) >= MAX_LINEAGE)
+    return null
   const onA = new Set([a.id, ...(a.lineage ?? [])])
   const common = [b.id, ...(b.lineage ?? [])].filter((id) => onA.has(id))
   if (!common.length) return null

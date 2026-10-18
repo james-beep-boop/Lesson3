@@ -1,4 +1,4 @@
-import { MAX_LINEAGE, unionLineage } from './lineage'
+import { unionLineage } from './lineage'
 
 export interface LineageRow {
   id: number
@@ -15,10 +15,6 @@ export function backfillLineages(rows: LineageRow[]): Map<number, number[]> {
     const seen = new Set<number>()
     const pending = [row.source, row.second].filter((id): id is number => id != null)
     const ancestors = new Set(row.lineage ?? [])
-    const checkCap = () => {
-      if (ancestors.size > MAX_LINEAGE) unionLineage([...ancestors].map((id) => ({ id })))
-    }
-    checkCap()
     while (pending.length) {
       const id = pending.pop()!
       if (id === row.id) throw new Error(`Cyclic version ancestry at ${row.id}`)
@@ -28,7 +24,6 @@ export function backfillLineages(rows: LineageRow[]): Map<number, number[]> {
       if (!parent) continue // A deleted or invalid relationship supplies no reconstructable path.
       ancestors.add(parent.id)
       for (const ancestor of parent.lineage ?? []) ancestors.add(ancestor)
-      checkCap()
       if (parent.source != null) pending.push(parent.source)
       if (parent.second != null) pending.push(parent.second)
     }

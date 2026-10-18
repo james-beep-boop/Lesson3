@@ -4,16 +4,12 @@ import { relId } from '../relId'
 
 export const MAX_LINEAGE = 2000
 
-/** Complete ancestry, without foreign keys: deleting a parent must not erase the path past it. */
+/** Recent ancestry without foreign keys. Serial ids order creation, including deleted versions. */
 export function unionLineage(parents: { id: number; lineage?: number[] | null }[]): number[] {
   const ids = [...new Set(parents.flatMap((p) => [p.id, ...(p.lineage ?? [])]))]
-  if (ids.length > MAX_LINEAGE) {
-    throw new APIError(
-      'This plan has reached the supported version-history limit. Contact your site administrator.',
-      409,
-    )
-  }
-  return ids.sort((a, b) => a - b)
+  // A bounded history must never make the plan unsaveable. A full window is treated as
+  // incomplete by ancestor lookup, so trimming cannot silently select an older merge base.
+  return ids.sort((a, b) => a - b).slice(-MAX_LINEAGE)
 }
 
 /** All creation paths, including trusted ingest and Local API, stamp rather than copy ancestry. */
