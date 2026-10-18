@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — PDF publication requires fresh consent, not an inherited folder setting
+
+Review of #404 identified an upgrade-safety gap: the old env template already set PDF_LIBRARY_DIR,
+so treating that setting as publication consent silently changed private files to public on upgrade.
+The operator approved a separate explicit `PDF_LIBRARY_PUBLIC=1` opt-in. A configured folder with
+an absent, empty, zero or other flag value retains authenticated file opening. An unconfigured
+folder remains 404. Listing always requires sign-in. Explore remains an independent switch.
+No migration or change to filename, signature, symlink, size, streaming or nosniff checks.
+
+Do not weaken the mandatory fixture test to accommodate live deployments. The HTTP and legacy
+`test:rock` suites write/delete fixtures; running them on a live installation was already prohibited
+by AGENTS, but OPS still recommended it. Correct that contradiction: fixture suites use isolated
+staging stacks; live checks are non-mutating HTTP checks. The test override now boots public and
+internal-only authenticated PDF apps from the same production build and committed fixture. The
+second app truly unsets the opt-in to test the upgrade case. Existing CI already loads this override,
+so no workflow edits or conditional skips are needed. Mark the old workflow-edit handoff completed.
+
+The remaining Insert link UX, shared label wording and URL-validation cleanup belong in a separate
+change. Public PDF edge limiting/cache policy also remains a separate exposure-hardening follow-up.
+
 ## 2026-10-18 — Recheck editing access before classifying unavailable parents
 
 Review of #405 found that revoking editing access and deleting the source during a plan-lock wait

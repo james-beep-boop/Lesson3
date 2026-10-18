@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- PDF folders now require sign-in unless the operator explicitly sets `PDF_LIBRARY_PUBLIC=1`.
+  An inherited `PDF_LIBRARY_DIR` no longer publishes private files during upgrade. Explore and
+  authenticated listing remain independent. Wire tests cover both publication modes on isolated
+  fixture stacks; the runbook no longer directs fixture-writing suites at live installations.
+
 - Combine save failures now identify which parent is unavailable directly in the server response.
   The screen keeps the current text and draft rules without making follow-up parent requests;
   when both versions are unavailable, it reports the editing source first. Editing access revoked

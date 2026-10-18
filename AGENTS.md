@@ -48,7 +48,7 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
 ## Commands (run from `app/`)
 
 - **Lint:** `npm run lint` (ESLint 9). **Types:** `npx tsc --noEmit -p tsconfig.json`.
-- **Tests:** `npm test` = `test:int` (Vitest, **needs a DB** — the Rock, or the disposable probe below) + `test:e2e` (Playwright).
+- **Tests:** `npm test` = `test:int` (Vitest, **needs a disposable test DB** — the isolated probe below) + `test:e2e` (Playwright).
   **`npm run test:unit`** (own `vitest.unit.config.mts`) runs pure DB-free unit specs in `tests/unit/`
   **locally** (no Rock) — use it for pure logic like `src/lib/substrand.ts`; it's separate from
   `test`/`test:int`.
@@ -248,6 +248,8 @@ curl -fsSLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/
 - **Tests:** colocate (`app/tests/int`, `app/tests/e2e`) and run before declaring work done.
   Integration tests need a database; HTTP/browser tests also need a running app using that same
   database. Use a disposable local stack or CI, never a live installation for fixture-driven tests.
+  `test:http` and the legacy-named `test:rock` are fixture-writing suites, not live health checks.
+  HTTP tests require `docker-compose.test.yml`, including its public and internal private-PDF apps.
 - **Formatting/linting:** ESLint 9 (`npm run lint`) + Prettier 3 (`npm run format:check`, or
   `npm run format` to fix); tsc clean. ⚑ **Two commands, not one.** `npm run lint` is ESLint
   ONLY — this line used to name Prettier while giving only the ESLint command, and 106 files

@@ -90,7 +90,7 @@ never rewritten; versions, Combine and edit recovery are unaffected.
    live in `/modules/` and are linked like any other ARES address). Show the "PDFs on the Rock"
    section only when `PDF_LIBRARY_DIR` is set and the folder is readable; leave the endpoints and
    their tests in place. Change `.env.example` so the folder is commented out by default, and say so.
-   **Serving a listed PDF no longer requires signing in** (operator, 2026-10-18: a PDF link in a
+   **Explicitly published PDFs no longer require signing in** (operator, 2026-10-18: a PDF link in a
    document must work for someone without an account). Only `GET /api/resource-library/file/:token`
    becomes public; the listing endpoint stays authenticated, and every existing file check (flat
    folder, no symlinks, `.pdf`, exact first-byte `%PDF-` signature, size cap, `nosniff`) stays. This is an authorization
@@ -98,7 +98,9 @@ never rewritten; versions, Combine and edit recovery are unaffected.
    401; a bad token still 404). Oversized files also return 404. Stream the verified file instead of
    reading the entire body into memory. `docker-compose.test.yml` mounts the committed valid PDF
    fixture read-only so these wire cases run in CI without conditional skips.
-   **Approved 2026-10-18:** configured PDF files are public independently of public discovery;
+   **Amended after upgrade-safety review, approved 2026-10-18:** a configured folder alone keeps
+   file opening authenticated. Only explicit `PDF_LIBRARY_PUBLIC=1` publishes eligible PDFs,
+   independently of public discovery;
    listing stays authenticated and unset `PDF_LIBRARY_DIR` returns file 404. The operator approved
    the complete proposed wording before implementation. `PUBLIC_LIBRARY_ENABLED` still gates
    lesson discovery; `SERVER_URL` still controls the existing security posture. Internet hosts

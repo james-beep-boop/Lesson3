@@ -237,6 +237,33 @@ describe('read-only PDF resource library', () => {
     expect((await fetch(url('/api/resource-library'))).status).toBe(401)
   })
 
+  it('an inherited folder without the publication opt-in requires sign-in to open PDFs', async () => {
+    // Internal service from the mandatory test override: same built app, public flag truly unset.
+    const base = 'http://pdf-private:3000'
+    const file = `${base}/api/resource-library/file/cHVibGljLXdpcmUucGRm`
+    expect((await fetch(file)).status).toBe(401)
+    expect((await fetch(`${base}/api/resource-library`)).status).toBe(401)
+    for (const key of ROLES) {
+      const listing = await fetch(`${base}/api/resource-library`, { headers: auth(key) })
+      expect(listing.status).toBe(200)
+      expect(await listing.json()).toMatchObject({ configured: true })
+      const response = await fetch(file, { headers: auth(key) })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+      const fixture = await readFile(
+        new URL('../fixtures/pdf-library/public-wire.pdf', import.meta.url),
+      )
+      expect(Buffer.from(await response.arrayBuffer())).toEqual(fixture)
+      expect(
+        (
+          await fetch(`${base}/api/resource-library/file/Li4vc2VjcmV0LnBkZg`, {
+            headers: auth(key),
+          })
+        ).status,
+      ).toBe(404)
+    }
+  })
+
   it('refuses malformed anonymous file tokens', async () => {
     for (const token of ['bm90ZXMudHh0', 'Li4vc2VjcmV0LnBkZg', 'LmhpZGRlbi5wZGY']) {
       expect((await fetch(url(`/api/resource-library/file/${token}`))).status).toBe(404)

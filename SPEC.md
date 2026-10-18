@@ -234,10 +234,13 @@ Rock PDF picker appears only after the server confirms `PDF_LIBRARY_DIR` is conf
 Both environment templates leave that setting commented out. The folder is flat, read-only and
 operator-managed; Lesson3 cannot upload, rename, replace or delete files there.
 
-**Configuring this folder makes eligible PDFs public by direct link, independently of
-`PUBLIC_LIBRARY_ENABLED`.** Only `GET /api/resource-library/file/:token` is anonymous;
-`GET /api/resource-library` still requires sign-in for every role. An unconfigured folder returns
-404 for files. Serving retains the filename/path checks, no symlinks, non-hidden `.pdf` extension,
+**Configuring the folder alone requires sign-in to open PDFs.** Only the explicit setting
+`PDF_LIBRARY_PUBLIC=1` makes `GET /api/resource-library/file/:token` anonymous, independently of
+`PUBLIC_LIBRARY_ENABLED`. Unset, empty, `0` and every other value retain authenticated opening;
+an inherited `PDF_LIBRARY_DIR` never opts an upgraded installation into public serving. Both
+settings are required for public files. `GET /api/resource-library` always requires sign-in for
+every role. An unconfigured folder returns 404 for files, regardless of the publication flag. Serving
+retains the filename/path checks, no symlinks, non-hidden `.pdf` extension,
 25 MiB limit, exact `%PDF-` signature and `nosniff`. Oversized files return 404, like missing files.
 Read only the signature before streaming from the same open descriptor, with bounded queues and
 reads capped at the verified file size; completion, cancellation and read errors close the handle.
