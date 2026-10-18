@@ -66,19 +66,29 @@ Always fetch before comparing branches or commits.
 
 1. Review Insert link Plan A on `feat/insert-link-ares`; merge or deploy only on the operator's
    instruction. See `docs/DESIGN-insert-link-ares-2026-10-18.md` for the approved scope.
-2. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
+2. **After #404 merges: server-identified unavailable parent**, as its own PR. Save-as-new returns
+   its own 404 JSON via `endpoints/respond.ts`, with a fixed field such as
+   `{ unavailable: 'source' | 'secondParent' }`; do not put this contract in Payload `APIError.data`.
+   Deleted and unreadable versions produce the same response. Recheck under the existing plan lock;
+   when both parents are unavailable, report the editing source first because its draft cascades
+   away. Cover each parent, both unavailable, unreadable parents and unrelated failures with wire
+   authorization tests against the built app. Remove `CombineVersions/saveFailure.ts`'s client
+   probes; preserve current wording and draft/source-deletion rules.
+3. **Phase 4 — bring a stale draft up to date using the Combine engine. Start by designing and
+   implementing one typed Combine state machine**, including phase 4's offer-to-update, applying,
+   conflict and failure states. Do not make this a standalone refactor of the currently working
+   screen. Replace the five independent Combine state variables as part of that design. Prove each
+   transition with unit tests and retain browser coverage for retry, restore, version/URL switching
+   and discard. Safe Combine metadata capture/restoration already exists; preserve the second parent.
+4. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
    installation. Not required for school use and not implemented in Plan A.
-3. Rebase a stale draft onto a newer version using the engine. Safe Combine metadata capture and
-   restoration are already included with the screen because automatic drafts must not lose their
-   second parent.
-4. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
+5. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
    allow drafts to hold structural edits.
 
-**Deferred from /simplify (2026-10-18), each its own change:** one state machine for LessonControls'
-five Combine `useState`s (their reset sites have drifted); save-as-new returning which parent is
-missing, replacing the client probe in `CombineVersions/saveFailure.ts`; a `ConflictSides` component
-for the duplicated A/B markup; one module-level scope/whitelist table for `captureFieldPath` and
-`applyCapture` in `lib/editRecovery/projection.ts`.
+**Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
+component for duplicated version-side markup; one module-level scope/whitelist table for
+`captureFieldPath` and `applyCapture` in `lib/editRecovery/projection.ts`. The unavailable-parent
+response and Combine state machine are scheduled above, not additional standalone cleanup tasks.
 
 **Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
 predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections

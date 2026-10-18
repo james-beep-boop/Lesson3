@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Sequence Combine follow-ups after Insert link; state machine belongs to phase 4
+
+Plan the unavailable-parent response as its own PR after Insert link #404 merges: its client half
+also touches LessonControls' save path. Return an explicit endpoint-owned 404 JSON response through
+`endpoints/respond.ts`, with `unavailable: 'source' | 'secondParent'`, rather than relying on Payload
+error data serialization. The 2026-10-08 minifier defect erased error-class names and caused generic
+error formatting (not a demonstrated removal of `data` itself); explicit JSON avoids that dependency.
+Wire tests must exercise the built app. Treat deleted and unreadable parents identically, recheck
+under the plan lock, and give the editing source precedence when both are unavailable. Remove the
+client probes while retaining current wording, provenance and draft/source-deletion rules.
+
+Do not separately refactor the working Combine screen into a state machine. Make that the first
+step of phase 4 (updating stale drafts), designing its new offer/apply/conflict states alongside
+existing retry/restore states. This avoids reshaping the busiest component twice. Unit transition
+tests and browser retry, restore, version/URL switch and discard checks remain required. No endpoint
+or state-machine implementation is authorized by this planning update.
+
 ## 2026-10-18 — Insert link Plan A: school addresses and explicit PDF publication
 
 Operator approved all screen wording and public PDF access independently of public discovery.
