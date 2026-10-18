@@ -10,6 +10,12 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Combine recovery fixes: retry failed comparisons/application, keep prose backups independent of
+  optional metadata validation, rate-limit restore comparisons with an ordinary-draft fallback, and
+  preserve both-parent provenance after unrelated save errors. Ordinary drafts store SQL NULL.
+  Version-number lists are narrow and permission-gated; restoring an older ordinary draft explains
+  cancellation of the newly selected combination.
+
 - Combine versions screen: pick and review versions, keep automatic prose changes, and settle
   remaining fields with version-labelled choices or your own text. The editor switches to the
   required starting version and saves a Not Official result without deleting either parent.

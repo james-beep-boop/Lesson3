@@ -50,6 +50,7 @@ export default function CombineVersions({
   busy,
   comparison,
   context,
+  remaining,
   onBegin,
   onResolve,
   valueFor,
@@ -64,6 +65,7 @@ export default function CombineVersions({
   busy: boolean
   comparison: Comparison | null
   context: CombineContext | null
+  remaining: number
   onBegin: (comparison: Comparison) => void
   onResolve: (conflict: CombineConflict, value: string) => void
   valueFor: (conflict: CombineConflict) => string
@@ -117,9 +119,6 @@ export default function CombineVersions({
     }
   }
   const plan = comparison?.plan
-  const remaining = plan?.ok
-    ? plan.conflicts.filter((c) => !context?.resolvedKeys.includes(conflictKey(c))).length
-    : 0
   return (
     <>
       {available && !editing && versions.length >= 2 && (

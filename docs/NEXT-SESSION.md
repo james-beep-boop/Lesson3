@@ -22,15 +22,19 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** `origin/main` at `698271b`: phases 1 (Drafts), 2 (Combine engine/preview), 3a
-(data/save, PR #398), and the separate Next.js/Payload security upgrade (PR #399) are merged.
+**Base:** `origin/main` at `316531e`, including Combine 3b (PR #400, merge `4ae0889`) and
+subsequent documentation. Phases 1–3b and the Next.js/Payload security upgrade are merged.
 No merge or deployment is part of the current task. Deployment status should be checked with the
 operator; merging code does not establish that the Rock has it.
 
 **Phase 3b is merged** (PR #400, `4ae0889`, 2026-10-18), including draft resumption previously
-called 3c. It was merged before the planned `/code-review` and `/simplify`; those still need to run
-against `main`. Draft metadata is a separate commit from the screen. It adds one nullable `edit_recovery.combine_context` JSON column;
-migrate before starting the updated app. Existing draft prose and timestamps are preserved.
+called 3c. Review found six failures to fix before deployment. Corrections are on
+`fix/combine-recovery-failures` for a ready PR, not merged or deployed. They add retry actions,
+remove comparison work from prose capture and overlay application, rate-limit restore validation
+with a prose fallback, preserve the second parent on unconfirmed 404s, and store SQL NULL.
+The picker now reads only id/semver for callers who can combine, and an ordinary-draft restore
+explains cancellation. No new migration: 3b still adds `edit_recovery.combine_context` and must be
+migrated before starting the updated app.
 
 The screen picks two versions, reviews automatic changes and conflicts, and opens the engine's
 starting version (URL included). Conflict choices name version numbers and can change until Save;
@@ -44,15 +48,17 @@ and asks for unresolved choices. Missing second parents yield ordinary drafts wi
 **Operator decision: do not retain drafts after the editing source is deleted.** Keep the existing
 cascade; an editor still open explains a failed save and leaves text available for copying.
 
-Validation: types, lint, format and production build; unit **1,521**, integration **312**, browser
-**101/101 without retries**; wire **388 passed + 4 SMTP-dependent skips**. Use an isolated stack with both a distinct project
+Validation: types, lint, format and production build; unit **1,541**, integration **313**, browser
+**104/104 without retries**; wire **389 passed + 4 SMTP-dependent skips**. Main CI at `316531e`
+passed all three checks. Use an isolated stack with both a distinct project
 name and port: Codex uses `lesson3-codex-probe`, `127.0.0.1:3103`. Claude uses a separate clone and
 stack. Never tear down another agent's stack. Always fetch before comparing branches or commits.
 
 ## Remaining work
 
-1. Review the merged phase 3b: `/code-review`, then `/simplify`, against `main`. Deploy only on the
-   operator's instruction (3b adds a migration: `edit_recovery.combine_context`).
+1. Review the correction PR on `fix/combine-recovery-failures`; merge or deploy only on the
+   operator’s instruction. Do not deploy 3b before these corrections are reviewed. Run the planned
+   `/simplify` where available after correctness review.
 2. **Insert link for ARES** — `docs/DESIGN-insert-link-ares-2026-10-18.md` (approved). Plan A (editor:
    accept `http`, four framework columns only, optional label, store pasted ARES addresses as
    `http://ares.local…`, Rock PDF folder opt-in, public PDF serving) then Plan A+ (rewrite
@@ -86,7 +92,6 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3 (`james-beep-boop/Lesson3`). Fetch first. Read AGENTS.md → CLAUDE.md → SPEC §5
-> and §6 → this file → the newest five or six DECISIONS entries. Phase 3b is on
-> `feat/combine-screen` for review, with metadata and screen in separate commits. Check the PR's
-> current state before starting another change. Work on a feature branch and do not merge or deploy
+> and §6 → this file → the newest five or six DECISIONS entries. Phase 3b is merged; review fixes
+> are on `fix/combine-recovery-failures` in a ready PR. Check its current state before new work. Work on a feature branch and do not merge or deploy
 > unless asked. Preserve the decision that deleting the editing source deletes its draft.

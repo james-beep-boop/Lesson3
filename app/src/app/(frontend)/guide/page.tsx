@@ -384,16 +384,19 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   Choose another version and <em>Review combination</em>, then{' '}
                   <em>Continue in editor</em>. Lesson3 may switch versions to preserve the plan
                   details and answer keys. For each remaining field, choose{' '}
-                  <em>Use {'{version}'}’s text</em> or <em>Write my own</em>. You can change choices
-                  until saving. <em>Save as new version</em> saves a Not Official result, keeps both
+                  <em>Use 1.0.1’s text</em> or <em>Write my own</em>. You can change choices until
+                  saving. If a comparison fails, choose <em>Retry combination</em>; your text stays
+                  on screen. <em>Save as new version</em> saves a Not Official result, keeps both
                   parents, and leaves Official unchanged. Nothing is saved as a numbered version
                   automatically.
                 </p>
                 <p>
                   An unfinished combination is captured as a private draft. Restoring reruns the
                   comparison and keeps your text. If the other version has gone, it becomes an
-                  ordinary draft. Deleting the version you were editing deletes its draft too. If
-                  that happens while the editor is open, copy your text before leaving the page.
+                  ordinary draft. If the comparison cannot be checked, your text can also be
+                  restored as an ordinary draft. Deleting the version you were editing deletes its
+                  draft too. If that happens while the editor is open, copy your text before leaving
+                  the page.
                 </p>
 
                 <ol className="guide-steps">

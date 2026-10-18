@@ -65,6 +65,8 @@ import CombineVersions, {
   type Comparison,
   type VersionChoice,
 } from '../CombineVersions'
+import { combineFieldUpdates } from '../CombineVersions/applyOverlay'
+import { missingCombineParent } from '../CombineVersions/saveFailure'
 import { conflictKey, type CombineContext } from '../../lib/combine/draft'
 import type { CombineConflict } from '../../lib/combine/engine'
 import {
@@ -293,23 +295,26 @@ export default function LessonControls({
 
   const [combineContext, setCombineContext] = useState<CombineContext | null>(null)
   const [comparison, setComparison] = useState<Comparison | null>(null)
+  const [combineFailure, setCombineFailure] = useState<'apply' | 'restore' | null>(null)
+  const [combineAttempt, setCombineAttempt] = useState(0)
   const [pendingCombine, setPendingCombine] = useState<Comparison | null>(null)
   useEffect(
     () => () => {
       setCombineContext(null)
       setComparison(null)
       setPendingCombine(null)
+      setCombineFailure(null)
     },
     [id],
   )
   const recoverySignal = useMemo(() => ({ fields, combineContext }), [fields, combineContext])
+  const remainingChoices = comparison?.plan.ok
+    ? comparison.plan.conflicts.filter(
+        (c) => !combineContext?.resolvedKeys.includes(conflictKey(c)),
+      ).length
+    : 0
   const combineBlocked =
-    !!pendingCombine ||
-    (!!combineContext &&
-      (!comparison?.plan.ok ||
-        comparison.plan.conflicts.some(
-          (c) => !combineContext.resolvedKeys.includes(conflictKey(c)),
-        )))
+    !!pendingCombine || (!!combineContext && (!comparison?.plan.ok || remainingChoices > 0))
 
   // ── Edit recovery (SPEC §5) ───────────────────────────────────────────────────────────────────
   const { register: registerRecoveryFlush } = useEditRecoveryFlushRegistry()
@@ -363,16 +368,25 @@ export default function LessonControls({
     let cancelled = false
     const pending = pendingCombine
     setProcessing(true)
-    void reset(applyCapture(getData(), pending.plan.ok ? pending.plan.overlay : {}).doc)
+    void Promise.resolve()
       .then(() => {
-        if (cancelled) return
+        if (cancelled || !pending.plan.ok) return
+        const updates = combineFieldUpdates(getData(), pending.plan.overlay)
+        for (const { path, value } of updates) dispatchFields({ type: 'UPDATE', path, value })
         setModified(true)
         setComparison(pending)
         setCombineContext({ mergeParent: pending.b.id, resolvedKeys: [] })
         setPendingCombine(null)
+        setCombineFailure(null)
+        setMsg(null)
       })
       .catch(() => {
-        if (!cancelled) setMsg('Could not load the comparison. Try again.')
+        if (!cancelled) {
+          setCombineFailure('apply')
+          setMsg(
+            'Could not apply the combination. Your text is still on screen. Retry the combination.',
+          )
+        }
       })
       .finally(() => {
         if (!cancelled) setProcessing(false)
@@ -380,7 +394,16 @@ export default function LessonControls({
     return () => {
       cancelled = true
     }
-  }, [id, pendingCombine, recovery.entry.phase, reset, getData, setModified, setProcessing])
+  }, [
+    id,
+    pendingCombine,
+    combineAttempt,
+    recovery.entry.phase,
+    dispatchFields,
+    getData,
+    setModified,
+    setProcessing,
+  ])
 
   const resolveConflict = (conflict: CombineConflict, value: string) => {
     if (busy || !combineContext) return
@@ -415,14 +438,18 @@ export default function LessonControls({
       return
     }
     setRestoring(true)
+    setCombineFailure(null)
+    const offer = recovery.entry.capture
+    const cancelledCombination = !!pendingCombine && !offer.combineContext
+    let proseRestored = false
     try {
-      const offer = recovery.entry.capture
       setPendingCombine(null)
       setComparison(null)
       setCombineContext(offer.combineContext ?? null)
       const { doc } = applyCapture(currentContent() as never, offer.content)
       await reset(doc as never)
       setModified(true)
+      proseRestored = true
       if (offer.combineContext) {
         // Preserve captured prose. A fresh comparison supplies only the current conflict set.
         const fresh = await loadComparison(Number(id), offer.combineContext.mergeParent)
@@ -432,16 +459,49 @@ export default function LessonControls({
         )
       } else if (offer.combineUnavailable) {
         setMsg(
-          'The other version is no longer available. Your saved text has been restored as an ordinary draft.',
+          offer.combineUnavailableReason === 'comparison-unavailable'
+            ? 'The comparison could not be checked. Your saved text has been restored as an ordinary draft.'
+            : 'The other version is no longer available. Your saved text has been restored as an ordinary draft.',
         )
+      } else if (cancelledCombination) {
+        setMsg('Your earlier draft has been restored. The new combination was cancelled.')
       }
       recovery.keepOffer()
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Could not restore those changes')
+      if (proseRestored && offer.combineContext) {
+        setCombineFailure('restore')
+        setMsg(
+          'Could not load the comparison. Your draft text is on screen. Retry the comparison before saving this combination.',
+        )
+      } else {
+        setMsg(e instanceof Error ? e.message : 'Could not restore those changes')
+      }
       recovery.keepOffer()
     } finally {
       setRestoring(false)
       setProcessing(false)
+    }
+  }
+
+  const retryCombination = async () => {
+    if (busy || restoring) return
+    if (combineFailure === 'apply') {
+      setCombineFailure(null)
+      setCombineAttempt((attempt) => attempt + 1)
+      return
+    }
+    if (!combineContext) return
+    setRestoring(true)
+    try {
+      setComparison(await loadComparison(Number(id), combineContext.mergeParent))
+      setCombineFailure(null)
+      setMsg(null)
+    } catch {
+      setMsg(
+        'Could not load the comparison. Your draft text is on screen. Retry the comparison before saving this combination.',
+      )
+    } finally {
+      setRestoring(false)
     }
   }
 
@@ -561,6 +621,7 @@ export default function LessonControls({
     setCombineContext(null)
     setComparison(null)
     setPendingCombine(null)
+    setCombineFailure(null)
   }
 
   /**
@@ -699,17 +760,21 @@ export default function LessonControls({
       )
       if (!res.ok) {
         if (res.status === 404 && combineContext) {
-          const source = await fetch(`/api/lesson-bundle-versions/${id}`, {
-            credentials: 'same-origin',
-          })
-          if (source.status === 404)
+          const missing = await missingCombineParent(id ?? '', combineContext.mergeParent)
+          if (missing === 'source')
             throw new Error(
               'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
             )
-          setCombineContext(null)
-          setComparison(null)
+          if (missing === 'other') {
+            setCombineContext(null)
+            setComparison(null)
+            setCombineFailure(null)
+            throw new Error(
+              'The other version is no longer available. Your text is still on screen. You can save it as an ordinary version.',
+            )
+          }
           throw new Error(
-            'The other version is no longer available. Your saved text has been restored as an ordinary draft.',
+            'Could not save this combination. Your text is still on screen. Try again.',
           )
         }
         throw new Error(await errorMessage(res, 'Save'))
@@ -881,6 +946,7 @@ export default function LessonControls({
         busy={busy || restoring || recoveryGate}
         comparison={comparison}
         context={combineContext}
+        remaining={remainingChoices}
         onBegin={(next) => {
           if (modified || editing) {
             setMsg('Save or discard your changes before combining versions.')
@@ -891,6 +957,7 @@ export default function LessonControls({
             return
           }
           setProcessing(true)
+          setCombineFailure(null)
           setPendingCombine(next)
           setEditIntent(true)
           setMsg(null)
@@ -903,6 +970,16 @@ export default function LessonControls({
         onMessage={setMsg}
         onNarrow={() => setTooNarrow(true)}
       />
+      {combineFailure && (
+        <Button
+          size="small"
+          buttonStyle="secondary"
+          disabled={busy || restoring}
+          onClick={() => void retryCombination()}
+        >
+          Retry combination
+        </Button>
+      )}
       {/* One header row: what you're looking at · status · lifecycle · previews · help · exit.
           The lifecycle swaps Edit ⇄ Save/Discard with the mode (D3/§13: no dead lifecycle button
           ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}
