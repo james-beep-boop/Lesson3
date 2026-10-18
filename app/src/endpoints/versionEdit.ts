@@ -70,17 +70,21 @@ class RecoveryConflictError extends APIError {
   }
 }
 
+/** Endpoint-owned JSON survives Payload error formatting and identifies no inaccessible content. */
+const unavailableVersion = (unavailable: 'source' | 'secondParent'): Response =>
+  json({ errors: [{ message: 'Version not found' }], unavailable }, 404)
+
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(
   req: PayloadRequest,
   role: 'editor' | 'admin',
-): Promise<LessonBundleVersion> {
+): Promise<LessonBundleVersion | null> {
   if (!req.user) throw new APIError('Unauthorized', 401)
   const id = req.routeParams?.id as string | undefined
   if (!id) throw new APIError('Missing version id', 400)
 
   const version = await findReadableVersion(req.payload, { id, user: req.user as User, req })
-  if (!version) throw new APIError('Version not found', 404)
+  if (!version) return null
   const sgId = toId(version.subjectGrade as never)
   const ok =
     role === 'admin'
@@ -112,6 +116,7 @@ export const saveAsNewEndpoint: Endpoint = {
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
     const source = await authorize(req, 'editor')
+    if (!source) return unavailableVersion('source')
     const planId = toId(source.lessonPlan as never)
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
 
@@ -237,7 +242,10 @@ export const saveAsNewEndpoint: Endpoint = {
               req,
               select: { lessonPlan: true, subjectGrade: true },
             })
-            if (!parent) throw new APIError('Version not found', 404)
+            if (!parent) {
+              await killTransaction(req)
+              return unavailableVersion(parentId === source.id ? 'source' : 'secondParent')
+            }
             if (relId(parent.lessonPlan) !== planId) {
               throw new APIError('Both versions must belong to the same lesson plan.', 400)
             }
@@ -378,6 +386,7 @@ export const makeOfficialEndpoint: Endpoint = {
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
     const version = await authorize(req, 'admin')
+    if (!version) throw new APIError('Version not found', 404)
     const planId = toId(version.lessonPlan as never)
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
 

@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Combine save failures now identify which parent is unavailable directly in the server response.
+  The screen keeps the current text and draft rules without making follow-up parent requests;
+  when both versions are unavailable, it reports the editing source first.
+
 - Insert link review fixes verify resolved tracker origins, match exact ARES base ports/path prefixes,
   and retain normalized HTTP/HTTPS URLs. Public PDFs stream after signature checks and oversized
   files return 404. CI wire coverage requires the committed PDF fixture via the test-only Compose

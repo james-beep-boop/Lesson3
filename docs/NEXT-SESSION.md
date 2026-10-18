@@ -22,15 +22,16 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** `origin/main` at `23a997c` (application code `f25b6fa`), including Combine corrections
-(PR #401), the dark-mode Back-button fix (PR #402), and Combine simplification/restore retry (PR #403). Insert link Plan A is implemented on
-`feat/insert-link-ares` for a ready PR. No merge or deployment is authorized for this change.
+**Base:** `origin/main` at `11cdf8a`, including Insert link Plan A (#404). Its reviewed source and
+the operator's PDF-fixture workflow edit passed CI and are merged. The next change is on
+`fix/combine-unavailable-parent`: server-owned unavailable-parent responses and removal of client
+probes. Push and a ready PR are authorized; merge/deployment of this follow-up is not.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
 the Next.js 16.4.2 / Payload 3.91.0 security upgrade (#399) were deployed to the Rock on 2026-10-18.
 The `combine_lineage` and `combine_draft_context` migrations ran in that deployment window.
-Insert link Plan A has not been merged or deployed.
+Insert link Plan A is merged; its deployment has not been confirmed.
 
 **Insert link Plan A:** approved wording, HTTP/HTTPS, four framework columns, optional label,
 ARES/tracker normalization, Combine hiding, opt-in Rock PDF picker. Configured PDF files are public
@@ -54,13 +55,18 @@ cascade; an editor still open explains a failed save and leaves text available f
 **Review fixes in #404:** resolved-origin checks for tracker targets, exact ARES origins/ports/path
 prefixes, shared normalized URL parsing, signature-first PDF streaming and oversized-file 404.
 `docker-compose.test.yml` now mounts a committed valid PDF; the wire happy path is mandatory.
-**Operator CI action still required:** apply the one-line workflow change in
-[`CI-PDF-FIXTURE-WORKFLOW-EDIT.md`](CI-PDF-FIXTURE-WORKFLOW-EDIT.md) on the PR branch. These credentials
-cannot push workflow files. The reviewed source must not merge until that configured CI run passes.
+The operator applied the one-line workflow change in
+[`CI-PDF-FIXTURE-WORKFLOW-EDIT.md`](CI-PDF-FIXTURE-WORKFLOW-EDIT.md). CI passed with the fixture configured.
 
-Validation after review fixes: types, lint, format, production image build, **1,574 unit tests**,
-**313 integration tests**, and **391 wire tests + 4 SMTP skips** passed. The PDF wire happy path
-ran without skips against the committed fixture. **112 browser tests passed without retries**.
+**Unavailable-parent follow-up:** save-as-new returns its own JSON 404 with
+`unavailable: 'source' | 'secondParent'`, retaining the existing error message. Both parents are
+rechecked under the plan lock, source first; deleted/unreadable versions are indistinguishable.
+The client consumes that response with no parent probes. Unknown 404s retain provenance for retry;
+only `secondParent` makes the live combination ordinary. Source deletion still removes its draft.
+Validation of this follow-up: types, lint, format, production build, **1,574 unit tests**,
+**313 integration tests**, **394 wire tests + 4 existing SMTP skips**, and **113 browser tests
+without retries** all passed. The wire tests assert the exact built-app JSON and source precedence
+when both parents disappear during a plan-lock wait; endpoint unit tests cover unreadable parents.
 Tracked test configuration was restored. No dependency or schema change.
 
 Use an isolated stack with both a distinct project name and port: Codex uses `lesson3-codex-probe`,
@@ -69,31 +75,21 @@ Always fetch before comparing branches or commits.
 
 ## Remaining work
 
-1. Review Insert link Plan A on `feat/insert-link-ares`; merge or deploy only on the operator's
-   instruction. See `docs/DESIGN-insert-link-ares-2026-10-18.md` for the approved scope.
-2. **After #404 merges: server-identified unavailable parent**, as its own PR. Save-as-new returns
-   its own 404 JSON via `endpoints/respond.ts`, with a fixed field such as
-   `{ unavailable: 'source' | 'secondParent' }`; do not put this contract in Payload `APIError.data`.
-   Deleted and unreadable versions produce the same response. Recheck under the existing plan lock;
-   when both parents are unavailable, report the editing source first because its draft cascades
-   away. Cover each parent, both unavailable, unreadable parents and unrelated failures with wire
-   authorization tests against the built app. Remove `CombineVersions/saveFailure.ts`'s client
-   probes; preserve current wording and draft/source-deletion rules.
-3. **Phase 4 — bring a stale draft up to date using the Combine engine. Start by designing and
+1. **Phase 4 — bring a stale draft up to date using the Combine engine. Start by designing and
    implementing one typed Combine state machine**, including phase 4's offer-to-update, applying,
    conflict and failure states. Do not make this a standalone refactor of the currently working
    screen. Replace the five independent Combine state variables as part of that design. Prove each
    transition with unit tests and retain browser coverage for retry, restore, version/URL switching
    and discard. Safe Combine metadata capture/restoration already exists; preserve the second parent.
-4. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
+2. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
    installation. Not required for school use and not implemented in Plan A.
-5. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
+3. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
    allow drafts to hold structural edits.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
 `captureFieldPath` and `applyCapture` in `lib/editRecovery/projection.ts`. The unavailable-parent
-response and Combine state machine are scheduled above, not additional standalone cleanup tasks.
+response is implemented in the current follow-up; the Combine state machine belongs to phase 4.
 
 **Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
 predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections
@@ -119,5 +115,6 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 > Pick up Lesson3 (`james-beep-boop/Lesson3`). Fetch first. Read AGENTS.md → CLAUDE.md → SPEC §5
 > and §6 → this file → the newest five or six DECISIONS entries. Combine and its simplification
-> are merged through PR #403. Insert link Plan A is on `feat/insert-link-ares`; check the PR state
-> before new work. Do not merge or deploy unless asked. Preserve the source-deletion draft cascade.
+> and Insert link Plan A are merged through PR #404. The unavailable-parent response is on
+> `fix/combine-unavailable-parent`; check its PR state before new work. Do not merge or deploy
+> unless asked. Preserve the source-deletion draft cascade.

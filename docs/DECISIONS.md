@@ -11,6 +11,20 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Save identifies unavailable Combine parents without client probes
+
+Save-as-new returns endpoint-owned 404 JSON via `respond.json`, retaining the `errors` array and
+adding `unavailable: 'source' | 'secondParent'`. The opening source lookup and the source-first
+rechecks under the plan lock use the same response for missing and unreadable versions. Roll back
+before returning from a failed locked check. An operational read error is still an error, never
+proof that a parent disappeared. No reliance on Payload error classes or error-data serialization.
+
+LessonControls consumes this field directly and no longer probes two parents after a failed save.
+Only `secondParent` removes provenance; an unknown/missing field preserves the combination for retry.
+Existing wording and the editing-source draft deletion cascade remain unchanged. All signed-in users
+currently have version read access, so simulated read-denial coverage belongs in endpoint unit tests;
+wire tests exercise real authentication, editing authorization, deletion and plan-lock waits.
+
 ## 2026-10-18 — Insert link review: verify resolved origins; scope rewrites to exact bases
 
 A character check on tracker targets missed TAB normalization into a new authority. Check the

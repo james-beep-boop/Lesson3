@@ -234,27 +234,50 @@ test('restores Combine metadata and only asks for unresolved choices', async ({ 
   expect((await recoveryRow(fx.payload, liveSource.id, fx.users.editor.id))?.retired_at).toBeNull()
 })
 
-test('deleting the editing source deletes the draft and leaves open text available for copying', async ({
-  page,
-}) => {
-  const a = await version('Text to keep on screen')
-  const b = await version('Other text')
-  await loginAs(page, fx, 'editor')
-  await begin(page, a.id, b.id)
-  await page.getByRole('button', { name: `Use ${b.semver}’s text`, exact: true }).click()
-  await awaitCaptured(page)
-  await fx.payload.delete({ collection: 'lesson-bundle-versions', id: a.id, overrideAccess: true })
-  expect(await recoveryRow(fx.payload, a.id, fx.users.editor.id)).toBeUndefined()
-  await saveButton(page).click()
-  await expect(
-    page.getByText(
-      'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
-    ),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Show All', exact: true }).first().click()
-  await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Other text')
-  expect(await recoveryRow(fx.payload, a.id, fx.users.editor.id)).toBeUndefined()
-})
+for (const bothDeleted of [false, true]) {
+  test(`deleting the editing source removes its draft and keeps open text (both deleted: ${bothDeleted})`, async ({
+    page,
+  }) => {
+    const a = await version('Text to keep on screen')
+    const b = await version('Other text')
+    await loginAs(page, fx, 'editor')
+    await begin(page, a.id, b.id)
+    await page.getByRole('button', { name: `Use ${b.semver}’s text`, exact: true }).click()
+    await awaitCaptured(page)
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: a.id,
+      overrideAccess: true,
+    })
+    expect(await recoveryRow(fx.payload, a.id, fx.users.editor.id)).toBeUndefined()
+    if (bothDeleted)
+      await fx.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: b.id,
+        overrideAccess: true,
+      })
+    const probes: string[] = []
+    page.on('request', (req) => {
+      if (
+        req.method() === 'GET' &&
+        [a.id, b.id].some(
+          (id) => new URL(req.url()).pathname === `/api/lesson-bundle-versions/${id}`,
+        )
+      )
+        probes.push(req.url())
+    })
+    await saveButton(page).click()
+    await expect(
+      page.getByText(
+        'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
+      ),
+    ).toBeVisible()
+    expect(probes).toEqual([])
+    await page.getByRole('button', { name: 'Show All', exact: true }).first().click()
+    await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Other text')
+    expect(await recoveryRow(fx.payload, a.id, fx.users.editor.id)).toBeUndefined()
+  })
+}
 
 test('offers an earlier draft before applying a new Combine overlay', async ({ page }) => {
   const a = await version('Saved starting text')
@@ -323,13 +346,16 @@ test('retries a failed restored comparison and keeps its second parent after unr
     await route.fulfill({
       status: 404,
       contentType: 'application/json',
-      body: JSON.stringify({ errors: [{ message: 'Another resource not found' }] }),
+      body: JSON.stringify({
+        errors: [{ message: 'Another resource not found' }],
+        ...(requests.length === 2 ? { unavailable: 'unknown' } : {}),
+      }),
     })
   })
-  let failProbe = true
+  const probes: string[] = []
   await page.route(`**/api/lesson-bundle-versions/${b.id}`, async (route) => {
-    if (failProbe) await route.fulfill({ status: 503, body: 'Unavailable' })
-    else await route.continue()
+    probes.push(route.request().url())
+    await route.abort('failed')
   })
   for (let attempt = 0; attempt < 2; attempt++) {
     await saveButton(page).click()
@@ -338,8 +364,8 @@ test('retries a failed restored comparison and keeps its second parent after unr
     ).toBeVisible()
     await expect(saveButton(page)).toBeEnabled()
     await expect(page.locator('.lp-combine')).toBeVisible()
-    failProbe = false
   }
+  expect(probes).toEqual([])
   expect(requests).toHaveLength(2)
   for (const body of requests) expect(body).toContain(`name="mergeParent"\r\n\r\n${b.id}`)
   await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Other retry text')
