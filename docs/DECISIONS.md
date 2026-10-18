@@ -36,6 +36,74 @@ subject-grade guard's 409 arrives as "An unknown error occurred."), so the setti
 Verified on the isolated stack: TypeScript, ESLint, format check; 1,506 unit, 310 integration, 363 wire
 (four SMTP skips) and 92 browser tests; the built app reports `next` 16.4.2.
 
+## 2026-10-18 — Review correction: bounded lineage must not prevent future saves
+
+Review of `40e93b4` correctly identified that the approved 2,000-id refusal could permanently stop
+ordinary saves: deleted ids intentionally remain, so deleting versions cannot free space and there
+is no administrator reset tool. Revised rule: retain the newest 2,000 distinct serial ids and drop
+older ids. Backfill uses the same rule, including long legacy chains. Saving remains available.
+
+A partial overlap does not prove the newest common ancestor when histories are incomplete. Preview
+therefore treats a full window on either side as unknown ancestry and uses safe two-way comparison,
+even at exactly 2,000 ids. This is deliberately conservative, including recent forks at that size;
+it avoids another schema field and never silently chooses an older base from a partial history.
+The former unreachable over-cap guard is replaced by this reachable completeness check.
+
+An explicitly empty multipart `mergeParent` now means absent. Duplicate inputs and non-empty invalid
+values still fail. Wire tests require both a successful ordinary empty-parent save and successful
+Combine/ordinary saves after lineage fills, plus preview's two-way fallback. Unit tests cover eviction,
+both full-window inputs, and a legacy chain beyond the cap. Existing 401/403/404 coverage remains.
+Both wire regressions were also run against the original PR production image: empty input returned
+400 and full lineage returned 409; both tests failed there and passed on the revised image.
+
+Parent rechecks under the plan lock now project only `lessonPlan` and `subjectGrade`. Keep the
+same-plan hook invariant for trusted creation paths and the endpoint's early validation; keep early
+post-wait authorization and the closing check after later writes can wait. Their timing and scopes
+are different. Defer backfill batching, routine lineage-read cost and main's ordinary-save deletion
+race; the latter two are noted in NEXT-SESSION. No Next.js, dependency or workflow changes here.
+
+Validation after review fixes: TypeScript, ESLint, full formatting check and production build passed;
+1,516 unit, 311 integration, 386 wire (four SMTP-dependent skips), and 92 Chromium tests without
+retries passed on the isolated stack. Contract: 16 cases; restore drill: 12. Tracked test configuration
+was restored. No schema addition, dependency/workflow change, merge or deployment.
+
+## 2026-10-18 — Combine phase 3 split; second-parent saves preserve both inputs
+
+Operator approved three reviewable parts: 3a data/migration/save, 3b the screen, 3c complete draft
+resumption. No merge or deployment is authorised. 3b must preserve Combine metadata automatically,
+or ship with 3c: ordinary recovery otherwise restores text while silently losing the second parent.
+The approved metadata is only the other parent id and resolved field keys, separately from prose,
+with a 64 KiB cap and keys bounded by the recomputed conflict set (existing recovery has a byte
+cap, not a separate field-count cap). Recomputed conflicts cannot be trusted solely because their field ids match;
+keep saved text and ask for review if the earlier comparison cannot be verified. A missing other
+parent becomes an explained ordinary-draft restore, not an error that strands the text.
+
+3a stamps a numeric lineage closure on every version creation, including trusted Local API paths.
+This is native Payload `number` with `hasMany`, verified against installed 3.90.2 types; ancestor ids
+are values without foreign keys, while the array itself belongs to its version through Payload's
+normal parent cascade. The cap is 2,000 ancestors, with refusal rather than truncation. Backfill is
+iterative, rejects cyclic chains, preserves timestamps, and retains recorded deleted ancestry on
+rerun. `mergedFrom` stays a normal optional relationship alongside `sourceVersion`.
+
+Save accepts a multipart `mergeParent`; it authorises the parent rather than claiming to verify the
+teacher's prose as a correct combine. It refuses `deleteSource=true` outright. A plan lock coordinates
+with native parent deletion; both parents and current authority are checked after waiting, and the
+existing final authority/field-split checks still precede commit. Ancestry selection is highest numeric
+semver, then newest creation timestamp, then id. Unique per-plan semver makes the last two defensive.
+
+Two screen corrections are approved for 3b: conflict buttons name the versions, and changing to the
+engine's starting parent changes the actual editor URL. "Already includes everything" must follow a
+conflict-free engine result identical to the descendant; ancestry does not prove inclusion after a
+later rewrite or deletion of prose. Do not implement that shortcut from lineage alone.
+
+Validation on the isolated local stack: TypeScript, ESLint, full formatting check and production
+build passed; 1,513 unit, 311 integration, 386 wire (four SMTP-dependent skips) and 92 Chromium
+browser tests without retries passed. All 23 new save/ancestry wire cases passed. Migration tests
+exercise populated pre-change tables, repeated up/down, timestamp/content preservation and rerun
+with deleted ancestry; the fresh production stack applied all migrations successfully. Contract
+check: 16 cases; restore drill: 12. Tracked `app/test.env` was restored. The two new provenance fields
+stay hidden in 3a. No frontend, generator, dependency or workflow changes; no merge or deployment.
+
 ## 2026-10-18 — NEXT-SESSION holds current state only; its history moved to the archive
 
 `docs/NEXT-SESSION.md` had grown to ~5,100 lines of dated handoff blocks above which the current state

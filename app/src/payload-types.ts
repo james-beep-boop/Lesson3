@@ -212,6 +212,8 @@ export interface LessonBundleVersion {
   id: number;
   lessonPlan: number | LessonPlan;
   sourceVersion?: (number | null) | LessonBundleVersion;
+  mergedFrom?: (number | null) | LessonBundleVersion;
+  lineage?: number[] | null;
   author?: (number | null) | User;
   semver: string;
   subjectGrade: number | SubjectGrade;
@@ -772,6 +774,8 @@ export interface LessonPlansSelect<T extends boolean = true> {
 export interface LessonBundleVersionsSelect<T extends boolean = true> {
   lessonPlan?: T;
   sourceVersion?: T;
+  mergedFrom?: T;
+  lineage?: T;
   author?: T;
   semver?: T;
   subjectGrade?: T;

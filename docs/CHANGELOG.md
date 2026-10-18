@@ -13,6 +13,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Security: Next.js 16.4.0 → 16.4.2, which fixes a denial-of-service advisory for apps with Server
   Actions (GHSA-p3m5-59mp-jv5r). Payload 3.90.2 → 3.91.0, and patch updates to `dompurify`, `acorn`,
   `mammoth`, `postcss`, `prettier` and `nodemailer`; one moderate advisory (`fast-copy`) cleared.
+
+- Combine versions backend (phase 3a): saves can record a second parent while preserving both input
+  versions. Delete-proof ancestry finds shared versions past deleted intermediates, with deterministic
+  selection and a bounded history that evicts old ids while keeping future saves available. Includes
+  a schema migration and backfill; the Combine screen is
+  a subsequent change.
+
 - The draft prompt's middle button is now *Exit edit mode*: it leaves the editor and keeps the draft
   for next time (previously *Decide later*, where typing replaced the draft). The administrator
   warning on *Save as draft* is shorter.
