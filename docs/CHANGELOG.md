@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Security: Next.js 16.4.0 → 16.4.2, which fixes a denial-of-service advisory for apps with Server
+  Actions (GHSA-p3m5-59mp-jv5r). Payload 3.90.2 → 3.91.0, and patch updates to `dompurify`, `acorn`,
+  `mammoth`, `postcss`, `prettier` and `nodemailer`; one moderate advisory (`fast-copy`) cleared.
 - The draft prompt's middle button is now *Exit edit mode*: it leaves the editor and keeps the draft
   for next time (previously *Decide later*, where typing replaced the draft). The administrator
   warning on *Save as draft* is shorter.
