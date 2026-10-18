@@ -458,6 +458,15 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
 
 ---
 
+Combine recovery metadata is a second, bounded JSON overlay on the same closed, owner-only
+`edit-recovery` row: only `mergeParent` (a plain version id) and `resolvedKeys` (field keys), capped
+at 64 KiB, 1,000 keys and 512 characters per key. It is transient, non-exported session state,
+not content of record; a sparse list of engine-derived keys has no fixed native field shape.
+Capture writes it atomically with prose under the existing revision fence. The server restricts keys
+to current conflicts and rechecks the other parent's readability and plan at restore. Missing or
+unreadable second parents restore as ordinary drafts with an explanation. Deleting the editing
+source still cascades its draft away; no draft is retained after source deletion.
+
 ## 6. Versioning
 
 - The versioned unit is the **whole sub-strand bundle**. Each save is an **immutable snapshot**.

@@ -11,6 +11,20 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Combine drafts retain provenance, but source deletion still removes drafts
+
+Store only the second-parent id and resolved conflict keys, separately from prose, in the closed
+owner-only recovery row. Cap metadata at 64 KiB; bound keys and filter against recomputed conflicts.
+The existing compare-and-set writes prose and metadata together. Restore reauthorizes the stored
+parent against the caller and plan, then reruns preview without replacing captured prose. An
+unavailable second parent yields an ordinary draft with an explanation. Site administrator metadata
+never includes Combine context.
+
+The operator explicitly rejected retaining drafts after the editing source is deleted. Keep the
+existing cascade. A failed save explains that the source was deleted and leaves live text available
+for copying; it must not recreate a recovery row. Keep metadata in a separate commit from the screen
+so it can be reviewed independently.
+
 ## 2026-10-18 — Next.js 16.4.2 and Payload 3.91.0; minification still off
 
 Next.js 16.4.1 published three advisories covering 16.4.0. Exposure checked: remote code execution

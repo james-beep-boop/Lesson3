@@ -21,6 +21,7 @@ import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
 import { rowsOf, toPositiveInt, txDb, type TxSource } from '../txDb'
+import { parseCombineContext } from '../combine/draft'
 import { projectCapture } from './projection'
 import { captureExpiryCutoff } from './ttl'
 
@@ -164,6 +165,8 @@ export const start = async (
       content = CASE WHEN edit_recovery.retired_at IS NULL
                      THEN edit_recovery.content
                      ELSE NULL END,
+      combine_context = CASE WHEN edit_recovery.retired_at IS NULL
+                             THEN edit_recovery.combine_context ELSE NULL END,
       retired_at = NULL
     -- RESUME is always allowed; REACTIVATION begins a new session, so it counts against the cap.
     WHERE edit_recovery.retired_at IS NULL OR (SELECT n FROM active) < ${cap}
@@ -239,9 +242,11 @@ export const capture = async (
      * The RAW form document, not a capture map. Projected here, so what is measured is exactly what
      * is stored and nothing outside the prose whitelist can reach the column.
      */
+    combineContext?: unknown
     formDocument: unknown
   },
 ): Promise<CaptureResult> => {
+  const context = JSON.stringify(parseCombineContext(args.combineContext))
   const projected = projectCapture(args.formDocument as Record<string, unknown> | null)
   const json = JSON.stringify(projected)
   const bytes = Buffer.byteLength(json, 'utf8')
@@ -251,6 +256,7 @@ export const capture = async (
   const result = await db.execute(sql`
     UPDATE edit_recovery SET
       content    = ${json}::jsonb,
+      combine_context = ${context}::jsonb,
       revision   = edit_recovery.revision + 1,
       updated_at = NOW()
     WHERE user_id = ${args.userId}
@@ -344,6 +350,7 @@ export const retire = async (
   const result = await db.execute(sql`
     UPDATE edit_recovery SET
       content    = NULL,
+      combine_context = NULL,
       retired_at = NOW(),
       updated_at = NOW(),
       revision   = edit_recovery.revision + 1
@@ -482,6 +489,7 @@ export const expireCaptures = async (
 export type ActiveCapture = {
   token: RecoveryToken
   content: unknown
+  combineContext: unknown
   /** The source's `updatedAt` when this session began — a mismatch means view/copy only. */
   baseUpdatedAt: string
   /** The field shape the capture was taken under — a mismatch means view/copy only. */
@@ -504,7 +512,7 @@ export const readActiveCapture = async (
   const db = await txDb(req)
   const row = rowsOf(
     await db.execute(sql`
-      SELECT generation, revision, updated_at, content, base_updated_at, schema_version
+      SELECT generation, revision, updated_at, content, combine_context, base_updated_at, schema_version
       FROM edit_recovery
       WHERE user_id = ${args.userId}
         AND source_version_id = ${args.sourceVersionId}
@@ -515,6 +523,7 @@ export const readActiveCapture = async (
   return {
     token: tokenOf(row),
     content: row.content ?? null,
+    combineContext: row.combine_context ?? null,
     baseUpdatedAt: new Date(String(row.base_updated_at)).toISOString(),
     schemaVersion: String(row.schema_version),
   }

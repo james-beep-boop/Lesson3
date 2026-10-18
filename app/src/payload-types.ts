@@ -453,6 +453,15 @@ export interface Message {
  */
 export interface EditRecovery {
   id: number;
+  combineContext?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   user: number | User;
   sourceVersion: number | LessonBundleVersion;
   lessonPlan: number | LessonPlan;
@@ -1018,6 +1027,7 @@ export interface MessagesSelect<T extends boolean = true> {
  * via the `definition` "edit-recovery_select".
  */
 export interface EditRecoverySelect<T extends boolean = true> {
+  combineContext?: T;
   user?: T;
   sourceVersion?: T;
   lessonPlan?: T;

@@ -1,3 +1,4 @@
+import * as migration_20261018_095242_combine_draft_context from './20261018_095242_combine_draft_context'
 import * as migration_20260608_024132_initial from './20260608_024132_initial'
 import * as migration_20260608_145602_lesson_entities from './20260608_145602_lesson_entities'
 import * as migration_20260608_224715_bundle_versioning from './20260608_224715_bundle_versioning'
@@ -191,5 +192,10 @@ export const migrations = [
     up: migration_20261018_072213_combine_lineage.up,
     down: migration_20261018_072213_combine_lineage.down,
     name: '20261018_072213_combine_lineage',
+  },
+  {
+    up: migration_20261018_095242_combine_draft_context.up,
+    down: migration_20261018_095242_combine_draft_context.down,
+    name: '20261018_095242_combine_draft_context',
   },
 ]

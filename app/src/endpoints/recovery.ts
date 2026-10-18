@@ -55,6 +55,9 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 import { isEditorFor, isSiteAdmin, toId } from '../access'
 import { canDeleteVersionDoc } from '../access/versioning'
 import { findReadableVersion } from '../lib/readBundle'
+import { parseCombineContext, conflictKey, type CombineContext } from '../lib/combine/draft'
+import { findCommonAncestor } from '../lib/combine/ancestry'
+import { planCombine } from '../lib/combine/engine'
 import { relId } from '../lib/relId'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import {
@@ -125,6 +128,40 @@ function requirePlanId(version: LessonBundleVersion): number {
   return id
 }
 
+/** Reauthorize the stored id on every restore. Never trust metadata as an access grant. */
+async function authorizeContext(
+  req: PayloadRequest,
+  source: LessonBundleVersion,
+  value: unknown,
+  restoring = false,
+): Promise<CombineContext | null> {
+  let context: CombineContext | null
+  try {
+    context = parseCombineContext(value)
+  } catch {
+    if (restoring) return null
+    throw new APIError('Invalid Combine draft metadata.', 400)
+  }
+  if (!context) return null
+  const other = await findReadableVersion(req.payload, {
+    id: context.mergeParent,
+    user: req.user as User,
+    req,
+  })
+  // A vanished second parent must not prevent backing up the teacher's prose. Restore explains
+  // why this becomes an ordinary draft. The editing source still cascades its drafts on deletion.
+  if (!other) return restoring ? null : { ...context, resolvedKeys: [] }
+  if (other.id === source.id || relId(other.lessonPlan) !== requirePlanId(source)) {
+    if (restoring) return null
+    throw new APIError('Both versions must belong to the same lesson plan.', 400)
+  }
+  if (!isEditorFor(req.user as User, toId(other.subjectGrade))) return null
+  const base = await findCommonAncestor(req, req.user as User, source, other)
+  const comparison = planCombine({ base, a: source, b: other })
+  const allowed = new Set(comparison.ok ? comparison.conflicts.map(conflictKey) : [])
+  return { ...context, resolvedKeys: context.resolvedKeys.filter((key) => allowed.has(key)) }
+}
+
 /** 1. Explicit session start — the ONLY insert/reactivate path. */
 export const recoveryStartEndpoint: Endpoint = {
   path: '/:id/recovery/start',
@@ -180,6 +217,7 @@ export const recoveryCaptureEndpoint: Endpoint = {
       expectedRevision: requireCounter(payload.expectedRevision, 'expectedRevision'),
       // The RAW form document; the kernel projects it, so the prose whitelist cannot be bypassed here.
       formDocument: requireDocument(payload.document),
+      combineContext: await authorizeContext(req, version, payload.combineContext),
     })
 
     if (result.ok) return json({ token: result.token })
@@ -207,11 +245,15 @@ export const recoveryGetEndpoint: Endpoint = {
     })
     if (!active) return json({ capture: null })
 
+    const combineContext = await authorizeContext(req, version, active.combineContext, true)
+
     // The client compares these against the source it just loaded; a mismatch means the capture is
     // view/copy/discard only and must never be applied (SPEC §5).
     return json({
       capture: {
         content: active.content,
+        combineContext,
+        combineUnavailable: active.combineContext != null && combineContext === null,
         // ⚑ When the CAPTURE was written — the row's own `updated_at`, which is what the restore
         // prompt shows the teacher. Distinct from `baseUpdatedAt` below, which is the SOURCE
         // VERSION's mtime and exists only for the staleness comparison; showing that one dates a
