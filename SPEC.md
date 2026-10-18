@@ -466,10 +466,13 @@ overlay, written and retired by the same atomic statement; it grants no content 
 Capture writes it atomically with prose under the existing revision fence, checking only bounded
 metadata shape; invalid optional metadata is dropped without rejecting prose. It performs no parent,
 ancestor or comparison lookup. Ordinary drafts store SQL NULL. Stored metadata remains untrusted:
-restore rechecks the other parent's readability and plan and filters keys to current conflicts.
-That comparison consumes the same per-user preview budget as Combine preview. An exhausted budget,
-validation error or unavailable parent still returns the owner's prose as an ordinary draft, with a
-reason for the UI to explain. Authentication, source authorization and capture fencing are unchanged. Deleting the editing
+restore returns it, shape-checked, to its owner only, and the editor's next request — Combine preview —
+is the one place that authorizes the pair (readable, same plan, editing access), charges the preview
+budget and computes the current conflicts; keys that no longer match a conflict simply stop counting.
+A preview refusal (400, 403, 404) continues the text as an ordinary draft, with an explanation; any
+other failure (an exhausted budget, a timeout) offers *Retry combination* and keeps the second parent
+(simplify, 2026-10-18: restore used to repeat the whole comparison itself, and a rate limit there
+permanently dropped the second parent). Authentication, source authorization and capture fencing are unchanged. Deleting the editing
 source still cascades its draft away; no draft is retained after source deletion.
 
 ## 6. Versioning

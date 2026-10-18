@@ -3,7 +3,7 @@ import type { BeforeDocumentControlsServerProps } from 'payload'
 
 import { hasUnsavedWork } from '../../lib/editRecovery/kernel'
 import { systemFlagsForRender } from '../../lib/systemFlags'
-import { findReadableVersion } from '../../lib/readBundle'
+import { findReadableVersion, findReadableVersionChoices } from '../../lib/readBundle'
 import { isEditorFor, toId } from '../../access'
 import { relId } from '../../lib/relId'
 import type { User } from '../../payload-types'
@@ -22,40 +22,30 @@ export default async function LessonControlsServer({
   user,
 }: BeforeDocumentControlsServerProps) {
   const versionId = Number(id)
-  const [flags, hasDraft] = await Promise.all([
+  const signedIn = !!user && Number.isInteger(versionId)
+  const [flags, hasDraft, source] = await Promise.all([
     systemFlagsForRender(payload),
     // Existence only, keyed on the session user. A version that cannot be edited never shows the
     // button, so no access check is needed for a boolean that only changes its label.
-    user && Number.isInteger(versionId)
+    signedIn
       ? hasUnsavedWork(
           { payload, transactionID: undefined },
           { userId: Number(user.id), sourceVersionId: versionId },
         )
       : false,
-  ])
-  const source =
-    user && Number.isInteger(versionId)
-      ? await findReadableVersion(payload, {
+    signedIn
+      ? findReadableVersion(payload, {
           id: versionId,
           user: user as User,
           select: { lessonPlan: true, subjectGrade: true },
         })
-      : null
+      : null,
+  ])
   const planId = relId(source?.lessonPlan)
+  // The Combine picker's list, only for someone who may combine here (editing access).
   const versions =
     user && source && planId !== null && isEditorFor(user as User, toId(source.subjectGrade))
-      ? (
-          await payload.find({
-            collection: 'lesson-bundle-versions',
-            where: { lessonPlan: { equals: planId } },
-            select: { semver: true },
-            depth: 0,
-            pagination: false,
-            sort: 'createdAt',
-            overrideAccess: false,
-            user: user as User,
-          })
-        ).docs.map(({ id, semver }) => ({ id, semver }))
+      ? await findReadableVersionChoices(payload, { planId, user: user as User })
       : []
   return <LessonControls flags={flags} hasDraft={hasDraft} versions={versions} />
 }

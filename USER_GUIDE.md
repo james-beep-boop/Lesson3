@@ -133,7 +133,7 @@ Lesson3, not in a Word file.
   *Save as new version* saves a Not Official result and keeps both parents. Nothing is saved as a
   numbered version automatically. An unfinished combination is captured as a private draft; restoring
   it reruns the comparison and keeps your text. If the other version has gone, it becomes an ordinary
-  draft. If the comparison cannot be checked, your text can also be restored as an ordinary draft.
+  draft. If the comparison cannot load for another reason, choose *Retry combination*.
   Deleting the version you were editing deletes its draft too. If that happens while the
   editor is open, copy your text before leaving the page.
 - **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and

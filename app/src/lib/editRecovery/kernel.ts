@@ -247,7 +247,7 @@ export const capture = async (
   },
 ): Promise<CaptureResult> => {
   // Optional Combine state can never prevent a valid prose capture. It is only shape/size checked
-  // here; restore reauthorizes the parent and filters keys before exposing usable Combine state.
+  // here; the client's combine-preview call authorizes the parent before Combine state is usable.
   let parsed: CombineContext | null = null
   try {
     parsed = parseCombineContext(args.combineContext)

@@ -3,8 +3,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Button } from '@payloadcms/ui'
 import Modal from '../Modal'
-import { renderOf } from '../EditRecovery/restoreDiff'
+import { RENDER_NOTE, renderOf } from '../EditRecovery/restoreDiff'
 import { withDeadline } from '../EditRecovery/deadline'
+import { COMPARISON_FAILED, ComparisonError } from './comparisonError'
 import { conflictKey, type CombineContext } from '../../lib/combine/draft'
 import type { CombineConflict, CombinePlan } from '../../lib/combine/engine'
 import { projectCapture } from '../../lib/editRecovery/projection'
@@ -25,7 +26,7 @@ export async function loadComparison(id: number, other: number): Promise<Compari
       `/api/lesson-bundle-versions/${id}/combine-preview?with=${other}`,
       { credentials: 'same-origin', signal },
     )
-    if (!response.ok) throw new Error('Could not load the comparison. Try again.')
+    if (!response.ok) throw new ComparisonError(response.status)
     return response.json() as Promise<Comparison>
   })
 }
@@ -72,10 +73,15 @@ export default function CombineVersions({
   onMessage: (message: string) => void
   onNarrow: () => void
 }) {
-  const savedProjection = useMemo(() => projectCapture(document), [document])
   const [open, setOpen] = useState(false)
   const [other, setOther] = useState('')
   const [review, setReview] = useState<Comparison | null>(null)
+  // Only the open review shows the saved text, so only then project it.
+  const savedProjection = useMemo(
+    () => (review ? projectCapture(document) : null),
+    [document, review],
+  )
+  const nothing = review ? nothingToCombine(review) : null
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [custom, setCustom] = useState<string[]>([])
@@ -85,7 +91,7 @@ export default function CombineVersions({
     try {
       setReview(await loadComparison(id, otherId))
     } catch {
-      setError('Could not load the comparison. Try again.')
+      setError(COMPARISON_FAILED)
     } finally {
       setLoading(false)
     }
@@ -98,7 +104,7 @@ export default function CombineVersions({
     setOpen(true)
     void loadComparison(id, second)
       .then(setReview)
-      .catch(() => onMessage('Could not load the comparison. Try again.'))
+      .catch(() => onMessage(COMPARISON_FAILED))
     // The document controls remount on the full version switch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, available])
@@ -170,8 +176,8 @@ export default function CombineVersions({
               </h3>
               {!review.plan.ok ? (
                 <p>{review.plan.message}</p>
-              ) : nothingToCombine(review) ? (
-                <p>{nothingToCombine(review)}</p>
+              ) : nothing ? (
+                <p>{nothing}</p>
               ) : (
                 <>
                   <p>
@@ -190,7 +196,7 @@ export default function CombineVersions({
                         const now = review.plan.overlay[change.key]?.[change.field] ?? ''
                         if (review.plan.start === 'b') return <pre>{now}</pre>
                         const rendered = renderOf(
-                          savedProjection[change.key]?.[change.field] ?? '',
+                          savedProjection?.[change.key]?.[change.field] ?? '',
                           now,
                           false,
                         )
@@ -198,13 +204,7 @@ export default function CombineVersions({
                           <div dangerouslySetInnerHTML={{ __html: rendered.html }} />
                         ) : (
                           <p>
-                            {rendered.kind === 'emptied'
-                              ? 'Emptied'
-                              : rendered.kind === 'paragraphs'
-                                ? 'Paragraph breaks changed — the words are the same'
-                                : rendered.kind === 'spacing'
-                                  ? 'Spacing only — no visible change'
-                                  : rendered.text}
+                            {rendered.kind === 'plain' ? rendered.text : RENDER_NOTE[rendered.kind]}
                           </p>
                         )
                       })()}
@@ -260,7 +260,7 @@ export default function CombineVersions({
       {editing && context && comparison && (
         <section className="lp-combine" aria-label="Review combination">
           {!plan?.ok ? (
-            <p>{plan && !plan.ok ? plan.message : 'Could not load the comparison. Try again.'}</p>
+            <p>{plan && !plan.ok ? plan.message : COMPARISON_FAILED}</p>
           ) : (
             <>
               <h3>

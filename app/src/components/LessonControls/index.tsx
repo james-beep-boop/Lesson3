@@ -66,6 +66,11 @@ import CombineVersions, {
   type VersionChoice,
 } from '../CombineVersions'
 import { combineFieldUpdates } from '../CombineVersions/applyOverlay'
+import {
+  ComparisonError,
+  DRAFT_COMPARISON_FAILED,
+  PARENT_GONE,
+} from '../CombineVersions/comparisonError'
 import { missingCombineParent } from '../CombineVersions/saveFailure'
 import { conflictKey, type CombineContext } from '../../lib/combine/draft'
 import type { CombineConflict } from '../../lib/combine/engine'
@@ -308,13 +313,20 @@ export default function LessonControls({
     [id],
   )
   const recoverySignal = useMemo(() => ({ fields, combineContext }), [fields, combineContext])
-  const remainingChoices = comparison?.plan.ok
-    ? comparison.plan.conflicts.filter(
-        (c) => !combineContext?.resolvedKeys.includes(conflictKey(c)),
-      ).length
-    : 0
+  const remainingChoices = useMemo(() => {
+    if (!comparison?.plan.ok) return 0
+    const resolved = new Set(combineContext?.resolvedKeys)
+    return comparison.plan.conflicts.filter((c) => !resolved.has(conflictKey(c))).length
+  }, [comparison, combineContext])
   const combineBlocked =
     !!pendingCombine || (!!combineContext && (!comparison?.plan.ok || remainingChoices > 0))
+  // The form as a document, built ONCE per render and only while a Combine review is shown — each
+  // conflict looks its field up in it, rather than rebuilding the whole bundle per conflict.
+  const combineDoc = useMemo(
+    () => (comparison ? currentContent() : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `fields` is the form state getData reads
+    [comparison, fields, currentContent],
+  )
 
   // ── Edit recovery (SPEC §5) ───────────────────────────────────────────────────────────────────
   const { register: registerRecoveryFlush } = useEditRecoveryFlushRegistry()
@@ -451,28 +463,25 @@ export default function LessonControls({
       setModified(true)
       proseRestored = true
       if (offer.combineContext) {
-        // Preserve captured prose. A fresh comparison supplies only the current conflict set.
+        // Preserve captured prose. The stored second parent is only the owner's own note: the
+        // combine-preview call below is the ONE place that authorizes it and computes the current
+        // conflict set (resolved keys that no longer match a conflict simply stop counting).
         const fresh = await loadComparison(Number(id), offer.combineContext.mergeParent)
         setComparison(fresh)
         setMsg(
           'The comparison may have changed. Your saved text is preserved; review the remaining choices.',
-        )
-      } else if (offer.combineUnavailable) {
-        setMsg(
-          offer.combineUnavailableReason === 'comparison-unavailable'
-            ? 'The comparison could not be checked. Your saved text has been restored as an ordinary draft.'
-            : 'The other version is no longer available. Your saved text has been restored as an ordinary draft.',
         )
       } else if (cancelledCombination) {
         setMsg('Your earlier draft has been restored. The new combination was cancelled.')
       }
       recovery.keepOffer()
     } catch (e) {
-      if (proseRestored && offer.combineContext) {
+      if (proseRestored && offer.combineContext && e instanceof ComparisonError && e.gone) {
+        setCombineContext(null)
+        setMsg(PARENT_GONE)
+      } else if (proseRestored && offer.combineContext) {
         setCombineFailure('restore')
-        setMsg(
-          'Could not load the comparison. Your draft text is on screen. Retry the comparison before saving this combination.',
-        )
+        setMsg(DRAFT_COMPARISON_FAILED)
       } else {
         setMsg(e instanceof Error ? e.message : 'Could not restore those changes')
       }
@@ -496,10 +505,14 @@ export default function LessonControls({
       setComparison(await loadComparison(Number(id), combineContext.mergeParent))
       setCombineFailure(null)
       setMsg(null)
-    } catch {
-      setMsg(
-        'Could not load the comparison. Your draft text is on screen. Retry the comparison before saving this combination.',
-      )
+    } catch (e) {
+      if (e instanceof ComparisonError && e.gone) {
+        setCombineContext(null)
+        setCombineFailure(null)
+        setMsg(PARENT_GONE)
+      } else {
+        setMsg(DRAFT_COMPARISON_FAILED)
+      }
     } finally {
       setRestoring(false)
     }
@@ -964,7 +977,7 @@ export default function LessonControls({
         }}
         onResolve={resolveConflict}
         valueFor={(conflict) => {
-          const path = captureFieldPath(currentContent(), conflict.key, conflict.field)
+          const path = combineDoc && captureFieldPath(combineDoc, conflict.key, conflict.field)
           return path ? String(fields[path]?.value ?? '') : ''
         }}
         onMessage={setMsg}

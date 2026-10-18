@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Restoring an unfinished combination keeps the other version when the comparison is only briefly
+  unavailable (for example after many requests): it offers *Retry combination* instead of turning
+  the draft into an ordinary one.
+
 - Combine recovery fixes: retry failed comparisons/application, keep prose backups independent of
   optional metadata validation, rate-limit restore comparisons with an ordinary-draft fallback, and
   preserve both-parent provenance after unrelated save errors. Ordinary drafts store SQL NULL.

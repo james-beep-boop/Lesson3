@@ -393,8 +393,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   An unfinished combination is captured as a private draft. Restoring reruns the
                   comparison and keeps your text. If the other version has gone, it becomes an
-                  ordinary draft. If the comparison cannot be checked, your text can also be
-                  restored as an ordinary draft. Deleting the version you were editing deletes its
+                  ordinary draft. If the comparison cannot load for another reason, choose{' '}
+                  <em>Retry combination</em>. Deleting the version you were editing deletes its
                   draft too. If that happens while the editor is open, copy your text before leaving
                   the page.
                 </p>

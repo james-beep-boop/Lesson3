@@ -30,7 +30,7 @@ import React, { useMemo } from 'react'
 import Modal from '../Modal'
 import type { CaptureMap } from '../../lib/editRecovery/projection'
 import type { OfferedCapture } from './protocol'
-import { renderOf } from './restoreDiff'
+import { RENDER_NOTE, renderOf } from './restoreDiff'
 import { groupsOf } from './restoreGroups'
 
 /** Matches how every other user-facing timestamp in the app reads (`VersionTimestamps`, Manage). */
@@ -170,13 +170,7 @@ export function EditRecoveryRestorePrompt({
                             teacher: the field is cleared, its paragraphs moved (a real change to the
                             generated document, which the diff engine cannot draw), or only invisible
                             spacing differs. `restoreDiff` has the measurements. */}
-                        <em className="lp-restore__note">
-                          {render.kind === 'emptied'
-                            ? 'Emptied'
-                            : render.kind === 'paragraphs'
-                              ? 'Paragraph breaks changed — the words are the same'
-                              : 'Spacing only — no visible change'}
-                        </em>
+                        <em className="lp-restore__note">{RENDER_NOTE[render.kind]}</em>
                       </dd>
                     )}
                   </React.Fragment>

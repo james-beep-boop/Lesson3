@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — /simplify on Combine 3b: one comparison per restore, one owner per rule
+
+Four review angles (reuse, simplification, efficiency, altitude) over PRs #400–#401. Applied:
+
+- **Restore no longer repeats the comparison.** `GET /recovery` returns the owner's stored Combine
+  note (shape-checked, owner-only — it grants nothing), and the editor's next request, combine-preview,
+  is the ONE place that authorizes the pair, charges the preview budget and computes conflicts. This
+  replaced a second copy of the authorization rule, about three full version reads, one engine run and
+  a second rate-limit charge per restore. It also fixes a behaviour the 3b review noted: a rate limit
+  or transient error at restore used to drop the second parent for good; now only a preview refusal
+  (400/403/404, via `ComparisonError.gone`) makes the draft ordinary, and anything else offers Retry.
+  The wire tests were rewritten to pin this contract (the stored id comes back; the preview refuses a
+  cross-plan or deleted parent).
+- The Combine picker's version list goes through `findReadableVersionChoices`, so the plan-version
+  visibility rule lives in one function again (`findPlanVersions` in `lib/readBundle.ts`).
+- The stored `mergeParent` uses `relId` for the id range instead of restating it.
+- Shared wording: `RENDER_NOTE` (restore prompt and Combine review) and `comparisonError.ts`
+  (comparison failure messages, previously copy-pasted in six places).
+- Per-render waste: the form document is built once per render during a review (not per conflict),
+  the saved-text projection only while the review is open, the remaining-choices count memoised; the
+  edit view's source read joins the existing `Promise.all`; one duplicated CSS rule merged.
+- **A flaky unit test fixed at its cause:** `combineRetry.spec.tsx`'s mocked `useForm` returned a new
+  `setModified` per render, so the apply effect (which depends on it) re-ran and succeeded after the
+  deliberate failure — 3 of 8 runs failed on `main`. Stable mock setters: 10 of 10 pass.
+
+**Deferred** (behaviour-changing or large; listed in NEXT-SESSION): one state machine for the five
+Combine `useState`s in LessonControls; save-as-new naming which parent is missing (would delete the
+client-side `missingCombineParent` probe); a `ConflictSides` component; a module-level scope/whitelist
+table shared by `captureFieldPath` and `applyCapture`.
+
 ## 2026-10-18 — Combine review corrections: prose capture is independent of optional metadata
 
 The first 3b implementation let optional metadata checks prevent a prose backup, and left failed
