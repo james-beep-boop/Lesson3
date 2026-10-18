@@ -566,7 +566,9 @@ const readTemplate = (path: string): Record<string, string> => {
       `env template not found: ${path}. If this is CI, mount the ROOT .env.example ALONE at $LESSON3_REPO_ROOT/.env.example — e.g. -v "$PWD/.env.example:/repo/.env.example:ro" -e LESSON3_REPO_ROOT=/repo. Do NOT mount the workspace: that puts .git, and the token a checkout persists there, inside this container (see .github/workflows/ci.yml).`,
     )
   }
-  return parseEnvFile(raw)
+  // Only these documented opt-ins count while commented out. Do not activate unrelated examples
+  // such as PUBLIC_LIBRARY_ENABLED=1 when interpreting template defaults.
+  return parseEnvFile(raw.replace(/^# (?=(?:PDF_LIBRARY_DIR|ARTIFACT_CACHE_DIR)=)/gm, ''))
 }
 
 /**
@@ -647,11 +649,19 @@ describe('env template parity', () => {
     expect(DEV_CRITICAL.filter((n) => !app.has(n))).toEqual([])
   })
 
+  it('commented public-discovery examples do not replace the actual template default', () => {
+    const actual = parseEnvFile(readFileSync(APP_TEMPLATE, 'utf8'))
+    expect(analysis().appTemplate.PUBLIC_LIBRARY_ENABLED).toBe(actual.PUBLIC_LIBRARY_ENABLED)
+  })
+
   it('D: the first-user bootstrap escape hatch is in neither template', () => {
     const { root, app } = analysis()
     for (const name of NEVER_IN_TEMPLATE) {
       expect(root.has(name), `${name} must not be in the root template`).toBe(false)
       expect(app.has(name), `${name} must not be in the app template`).toBe(false)
+      const assignment = new RegExp(`^\\s*(?:#\\s*)?${name}\\s*=`, 'm')
+      for (const template of [ROOT_TEMPLATE, APP_TEMPLATE])
+        expect(readFileSync(template, 'utf8')).not.toMatch(assignment)
     }
   })
 

@@ -24,6 +24,7 @@
  *     `/srv/lesson3/app` — the two habits `scripts/in-deps.sh` exists to retire. A recipe inside a
  *     test file is a high-traffic place to copy from, so it is worth keeping current.)
  */
+import { readFile } from 'node:fs/promises'
 import JSZip from 'jszip'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Where } from 'payload'
@@ -213,6 +214,33 @@ describe('read-only PDF resource library', () => {
     const body = (await res.json()) as { configured?: boolean; files?: unknown[] }
     expect(typeof body.configured).toBe('boolean')
     expect(Array.isArray(body.files)).toBe(true)
+  })
+
+  it('opens the test-stack PDF anonymously, independently of public discovery', async () => {
+    const listing = await fetch(url('/api/resource-library'), { headers: auth('teacher') })
+    expect(listing.status).toBe(200)
+    const body = (await listing.json()) as { configured: boolean; files: { href: string }[] }
+    expect(body.configured, 'load docker-compose.test.yml for the wire stack').toBe(true)
+    const file = body.files.find(
+      (file) => file.href === '/api/resource-library/file/cHVibGljLXdpcmUucGRm',
+    )
+    expect(file, 'the read-only test-stack fixture must be listed').toBeDefined()
+    const response = await fetch(url(file!.href))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/pdf')
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    const fixture = await readFile(
+      new URL('../fixtures/pdf-library/public-wire.pdf', import.meta.url),
+    )
+    expect(response.headers.get('content-length')).toBe(String(fixture.length))
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(fixture)
+    expect((await fetch(url('/api/resource-library'))).status).toBe(401)
+  })
+
+  it('refuses malformed anonymous file tokens', async () => {
+    for (const token of ['bm90ZXMudHh0', 'Li4vc2VjcmV0LnBkZg', 'LmhpZGRlbi5wZGY']) {
+      expect((await fetch(url(`/api/resource-library/file/${token}`))).status).toBe(404)
+    }
   })
 
   it('returns 404 for an unknown file token without exposing a filesystem path', async () => {

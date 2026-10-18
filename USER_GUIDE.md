@@ -237,9 +237,13 @@ These rules are also available from *Help* at the top of the editor.
 
 - Start a new line to make a new paragraph.
 - Start a line with `- ` to make a bullet.
-- Use *Insert link* beneath a text field to add a web address or choose a PDF already available on
-  this Lesson3 site. The address appears in parentheses and becomes clickable on screen and in the
-  Word/PDF files. Web and PDF links open separately so your editor stays open.
+- While editing, place the cursor in Learner experience, Teacher moves, Sensemaking strategy or
+  Formative assessment, then choose Insert link in the toolbar. Paste an address from ARES or the web
+  and add an optional label. To link an ARES PDF, open it in ARES and copy its address. If PDFs on the
+  Rock is shown, you can choose a PDF there instead. The address is inserted in parentheses at the
+  cursor, after your label if supplied. Links become clickable on screen and in Word and PDF documents,
+  except inside table text. Web and PDF links open separately so your editing page stays open. Insert
+  link is hidden during Combine review.
 - Bold, italics, and underlining are not supported.
 - Change the field for the section you want to update. Lesson3 makes the Word and PDF files from
   these fields.

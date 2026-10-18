@@ -295,6 +295,16 @@ export default function LessonControls({
     () => false,
   )
 
+  useEffect(() => {
+    const clearOtherField = (event: FocusEvent) => {
+      const target = event.target
+      if (target instanceof HTMLTextAreaElement && !target.closest('.prose-link-field'))
+        clearActiveLinkTarget()
+    }
+    document.addEventListener('focusin', clearOtherField)
+    return () => document.removeEventListener('focusin', clearOtherField)
+  }, [])
+
   // Payload reads its current form ref, including from an already-running async handler.
   const currentContent = getData
 
@@ -1091,13 +1101,17 @@ export default function LessonControls({
               </Button>
             </>
           )}
-          {editing && (
+          {editing && !comparison && !pendingCombine && !combineContext && (
             <Button
               buttonStyle="secondary"
               size="small"
               onClick={openActiveLinkTarget}
               disabled={saving || !linkTargetReady}
-              tooltip={!linkTargetReady ? 'Place the cursor in a prose field first' : undefined}
+              tooltip={
+                !linkTargetReady
+                  ? 'Place the cursor in Learner experience, Teacher moves, Sensemaking strategy or Formative assessment first.'
+                  : undefined
+              }
             >
               Insert link
             </Button>
@@ -1295,10 +1309,11 @@ export default function LessonControls({
               <dd>Bold, italics, and underlining are not supported.</dd>
             </div>
             <div className="help-rows__row">
-              <dt>Insert link adds an address or a PDF</dt>
+              <dt>Insert a link</dt>
               <dd>
-                Place the cursor in a prose field, then use <em>Insert link</em> in the toolbar to
-                add an internet address or a PDF from the Rock.
+                Place the cursor in Learner experience, Teacher moves, Sensemaking strategy or
+                Formative assessment, then choose <em>Insert link</em> in the toolbar. Paste an
+                address from ARES or the web and add an optional label.
               </dd>
             </div>
             <div className="help-rows__row">

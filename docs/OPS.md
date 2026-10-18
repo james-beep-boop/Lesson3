@@ -7,10 +7,10 @@ the Rock unless noted.
 
 ---
 
-## Proof-of-concept PDF link library
+## Optional public PDF link library
 
 Lesson prose can link to internet addresses and to PDFs in one flat directory on the Rock. This is a
-read-only demonstration, not file management: Lesson3 never writes, renames, replaces or deletes the
+read-only folder, not file management: Lesson3 never writes, renames, replaces or deletes the
 files. The Compose app receives only this mount:
 
 ```text
@@ -19,8 +19,10 @@ files. The Compose app receives only this mount:
 
 One-time setup after pulling the feature:
 
-1. Keep `PDF_LIBRARY_DIR=/var/lib/lesson3-resources` in the Rock's `.env` (the canonical
-   `.env.example` carries it).
+1. Explicitly set `PDF_LIBRARY_DIR=/var/lib/lesson3-resources` in the Rock's `.env`. Both
+   templates leave it commented out. **This publishes eligible PDFs to anyone who can reach the
+   site, independently of `PUBLIC_LIBRARY_ENABLED`.** Leave it unset on ARES installations and
+   paste ARES `/modules/` addresses instead.
 2. Copy a few PDFs into `/srv/lesson3/out/resource-library/` on the Rock. Use a flat directory,
    ordinary `.pdf` filenames, and files no larger than 25 MiB. Hidden files, subdirectories,
    symlinks, other extensions, and content without a PDF signature are not offered.
@@ -29,10 +31,11 @@ One-time setup after pulling the feature:
 4. Sign in through the standard public HTTPS app address, open a lesson version for editing, and use
    *Insert link*. Selecting a Rock PDF inserts an absolute URL using that browser origin.
 
-All authenticated roles may open these PDFs. An exported Word/PDF link therefore works remotely when
-the reader is already signed in to the same public app; sign-in-and-return for a reader whose session
-has expired is outside this proof of concept. Do not rename or overwrite a demonstration PDF after a
-lesson links to it: the URL is stable only while the filename and bytes stay stable.
+Opening a configured PDF does not require an account; listing filenames still requires sign-in.
+Filename tokens are not secrets. Disabling Explore does not disable these document links. Existing
+public-exposure security configuration and the Going public checklist still apply on an internet
+host. Do not rename or overwrite a linked PDF: the URL is stable only while the filename and bytes
+stay stable.
 
 ⚠ The database backup does **not** include `out/resource-library`. For this proof of concept, retain
 the source PDFs elsewhere and be prepared to copy them back. A production resource library needs an

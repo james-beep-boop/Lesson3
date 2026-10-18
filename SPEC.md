@@ -195,28 +195,59 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
   update — including by a Site Administrator. Correct a wrongly categorised plan by deleting it and
   uploading it again; an exceptional in-place data repair requires an explicit migration.
 
-#### Proof of concept — links inside prose (2026-08-22)
+#### Links inside prose (Plan A, 2026-10-18)
 
-Link insertion stays inside the plain-string grammar; it is **not rich text**. The editing toolbar's
-single **Insert link** action is disabled until the cursor is placed in a linkable body-prose
-textarea, then writes the complete address in parentheses at that cursor, for example
-`(https://www.youtube.com/watch?v=…)`. During generation, only parenthesized
-`http`/`https` addresses become explicit DOCX hyperlinks; the parentheses remain visible. Titles are
-excluded because the ARES generator interpolates them into document headings rather than ordinary
-prose cells. Preview links to web/PDF destinations open separately so they never replace an editor
-tab holding unsaved work.
+Link insertion stays inside the plain-string grammar. While editing, the toolbar's single
+**Insert link** action is available only for the four framework columns: Learner experience,
+Teacher moves, Sensemaking strategy and Formative assessment. It is hidden during Combine review.
+It is disabled until the cursor is placed in a linkable field; focusing another textarea clears the
+target. Existing links in other prose fields still render as before.
 
-The same dialog may choose a PDF from one **flat, read-only, operator-managed directory** on the
-Rock. This is intentionally not a media library: PDFs are copied to the host outside Lesson3; the app
-cannot upload, rename, replace, or delete them. Two authenticated root endpoints list and serve only
-regular, non-hidden `.pdf` files up to 25 MiB; serving repeats the filename/path checks, refuses
-symlinks, verifies the `%PDF-` signature, and applies `nosniff`. Every authenticated role may read the
-library. The inserted target is an absolute URL at the browser's current public origin, so it works
-remotely through the standard HTTPS app address; it is not a `file://` or host-filesystem path.
+The dialog accepts complete `http://` and `https://` addresses and an optional plain-text label,
+trimmed, single-line and at most 120 characters. It inserts `Label (http://…)` at the cursor, or
+`(http://…)` without a label. Parentheses in the address are escaped; label parentheses are plain
+text. No markup or hidden link metadata is stored. Web/PDF links open separately so they never
+replace a page holding unsaved work. The existing generator's table-text exception still applies.
 
-This proof of concept does not cover subdirectories, search, video, Word resource files, public
-access, per-file permissions, link checking, or resource backup/versioning. Existing mandatory ARES
-`resourceLinks` remain system-owned and unchanged; author-entered prose URLs are a separate feature.
+**Store ARES links in ARES's own form:** `http://ares.local/…` or
+`http://ares.local:8069/…` for Kolibri. The shared HTTP/HTTPS parser first produces a normalized URL
+(host casing, default ports, escaping spaces). Then match only known ARES bases by exact origin
+(scheme, host and effective port) and a whole path prefix. Strip the matching prefix before adding
+the canonical ARES base; retain query and fragment. Choose the longest matching prefix, with Kolibri
+winning an equal-prefix tie. Unknown origins, ports and unmatched prefixes receive no ARES rewrite.
+
+Known defaults are HTTP/HTTPS `ares.local` and `demo.aresedu.dev` site roots, `ares.local:8069`
+Kolibri roots and the demo's `/kolibri` prefix. Optional `ARES_SITE_URL` and `ARES_KOLIBRI_URL`
+add exact installation bases, including their ports and path prefixes. Comma-separated
+`ARES_HOST_ALIASES` adds exact hostnames/IPs at the normal HTTP/HTTPS site ports and Kolibri port
+8069; it does not authorize every service port on those machines. For example, an unconfigured
+`ares.local:8082` address stays unchanged. `ares.edu` is not a default alias.
+
+Only unwrap tracker paths inside a known base. Resolve local-launch targets and verify the result
+stays on the wrapper's origin and within a known base; reject TAB/backslash/newline authority tricks.
+External-launch targets must be complete HTTP/HTTPS URLs. Malformed targets leave the wrapper
+unchanged. All of this is a local string transformation, never a network lookup. Plan A does not
+rewrite stored versions or generated document destinations; that remains separate Plan A+.
+
+ARES PDFs normally live under `/modules/`: open the PDF in ARES and paste its address. The optional
+Rock PDF picker appears only after the server confirms `PDF_LIBRARY_DIR` is configured and readable.
+Both environment templates leave that setting commented out. The folder is flat, read-only and
+operator-managed; Lesson3 cannot upload, rename, replace or delete files there.
+
+**Configuring this folder makes eligible PDFs public by direct link, independently of
+`PUBLIC_LIBRARY_ENABLED`.** Only `GET /api/resource-library/file/:token` is anonymous;
+`GET /api/resource-library` still requires sign-in for every role. An unconfigured folder returns
+404 for files. Serving retains the filename/path checks, no symlinks, non-hidden `.pdf` extension,
+25 MiB limit, exact `%PDF-` signature and `nosniff`. Oversized files return 404, like missing files.
+Read only the signature before streaming from the same open descriptor, with bounded queues and
+reads capped at the verified file size; completion, cancellation and read errors close the handle.
+Tokens encode filenames and are not access secrets.
+Inserted PDF targets use the browser's current absolute origin. Listing failures do not block
+pasting an address. This optional folder is not part of lesson public discovery or resource backups.
+
+The dialog's **New feature** note is removed after a term of school use with no reported link
+problems, with that removal recorded in DECISIONS. Search, resource uploads and resource versioning
+remain outside this scope. System-owned ARES `resourceLinks` remain unchanged.
 
 ### Editing surface — a wider-screen affordance; 640px or narrower is view-only (decided 2026-07-28)
 

@@ -446,10 +446,15 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     Start a line with <code>- </code> to make a bullet.
                   </li>
                   <li>
-                    Use <em>Insert link</em> below a text field to add a web address or choose a PDF
-                    already available on this Lesson3 site. The address appears in parentheses and
-                    becomes clickable on screen and in the Word/PDF files. Web and PDF links open
-                    separately so your editor stays open.
+                    While editing, place the cursor in Learner experience, Teacher moves,
+                    Sensemaking strategy or Formative assessment, then choose Insert link in the
+                    toolbar. Paste an address from ARES or the web and add an optional label. To
+                    link an ARES PDF, open it in ARES and copy its address. If PDFs on the Rock is
+                    shown, you can choose a PDF there instead. The address is inserted in
+                    parentheses at the cursor, after your label if supplied. Links become clickable
+                    on screen and in Word and PDF documents, except inside table text. Web and PDF
+                    links open separately so your editing page stays open. Insert link is hidden
+                    during Combine review.
                   </li>
                   <li>Bold, italics, and underlining are not supported.</li>
                   <li>

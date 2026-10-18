@@ -119,7 +119,7 @@ jobs:
       - name: Stack up (postgres → migrate → app + gotenberg)
         # `up --build` also runs `next build` (builder stage) + applies migrations to `lesson3`, so a
         # build break or migration failure fails CI here.
-        run: docker compose up -d --build
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build
 
       - name: Wait for app health
         run: |

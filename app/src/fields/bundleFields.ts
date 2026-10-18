@@ -15,7 +15,21 @@ import { canEditProse } from '../access/bundle'
  * hook's prose constants, regardless of which factory created it.
  */
 const linkComponent = {
-  components: { Field: '@/components/LinkedTextarea#default' },
+  components: {
+    Field: {
+      path: '@/components/LinkedTextarea#default',
+      clientProps: {
+        aresAddresses: {
+          siteUrl: process.env.ARES_SITE_URL,
+          kolibriUrl: process.env.ARES_KOLIBRI_URL,
+          aliases: (process.env.ARES_HOST_ALIASES ?? '')
+            .split(',')
+            .map((host) => host.trim())
+            .filter(Boolean),
+        },
+      },
+    },
+  },
 }
 
 export const prose = (
@@ -27,7 +41,7 @@ export const prose = (
   type: 'textarea',
   label,
   access: { update: canEditProse },
-  ...(options.linkable === false ? {} : { admin: linkComponent }),
+  ...(options.linkable !== true ? {} : { admin: linkComponent }),
 })
 
 /**
@@ -42,7 +56,6 @@ export const proseAdmin = (name: string, label: string): TextareaField => ({
   name,
   type: 'textarea',
   label,
-  admin: linkComponent,
 })
 
 /** Structural / admin-only text (SPEC §5). Enforced by `applyEditorFieldSplit` (hooks/fieldSplit.ts), not

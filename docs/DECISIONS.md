@@ -11,6 +11,63 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Insert link review: verify resolved origins; scope rewrites to exact bases
+
+A character check on tracker targets missed TAB normalization into a new authority. Check the
+resolved URL's origin as well as the input, and require local targets to stay within a known base.
+A hostname alone also conflated unrelated service ports and installation prefixes. Match exact
+origins and whole path prefixes; remove the winning prefix, with longest-prefix precedence across
+site/Kolibri bases. Keep unrelated ports (for example 8082) unchanged. Use one HTTP/HTTPS parser and
+store its normalized URL output rather than repeating validation in the ARES transformer.
+
+The public PDF route must check size and exact first signature bytes before returning a stream
+from the same descriptor. Bound both the stream queue and file reads, close on completion/cancel,
+and return 404 for oversized files. Do not buffer up to 25 MiB for each anonymous request.
+
+A wire test that skips without a folder does not prove the CI authorization contract. Commit a real
+one-page PDF and a test-only Compose override, require that fixture in the wire test, compare the
+entire streamed response, and keep anonymous 200/nosniff, bad-token 404 and listing 401 unconditional.
+CI must explicitly load the override; production defaults remain opt-in. The workflow-line edit
+requires the operator because these credentials cannot push workflow files. Narrow env-template
+comment recognition to the documented opt-ins rather than activating unrelated commented examples.
+
+## 2026-10-18 — Sequence Combine follow-ups after Insert link; state machine belongs to phase 4
+
+Plan the unavailable-parent response as its own PR after Insert link #404 merges: its client half
+also touches LessonControls' save path. Return an explicit endpoint-owned 404 JSON response through
+`endpoints/respond.ts`, with `unavailable: 'source' | 'secondParent'`, rather than relying on Payload
+error data serialization. The 2026-10-08 minifier defect erased error-class names and caused generic
+error formatting (not a demonstrated removal of `data` itself); explicit JSON avoids that dependency.
+Wire tests must exercise the built app. Treat deleted and unreadable parents identically, recheck
+under the plan lock, and give the editing source precedence when both are unavailable. Remove the
+client probes while retaining current wording, provenance and draft/source-deletion rules.
+
+Do not separately refactor the working Combine screen into a state machine. Make that the first
+step of phase 4 (updating stale drafts), designing its new offer/apply/conflict states alongside
+existing retry/restore states. This avoids reshaping the busiest component twice. Unit transition
+tests and browser retry, restore, version/URL switch and discard checks remain required. No endpoint
+or state-machine implementation is authorized by this planning update.
+
+## 2026-10-18 — Insert link Plan A: school addresses and explicit PDF publication
+
+Operator approved all screen wording and public PDF access independently of public discovery.
+Configuring `PDF_LIBRARY_DIR` publishes eligible PDFs to anyone who can reach the installation;
+listing remains authenticated. Both templates leave the folder commented out, and the development
+server no longer forces it on. Filename tokens are not secrets. Retain the existing flat-folder,
+no-symlink, extension, signature, size and `nosniff` boundary. `/explore` remains independently gated.
+
+Offer insertion only in the four framework columns, hide it during Combine review, and clear a
+previous link target when another textarea gains focus. Existing rendering of other prose stays.
+Accept HTTP/HTTPS and an optional trimmed single-line label of at most 120 characters. Store ARES
+links in `http://ares.local` form: unwrap trusted tracker paths, map Kolibri to port 8069 and
+recognize exact configured hosts/aliases. Never fetch pasted addresses. Unknown sites and malformed
+wrappers stay as supplied; `ares.edu` remains excluded pending the ARES team's answer.
+
+The optional ARES site/Kolibri settings supply editor normalization hosts/prefixes only in Plan A.
+Plan A+ document-time rewriting remains separate. No change to the pristine generator, stored
+versions, Combine provenance or draft semantics. The New feature dialog note is removed after a
+term of school use with no reported link problems, with removal recorded here.
+
 ## 2026-10-18 — /simplify on Combine 3b: one comparison per restore, one owner per rule
 
 Four review angles (reuse, simplification, efficiency, altitude) over PRs #400–#401. Applied:

@@ -1,0 +1,8 @@
+# Explicit test-only override. Never load this for an installation or release.
+# CI: docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build
+services:
+  app:
+    environment:
+      PDF_LIBRARY_DIR: /var/lib/lesson3-test-pdfs
+    volumes:
+      - ./app/tests/fixtures/pdf-library:/var/lib/lesson3-test-pdfs:ro

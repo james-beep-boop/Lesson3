@@ -1,14 +1,17 @@
-import { mkdtemp, symlink, writeFile } from 'node:fs/promises'
+import { mkdtemp, open, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  MAX_RESOURCE_PDF_BYTES,
   decodePdfToken,
   encodePdfToken,
   listPdfFiles,
   readPdfFile,
+  resourceLibraryFileEndpoint,
+  resourceLibraryListEndpoint,
 } from '../../src/endpoints/resourceLibrary'
 
 const temporaryDirectories: string[] = []
@@ -20,6 +23,7 @@ const directory = async (): Promise<string> => {
 }
 
 afterEach(async () => {
+  vi.unstubAllEnvs()
   const { rm } = await import('node:fs/promises')
   await Promise.all(temporaryDirectories.splice(0).map((root) => rm(root, { recursive: true })))
 })
@@ -51,8 +55,94 @@ describe('PDF resource library boundary', () => {
 
     const good = await readPdfFile(root, encodePdfToken('good.pdf'))
     expect(good.kind).toBe('found')
-    if (good.kind === 'found') expect(good.bytes.subarray(0, 5).toString()).toBe('%PDF-')
+    if (good.kind === 'found')
+      expect(await new Response(good.body).text()).toBe('%PDF-1.7\nexample')
     expect((await readPdfFile(root, encodePdfToken('fake.pdf'))).kind).toBe('not-found')
     expect((await readPdfFile(root, encodePdfToken('linked.pdf'))).kind).toBe('not-found')
+  })
+})
+
+describe('PDF access independently of public discovery', () => {
+  it.each(['', '0', '1'])(
+    'serves configured PDFs anonymously with discovery=%s; keeps listing private',
+    async (discovery) => {
+      const root = await directory()
+      await writeFile(path.join(root, 'public.pdf'), '%PDF-1.7\nexample')
+      vi.stubEnv('PDF_LIBRARY_DIR', root)
+      vi.stubEnv('PUBLIC_LIBRARY_ENABLED', discovery)
+      const req = { routeParams: { token: encodePdfToken('public.pdf') } } as never
+      const response = await resourceLibraryFileEndpoint.handler(req)
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toBe('application/pdf')
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+      expect(await response.text()).toBe('%PDF-1.7\nexample')
+      expect((await resourceLibraryListEndpoint.handler(req)).status).toBe(401)
+    },
+  )
+
+  it('returns 404 without a folder, and for malformed anonymous file tokens', async () => {
+    vi.stubEnv('PDF_LIBRARY_DIR', '')
+    expect(
+      (
+        await resourceLibraryFileEndpoint.handler({
+          routeParams: { token: encodePdfToken('public.pdf') },
+        } as never)
+      ).status,
+    ).toBe(404)
+    vi.stubEnv('PDF_LIBRARY_DIR', await directory())
+    expect(
+      (await resourceLibraryFileEndpoint.handler({ routeParams: { token: 'bad' } } as never))
+        .status,
+    ).toBe(404)
+  })
+})
+
+describe('anonymous PDF safety checks', () => {
+  it('still refuses symlinks, renamed non-PDF content and oversized files', async () => {
+    const root = await directory()
+    vi.stubEnv('PDF_LIBRARY_DIR', root)
+    await writeFile(path.join(root, 'fake.pdf'), '<script>not a PDF</script>')
+    await symlink(path.join(root, 'fake.pdf'), path.join(root, 'linked.pdf'))
+    const large = await open(path.join(root, 'large.pdf'), 'w')
+    await large.truncate(MAX_RESOURCE_PDF_BYTES + 1)
+    await large.close()
+    for (const name of ['fake.pdf', 'linked.pdf']) {
+      expect(
+        (
+          await resourceLibraryFileEndpoint.handler({
+            routeParams: { token: encodePdfToken(name) },
+          } as never)
+        ).status,
+      ).toBe(404)
+    }
+    const response = await resourceLibraryFileEndpoint.handler({
+      routeParams: { token: encodePdfToken('large.pdf') },
+    } as never)
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'PDF not found.' })
+  })
+})
+
+describe('bounded PDF streaming', () => {
+  it('returns bounded chunks and supports cancelling before the whole PDF is read', async () => {
+    const root = await directory()
+    await writeFile(path.join(root, 'stream.pdf'), '%PDF-' + 'x'.repeat(256 * 1024))
+    const result = await readPdfFile(root, encodePdfToken('stream.pdf'))
+    expect(result.kind).toBe('found')
+    if (result.kind !== 'found') throw new Error('Expected a stream')
+    const reader = result.body.getReader()
+    const first = await reader.read()
+    expect(first.done).toBe(false)
+    expect(first.value?.length).toBeLessThanOrEqual(64 * 1024)
+    expect(new TextDecoder().decode(first.value).startsWith('%PDF-')).toBe(true)
+    await reader.cancel()
+  })
+
+  it('refuses short signatures and high-bit bytes that are not the exact PDF signature', async () => {
+    const root = await directory()
+    for (const bytes of [Buffer.from('%PDF'), Buffer.from([0xa5, 0xd0, 0xc4, 0xc6, 0xad])]) {
+      await writeFile(path.join(root, 'short.pdf'), bytes)
+      expect((await readPdfFile(root, encodePdfToken('short.pdf'))).kind).toBe('not-found')
+    }
   })
 })
