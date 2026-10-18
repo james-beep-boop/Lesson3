@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- The editor's *Back* button is readable in dark mode again (its text had turned near-white on its
+  light background, so it looked blank on phones and computers set to dark mode).
+
 - Combine recovery fixes: retry failed comparisons/application, keep prose backups independent of
   optional metadata validation, rate-limit restore comparisons with an ordinary-draft fallback, and
   preserve both-parent provenance after unrelated save errors. Ordinary drafts store SQL NULL.
