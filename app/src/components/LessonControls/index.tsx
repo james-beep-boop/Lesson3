@@ -71,7 +71,6 @@ import {
   DRAFT_COMPARISON_FAILED,
   PARENT_GONE,
 } from '../CombineVersions/comparisonError'
-import { missingCombineParent } from '../CombineVersions/saveFailure'
 import { conflictKey, type CombineContext } from '../../lib/combine/draft'
 import type { CombineConflict } from '../../lib/combine/engine'
 import {
@@ -783,12 +782,12 @@ export default function LessonControls({
       )
       if (!res.ok) {
         if (res.status === 404 && combineContext) {
-          const missing = await missingCombineParent(id ?? '', combineContext.mergeParent)
-          if (missing === 'source')
+          const failure = (await res.json().catch(() => null)) as { unavailable?: unknown } | null
+          if (failure?.unavailable === 'source')
             throw new Error(
               'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
             )
-          if (missing === 'other') {
+          if (failure?.unavailable === 'secondParent') {
             setCombineContext(null)
             setComparison(null)
             setCombineFailure(null)

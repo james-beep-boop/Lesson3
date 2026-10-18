@@ -61,8 +61,8 @@ function form(second: unknown = parent.id, extra: Record<string, unknown> = {}) 
   if (second !== undefined) body.set('mergeParent', String(second))
   return body
 }
-const save = (body: FormData, jwt?: string, query = '') =>
-  fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/save-as-new${query}`), {
+const save = (body: FormData, jwt?: string, query = '', sourceId = fx.version.id) =>
+  fetch(url(`/api/lesson-bundle-versions/${sourceId}/save-as-new${query}`), {
     method: 'POST',
     headers: jwt ? { Authorization: `JWT ${jwt}` } : {},
     body,
@@ -79,12 +79,33 @@ const count = async () =>
 describe('Combine save gate', () => {
   it('401 without authentication and 403 without editing access', async () => {
     const before = await count()
-    expect((await save(form())).status).toBe(401)
-    expect((await save(form(), tokens.teacher)).status).toBe(403)
+    for (const [jwt, status] of [
+      [undefined, 401],
+      [tokens.teacher, 403],
+    ] as const) {
+      const res = await save(form(), jwt)
+      expect(res.status).toBe(status)
+      expect(await res.json()).not.toHaveProperty('unavailable')
+    }
     expect(await count()).toBe(before)
   })
   it('404 for a missing second parent', async () => {
-    expect((await save(form(999_999_999), tokens.editor)).status).toBe(404)
+    const res = await save(form(999_999_999), tokens.editor)
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({
+      errors: [{ message: 'Version not found' }],
+      unavailable: 'secondParent',
+    })
+  })
+  it('identifies an unavailable source first, including when both parents are gone', async () => {
+    for (const second of [parent.id, 999_999_999]) {
+      const res = await save(form(second), tokens.editor, '', 999_999_998)
+      expect(res.status).toBe(404)
+      expect(await res.json()).toEqual({
+        errors: [{ message: 'Version not found' }],
+        unavailable: 'source',
+      })
+    }
   })
   it.each(['bad', '99999999999', '0'])('400 for malformed parent %j', async (id) => {
     expect((await save(form(id), tokens.editor)).status).toBe(400)
@@ -121,7 +142,17 @@ describe('Combine save gate', () => {
         ...minimalBundleContent(),
       } as never,
     })
-    expect((await save(form(other.id), tokens.editor)).status).toBe(400)
+    const res = await save(form(other.id), tokens.editor)
+    expect(res.status).toBe(400)
+    expect(await res.json()).not.toHaveProperty('unavailable')
+  })
+  it('stale source timestamps return 409 without unavailable', async () => {
+    const res = await save(
+      form(parent.id, { updatedAt: '2000-01-01T00:00:00.000Z' }),
+      tokens.editor,
+    )
+    expect(res.status).toBe(409)
+    expect(await res.json()).not.toHaveProperty('unavailable')
   })
   it('rejects source deletion and keeps both parents without creating a version', async () => {
     const before = await count()
@@ -173,7 +204,9 @@ describe('Combine save provenance', () => {
     const body = new FormData()
     body.set('data', JSON.stringify({ ...fx.version, mergedFrom: parent.id, lineage: [parent.id] }))
     body.set('mergeParent', String(parent.id))
-    expect((await save(body, tokens.editor)).status).toBe(400)
+    const res = await save(body, tokens.editor)
+    expect(res.status).toBe(400)
+    expect(await res.json()).not.toHaveProperty('unavailable')
   })
   it('uses both-parent lineage after a parent is deleted', async () => {
     const a = await version()
@@ -265,7 +298,9 @@ describe('Combine save provenance', () => {
     const body = form()
     body.set('recoveryGeneration', String(token.generation))
     body.set('recoveryExpectedRevision', String(token.revision + 1))
-    expect((await save(body, tokens.editor)).status).toBe(409)
+    const res = await save(body, tokens.editor)
+    expect(res.status).toBe(409)
+    expect(await res.json()).not.toHaveProperty('unavailable')
     expect(await count()).toBe(beforeCount)
     expect(await recoveryRow(fx.payload, fx.version.id, fx.users.editor.id)).toEqual(before)
   })
@@ -324,7 +359,82 @@ describe('Combine save provenance', () => {
         sql`DELETE FROM lesson_bundle_versions WHERE id = ${deleted.id}`,
       )
     })
-    expect((await pending).status).toBe(404)
+    const res = await pending
+    expect(res.status).toBe(404)
+    expect(await res.json()).toMatchObject({ unavailable: 'secondParent' })
+    expect(await count()).toBe(before - 1)
+  }, 30_000)
+  it.each([false, true])(
+    'identifies the source after a lock wait (both deleted: %s)',
+    async (both) => {
+      const source = await version()
+      const other = await version()
+      const before = await count()
+      const body = form(other.id)
+      body.set(
+        'data',
+        JSON.stringify({
+          ...source,
+          lessons: source.lessons!.map((lesson) => ({
+            ...lesson,
+            overview: `${MARK}locked source save`,
+          })),
+        }),
+      )
+      let pending!: Promise<Response>
+      await whileRowLocked(fx.payload, 'lesson_plans', fx.plan.id, async () => {
+        pending = save(body, tokens.editor, '', source.id)
+        expect(await stillPendingAfterWindow(pending)).toBe(true)
+        await drizzleOf(fx.payload).execute(
+          sql`DELETE FROM lesson_bundle_versions WHERE id = ${source.id}`,
+        )
+        if (both)
+          await drizzleOf(fx.payload).execute(
+            sql`DELETE FROM lesson_bundle_versions WHERE id = ${other.id}`,
+          )
+      })
+      const res = await pending
+      expect(res.status).toBe(404)
+      expect(await res.json()).toEqual({
+        errors: [{ message: 'Version not found' }],
+        unavailable: 'source',
+      })
+      expect(await count()).toBe(before - (both ? 2 : 1))
+    },
+    30_000,
+  )
+  it('revoked editing access takes precedence over a source deleted during the lock wait', async () => {
+    const user = await createUserVerified(fx.payload, {
+      name: `${MARK}revoked source`,
+      email: `${MARK}revoked-source@example.test`,
+      password: fx.password,
+      assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'editor' }],
+    })
+    const jwt = await login(user.email, fx.password)
+    const source = await version()
+    const body = form()
+    body.set(
+      'data',
+      JSON.stringify({
+        ...source,
+        lessons: source.lessons!.map((lesson) => ({ ...lesson, overview: `${MARK}revoked save` })),
+      }),
+    )
+    const before = await count()
+    let pending!: Promise<Response>
+    await whileRowLocked(fx.payload, 'lesson_plans', fx.plan.id, async () => {
+      pending = save(body, jwt, '', source.id)
+      expect(await stillPendingAfterWindow(pending)).toBe(true)
+      await drizzleOf(fx.payload).execute(
+        sql`DELETE FROM users_assignments WHERE _parent_id = ${user.id}`,
+      )
+      await drizzleOf(fx.payload).execute(
+        sql`DELETE FROM lesson_bundle_versions WHERE id = ${source.id}`,
+      )
+    })
+    const res = await pending
+    expect(res.status).toBe(403)
+    expect(await res.json()).not.toHaveProperty('unavailable')
     expect(await count()).toBe(before - 1)
   }, 30_000)
   it.each(['disabled', 'unverified', 'signed-out', 'revoked'])(

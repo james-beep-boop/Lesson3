@@ -11,6 +11,34 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Recheck editing access before classifying unavailable parents
+
+Review of #405 found that revoking editing access and deleting the source during a plan-lock wait
+could return `unavailable` before the editing gate ran. Immediately after refreshing the caller,
+check editing access against the original source's subject-grade, before any parent re-read. A
+revoked caller gets 403 without unavailable metadata, even when the source is gone. Wire-test the
+combined race rather than testing deletion and revocation only in isolation.
+
+Keep `authorize()` throwing; only save-as-new converts the typed unavailable error to its own JSON.
+Locked parent checks use labelled id pairs and throw that same internal error, so the existing catch
+owns rollback before response conversion. No serialization of custom error data is involved. Pin
+cross-plan, stale and no-op responses as having no unavailable marker. Browser probe assertions
+observe only requests from the Save request until its error message appears.
+
+## 2026-10-18 — Save identifies unavailable Combine parents without client probes
+
+Save-as-new returns endpoint-owned 404 JSON via `respond.json`, retaining the `errors` array and
+adding `unavailable: 'source' | 'secondParent'`. The opening source lookup and the source-first
+rechecks under the plan lock use the same response for missing and unreadable versions. Roll back
+before returning from a failed locked check. An operational read error is still an error, never
+proof that a parent disappeared. No reliance on Payload error classes or error-data serialization.
+
+LessonControls consumes this field directly and no longer probes two parents after a failed save.
+Only `secondParent` removes provenance; an unknown/missing field preserves the combination for retry.
+Existing wording and the editing-source draft deletion cascade remain unchanged. All signed-in users
+currently have version read access, so simulated read-denial coverage belongs in endpoint unit tests;
+wire tests exercise real authentication, editing authorization, deletion and plan-lock waits.
+
 ## 2026-10-18 — Insert link review: verify resolved origins; scope rewrites to exact bases
 
 A character check on tracker targets missed TAB normalization into a new authority. Check the
