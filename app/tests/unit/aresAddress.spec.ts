@@ -41,7 +41,7 @@ describe('ARES stored addresses', () => {
     )
     expect(
       normalize(
-        'https://learn.test/tracker/local_launch.html?target=%2Fcontent%2Fen%2F%23x',
+        'https://learn.test/content/tracker/local_launch.html?target=%2Fcontent%2Fen%2F%23x',
         settings,
       ),
     ).toBe('http://ares.local:8069/en/#x')
@@ -68,18 +68,72 @@ describe('ARES stored addresses', () => {
     ).toBe('http://ares.local/modules/a.pdf')
   })
 
-  it.each(['', '?target=bad', '?target=%2F%2Fevil.test%2Fa', '?target=%5Cevil', '?target=%0A'])(
-    'leaves malformed local wrappers untouched: %s',
-    (query) => {
-      const input = `http://ares.local/tracker/local_launch.html${query}`
-      expect(normalize(input)).toBe(input)
-    },
-  )
+  it.each([
+    '',
+    '?target=bad',
+    '?target=%2F%2Fevil.test%2Fa',
+    '?target=%5Cevil',
+    '?target=%0A',
+    '?target=%2F%09%2Fevil.test%2Fa',
+    '?target=%2F%2F%5B',
+    '?target=%2F%2Fevil.test%3Abadport%2Fa',
+  ])('leaves malformed local wrappers untouched: %s', (query) => {
+    const input = `http://ares.local/tracker/local_launch.html${query}`
+    expect(normalize(input)).toBe(input)
+  })
   it('does not unwrap arbitrary websites or unsafe external targets', () => {
     for (const input of [
       'https://evil.test/tracker/local_launch.html?target=%2Fmodules%2Fa',
       'http://ares.local/tracker/external_launch.html?target=javascript%3Aalert(1)',
     ])
       expect(normalize(input)).toBe(input)
+  })
+})
+
+describe('exact known base matching', () => {
+  it.each([
+    'http://ares.local:8082/a',
+    'https://ares.local:8082/a',
+    'https://demo.aresedu.dev:8082/modules/a.pdf',
+    'http://ares.local:8082/tracker/local_launch.html?target=%2Fmodules%2Fa',
+  ])('leaves unknown ports as typed: %s', (input) => expect(normalize(input)).toBe(input))
+
+  it('strips only the whole configured site prefix, matching its port', () => {
+    const settings = { siteUrl: 'https://school.test:8443/ares/' }
+    expect(normalize('https://school.test:8443/ares/modules/a.pdf?q=1#p', settings)).toBe(
+      'http://ares.local/modules/a.pdf?q=1#p',
+    )
+    for (const input of [
+      'https://school.test:8443/ares-other/a',
+      'https://school.test:8443/other/a',
+      'https://school.test/ares/a',
+      'http://school.test:8443/ares/a',
+    ])
+      expect(normalize(input, settings)).toBe(input)
+  })
+
+  it('distinguishes a pathless Kolibri on the same host by origin and most specific prefix', () => {
+    const settings = { siteUrl: 'https://school.test/ares', kolibriUrl: 'https://school.test:8069' }
+    expect(normalize('https://school.test/ares/modules/a', settings)).toBe(
+      'http://ares.local/modules/a',
+    )
+    expect(normalize('https://school.test:8069/en/#x', settings)).toBe(
+      'http://ares.local:8069/en/#x',
+    )
+    expect(normalize('https://school.test/other', settings)).toBe('https://school.test/other')
+    const sharedOrigin = { siteUrl: 'https://school.test/ares', kolibriUrl: 'https://school.test/' }
+    expect(normalize('https://school.test/ares/modules/a', sharedOrigin)).toBe(
+      'http://ares.local/modules/a',
+    )
+    expect(normalize('https://school.test/en/#x', sharedOrigin)).toBe(
+      'http://ares.local:8069/en/#x',
+    )
+  })
+
+  it('never unwraps a local target onto a different origin, including a decoded TAB', () => {
+    const input = 'http://ares.local/tracker/local_launch.html?target=%2F%09%2Fevil.test%2Fa'
+    expect(normalize(input)).toBe(input)
+    const outsidePrefix = 'https://school.test/ares/tracker/local_launch.html?target=%2Fother%2Fa'
+    expect(normalize(outsidePrefix, { siteUrl: 'https://school.test/ares' })).toBe(outsidePrefix)
   })
 })

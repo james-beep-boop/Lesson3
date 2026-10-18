@@ -168,3 +168,12 @@ test('a configured PDF picker inserts the optional label and an absolute documen
     /Plants reading \(http:\/\/[^)]+\/api\/resource-library\/file\/UGxhbnRzLnBkZg\)/,
   )
 })
+
+test('normalizes URL syntax while keeping an unconfigured ARES service port', async ({ page }) => {
+  await edit(page)
+  await column(page).fill('')
+  await openLink(page)
+  await page.getByLabel('Web address').fill('HTTP://ARES.LOCAL:8082/a b')
+  await page.getByRole('button', { name: 'Insert address', exact: true }).click()
+  await expect(column(page)).toHaveValue('(http://ares.local:8082/a%20b)')
+})

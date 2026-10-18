@@ -1,11 +1,11 @@
 /**
- * Read-only proof-of-concept PDF library.
+ * Optional read-only PDF library: authenticated listing, public file links.
  *
  * The browser must never browse the Rock's filesystem directly. These two endpoints
  * expose only ordinary `.pdf` files from one configured, flat directory:
  *
- *   GET /api/resource-library              list safe PDF names
- *   GET /api/resource-library/file/:token serve one listed PDF
+ *   GET /api/resource-library              list safe PDF names (requires sign-in)
+ *   GET /api/resource-library/file/:token stream one safe PDF (public when configured)
  *
  * The token is an encoded filename, not a client-supplied path. Listing excludes directories,
  * symlinks, hidden files, non-PDF extensions and oversized files. Serving repeats every check,
@@ -15,6 +15,7 @@
 import { constants as fsConstants } from 'node:fs'
 import { open, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 
 import type { Endpoint, PayloadRequest } from 'payload'
 
@@ -33,7 +34,8 @@ type PdfFile = {
 }
 
 export type ReadPdfResult =
-  { kind: 'found'; bytes: Buffer; name: string } | { kind: 'not-found' } | { kind: 'too-large' }
+  | { kind: 'found'; body: ReadableStream<Uint8Array>; size: number; name: string }
+  | { kind: 'not-found' }
 
 const isSafePdfName = (name: string): boolean =>
   name.length > 0 &&
@@ -86,20 +88,30 @@ export async function readPdfFile(root: string, token: string): Promise<ReadPdfR
   if (path.dirname(filePath) !== rootPath) return { kind: 'not-found' }
 
   let handle
+  let transferred = false
   try {
     handle = await open(filePath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
     const info = await handle.stat()
     if (!info.isFile()) return { kind: 'not-found' }
-    if (info.size > MAX_RESOURCE_PDF_BYTES) return { kind: 'too-large' }
-    const bytes = await handle.readFile()
-    if (bytes.subarray(0, 5).toString('ascii') !== '%PDF-') return { kind: 'not-found' }
-    return { kind: 'found', bytes, name }
+    if (info.size > MAX_RESOURCE_PDF_BYTES) return { kind: 'not-found' }
+    const signature = Buffer.alloc(5)
+    const { bytesRead } = await handle.read(signature, 0, signature.length, 0)
+    if (bytesRead !== 5 || !signature.equals(Buffer.from('%PDF-'))) return { kind: 'not-found' }
+    // The same descriptor owns validation and streaming. Bound reads to the verified size even
+    // if the file later grows; normal completion, cancellation and read errors close the handle.
+    // Node and DOM declare web streams differently; this is the native web-stream adapter.
+    const body = Readable.toWeb(
+      handle.createReadStream({ start: 0, end: info.size - 1, autoClose: true }),
+      { strategy: { highWaterMark: 64 * 1024, size: (chunk: Uint8Array) => chunk.byteLength } },
+    ) as unknown as ReadableStream<Uint8Array>
+    transferred = true
+    return { kind: 'found', body, size: info.size, name }
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
     if (code === 'ENOENT' || code === 'ELOOP' || code === 'ENOTDIR') return { kind: 'not-found' }
     throw error
   } finally {
-    await handle?.close()
+    if (!transferred) await handle?.close()
   }
 }
 
@@ -148,20 +160,17 @@ export const resourceLibraryFileEndpoint: Endpoint = {
     try {
       const result = await readPdfFile(root, token)
       if (result.kind === 'not-found') return notFound()
-      if (result.kind === 'too-large') {
-        return Response.json({ error: 'This PDF exceeds the 25 MiB size limit.' }, { status: 413 })
-      }
 
       const encodedName = encodeURIComponent(result.name).replace(
         /[!'()*]/g,
         (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
       )
-      return new Response(new Uint8Array(result.bytes), {
+      return new Response(result.body, {
         status: 200,
         headers: {
           'Cache-Control': 'private, no-store',
           'Content-Disposition': `inline; filename*=UTF-8''${encodedName}`,
-          'Content-Length': String(result.bytes.length),
+          'Content-Length': String(result.size),
           'Content-Type': 'application/pdf',
           'X-Content-Type-Options': 'nosniff',
         },

@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Insert link review fixes verify resolved tracker origins, match exact ARES base ports/path prefixes,
+  and retain normalized HTTP/HTTPS URLs. Public PDFs stream after signature checks and oversized
+  files return 404. CI wire coverage requires the committed PDF fixture via the test-only Compose
+  override rather than skipping the anonymous download case.
+
 - Insert link accepts HTTP/HTTPS ARES addresses in the four framework columns, with an optional
   label, and stores recognized ARES/tracker addresses as `http://ares.local…`. The button is hidden
   during Combine review. Both guides and Help explain the workflow; the dialog carries the approved

@@ -51,12 +51,17 @@ Retry combination; confirmed unavailable second parents yield ordinary drafts wi
 **Operator decision: do not retain drafts after the editing source is deleted.** Keep the existing
 cascade; an editor still open explains a failed save and leaves text available for copying.
 
-Validation for Plan A: types, lint, format and production build; unit **1,561**, integration
-**313**, browser **111/111 without retries**; configured-folder wire **391 passed + 4
-SMTP-dependent skips**. The unconfigured-folder PDF wire checks also passed (file 404, listing still
-private). The configured-folder happy-path test skips when that optional folder is unset in CI;
-it ran against an actual fixture locally. Import-map generation produced no changes; tracked test
-configuration was restored. No workflow changes.
+**Review fixes in #404:** resolved-origin checks for tracker targets, exact ARES origins/ports/path
+prefixes, shared normalized URL parsing, signature-first PDF streaming and oversized-file 404.
+`docker-compose.test.yml` now mounts a committed valid PDF; the wire happy path is mandatory.
+**Operator CI action still required:** apply the one-line workflow change in
+[`CI-PDF-FIXTURE-WORKFLOW-EDIT.md`](CI-PDF-FIXTURE-WORKFLOW-EDIT.md) on the PR branch. These credentials
+cannot push workflow files. The reviewed source must not merge until that configured CI run passes.
+
+Validation after review fixes: types, lint, format, production image build, **1,574 unit tests**,
+**313 integration tests**, and **391 wire tests + 4 SMTP skips** passed. The PDF wire happy path
+ran without skips against the committed fixture. **112 browser tests passed without retries**.
+Tracked test configuration was restored. No dependency or schema change.
 
 Use an isolated stack with both a distinct project name and port: Codex uses `lesson3-codex-probe`,
 `127.0.0.1:3103`. Claude uses a separate clone and stack. Never tear down another agent's stack.

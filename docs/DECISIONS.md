@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Insert link review: verify resolved origins; scope rewrites to exact bases
+
+A character check on tracker targets missed TAB normalization into a new authority. Check the
+resolved URL's origin as well as the input, and require local targets to stay within a known base.
+A hostname alone also conflated unrelated service ports and installation prefixes. Match exact
+origins and whole path prefixes; remove the winning prefix, with longest-prefix precedence across
+site/Kolibri bases. Keep unrelated ports (for example 8082) unchanged. Use one HTTP/HTTPS parser and
+store its normalized URL output rather than repeating validation in the ARES transformer.
+
+The public PDF route must check size and exact first signature bytes before returning a stream
+from the same descriptor. Bound both the stream queue and file reads, close on completion/cancel,
+and return 404 for oversized files. Do not buffer up to 25 MiB for each anonymous request.
+
+A wire test that skips without a folder does not prove the CI authorization contract. Commit a real
+one-page PDF and a test-only Compose override, require that fixture in the wire test, compare the
+entire streamed response, and keep anonymous 200/nosniff, bad-token 404 and listing 401 unconditional.
+CI must explicitly load the override; production defaults remain opt-in. The workflow-line edit
+requires the operator because these credentials cannot push workflow files. Narrow env-template
+comment recognition to the documented opt-ins rather than activating unrelated commented examples.
+
 ## 2026-10-18 — Sequence Combine follow-ups after Insert link; state machine belongs to phase 4
 
 Plan the unavailable-parent response as its own PR after Insert link #404 merges: its client half

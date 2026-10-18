@@ -1,63 +1,62 @@
-/** Public installation addresses only; no network requests or document-time rewriting. */
+import { parseExternalUrl } from './insertLink'
+
+/** Public installation bases only; no network requests or document-time rewriting. */
 export type AresAddresses = { siteUrl?: string; kolibriUrl?: string; aliases?: string[] }
 
-const parse = (value: string): URL | null => {
-  try {
-    if (!/^https?:\/\//i.test(value) || /\s/.test(value)) return null
-    const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol) ? url : null
-  } catch {
-    return null
-  }
-}
+type AresBase = { origin: string; prefix: string; kolibri: boolean }
 
-/** Unknown sites and malformed wrappers retain exactly the address the teacher supplied. */
+/** Match an origin and a whole path prefix; a shared hostname alone grants no match. */
 export function normalizeAresAddress(value: string, settings: AresAddresses = {}): string {
-  const site = settings.siteUrl && parse(settings.siteUrl)
-  const kolibri = settings.kolibriUrl && parse(settings.kolibriUrl)
-  const hosts = new Set(['ares.local', 'demo.aresedu.dev'])
-  for (const host of [
-    site && site.hostname,
-    kolibri && kolibri.hostname,
-    ...(settings.aliases ?? []),
-  ]) {
-    if (host) hosts.add(host.toLowerCase())
+  const bases: AresBase[] = []
+  const add = (address: string | undefined, kolibri: boolean) => {
+    const url = address && parseExternalUrl(address)
+    if (url) bases.push({ origin: url.origin, prefix: url.pathname.replace(/\/$/, ''), kolibri })
   }
+  for (const protocol of ['http:', 'https:']) {
+    add(`${protocol}//ares.local`, false)
+    add(`${protocol}//ares.local:8069`, true)
+    add(`${protocol}//demo.aresedu.dev`, false)
+    add(`${protocol}//demo.aresedu.dev/kolibri`, true)
+    for (const alias of settings.aliases ?? []) {
+      const url = parseExternalUrl(`${protocol}//${alias}`)
+      // Aliases are exact hostnames/IPs, not URLs, ports or path prefixes.
+      if (!url || url.hostname !== alias.toLowerCase() || url.port) continue
+      add(`${protocol}//${alias}`, false)
+      add(`${protocol}//${alias}:8069`, true)
+    }
+  }
+  add(settings.siteUrl, false)
+  add(settings.kolibriUrl, true)
+  // The most specific base wins, even when a pathless Kolibri shares the site origin.
+  bases.sort((a, b) => b.prefix.length - a.prefix.length || Number(b.kolibri) - Number(a.kolibri))
+  const match = (url: URL) =>
+    bases.find(
+      (base) =>
+        base.origin === url.origin &&
+        (url.pathname === base.prefix || url.pathname.startsWith(`${base.prefix}/`)),
+    )
   const normalize = (address: string, depth: number): string => {
-    const url = parse(address)
-    if (!url || !hosts.has(url.hostname.toLowerCase())) return address
-    if (/^\/tracker\/(local|external)_launch\.html$/.test(url.pathname)) {
+    const url = parseExternalUrl(address)
+    const base = url && match(url)
+    if (!url || !base) return address
+    const relativePath = url.pathname.slice(base.prefix.length) || '/'
+    if (/^\/tracker\/(local|external)_launch\.html$/.test(relativePath)) {
       if (depth >= 4) return address
       const target = url.searchParams.get('target')
       if (!target) return address
-      if (url.pathname.endsWith('/local_launch.html')) {
-        // A local target must be a path, never a protocol-relative host or backslash escape.
-        if (!target.startsWith('/') || target.startsWith('//') || /[\\\r\n]/.test(target))
+      if (relativePath.endsWith('/local_launch.html')) {
+        if (!target.startsWith('/') || target.startsWith('//') || /[\\\r\n\t]/.test(target))
           return address
-        return normalize(new URL(target, url.origin).href, depth + 1)
+        const resolved = new URL(target, url.origin)
+        // URL resolution can interpret a path as a new authority (including after control stripping).
+        // Check the result, not just the supplied characters; also retain the configured path scope.
+        if (resolved.origin !== url.origin || !match(resolved)) return address
+        return normalize(resolved.href, depth + 1)
       }
-      return parse(target) ? normalize(target, depth + 1) : address
+      const external = parseExternalUrl(target)
+      return external ? normalize(external.href, depth + 1) : address
     }
-    const configuredPrefix = kolibri ? kolibri.pathname.replace(/\/$/, '') : ''
-    const prefix =
-      kolibri &&
-      url.hostname === kolibri.hostname &&
-      configuredPrefix &&
-      (url.pathname === configuredPrefix || url.pathname.startsWith(`${configuredPrefix}/`))
-        ? configuredPrefix
-        : url.pathname === '/kolibri' || url.pathname.startsWith('/kolibri/')
-          ? '/kolibri'
-          : ''
-    const isKolibri =
-      url.port === '8069' ||
-      !!prefix ||
-      !!(
-        kolibri &&
-        url.hostname === kolibri.hostname &&
-        url.port === kolibri.port &&
-        !configuredPrefix
-      )
-    return `http://ares.local${isKolibri ? ':8069' : ''}${url.pathname.slice(prefix.length) || '/'}${url.search}${url.hash}`
+    return `http://ares.local${base.kolibri ? ':8069' : ''}${relativePath}${url.search}${url.hash}`
   }
   return normalize(value, 0)
 }

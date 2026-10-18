@@ -1,4 +1,4 @@
-/** Insert the proof-of-concept link notation without changing any surrounding prose. */
+/** Insert a labelled parenthesized address without changing any surrounding prose. */
 export function insertParenthesizedUrl(
   value: string,
   cursor: number,
@@ -17,18 +17,19 @@ export function insertParenthesizedUrl(
   }
 }
 
-/** Preserve accepted addresses as typed (apart from surrounding whitespace). */
-export function validExternalUrl(value: string): string | null {
+/** Shared complete HTTP/HTTPS parser. URL normalization escapes spaces and canonicalizes hosts. */
+export function parseExternalUrl(value: string): URL | null {
+  const address = value.trim()
+  if (!/^https?:\/\//i.test(address) || /[\r\n\t]/.test(address)) return null
   try {
-    const url = new URL(value.trim())
-    return /^https?:\/\//i.test(value.trim()) &&
-      !/\s/.test(value.trim()) &&
-      ['http:', 'https:'].includes(url.protocol)
-      ? value.trim()
-      : null
+    return new URL(address)
   } catch {
     return null
   }
+}
+
+export function validExternalUrl(value: string): string | null {
+  return parseExternalUrl(value)?.href ?? null
 }
 
 export function labelError(label: string): string | null {

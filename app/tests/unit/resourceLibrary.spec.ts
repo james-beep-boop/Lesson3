@@ -55,7 +55,8 @@ describe('PDF resource library boundary', () => {
 
     const good = await readPdfFile(root, encodePdfToken('good.pdf'))
     expect(good.kind).toBe('found')
-    if (good.kind === 'found') expect(good.bytes.subarray(0, 5).toString()).toBe('%PDF-')
+    if (good.kind === 'found')
+      expect(await new Response(good.body).text()).toBe('%PDF-1.7\nexample')
     expect((await readPdfFile(root, encodePdfToken('fake.pdf'))).kind).toBe('not-found')
     expect((await readPdfFile(root, encodePdfToken('linked.pdf'))).kind).toBe('not-found')
   })
@@ -117,7 +118,31 @@ describe('anonymous PDF safety checks', () => {
     const response = await resourceLibraryFileEndpoint.handler({
       routeParams: { token: encodePdfToken('large.pdf') },
     } as never)
-    expect(response.status).toBe(413)
-    expect(await response.json()).toEqual({ error: 'This PDF exceeds the 25 MiB size limit.' })
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'PDF not found.' })
+  })
+})
+
+describe('bounded PDF streaming', () => {
+  it('returns bounded chunks and supports cancelling before the whole PDF is read', async () => {
+    const root = await directory()
+    await writeFile(path.join(root, 'stream.pdf'), '%PDF-' + 'x'.repeat(256 * 1024))
+    const result = await readPdfFile(root, encodePdfToken('stream.pdf'))
+    expect(result.kind).toBe('found')
+    if (result.kind !== 'found') throw new Error('Expected a stream')
+    const reader = result.body.getReader()
+    const first = await reader.read()
+    expect(first.done).toBe(false)
+    expect(first.value?.length).toBeLessThanOrEqual(64 * 1024)
+    expect(new TextDecoder().decode(first.value).startsWith('%PDF-')).toBe(true)
+    await reader.cancel()
+  })
+
+  it('refuses short signatures and high-bit bytes that are not the exact PDF signature', async () => {
+    const root = await directory()
+    for (const bytes of [Buffer.from('%PDF'), Buffer.from([0xa5, 0xd0, 0xc4, 0xc6, 0xad])]) {
+      await writeFile(path.join(root, 'short.pdf'), bytes)
+      expect((await readPdfFile(root, encodePdfToken('short.pdf'))).kind).toBe('not-found')
+    }
   })
 })

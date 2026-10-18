@@ -210,14 +210,24 @@ text. No markup or hidden link metadata is stored. Web/PDF links open separately
 replace a page holding unsaved work. The existing generator's table-text exception still applies.
 
 **Store ARES links in ARES's own form:** `http://ares.local/…` or
-`http://ares.local:8069/…` for Kolibri. Before insertion, unwrap recognized ARES tracker URLs,
-map `/kolibri/` and a configured Kolibri prefix to port 8069, and normalize recognized ARES hosts.
-Recognized hosts are `ares.local`, `demo.aresedu.dev`, the hosts in optional `ARES_SITE_URL` and
-`ARES_KOLIBRI_URL`, and exact hostnames/IPs in comma-separated `ARES_HOST_ALIASES`.
-`ares.edu` is not a default alias. Preserve path, query and fragment. Non-ARES addresses are stored
-as typed (apart from trimming surrounding whitespace); malformed tracker targets leave the address
-unchanged. This is a local string transformation, never a network lookup. Plan A does not rewrite
-stored versions or generated document destinations; document-time rewriting is separate Plan A+.
+`http://ares.local:8069/…` for Kolibri. The shared HTTP/HTTPS parser first produces a normalized URL
+(host casing, default ports, escaping spaces). Then match only known ARES bases by exact origin
+(scheme, host and effective port) and a whole path prefix. Strip the matching prefix before adding
+the canonical ARES base; retain query and fragment. Choose the longest matching prefix, with Kolibri
+winning an equal-prefix tie. Unknown origins, ports and unmatched prefixes receive no ARES rewrite.
+
+Known defaults are HTTP/HTTPS `ares.local` and `demo.aresedu.dev` site roots, `ares.local:8069`
+Kolibri roots and the demo's `/kolibri` prefix. Optional `ARES_SITE_URL` and `ARES_KOLIBRI_URL`
+add exact installation bases, including their ports and path prefixes. Comma-separated
+`ARES_HOST_ALIASES` adds exact hostnames/IPs at the normal HTTP/HTTPS site ports and Kolibri port
+8069; it does not authorize every service port on those machines. For example, an unconfigured
+`ares.local:8082` address stays unchanged. `ares.edu` is not a default alias.
+
+Only unwrap tracker paths inside a known base. Resolve local-launch targets and verify the result
+stays on the wrapper's origin and within a known base; reject TAB/backslash/newline authority tricks.
+External-launch targets must be complete HTTP/HTTPS URLs. Malformed targets leave the wrapper
+unchanged. All of this is a local string transformation, never a network lookup. Plan A does not
+rewrite stored versions or generated document destinations; that remains separate Plan A+.
 
 ARES PDFs normally live under `/modules/`: open the PDF in ARES and paste its address. The optional
 Rock PDF picker appears only after the server confirms `PDF_LIBRARY_DIR` is configured and readable.
@@ -228,7 +238,10 @@ operator-managed; Lesson3 cannot upload, rename, replace or delete files there.
 `PUBLIC_LIBRARY_ENABLED`.** Only `GET /api/resource-library/file/:token` is anonymous;
 `GET /api/resource-library` still requires sign-in for every role. An unconfigured folder returns
 404 for files. Serving retains the filename/path checks, no symlinks, non-hidden `.pdf` extension,
-25 MiB limit, `%PDF-` signature and `nosniff`. Tokens encode filenames and are not access secrets.
+25 MiB limit, exact `%PDF-` signature and `nosniff`. Oversized files return 404, like missing files.
+Read only the signature before streaming from the same open descriptor, with bounded queues and
+reads capped at the verified file size; completion, cancellation and read errors close the handle.
+Tokens encode filenames and are not access secrets.
 Inserted PDF targets use the browser's current absolute origin. Listing failures do not block
 pasting an address. This optional folder is not part of lesson public discovery or resource backups.
 

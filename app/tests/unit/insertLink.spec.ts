@@ -24,13 +24,14 @@ describe('proof-of-concept link insertion', () => {
     })
   })
 
-  it('accepts complete HTTP/HTTPS addresses unchanged and rejects other schemes', () => {
+  it('normalizes complete HTTP/HTTPS addresses and rejects other schemes', () => {
     expect(validExternalUrl('https://www.youtube.com/watch?v=abc')).toBe(
       'https://www.youtube.com/watch?v=abc',
     )
-    expect(validExternalUrl('http://example.org')).toBe('http://example.org')
+    expect(validExternalUrl('http://example.org')).toBe('http://example.org/')
     expect(validExternalUrl('https:example.org')).toBeNull()
-    expect(validExternalUrl('http://example.org/a b')).toBeNull()
+    expect(validExternalUrl('http://example.org/a b')).toBe('http://example.org/a%20b')
+    expect(validExternalUrl('  HTTPS://EXAMPLE.ORG:443/a  ')).toBe('https://example.org/a')
     expect(validExternalUrl('javascript:alert(1)')).toBeNull()
     expect(validExternalUrl('not a URL')).toBeNull()
   })

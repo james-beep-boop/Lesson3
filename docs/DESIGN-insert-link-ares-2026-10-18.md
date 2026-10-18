@@ -74,14 +74,16 @@ never rewritten; versions, Combine and edit recovery are unaffected.
      `http://ares.local` + the decoded `target` path; `external_launch` → the decoded `target` URL,
      then normalised again by the rules below. A malformed or missing `target` leaves the address as
      typed.
-   - **Rewrite the host to `ares.local`** when it is an ARES address: the host `ares.local` itself,
-     the hosts of the configured ARES addresses (Plan A+ settings, when set), and any configured
-     aliases (`ARES_HOST_ALIASES`, comma-separated — e.g. the school machine's IP). Kolibri maps to
-     `http://ares.local:8069` + the path after the Kolibri prefix (so
-     `https://demo.aresedu.dev/kolibri/en/learn/#/topics/c/<id>` →
-     `http://ares.local:8069/en/learn/#/topics/c/<id>`); everything else to `http://ares.local` +
-     path, query and fragment unchanged.
-   - Anything else (YouTube, PhET's own site) is stored exactly as typed.
+   - **Match known bases exactly**, by origin (including port) and a whole path prefix. The
+     configured `ARES_SITE_URL`/`ARES_KOLIBRI_URL` prefixes are removed before insertion. The longest
+     matching prefix wins, so a specific site prefix is not swallowed by pathless Kolibri on the
+     same origin. Kolibri wins equal-prefix ties. Defaults recognize HTTP/HTTPS ARES/demo roots,
+     port 8069 and the demo `/kolibri` prefix. Host aliases add normal site ports and 8069, not
+     arbitrary ports: `ares.local:8082` stays unchanged unless explicitly configured as a base.
+   - Verify a resolved local tracker target remains on the wrapper's origin and inside a known base.
+     TAB, newline and backslash tricks must not produce an external URL.
+   - Other addresses receive ordinary URL syntax normalization but no ARES rewrite. The shared
+     parser normalizes accepted HTTP/HTTPS addresses before storing them.
    - ⚑ `ares.edu` appears as a host in some demo menu targets (e.g. `ares.edu:8082`, a file-share
      service). Do **not** treat it as an alias by default; ask the operator if it should be.
 6. **The Rock PDF folder becomes opt-in.** It has no counterpart on an ARES machine (ARES's PDFs
@@ -91,9 +93,11 @@ never rewritten; versions, Combine and edit recovery are unaffected.
    **Serving a listed PDF no longer requires signing in** (operator, 2026-10-18: a PDF link in a
    document must work for someone without an account). Only `GET /api/resource-library/file/:token`
    becomes public; the listing endpoint stays authenticated, and every existing file check (flat
-   folder, no symlinks, `.pdf`, `%PDF-` signature, size cap, `nosniff`) stays. This is an authorization
+   folder, no symlinks, `.pdf`, exact first-byte `%PDF-` signature, size cap, `nosniff`) stays. This is an authorization
    change: update the wire tests in the same PR (anonymous file fetch 200; anonymous listing still
-   401; a bad token still 404).
+   401; a bad token still 404). Oversized files also return 404. Stream the verified file instead of
+   reading the entire body into memory. `docker-compose.test.yml` mounts the committed valid PDF
+   fixture read-only so these wire cases run in CI without conditional skips.
    **Approved 2026-10-18:** configured PDF files are public independently of public discovery;
    listing stays authenticated and unset `PDF_LIBRARY_DIR` returns file 404. The operator approved
    the complete proposed wording before implementation. `PUBLIC_LIBRARY_ENABLED` still gates

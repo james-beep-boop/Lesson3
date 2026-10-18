@@ -5,7 +5,7 @@
  *
  * The underlying field remains Payload's native textarea and stores an ordinary string. Placing the
  * cursor here enables the editor toolbar's single Insert link action; this field then inserts
- * `(https://…)` from either a typed internet address or a server-issued PDF-library URL. There is no
+ * `Label (http://…)` (label optional) from an HTTP/HTTPS address or a server-issued PDF URL. There is no
  * rich text or hidden link metadata, so versioning, field-level access and edit recovery keep their
  * existing contracts.
  */
