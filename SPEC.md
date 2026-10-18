@@ -476,6 +476,15 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
   editing access. Shown above the accordion and only when non-empty — not a panel, so a teacher's
   Manage page still opens straight onto "My saved versions" (numbered versions). Server-rendered from
   the session user; no listing endpoint.
+- **Bringing an ordinary draft together with newer work (2026-10-18):** a restorable ordinary
+  draft's restore prompt may name the highest-numbered readable newer descendant in the same plan,
+  proved by recorded lineage. Saving the restored draft creates an ordinary Not Official version;
+  a **Combine with {newer}** action then opens the existing Combine review through `combineWith`.
+  The save itself never opens or commits a combination. Suggestions are optional: failures do not
+  block restoration or save. URL hints contain only a version id, are checked against the caller's
+  readable same-plan choices, and grant no access. Read-only captures and unfinished Combine drafts
+  keep their existing behavior. A new numbered version does not invalidate a draft's immutable
+  source. Actual source/schema mismatches remain copy-only. No new draft storage or endpoints.
 - **The 30-day retention is stated** wherever drafts appear. It is unchanged (operator confirmed 30
   days, 2026-10-17).
 - **Deleting a version warns when it discards drafts.** The parent cascade removes captures with

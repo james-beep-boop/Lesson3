@@ -11,6 +11,25 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Implement the approved draft-to-Combine shortcut after #405
+
+The operator approved the restore notice, Combine with {newer} action and shared Guide sentence,
+then authorized merging green #405 and starting the shortcut. Branch from fetched main at `330de55`.
+Suggestions query only caller-readable same-plan versions whose numeric lineage contains the
+original source id, and choose the highest numeric newer semver. Keep projections to id/semver.
+The optional query runs only for the caller's existing draft and cannot block the editor on failure.
+Read-only and unfinished Combine offers show no notice.
+
+Only restoring an ordinary draft arms the post-save hint. Carry a version id through navigation,
+verify its label against the current caller-scoped same-plan list, and use the existing full-page
+`combineWith` handoff when the teacher clicks. A normal save never starts Combine automatically.
+Discard/exit/new edit sessions clear the pending hint. No new endpoint, migration or stored prose.
+
+Both guides incorrectly claimed a newer numbered version prevents restoring a draft; immutable
+sources make that false. Replace that advice and its parity-test claim with the approved Save then
+Combine wording. Actual changed-source/schema mismatch rules remain unchanged. The direct-update
+blueprint and state-machine refactor remain deferred until teacher use justifies them.
+
 ## 2026-10-18 — Defer direct draft updates; propose the existing Save and Combine path
 
 The proposed phase 4 would add frozen input, atomic draft transfer, new endpoints and a Combine

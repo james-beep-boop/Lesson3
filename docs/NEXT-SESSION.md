@@ -22,10 +22,10 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** `origin/main` at `11cdf8a`, including Insert link Plan A (#404). Its reviewed source and
-the operator's PDF-fixture workflow edit passed CI and are merged. The next change is on
-`fix/combine-unavailable-parent`: server-owned unavailable-parent responses and removal of client
-probes. Push and a ready PR are authorized; merge/deployment of this follow-up is not.
+**Base:** `origin/main` at `330de55`, including #405's reviewed unavailable-parent response. The
+operator authorized merging green #405 and implementing the approved small draft-to-Combine
+shortcut. Work is on `feat/draft-combine-shortcut`, including the separate planning documentation.
+Push and a ready PR are authorized; do not merge or deploy this new feature without instruction.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -77,15 +77,22 @@ Use an isolated stack with both a distinct project name and port: Codex uses `le
 `127.0.0.1:3103`. Claude uses a separate clone and stack. Never tear down another agent's stack.
 Always fetch before comparing branches or commits.
 
+**Shortcut validation:** types, lint, format, production image build, **1,580 unit tests**,
+**314 integration tests**, and **396 wire tests + 4 existing SMTP skips** passed on the isolated
+stack. All **113 existing browser tests** passed in the full run. The four new shortcut cases
+passed together in a confirmation run after fixing two test-setup issues: an alert selector also
+matched Next's route announcer, and changing users needed a cleared cookie session. No application
+fix was required for those failures. Tracked test configuration was restored. No schema, endpoint,
+dependency or generator change.
+
 ## Remaining work
 
-1. **After #405 merges, implement the approved small draft-to-Combine shortcut.** For a restorable ordinary draft
-   with a newer readable descendant in the same plan (proved by lineage), explain that the teacher
-   can save the draft as a version and then combine it with that descendant. After the save, offer
-   **Combine with {newer}**, using the existing `?combineWith=` handoff to open the review directly.
-   The operator approved the three strings on 2026-10-18 (restore notice, action and Guide sentence).
-   No migration, new endpoint, frozen input or state-machine
-   refactor. The complete direct-update design is **deferred until teachers need it**:
+1. **Review the approved small draft-to-Combine shortcut** on `feat/draft-combine-shortcut`.
+   Implementation names the highest numeric newer readable descendant of a restorable ordinary
+   draft's source, in the same plan, using recorded lineage. After restoring and saving as a version,
+   **Combine with {newer}** opens the existing review through `?combineWith=`. No automatic Combine,
+   migration, new endpoint, frozen input or state-machine refactor.
+   The full direct-update design remains **deferred until teachers need it**:
    [`DESIGN-update-draft-2026-10-19.md`](DESIGN-update-draft-2026-10-19.md). Revisit when frequent use
    and confusing intermediate versions justify it. The Combine state machine stays deferred too.
 2. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
@@ -122,6 +129,6 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 > Pick up Lesson3 (`james-beep-boop/Lesson3`). Fetch first. Read AGENTS.md → CLAUDE.md → SPEC §5
 > and §6 → this file → the newest five or six DECISIONS entries. Combine and its simplification
-> and Insert link Plan A are merged through PR #404. The unavailable-parent response is on
-> `fix/combine-unavailable-parent`; check its PR state before new work. Do not merge or deploy
+> and Insert link Plan A are merged through PR #404; #405 adds unavailable-parent responses.
+> The approved draft-to-Combine shortcut is on `feat/draft-combine-shortcut`; check its PR state. Do not merge or deploy
 > unless asked. Preserve the source-deletion draft cascade.

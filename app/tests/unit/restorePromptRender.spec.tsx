@@ -222,3 +222,29 @@ describe('the middle choice leaves the editor and keeps the draft', () => {
     },
   )
 })
+
+describe('draft Combine guidance', () => {
+  it.each([
+    [false, false, true],
+    [true, false, false],
+    [false, true, false],
+  ])('read-only %s, Combine draft %s: notice visible %s', (readOnly, combine, visible) => {
+    render(
+      <EditRecoveryRestorePrompt
+        capture={{
+          ...capture,
+          ...(combine ? { combineContext: { mergeParent: 2, resolvedKeys: [] } } : {}),
+        }}
+        anchors={[]}
+        saved={{}}
+        readOnly={readOnly}
+        busy={false}
+        newerVersion={{ source: '1.0.0', newer: '1.0.2' }}
+        onRestore={() => {}}
+        onExit={() => {}}
+        onDiscard={() => {}}
+      />,
+    )
+    expect(screen.queryByText(/Version 1.0.2 builds on version 1.0.0/) !== null).toBe(visible)
+  })
+})

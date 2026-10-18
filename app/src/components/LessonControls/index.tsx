@@ -50,6 +50,8 @@ import type { SystemFlags } from '../../lib/systemFlags'
 import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
+import { relId } from '../../lib/relId'
+import type { DraftCombineSuggestion } from '../../lib/editRecovery/draftCombineSuggestion'
 import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
 import { applyCapture, projectCapture, captureFieldPath } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
@@ -105,12 +107,14 @@ export default function LessonControls({
   flags,
   hasDraft: hasDraftOnLoad = false,
   versions = [],
+  draftCombineSuggestion = null,
 }: {
   /** From the server wrapper (`./server.tsx`). Absent means every capability off. */
   flags?: SystemFlags
   /** From the server wrapper: the signed-in user has a draft on this version at page load. */
   hasDraft?: boolean
   versions?: VersionChoice[]
+  draftCombineSuggestion?: DraftCombineSuggestion | null
 }) {
   const { id, savedDocumentData } = useDocumentInfo()
   const { dispatchFields, getData, initializing, setDisabled, setProcessing, reset, setModified } =
@@ -134,6 +138,15 @@ export default function LessonControls({
   // HTML on the server and unlocked on the client, a hydration mismatch (React #418) on every
   // ?edit=1 load.
   const [editIntent, setEditIntent] = useState<boolean>(() => searchParams.get('edit') === '1')
+  const [restoredDraftSuggestion, setRestoredDraftSuggestion] = useState<{
+    sourceId: number
+    target: DraftCombineSuggestion
+  } | null>(null)
+  const suggestedId = relId(searchParams.get('draftCombineWith'))
+  // URL ids are hints only; the current caller-scoped same-plan list supplies their labels.
+  const savedDraftSuggestion = versions.find(
+    (version) => version.id === suggestedId && version.id !== Number(id),
+  )
   const [saving, setSaving] = useState(false)
   const [keeping, setKeeping] = useState(false)
   const [discarding, setDiscarding] = useState(false)
@@ -471,6 +484,11 @@ export default function LessonControls({
       await reset(doc as never)
       setModified(true)
       proseRestored = true
+      setRestoredDraftSuggestion(
+        !offer.combineContext && draftCombineSuggestion
+          ? { sourceId: Number(id), target: draftCombineSuggestion }
+          : null,
+      )
       if (offer.combineContext) {
         // Preserve captured prose. The stored second parent is only the owner's own note: the
         // combine-preview call below is the ONE place that authorizes it and computes the current
@@ -616,6 +634,7 @@ export default function LessonControls({
     // Each edit session starts without a target: the toolbar action remains disabled until the
     // teacher deliberately places the cursor in a linkable prose field.
     clearActiveLinkTarget()
+    setRestoredDraftSuggestion(null)
     setEditIntent(true)
     setMsg(null)
     setDraftKeptUntil(null)
@@ -640,6 +659,7 @@ export default function LessonControls({
     void reset(savedDocumentData ?? {})
     clearActiveLinkTarget()
     setEditIntent(false)
+    setRestoredDraftSuggestion(null)
     setCombineContext(null)
     setComparison(null)
     setPendingCombine(null)
@@ -812,7 +832,11 @@ export default function LessonControls({
       // window.location assignment, and it stays armed while the form is invalid.) setModified(false)
       // stays as correctness hygiene. Keep processing locked until the document changes/unmounts.
       setModified(false)
-      router.push(out.adminUrl)
+      const suggestion =
+        !combineContext && restoredDraftSuggestion?.sourceId === Number(id)
+          ? restoredDraftSuggestion.target
+          : null
+      router.push(suggestion ? `${out.adminUrl}?draftCombineWith=${suggestion.id}` : out.adminUrl)
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Save failed')
       setSaving(false)
@@ -958,6 +982,25 @@ export default function LessonControls({
 
   return (
     <div className={wrapClass}>
+      {canEdit && !editing && savedDraftSuggestion?.semver && (
+        <Button
+          size="small"
+          buttonStyle="secondary"
+          onClick={() => {
+            if (!editingAvailableAtWidth(window.innerWidth)) {
+              setTooNarrow(true)
+              return
+            }
+            // Same full-navigation handoff as Combine's engine-selected version switch.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            window.location.assign(
+              `/admin/collections/lesson-bundle-versions/${id}?combineWith=${savedDraftSuggestion.id}`,
+            )
+          }}
+        >
+          Combine with {savedDraftSuggestion.semver}
+        </Button>
+      )}
       <CombineVersions
         key={String(id)}
         id={Number(id)}
@@ -1256,6 +1299,11 @@ export default function LessonControls({
           saved={savedProse}
           readOnly={recovery.entry.readOnly}
           busy={restoring}
+          newerVersion={
+            draftCombineSuggestion?.semver && semver
+              ? { source: semver, newer: draftCombineSuggestion.semver }
+              : undefined
+          }
           onRestore={onRestore}
           onExit={leaveEditMode}
           onDiscard={async () => {

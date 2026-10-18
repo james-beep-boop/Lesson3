@@ -368,10 +368,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   Normally, Lesson3 shows only what your draft changes. Some changes cannot be shown
                   word by word. <em>Emptied</em> means a field will be cleared;{' '}
                   <em>Paragraph breaks changed</em> means only the line breaks changed; and{' '}
-                  <em>Spacing only</em> means the words stayed the same. If someone saves a newer
-                  version while you are away, Lesson3 cannot restore your draft automatically. It
-                  shows the whole draft so you can copy what you still need; then choose{' '}
-                  <em>Discard the draft</em> to edit the newer version.
+                  <em>Spacing only</em> means the words stayed the same.
+                </p>
+                <p>
+                  To bring a draft together with a newer version, save the draft as a version, then
+                  use Combine versions.
                 </p>
               </GuideAccordionPanel>
             )}
