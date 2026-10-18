@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Security: Next.js 16.4.0 → 16.4.2, which fixes a denial-of-service advisory for apps with Server
+  Actions (GHSA-p3m5-59mp-jv5r). Payload 3.90.2 → 3.91.0, and patch updates to `dompurify`, `acorn`,
+  `mammoth`, `postcss`, `prettier` and `nodemailer`; one moderate advisory (`fast-copy`) cleared.
+
 - Combine versions backend (phase 3a): saves can record a second parent while preserving both input
   versions. Delete-proof ancestry finds shared versions past deleted intermediates, with deterministic
   selection and a bounded history that evicts old ids while keeping future saves available. Includes

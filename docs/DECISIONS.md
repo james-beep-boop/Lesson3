@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Next.js 16.4.2 and Payload 3.91.0; minification still off
+
+Next.js 16.4.1 published three advisories covering 16.4.0. Exposure checked: remote code execution
+through `use cache` (GHSA-673q-mjm6-r5xr) needs a `use cache` function and we have none; remote code
+execution through image optimisation (GHSA-2464-fhr4-w9xw) is fixed by `sharp` ≥ 0.35.5, which our
+override already forces; the Server Actions denial of service (GHSA-p3m5-59mp-jv5r) **does** apply —
+we use Server Actions and the Rock is internet-facing. Upgraded to 16.4.2 (16.4.1 plus bug fixes),
+`eslint-config-next` with it, and Payload 3.91.0 (bug fixes; it now declares the `nodemailer` 10 and
+`undici` 7.29.1 we already forced, so the `nodemailer` override moves to 10.1.2). Patch updates:
+`dompurify`, `acorn`, `mammoth`, `postcss` (and its override), `prettier`; the lockfile's audit fix moves
+`fast-copy` to 3.1.0, leaving eight moderate advisories with no fix available.
+
+**Deliberately not moved:** `drizzle-orm` stays 0.45.2 because Payload 3.91.0 pins it exactly (a newer
+direct copy would install two); `docx` stays 9.6.1 (the generator's authored version — fidelity);
+`sass` stays 1.79.6 (DECISIONS above); majors (TypeScript 7, vitest 5, ESLint 10, Sentry 11, jsdom 30,
+dotenv 18, js-yaml 5, graphql 17, undici 8, `@types/node` 26) and React 19.3 / Playwright 1.64 each need
+their own change.
+
+**Minification re-tested on 16.4.2 + Payload 3.91.0: still broken.** With `turbopackMinify: true`,
+`tests/http/apiErrorMessages.http.spec.ts` fails against the built app exactly as on 2026-10-08 (the
+subject-grade guard's 409 arrives as "An unknown error occurred."), so the setting stays `false`.
+
+Verified on the isolated stack: TypeScript, ESLint, format check; 1,506 unit, 310 integration, 363 wire
+(four SMTP skips) and 92 browser tests; the built app reports `next` 16.4.2.
+
 ## 2026-10-18 — Review correction: bounded lineage must not prevent future saves
 
 Review of `40e93b4` correctly identified that the approved 2,000-id refusal could permanently stop
