@@ -79,12 +79,14 @@ Always fetch before comparing branches or commits.
 
 ## Remaining work
 
-1. **Phase 4 — bring a stale draft up to date using the Combine engine. Start by designing and
-   implementing one typed Combine state machine**, including phase 4's offer-to-update, applying,
-   conflict and failure states. Do not make this a standalone refactor of the currently working
-   screen. Replace the five independent Combine state variables as part of that design. Prove each
-   transition with unit tests and retain browser coverage for retry, restore, version/URL switching
-   and discard. Safe Combine metadata capture/restoration already exists; preserve the second parent.
+1. **After #405 merges, plan the small draft-to-Combine shortcut.** For a restorable ordinary draft
+   with a newer readable descendant in the same plan (proved by lineage), explain that the teacher
+   can save the draft as a version and then combine it with that descendant. After the save, offer
+   **Combine with {newer}**, using the existing `?combineWith=` handoff to open the review directly.
+   List strings for approval before coding. No migration, new endpoint, frozen input or state-machine
+   refactor. The complete direct-update design is **deferred until teachers need it**:
+   [`DESIGN-update-draft-2026-10-19.md`](DESIGN-update-draft-2026-10-19.md). Revisit when frequent use
+   and confusing intermediate versions justify it. The Combine state machine stays deferred too.
 2. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
    installation. Not required for school use and not implemented in Plan A.
 3. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
@@ -93,7 +95,7 @@ Always fetch before comparing branches or commits.
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
 `captureFieldPath` and `applyCapture` in `lib/editRecovery/projection.ts`. The unavailable-parent
-response is implemented in the current follow-up; the Combine state machine belongs to phase 4.
+response is implemented in the current follow-up; the Combine state machine stays deferred with the full draft-update feature.
 
 **Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
 predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections

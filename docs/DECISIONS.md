@@ -11,6 +11,20 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Defer direct draft updates; propose the existing Save and Combine path
+
+The proposed phase 4 would add frozen input, atomic draft transfer, new endpoints and a Combine
+state-machine rewrite to avoid one intermediate version. Immutable versions already let a teacher
+restore an older draft, save it as a numbered version and Combine it with newer work. With no
+teacher evidence that the extra version is confusing, defer the full feature and its state machine.
+Preserve the blueprint in `DESIGN-update-draft-2026-10-19.md`, marked deferred until teachers need it.
+
+Instead propose a lineage-based notice in the restore prompt and a Combine with {newer} action after
+numbered save. The existing `combineWith` query handoff opens comparison review directly, rather
+than merely filling the picker. No new migration, endpoint or frozen draft text. Wording approval
+comes before coding; implementation starts after #405 merges. Keep this planning change separate
+from #405 so its CI can finish.
+
 ## 2026-10-18 — Recheck editing access before classifying unavailable parents
 
 Review of #405 found that revoking editing access and deleting the source during a plan-lock wait
