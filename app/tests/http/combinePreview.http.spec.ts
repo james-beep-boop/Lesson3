@@ -306,3 +306,17 @@ describe('H — the happy paths', () => {
     expect(body.plan.conflicts).toHaveLength(4)
   })
 })
+
+it('identifies an already included ancestor only after comparing the combined result', async () => {
+  const ancestor = await makeVersion('8.0.1')
+  const descendant = await makeVersion(
+    '8.0.2',
+    (c) => {
+      c.lessons[0].overview = 'Descendant prose'
+    },
+    { sourceVersion: ancestor },
+  )
+  const response = await preview(ancestor, descendant, 'editor')
+  expect(response.status).toBe(200)
+  expect((await response.json()).alreadyIncluded).toBe('b')
+})

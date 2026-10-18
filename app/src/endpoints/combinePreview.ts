@@ -28,6 +28,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isEditorFor, toId } from '../access'
 import { findCommonAncestor } from '../lib/combine/ancestry'
+import { includedVersion } from '../lib/combine/outcome'
 import { planCombine } from '../lib/combine/engine'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import { findReadableVersion } from '../lib/readBundle'
@@ -70,6 +71,13 @@ export const combinePreviewEndpoint: Endpoint = {
 
     const base = await findCommonAncestor(req, user, a, b)
     const plan = planCombine({ base, a, b })
-    return json({ a: label(a), b: label(b), base: base ? label(base) : null, plan })
+    const included = includedVersion({ a, b, base, plan })
+    return json({
+      a: label(a),
+      b: label(b),
+      base: base ? label(base) : null,
+      plan,
+      alreadyIncluded: included,
+    })
   },
 }

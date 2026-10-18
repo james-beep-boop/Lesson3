@@ -461,7 +461,8 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
 Combine recovery metadata is a second, bounded JSON overlay on the same closed, owner-only
 `edit-recovery` row: only `mergeParent` (a plain version id) and `resolvedKeys` (field keys), capped
 at 64 KiB, 1,000 keys and 512 characters per key. It is transient, non-exported session state,
-not content of record; a sparse list of engine-derived keys has no fixed native field shape.
+not content of record. The bounded JSON envelope keeps this session state beside its sparse prose
+overlay, written and retired by the same atomic statement; it grants no content or editing rights.
 Capture writes it atomically with prose under the existing revision fence. The server restricts keys
 to current conflicts and rechecks the other parent's readability and plan at restore. Missing or
 unreadable second parents restore as ordinary drafts with an explanation. Deleting the editing
@@ -476,7 +477,7 @@ source still cascades its draft away; no draft is retained after source deletion
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
 
-### Combine versions (approved 2026-10-17; phase 3a adds data and save support)
+### Combine versions (approved 2026-10-17; phase 3b adds the screen)
 
 Two teachers can each save from the same version (e.g. 1.0.1 and 1.0.2 from 1.0.0). **Combine
 versions** reconciles them into a new version (1.0.3). Operator decisions: the feature is approved;
@@ -555,17 +556,38 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   Existing field split, stale/no-op guards, semver retry, transaction rollback, recovery-token fencing
   and closing authority checks remain in force. Combining never moves the Official pointer.
 
-**Approved remaining split:** 3b adds the picker, restore-style review and editor, including explicit
-navigation to the engine-selected starting version and bounded automatic capture of Combine metadata.
-3c completes resuming unfinished combinations. Ship 3b only with safe metadata preservation, or release
-3b/3c together. Recovery stores only the other parent's id and resolved field keys (at most 64 KiB,
-with keys restricted to the recomputed conflict set), separately from captured prose; no full snapshots. Restore reruns
-preview; if the other parent is missing/unreadable, preserve the text as an ordinary draft and explain
-why. Field ids alone cannot establish that earlier conflict choices remain valid after recomputation:
-keep the saved prose and require review when the earlier comparison cannot be verified. Conflict
-buttons name version numbers ("Use 1.0.1's text", "Use 1.0.2's text", "Write my own"). An "already
-includes everything" message requires a conflict-free engine result identical to the descendant's
-content; ancestry alone is insufficient because inherited prose may have been removed or rewritten.
+**Phase 3b — screen and safe draft resumption (2026-10-18).**
+
+- On a saved version, **Combine versions** appears only with editing access and at least two
+  readable versions of the plan. The existing 640px editing-width rule applies. Save/discard an
+  existing edit before starting a combination.
+- Choose another version and **Review combination**. Automatic prose changes use the existing
+  escaped restore diff; conflicts show both texts labelled by version. Refusals explain unreliable
+  row correspondence, administrator changes on both sides, different uploads or size bounds.
+  With no usable common version, every differing field requires a choice.
+- **Continue in editor** explicitly switches to the engine-selected starting version, **URL included**,
+  before applying its overlay. Existing drafts are offered before any overlay can replace them.
+  This starts an edit session, never an automatic numbered save.
+- Conflict buttons are **Use {version}’s text** and **Write my own**. Custom text starts from the
+  version being edited. Every conflict needs an explicit choice; choices remain changeable until
+  saving. Both the Save handler and button block while any choice remains. The existing prose
+  fields and custom textareas share Payload form state, so draft capture and Save see the same text.
+- **Save as new version** sends the second parent separately from content. It offers no source
+  deletion and saves Not Official; Official stays unchanged. The existing server authorization,
+  field split, no-op check and recovery fencing remain authoritative.
+- **Already included** is shown only when a conflict-free engine result, with its overlay applied,
+  is content-identical to the descendant. An ancestry relationship alone is insufficient. Other
+  combinations with no changes say **Nothing to combine.**
+- An unfinished combination captures the bounded metadata described in §5. Restoring preserves
+  captured prose, reruns preview and requires choices for conflicts missing from the saved resolved
+  list. The comparison may have changed, so the screen asks the teacher to review remaining choices.
+  A missing or unreadable second parent falls back to an ordinary draft with an explanation.
+- If the editing source is deleted mid-session, Save explains the deletion and leaves the current
+  text on screen for copying. **Its draft is deleted by the existing cascade and is not retained or
+  recreated.** If only the other parent disappears, the text can continue as an ordinary draft.
+
+The metadata and screen are separate commits in the same PR. Advanced draft rebasing onto another
+version remains a later phase, alongside stable row identity and support for structural drafts.
 
 ---
 

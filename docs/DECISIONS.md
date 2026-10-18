@@ -11,6 +11,19 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Combine is an explicit edit session, with changeable version-labelled choices
+
+Use the existing read-only preview, recovery overlay and save-as-new boundary. Continuing into the
+editor changes the actual version and URL when the engine selects the other parent's administrator
+content. It never creates a numbered version automatically. Save stays blocked until every conflict
+is resolved, choices may change until Save, and Write my own starts with the editing version's text.
+Combine saves offer no parent deletion, produce Not Official, and leave Official unchanged.
+
+An ancestor/descendant pair can produce a nonempty overlay when starting from the ancestor. Detect
+"already includes everything" by applying that overlay and comparing content with the descendant,
+not by checking for an empty overlay or ancestry alone. The preview reports the proven included side.
+Keep refusal wording and conflict labels in plain language and use version numbers, never A/B in UI.
+
 ## 2026-10-18 — Combine drafts retain provenance, but source deletion still removes drafts
 
 Store only the second-parent id and resolved conflict keys, separately from prose, in the closed

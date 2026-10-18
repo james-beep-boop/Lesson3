@@ -3,6 +3,9 @@ import type { BeforeDocumentControlsServerProps } from 'payload'
 
 import { hasUnsavedWork } from '../../lib/editRecovery/kernel'
 import { systemFlagsForRender } from '../../lib/systemFlags'
+import { findReadableVersion, findReadableVersions } from '../../lib/readBundle'
+import { relId } from '../../lib/relId'
+import type { User } from '../../payload-types'
 import LessonControls from './index'
 
 /**
@@ -29,5 +32,20 @@ export default async function LessonControlsServer({
         )
       : false,
   ])
-  return <LessonControls flags={flags} hasDraft={hasDraft} />
+  const source =
+    user && Number.isInteger(versionId)
+      ? await findReadableVersion(payload, {
+          id: versionId,
+          user: user as User,
+          select: { lessonPlan: true },
+        })
+      : null
+  const planId = relId(source?.lessonPlan)
+  const versions =
+    user && planId !== null
+      ? (await findReadableVersions(payload, { planId, user: user as User })).map(
+          ({ id, semver }) => ({ id, semver }),
+        )
+      : []
+  return <LessonControls flags={flags} hasDraft={hasDraft} versions={versions} />
 }

@@ -10,6 +10,12 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Combine versions screen: pick and review versions, keep automatic prose changes, and settle
+  remaining fields with version-labelled choices or your own text. The editor switches to the
+  required starting version and saves a Not Official result without deleting either parent.
+  Unfinished combinations resume from private drafts with validated parent metadata. Deleting the
+  editing source still deletes its draft; an open editor keeps text on screen for copying.
+
 - Security: Next.js 16.4.0 → 16.4.2, which fixes a denial-of-service advisory for apps with Server
   Actions (GHSA-p3m5-59mp-jv5r). Payload 3.90.2 → 3.91.0, and patch updates to `dompurify`, `acorn`,
   `mammoth`, `postcss`, `prettier` and `nodemailer`; one moderate advisory (`fast-copy`) cleared.

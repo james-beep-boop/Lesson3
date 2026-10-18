@@ -98,7 +98,7 @@ export type CombinePlan =
 const REFUSAL_MESSAGES: Record<CombineRefusal, string> = {
   size: 'These versions are too large to combine automatically. Open one and copy across the changes you need from the other.',
   structure:
-    'The lessons, phases or sections in these versions cannot be matched reliably, so they cannot be combined automatically yet. Open one and copy across the changes you need from the other.',
+    'These rows cannot be matched reliably. They may have been reordered, renamed, or repeated. Open one version and copy across the changes you need.',
   'admin-both':
     'Both versions change content only an administrator can edit, such as phases, durations, rubrics or answer keys, so they cannot be combined automatically. A subject administrator can copy the changes across by hand.',
   system:

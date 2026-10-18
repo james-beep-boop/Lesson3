@@ -51,7 +51,7 @@ import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
 import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
-import { applyCapture, projectCapture } from '../../lib/editRecovery/projection'
+import { applyCapture, projectCapture, captureFieldPath } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
 import { useEditRecovery, type KeepResult } from '../EditRecovery/useEditRecovery'
 import { withUnsavedWarning } from '../EditRecovery/unsavedWarning'
@@ -60,6 +60,13 @@ import { formatDay } from '../../lib/formatDate'
 // The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
 import type { RecoveryToken } from '../EditRecovery/protocol'
 import Modal from '../Modal'
+import CombineVersions, {
+  loadComparison,
+  type Comparison,
+  type VersionChoice,
+} from '../CombineVersions'
+import { conflictKey, type CombineContext } from '../../lib/combine/draft'
+import type { CombineConflict } from '../../lib/combine/engine'
 import {
   clearActiveLinkTarget,
   hasActiveLinkTarget,
@@ -91,11 +98,13 @@ const DRAFT_FAILED: Record<Extract<KeepResult, { kind: 'notKept' }>['reason'], s
 export default function LessonControls({
   flags,
   hasDraft: hasDraftOnLoad = false,
+  versions = [],
 }: {
   /** From the server wrapper (`./server.tsx`). Absent means every capability off. */
   flags?: SystemFlags
   /** From the server wrapper: the signed-in user has a draft on this version at page load. */
   hasDraft?: boolean
+  versions?: VersionChoice[]
 }) {
   const { id, savedDocumentData } = useDocumentInfo()
   const { dispatchFields, getData, initializing, setDisabled, setProcessing, reset, setModified } =
@@ -282,6 +291,26 @@ export default function LessonControls({
   // Payload reads its current form ref, including from an already-running async handler.
   const currentContent = getData
 
+  const [combineContext, setCombineContext] = useState<CombineContext | null>(null)
+  const [comparison, setComparison] = useState<Comparison | null>(null)
+  const [pendingCombine, setPendingCombine] = useState<Comparison | null>(null)
+  useEffect(
+    () => () => {
+      setCombineContext(null)
+      setComparison(null)
+      setPendingCombine(null)
+    },
+    [id],
+  )
+  const recoverySignal = useMemo(() => ({ fields, combineContext }), [fields, combineContext])
+  const combineBlocked =
+    !!pendingCombine ||
+    (!!combineContext &&
+      (!comparison?.plan.ok ||
+        comparison.plan.conflicts.some(
+          (c) => !combineContext.resolvedKeys.includes(conflictKey(c)),
+        )))
+
   // ── Edit recovery (SPEC §5) ───────────────────────────────────────────────────────────────────
   const { register: registerRecoveryFlush } = useEditRecoveryFlushRegistry()
   const recovery = useEditRecovery({
@@ -295,7 +324,8 @@ export default function LessonControls({
     // ⚑ `fields` is Payload's form state and its identity changes on EVERY edit, which is what makes
     // the capture debounce restart per keystroke. `modified` cannot do that job — it is a boolean
     // that flips once and then never changes again.
-    changeSignal: fields,
+    changeSignal: recoverySignal,
+    getCombineContext: () => combineContext,
     getDocument: currentContent,
     registerFlush: registerRecoveryFlush,
   })
@@ -321,6 +351,49 @@ export default function LessonControls({
   }, [editing, recoveryGate, setDisabled])
   const [restoring, setRestoring] = useState(false)
 
+  // An unseen draft always gets its existing restore/discard decision before a Combine overlay.
+  useEffect(() => {
+    if (
+      !pendingCombine ||
+      pendingCombine.a.id !== Number(id) ||
+      !pendingCombine.plan.ok ||
+      recovery.entry.phase !== 'clear'
+    )
+      return
+    let cancelled = false
+    const pending = pendingCombine
+    setProcessing(true)
+    void reset(applyCapture(getData(), pending.plan.ok ? pending.plan.overlay : {}).doc)
+      .then(() => {
+        if (cancelled) return
+        setModified(true)
+        setComparison(pending)
+        setCombineContext({ mergeParent: pending.b.id, resolvedKeys: [] })
+        setPendingCombine(null)
+      })
+      .catch(() => {
+        if (!cancelled) setMsg('Could not load the comparison. Try again.')
+      })
+      .finally(() => {
+        if (!cancelled) setProcessing(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id, pendingCombine, recovery.entry.phase, reset, getData, setModified, setProcessing])
+
+  const resolveConflict = (conflict: CombineConflict, value: string) => {
+    if (busy || !combineContext) return
+    const path = captureFieldPath(currentContent(), conflict.key, conflict.field)
+    if (!path) return
+    dispatchFields({ type: 'UPDATE', path, value })
+    setModified(true)
+    const key = conflictKey(conflict)
+    setCombineContext((held) =>
+      held ? { ...held, resolvedKeys: [...new Set([...held.resolvedKeys, key])] } : null,
+    )
+  }
+
   /**
    * Apply the offered capture to the live form.
    *
@@ -343,15 +416,32 @@ export default function LessonControls({
     }
     setRestoring(true)
     try {
-      const { doc } = applyCapture(currentContent() as never, recovery.entry.capture.content)
+      const offer = recovery.entry.capture
+      setPendingCombine(null)
+      setComparison(null)
+      setCombineContext(offer.combineContext ?? null)
+      const { doc } = applyCapture(currentContent() as never, offer.content)
       await reset(doc as never)
       setModified(true)
+      if (offer.combineContext) {
+        // Preserve captured prose. A fresh comparison supplies only the current conflict set.
+        const fresh = await loadComparison(Number(id), offer.combineContext.mergeParent)
+        setComparison(fresh)
+        setMsg(
+          'The comparison may have changed. Your saved text is preserved; review the remaining choices.',
+        )
+      } else if (offer.combineUnavailable) {
+        setMsg(
+          'The other version is no longer available. Your saved text has been restored as an ordinary draft.',
+        )
+      }
       recovery.keepOffer()
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Could not restore those changes')
       recovery.keepOffer()
     } finally {
       setRestoring(false)
+      setProcessing(false)
     }
   }
 
@@ -464,9 +554,13 @@ export default function LessonControls({
 
   /** Revert the form to the saved document and re-lock to view mode. */
   const leaveEditMode = () => {
+    setProcessing(false)
     void reset(savedDocumentData ?? {})
     clearActiveLinkTarget()
     setEditIntent(false)
+    setCombineContext(null)
+    setComparison(null)
+    setPendingCombine(null)
   }
 
   /**
@@ -549,7 +643,7 @@ export default function LessonControls({
     draftOverride && draftOverride.id === id ? draftOverride.exists : hasDraftOnLoad
 
   const onSave = async () => {
-    if (busy || saveInFlight.current || recoveryGate || !editing) return
+    if (busy || saveInFlight.current || recoveryGate || combineBlocked || !editing) return
     saveInFlight.current = true
     // Unlike setDisabled, processing disables native fields AND array mutation controls.
     // Flush before taking the snapshot or awaiting recovery, so no keystroke can race the lock.
@@ -579,6 +673,7 @@ export default function LessonControls({
       // atomically. A checked token is required: otherwise the source must stay to preserve any
       // unseen earlier draft. With a token, the caller's draft is retired, so only others are counted.
       const deleteSource =
+        !combineContext &&
         canDelete &&
         plan.token !== null &&
         window.confirm(
@@ -590,6 +685,7 @@ export default function LessonControls({
         )
       const body = new FormData()
       body.set('data', snapshot)
+      if (combineContext) body.set('mergeParent', String(combineContext.mergeParent))
       // Separate multipart fields, never keys in the document: a Site Admin editing the raw document
       // must not be able to persist recovery metadata as lesson content. Absent when the flush was
       // indeterminate, which takes the server's no-token path deliberately.
@@ -601,7 +697,23 @@ export default function LessonControls({
         `/api/lesson-bundle-versions/${id}/save-as-new${deleteSource ? '?deleteSource=true' : ''}`,
         { method: 'POST', body, credentials: 'same-origin' },
       )
-      if (!res.ok) throw new Error(await errorMessage(res, 'Save'))
+      if (!res.ok) {
+        if (res.status === 404 && combineContext) {
+          const source = await fetch(`/api/lesson-bundle-versions/${id}`, {
+            credentials: 'same-origin',
+          })
+          if (source.status === 404)
+            throw new Error(
+              'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
+            )
+          setCombineContext(null)
+          setComparison(null)
+          throw new Error(
+            'The other version is no longer available. Your saved text has been restored as an ordinary draft.',
+          )
+        }
+        throw new Error(await errorMessage(res, 'Save'))
+      }
       const out = (await res.json()) as { adminUrl: string; recoveryToken?: RecoveryToken }
       // Retirement advances the token one last time; adopt it rather than keeping the pair we sent.
       recovery.adoptToken(out.recoveryToken)
@@ -759,6 +871,38 @@ export default function LessonControls({
 
   return (
     <div className={wrapClass}>
+      <CombineVersions
+        key={String(id)}
+        id={Number(id)}
+        versions={versions}
+        document={savedDocumentData ?? {}}
+        editing={editing}
+        available={canEdit}
+        busy={busy || restoring || recoveryGate}
+        comparison={comparison}
+        context={combineContext}
+        onBegin={(next) => {
+          if (modified || editing) {
+            setMsg('Save or discard your changes before combining versions.')
+            return
+          }
+          if (!editingAvailableAtWidth(window.innerWidth)) {
+            setTooNarrow(true)
+            return
+          }
+          setProcessing(true)
+          setPendingCombine(next)
+          setEditIntent(true)
+          setMsg(null)
+        }}
+        onResolve={resolveConflict}
+        valueFor={(conflict) => {
+          const path = captureFieldPath(currentContent(), conflict.key, conflict.field)
+          return path ? String(fields[path]?.value ?? '') : ''
+        }}
+        onMessage={setMsg}
+        onNarrow={() => setTooNarrow(true)}
+      />
       {/* One header row: what you're looking at · status · lifecycle · previews · help · exit.
           The lifecycle swaps Edit ⇄ Save/Discard with the mode (D3/§13: no dead lifecycle button
           ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}
@@ -825,7 +969,7 @@ export default function LessonControls({
                 buttonStyle="primary"
                 size="small"
                 onClick={onSave}
-                disabled={busy || !modified}
+                disabled={busy || !modified || combineBlocked}
                 tooltip={!saving && !modified ? 'No changes to save' : undefined}
               >
                 {saving ? 'Saving…' : 'Save as new version'}
