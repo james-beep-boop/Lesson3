@@ -463,9 +463,13 @@ Combine recovery metadata is a second, bounded JSON overlay on the same closed, 
 at 64 KiB, 1,000 keys and 512 characters per key. It is transient, non-exported session state,
 not content of record. The bounded JSON envelope keeps this session state beside its sparse prose
 overlay, written and retired by the same atomic statement; it grants no content or editing rights.
-Capture writes it atomically with prose under the existing revision fence. The server restricts keys
-to current conflicts and rechecks the other parent's readability and plan at restore. Missing or
-unreadable second parents restore as ordinary drafts with an explanation. Deleting the editing
+Capture writes it atomically with prose under the existing revision fence, checking only bounded
+metadata shape; invalid optional metadata is dropped without rejecting prose. It performs no parent,
+ancestor or comparison lookup. Ordinary drafts store SQL NULL. Stored metadata remains untrusted:
+restore rechecks the other parent's readability and plan and filters keys to current conflicts.
+That comparison consumes the same per-user preview budget as Combine preview. An exhausted budget,
+validation error or unavailable parent still returns the owner's prose as an ordinary draft, with a
+reason for the UI to explain. Authentication, source authorization and capture fencing are unchanged. Deleting the editing
 source still cascades its draft away; no draft is retained after source deletion.
 
 ## 6. Versioning
@@ -567,7 +571,8 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   With no usable common version, every differing field requires a choice.
 - **Continue in editor** explicitly switches to the engine-selected starting version, **URL included**,
   before applying its overlay. Existing drafts are offered before any overlay can replace them.
-  This starts an edit session, never an automatic numbered save.
+  The prose overlay is validated in full and applied to native form fields without the networked
+  form-reset request. This starts an edit session, never an automatic numbered save.
 - Conflict buttons are **Use {version}’s text** and **Write my own**. Custom text starts from the
   version being edited. Every conflict needs an explicit choice; choices remain changeable until
   saving. Both the Save handler and button block while any choice remains. The existing prose
@@ -582,6 +587,14 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   captured prose, reruns preview and requires choices for conflicts missing from the saved resolved
   list. The comparison may have changed, so the screen asks the teacher to review remaining choices.
   A missing or unreadable second parent falls back to an ordinary draft with an explanation.
+- Failed comparison loading after restoring prose and failed overlay application offer **Retry
+  combination**. Retrying a restored comparison never reapplies or replaces the recovered text.
+  Save remains blocked until comparison/choices are ready; Save as draft remains available.
+- A save 404 alone does not identify a missing parent. Follow-up reads must confirm the editing
+  source or other parent is unavailable. Only a confirmed missing second parent converts the live
+  edit to an ordinary edit, explaining that its text is still on screen; unknown/failed probes keep
+  both-parent provenance and allow another save attempt. Restoring an earlier ordinary draft explains
+  that the newly selected combination was cancelled.
 - If the editing source is deleted mid-session, Save explains the deletion and leaves the current
   text on screen for copying. **Its draft is deleted by the existing cascade and is not retained or
   recreated.** If only the other parent disappears, the text can continue as an ordinary draft.

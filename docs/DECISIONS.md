@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Combine review corrections: prose capture is independent of optional metadata
+
+The first 3b implementation let optional metadata checks prevent a prose backup, and left failed
+comparison/application states blocked with no retry. Capture now checks bounded metadata shape only;
+parent authorization and conflict filtering happen at restore under the shared preview budget.
+Optional read/comparison/limiter errors return the owner's prose as an explicitly ordinary draft.
+Malformed metadata is discarded and ordinary drafts use SQL NULL rather than jsonb null. Source
+access, privacy, fencing and source-deletion cascades remain mandatory.
+
+**An error that says “retry” needs an actual retry action.** Keep recovered prose and the second
+parent while retrying a comparison. Validate every overlay field before applying it. Installed
+Payload 3.91.0's reset requests form state; its provider catches errors and can return null state.
+Combine needs only prose-leaf updates, so use the existing field dispatcher instead of that RPC.
+A 404 from saving does not prove which resource disappeared: read both parents and drop the second
+parent only when its absence is confirmed. A failed probe preserves provenance. Explain when an
+older ordinary draft cancels a pending combination.
+
+The version picker now selects only id/semver and is queried only for users with editing access.
+The remaining-choice count has one owner, shared by the conflict panel and Save gate. Never claim
+that the server verifies a teacher's combined prose: recording two readable, editable parents and
+letting the teacher choose any prose remains the agreed save contract.
+
 ## 2026-10-18 — Insert link targets ARES, not the Rock; links stored in ARES's own form
 
 Operator decisions: Lesson3 will **mainly run on local ARES machines** (never used from home), with an

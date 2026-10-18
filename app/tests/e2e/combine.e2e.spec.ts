@@ -226,7 +226,7 @@ test('restores Combine metadata and only asks for unresolved choices', async ({ 
   await saveButton(page).click()
   await expect(
     page.getByText(
-      'The other version is no longer available. Your saved text has been restored as an ordinary draft.',
+      'The other version is no longer available. Your text is still on screen. You can save it as an ordinary version.',
     ),
   ).toBeVisible()
   await expect(page.locator('.lp-combine')).toHaveCount(0)
@@ -288,4 +288,105 @@ test('explains a missing common version and an unreliable structure', async ({ p
     'These rows cannot be matched reliably. They may have been reordered, renamed, or repeated. Open one version and copy across the changes you need.',
   )
   await expect(page.getByRole('button', { name: 'Continue in editor', exact: true })).toHaveCount(0)
+})
+
+test('retries a failed restored comparison and keeps its second parent after unrelated save 404s', async ({
+  page,
+}) => {
+  test.setTimeout(60_000)
+  const a = await version('Starting retry text')
+  const b = await version('Other retry text')
+  await loginAs(page, fx, 'editor')
+  await begin(page, a.id, b.id)
+  await page.getByRole('button', { name: `Use ${b.semver}’s text`, exact: true }).click()
+  await page.getByRole('button', { name: 'Save as draft', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Continue editing', exact: true })).toBeVisible()
+  await page.reload()
+  let failPreview = true
+  await page.route('**/combine-preview?with=*', async (route) => {
+    if (failPreview) {
+      failPreview = false
+      await route.abort('failed')
+    } else await route.continue()
+  })
+  await page.getByRole('button', { name: 'Continue editing', exact: true }).click()
+  await restorePrompt(page).getByRole('button', { name: 'Restore my draft', exact: true }).click()
+  await expect(saveButton(page)).toBeDisabled()
+  await page.getByRole('button', { name: 'Retry combination', exact: true }).click()
+  await expect(saveButton(page)).toBeEnabled()
+  await expandLessons(page)
+  await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Other retry text')
+  const requests: string[] = []
+  await page.route('**/save-as-new*', async (route) => {
+    requests.push(route.request().postDataBuffer()?.toString() ?? '')
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ errors: [{ message: 'Another resource not found' }] }),
+    })
+  })
+  let failProbe = true
+  await page.route(`**/api/lesson-bundle-versions/${b.id}`, async (route) => {
+    if (failProbe) await route.fulfill({ status: 503, body: 'Unavailable' })
+    else await route.continue()
+  })
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await saveButton(page).click()
+    await expect(
+      page.getByText('Could not save this combination. Your text is still on screen. Try again.'),
+    ).toBeVisible()
+    await expect(saveButton(page)).toBeEnabled()
+    await expect(page.locator('.lp-combine')).toBeVisible()
+    failProbe = false
+  }
+  expect(requests).toHaveLength(2)
+  for (const body of requests) expect(body).toContain(`name="mergeParent"\r\n\r\n${b.id}`)
+  await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Other retry text')
+})
+
+test('applies a new combination without depending on the form-state server request', async ({
+  page,
+}) => {
+  const a = await version('A minimal generatable lesson.')
+  const b = await version('Automatic combined prose')
+  await loginAs(page, fx, 'editor')
+  await review(page, a.id, b.id)
+  await page.route('**/admin/**', async (route) => {
+    const req = route.request()
+    if (
+      req.method() === 'POST' &&
+      req.headers()['next-action'] &&
+      req.postData()?.includes('form-state')
+    )
+      await route.abort('failed')
+    else await route.continue()
+  })
+  await page.getByRole('button', { name: 'Continue in editor', exact: true }).click()
+  await expect(saveButton(page)).toBeEnabled()
+  await expandLessons(page)
+  await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Automatic combined prose')
+  await expect(page.locator('#field-lessons__0__overview')).toBeEnabled()
+  await awaitCaptured(page)
+})
+
+test('explains when restoring an earlier ordinary draft cancels the newly selected combination', async ({
+  page,
+}) => {
+  const a = await version('Starting ordinary draft')
+  const b = await version('Other version')
+  await loginAs(page, fx, 'editor')
+  await openEditor(page, a.id)
+  await expandLessons(page)
+  await typeProse(page, 'Earlier ordinary prose')
+  await page.getByRole('button', { name: 'Save as draft', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Continue editing', exact: true })).toBeVisible()
+  await review(page, a.id, b.id)
+  await page.getByRole('button', { name: 'Continue in editor', exact: true }).click()
+  await restorePrompt(page).getByRole('button', { name: 'Restore my draft', exact: true }).click()
+  await expect(
+    page.getByText('Your earlier draft has been restored. The new combination was cancelled.'),
+  ).toBeVisible()
+  await expect(page.locator('.lp-combine')).toHaveCount(0)
+  await expandLessons(page)
+  await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Earlier ordinary prose')
 })

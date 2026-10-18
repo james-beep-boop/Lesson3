@@ -129,10 +129,12 @@ Lesson3, not in a Word file.
   Lesson3 lists automatic changes and fields needing your choice. *Continue in editor* may switch
   you to the version whose plan details and answer keys must be preserved. For each remaining field,
   choose a version’s text (for example, *Use 1.0.1’s text*) or *Write my own*. You can change your choices until saving.
+  If a comparison fails, choose *Retry combination*; your text stays on screen.
   *Save as new version* saves a Not Official result and keeps both parents. Nothing is saved as a
   numbered version automatically. An unfinished combination is captured as a private draft; restoring
   it reruns the comparison and keeps your text. If the other version has gone, it becomes an ordinary
-  draft. Deleting the version you were editing deletes its draft too. If that happens while the
+  draft. If the comparison cannot be checked, your text can also be restored as an ordinary draft.
+  Deleting the version you were editing deletes its draft too. If that happens while the
   editor is open, copy your text before leaving the page.
 - **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and
   additions in green. Lesson3 lists the parts that changed; choose one to jump to it. Turn off

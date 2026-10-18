@@ -29,3 +29,13 @@ it('does not map unknown rows, prototype keys or administrator fields into form 
     expect(captureFieldPath(doc, key, field)).toBeNull()
   }
 })
+
+it('validates the whole overlay before returning any form updates', async () => {
+  const { combineFieldUpdates } = await import('../../src/components/CombineVersions/applyOverlay')
+  expect(combineFieldUpdates(doc, { 'lesson:second': { overview: 'New prose' } })).toEqual([
+    { path: 'lessons.1.overview', value: 'New prose' },
+  ])
+  expect(() =>
+    combineFieldUpdates(doc, { 'lesson:second': { overview: 'New prose', duration: 'not prose' } }),
+  ).toThrow()
+})
