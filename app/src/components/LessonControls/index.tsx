@@ -566,6 +566,9 @@ export default function LessonControls({
       // before asking about deletion, since a tokenless save must preserve the source's drafts.
       const plan = await recovery.prepareForSave()
       if (!plan.proceed) {
+        // ⚑ Deliberately NEUTRAL about the cause: the server returns one undifferentiated 409 for a
+        // newer capture, a superseded session or a retired row, because naming which would leak
+        // whether another session exists. "Another tab" would invent a certainty it does not carry.
         throw new Error(
           'Your draft is out of date. Reload before saving, so newer changes are not lost.',
         )
