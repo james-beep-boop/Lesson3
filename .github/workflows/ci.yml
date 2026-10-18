@@ -139,6 +139,9 @@ jobs:
       - name: backup destination + status branches (stubbed)
         run: ./scripts/test-backup-status.sh
 
+      - name: restore drill verification branches (stubbed)
+        run: ./scripts/test-restore-db.sh
+
       - name: local-server release bundle (no image pulls)
         run: ./scripts/test-local-deploy-bundle.sh
 
