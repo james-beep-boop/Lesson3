@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Insert link targets ARES, not the Rock; links stored in ARES's own form
+
+Operator decisions: Lesson3 will **mainly run on local ARES machines** (never used from home), with an
+online version later; Insert link is offered only in the **four framework columns**; a PDF link must
+work for someone **without an account**; a pasted ARES menu link is stored as the **plain address**,
+not the `/tracker/…launch.html` wrapper.
+
+Evidence behind the design (`docs/DESIGN-insert-link-ares-2026-10-18.md`): all 6,850 resource links in
+the 95 ARES plans point at `ares.local` over `http` — 95% Kolibri items
+(`ares.local:8069/en/learn/#/topics/c/<id>`), 5% files under `ares.local/modules/` — and ARES's
+published PDFs carry the same links. The Rock PDF folder has no counterpart on an ARES machine, and the
+editor refused every ARES link (`validExternalUrl` was HTTPS-only).
+
+**Rule:** links are stored as `http://ares.local…`, exactly as ARES writes them, whichever machine the
+lesson was edited on; Insert link converts pasted ARES addresses (other hosts, the demo, tracker
+wrappers) to that form. An online installation translates them when documents are generated (Plan A+:
+`ARES_SITE_URL`, `ARES_KOLIBRI_URL`, unset = byte-identical output). Stored data is never rewritten.
+Searching Kolibri from the dialog (Plan B) is feasible — its search answers anonymously — and deferred
+until Lesson3 runs on the ARES machine. Build order: after Combine 3b, which touches the same toolbar.
+
 ## 2026-10-18 — Combine is an explicit edit session, with changeable version-labelled choices
 
 Use the existing read-only preview, recovery overlay and save-as-new boundary. Continuing into the

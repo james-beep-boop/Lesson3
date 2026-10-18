@@ -27,9 +27,9 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 No merge or deployment is part of the current task. Deployment status should be checked with the
 operator; merging code does not establish that the Rock has it.
 
-**Current work:** phase 3b, including draft resumption previously called 3c, on
-`feat/combine-screen`, a ready PR for review. Draft metadata is a
-separate commit from the screen. It adds one nullable `edit_recovery.combine_context` JSON column;
+**Phase 3b is merged** (PR #400, `4ae0889`, 2026-10-18), including draft resumption previously
+called 3c. It was merged before the planned `/code-review` and `/simplify`; those still need to run
+against `main`. Draft metadata is a separate commit from the screen. It adds one nullable `edit_recovery.combine_context` JSON column;
 migrate before starting the updated app. Existing draft prose and timestamps are preserved.
 
 The screen picks two versions, reviews automatic changes and conflicts, and opens the engine's
@@ -51,12 +51,16 @@ stack. Never tear down another agent's stack. Always fetch before comparing bran
 
 ## Remaining work
 
-1. Review phase 3b; run the operator's requested `/code-review`, then `/simplify` where available.
-   Do not merge or deploy without the operator's instruction.
-2. Rebase a stale draft onto a newer version using the engine. Safe Combine metadata capture and
+1. Review the merged phase 3b: `/code-review`, then `/simplify`, against `main`. Deploy only on the
+   operator's instruction (3b adds a migration: `edit_recovery.combine_context`).
+2. **Insert link for ARES** — `docs/DESIGN-insert-link-ares-2026-10-18.md` (approved). Plan A (editor:
+   accept `http`, four framework columns only, optional label, store pasted ARES addresses as
+   `http://ares.local…`, Rock PDF folder opt-in, public PDF serving) then Plan A+ (rewrite
+   `ares.local` when generating, for the future online version).
+3. Rebase a stale draft onto a newer version using the engine. Safe Combine metadata capture and
    restoration are already included with the screen because automatic drafts must not lose their
    second parent.
-3. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
+4. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
    allow drafts to hold structural edits.
 
 **Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
