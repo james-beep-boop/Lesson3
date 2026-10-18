@@ -21,7 +21,7 @@ import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
 import { rowsOf, toPositiveInt, txDb, type TxSource } from '../txDb'
-import { parseCombineContext } from '../combine/draft'
+import { parseCombineContext, type CombineContext } from '../combine/draft'
 import { projectCapture } from './projection'
 import { captureExpiryCutoff } from './ttl'
 
@@ -246,7 +246,15 @@ export const capture = async (
     formDocument: unknown
   },
 ): Promise<CaptureResult> => {
-  const context = JSON.stringify(parseCombineContext(args.combineContext))
+  // Optional Combine state can never prevent a valid prose capture. It is only shape/size checked
+  // here; restore reauthorizes the parent and filters keys before exposing usable Combine state.
+  let parsed: CombineContext | null = null
+  try {
+    parsed = parseCombineContext(args.combineContext)
+  } catch {
+    /* Drop invalid optional metadata. */
+  }
+  const context = parsed === null ? null : JSON.stringify(parsed)
   const projected = projectCapture(args.formDocument as Record<string, unknown> | null)
   const json = JSON.stringify(projected)
   const bytes = Buffer.byteLength(json, 'utf8')

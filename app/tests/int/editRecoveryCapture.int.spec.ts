@@ -12,6 +12,8 @@
  */
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import type { PayloadRequest } from 'payload'
+import { sql } from '@payloadcms/db-postgres'
+import { drizzleOf, rowsOf } from '../helpers/db'
 import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import {
   ageRecoveryRow,
@@ -321,4 +323,33 @@ describe('capture: the hard byte ceiling', () => {
     expect(after?.content).toBeNull()
     expect(after?.revision).toEqual(before?.revision)
   })
+})
+
+it('ordinary or malformed optional metadata stores SQL NULL without losing prose', async () => {
+  const v = await makeVersion('1.0.399')
+  const held = await startFor(v.id)
+  let revision = held.revision
+  for (const combineContext of [
+    undefined,
+    { mergeParent: 1, resolvedKeys: [], snapshot: 'not permitted' },
+  ]) {
+    const result = await capture({ payload: fx.payload } as PayloadRequest, {
+      userId: fx.users.editor.id,
+      sourceVersionId: v.id,
+      generation: held.generation,
+      expectedRevision: revision,
+      formDocument: formDoc('Prose survives invalid metadata'),
+      combineContext,
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    revision = result.token.revision
+    const state = await drizzleOf(fx.payload).execute(
+      sql`SELECT combine_context IS NULL AS empty FROM edit_recovery WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${v.id}`,
+    )
+    expect(rowsOf(state)[0].empty).toBe(true)
+    expect((await rawRow(v.id))?.content).toEqual({
+      'lesson:L1': { title: 'Prose survives invalid metadata' },
+    })
+  }
 })
