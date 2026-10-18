@@ -215,6 +215,34 @@ describe('read-only PDF resource library', () => {
     expect(Array.isArray(body.files)).toBe(true)
   })
 
+  it('opens a listed PDF anonymously, independently of public discovery', async (context) => {
+    const listing = await fetch(url('/api/resource-library'), { headers: auth('teacher') })
+    expect(listing.status).toBe(200)
+    const body = (await listing.json()) as { configured: boolean; files: { href: string }[] }
+    if (!body.configured) {
+      // The default CI installation deliberately has no optional PDF folder.
+      expect((await fetch(url('/api/resource-library/file/cHVibGljLnBkZg'))).status).toBe(404)
+      context.skip()
+      return
+    }
+    expect(
+      body.files.length,
+      'configured wire stack needs at least one valid fixture PDF',
+    ).toBeGreaterThan(0)
+    const response = await fetch(url(body.files[0].href))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/pdf')
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    expect((await response.text()).startsWith('%PDF-')).toBe(true)
+    expect((await fetch(url('/api/resource-library'))).status).toBe(401)
+  })
+
+  it('refuses malformed anonymous file tokens', async () => {
+    for (const token of ['bm90ZXMudHh0', 'Li4vc2VjcmV0LnBkZg', 'LmhpZGRlbi5wZGY']) {
+      expect((await fetch(url(`/api/resource-library/file/${token}`))).status).toBe(404)
+    }
+  })
+
   it('returns 404 for an unknown file token without exposing a filesystem path', async () => {
     const res = await fetch(url('/api/resource-library/file/bm90ZXMudHh0'), {
       headers: auth('teacher'),

@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Insert link Plan A: school addresses and explicit PDF publication
+
+Operator approved all screen wording and public PDF access independently of public discovery.
+Configuring `PDF_LIBRARY_DIR` publishes eligible PDFs to anyone who can reach the installation;
+listing remains authenticated. Both templates leave the folder commented out, and the development
+server no longer forces it on. Filename tokens are not secrets. Retain the existing flat-folder,
+no-symlink, extension, signature, size and `nosniff` boundary. `/explore` remains independently gated.
+
+Offer insertion only in the four framework columns, hide it during Combine review, and clear a
+previous link target when another textarea gains focus. Existing rendering of other prose stays.
+Accept HTTP/HTTPS and an optional trimmed single-line label of at most 120 characters. Store ARES
+links in `http://ares.local` form: unwrap trusted tracker paths, map Kolibri to port 8069 and
+recognize exact configured hosts/aliases. Never fetch pasted addresses. Unknown sites and malformed
+wrappers stay as supplied; `ares.edu` remains excluded pending the ARES team's answer.
+
+The optional ARES site/Kolibri settings supply editor normalization hosts/prefixes only in Plan A.
+Plan A+ document-time rewriting remains separate. No change to the pristine generator, stored
+versions, Combine provenance or draft semantics. The New feature dialog note is removed after a
+term of school use with no reported link problems, with removal recorded here.
+
 ## 2026-10-18 — /simplify on Combine 3b: one comparison per restore, one owner per rule
 
 Four review angles (reuse, simplification, efficiency, altitude) over PRs #400–#401. Applied:

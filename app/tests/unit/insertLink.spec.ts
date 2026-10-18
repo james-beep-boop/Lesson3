@@ -10,6 +10,7 @@ import {
 import {
   insertParenthesizedUrl,
   validExternalUrl,
+  labelError,
 } from '../../src/components/LinkedTextarea/insertLink'
 import { lessonContentFields } from '../../src/fields/lessonContent'
 
@@ -23,11 +24,13 @@ describe('proof-of-concept link insertion', () => {
     })
   })
 
-  it('accepts complete HTTPS web addresses and rejects other schemes', () => {
+  it('accepts complete HTTP/HTTPS addresses unchanged and rejects other schemes', () => {
     expect(validExternalUrl('https://www.youtube.com/watch?v=abc')).toBe(
       'https://www.youtube.com/watch?v=abc',
     )
-    expect(validExternalUrl('http://example.org')).toBeNull()
+    expect(validExternalUrl('http://example.org')).toBe('http://example.org')
+    expect(validExternalUrl('https:example.org')).toBeNull()
+    expect(validExternalUrl('http://example.org/a b')).toBeNull()
     expect(validExternalUrl('javascript:alert(1)')).toBeNull()
     expect(validExternalUrl('not a URL')).toBeNull()
   })
@@ -41,12 +44,24 @@ describe('linkable prose field wiring', () => {
       fields?: unknown[]
     }
 
-  it('offers insertion on body prose but not interpolated lesson titles', () => {
+  it('offers insertion only on the four framework columns, never other prose', () => {
     const lessons = named(lessonContentFields, 'lessons')
-    const overview = named(childFields(lessons), 'overview')
-    const title = named(childFields(lessons), 'title')
-    expect(overview.admin?.components?.Field).toBe('@/components/LinkedTextarea#default')
-    expect(title.admin?.components?.Field).toBeUndefined()
+    const framework = named(childFields(lessons), 'framework')
+    for (const name of [
+      'learnerExperience',
+      'teacherMoves',
+      'sensemakingStrategy',
+      'formativeAssessment',
+    ]) {
+      expect(named(childFields(framework), name).admin?.components?.Field).toMatchObject({
+        path: '@/components/LinkedTextarea#default',
+      })
+    }
+    for (const name of ['overview', 'title', 'teacherReflection'])
+      expect(named(childFields(lessons), name).admin?.components?.Field).toBeUndefined()
+    expect(
+      named(childFields(named(lessonContentFields, 'unit')), 'content').admin?.components?.Field,
+    ).toBeUndefined()
   })
 })
 
@@ -81,5 +96,24 @@ describe('single toolbar link target', () => {
     expect(hasActiveLinkTarget()).toBe(false)
     expect(notifications).toHaveBeenCalledTimes(2)
     unsubscribe()
+  })
+})
+
+describe('optional plain-text labels', () => {
+  it('trims the label and preserves surrounding text, parentheses and the cursor', () => {
+    const result = insertParenthesizedUrl(
+      'Before  after',
+      7,
+      'http://ares.local/a(b)',
+      '  Video (plants)  ',
+    )
+    expect(result.value).toBe('Before Video (plants) (http://ares.local/a%28b%29) after')
+    expect(result.cursor).toBe(result.value.indexOf(' after'))
+  })
+  it('bounds labels and refuses newlines without treating parentheses as markup', () => {
+    expect(labelError('x'.repeat(120))).toBeNull()
+    expect(labelError('x'.repeat(121))).toBe('Keep the label to 120 characters or fewer.')
+    expect(labelError('a\nb')).toBe('Keep the label on one line.')
+    expect(labelError(' (plants) ')).toBeNull()
   })
 })

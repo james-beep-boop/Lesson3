@@ -566,7 +566,9 @@ const readTemplate = (path: string): Record<string, string> => {
       `env template not found: ${path}. If this is CI, mount the ROOT .env.example ALONE at $LESSON3_REPO_ROOT/.env.example — e.g. -v "$PWD/.env.example:/repo/.env.example:ro" -e LESSON3_REPO_ROOT=/repo. Do NOT mount the workspace: that puts .git, and the token a checkout persists there, inside this container (see .github/workflows/ci.yml).`,
     )
   }
-  return parseEnvFile(raw)
+  // Commented assignments document opt-in settings without enabling them when copied.
+  // Count those names too, including forbidden settings (the bootstrap assertion still applies).
+  return parseEnvFile(raw.replace(/^# (?=[A-Z][A-Z0-9_]*=)/gm, ''))
 }
 
 /**

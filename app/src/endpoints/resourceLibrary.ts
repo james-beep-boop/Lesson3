@@ -1,7 +1,7 @@
 /**
  * Read-only proof-of-concept PDF library.
  *
- * The browser must never browse the Rock's filesystem directly. These two authenticated endpoints
+ * The browser must never browse the Rock's filesystem directly. These two endpoints
  * expose only ordinary `.pdf` files from one configured, flat directory:
  *
  *   GET /api/resource-library              list safe PDF names
@@ -141,8 +141,6 @@ export const resourceLibraryFileEndpoint: Endpoint = {
   path: '/resource-library/file/:token',
   method: 'get',
   handler: async (req) => {
-    if (!req.user) return unauthorized()
-
     const root = configuredRoot()
     const token = req.routeParams?.token
     if (!root || typeof token !== 'string') return notFound()
@@ -151,7 +149,7 @@ export const resourceLibraryFileEndpoint: Endpoint = {
       const result = await readPdfFile(root, token)
       if (result.kind === 'not-found') return notFound()
       if (result.kind === 'too-large') {
-        return Response.json({ error: 'PDF is too large for this demonstration.' }, { status: 413 })
+        return Response.json({ error: 'This PDF exceeds the 25 MiB size limit.' }, { status: 413 })
       }
 
       const encodedName = encodeURIComponent(result.name).replace(

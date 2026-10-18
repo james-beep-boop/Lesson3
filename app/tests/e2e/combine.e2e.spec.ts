@@ -55,6 +55,7 @@ async function begin(page: Page, a: number, b: number) {
   await review(page, a, b)
   await page.getByRole('button', { name: 'Continue in editor', exact: true }).click()
   await expect(page.locator('.lp-combine')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Insert link', exact: true })).toHaveCount(0)
 }
 const saveButton = (page: Page) =>
   page.getByRole('button', { name: 'Save as new version', exact: true })

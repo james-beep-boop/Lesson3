@@ -94,10 +94,12 @@ never rewritten; versions, Combine and edit recovery are unaffected.
    folder, no symlinks, `.pdf`, `%PDF-` signature, size cap, `nosniff`) stays. This is an authorization
    change: update the wire tests in the same PR (anonymous file fetch 200; anonymous listing still
    401; a bad token still 404).
-   ⚑ Check how this sits with the existing public posture before building: `.env.example` has a
-   public-discovery switch (exactly `1` serves `/explore`; anything else makes public routes 404) and
-   `docs/OPS.md`'s "Going public" checklist. Propose whether anonymous PDF serving should follow that
-   switch or be unconditional, and wait for the operator's answer.
+   **Approved 2026-10-18:** configured PDF files are public independently of public discovery;
+   listing stays authenticated and unset `PDF_LIBRARY_DIR` returns file 404. The operator approved
+   the complete proposed wording before implementation. `PUBLIC_LIBRARY_ENABLED` still gates
+   lesson discovery; `SERVER_URL` still controls the existing security posture. Internet hosts
+   continue to follow `docs/OPS.md`'s Going public checklist.
+
 7. **Fix the help text**, which still says the button is "beneath a text field" or offers "a PDF
    from the Rock": `app/src/app/(frontend)/guide/page.tsx` (~line 428), `USER_GUIDE.md` (~line 228),
    and the editor's Help dialog in `LessonControls/index.tsx` (~line 1064).

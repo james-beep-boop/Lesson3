@@ -64,7 +64,6 @@ exec docker run --rm --init --name lesson3-dev-server \
   -e NODE_ENV=development \
   -e ADMIN_URL=http://localhost:3000 \
   -e ARTIFACT_CACHE_DIR=/tmp/artifact-cache \
-  -e PDF_LIBRARY_DIR=/var/lib/lesson3-resources \
   --env PUBLIC_LIBRARY_ENABLED \
   --env SERVER_URL \
   lesson3-deps npx next dev -H 0.0.0.0

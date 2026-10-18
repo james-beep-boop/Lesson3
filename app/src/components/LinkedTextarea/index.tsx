@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Payload textarea wrapper for the link proof of concept.
+ * Native prose textarea with optional labelled ARES/web link insertion.
  *
  * The underlying field remains Payload's native textarea and stores an ordinary string. Placing the
  * cursor here enables the editor toolbar's single Insert link action; this field then inserts
@@ -17,7 +17,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import { apiBaseFrom } from '../../lib/apiBase'
 import Modal from '../Modal'
 import { activateLinkTarget, clearActiveLinkTarget } from './activeTarget'
-import { insertParenthesizedUrl, validExternalUrl } from './insertLink'
+import { insertParenthesizedUrl, labelError, validExternalUrl } from './insertLink'
+
+import { normalizeAresAddress, type AresAddresses } from './aresAddress'
 
 type PdfResource = {
   href: string
@@ -32,8 +34,12 @@ const displaySize = (bytes: number): string => {
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
-export default function LinkedTextarea(props: TextareaFieldClientProps) {
-  const { path, readOnly } = props
+export default function LinkedTextarea(
+  props: TextareaFieldClientProps & {
+    aresAddresses?: AresAddresses
+  },
+) {
+  const { path, readOnly, aresAddresses, ...fieldProps } = props
   const { value, setValue, disabled } = useField<string>({ path })
   const { config } = useConfig()
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -41,8 +47,9 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
   const targetId = useRef(Symbol(path))
   const [open, setOpen] = useState(false)
   const [webUrl, setWebUrl] = useState('')
+  const [label, setLabel] = useState('')
+  const [configured, setConfigured] = useState(false)
   const [files, setFiles] = useState<PdfResource[]>([])
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const textarea = (): HTMLTextAreaElement | null =>
@@ -52,27 +59,32 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
     setOpen(true)
     setError(null)
     setWebUrl('')
+    setLabel('')
+    setConfigured(false)
     setFiles([])
-    setLoading(true)
     try {
       const response = await fetch(`${apiBaseFrom(config)}/resource-library`, {
         credentials: 'same-origin',
       })
       const body = (await response.json().catch(() => ({}))) as LibraryResponse
       if (!response.ok) {
-        setError('error' in body ? body.error : 'Could not load PDFs from the Rock.')
+        setError('Could not load PDFs from the Rock. You can still paste a web address.')
       } else if ('files' in body) {
+        setConfigured(body.configured)
         setFiles(body.files)
       }
     } catch {
-      setError('Could not load PDFs from the Rock.')
-    } finally {
-      setLoading(false)
+      setError('Could not load PDFs from the Rock. You can still paste a web address.')
     }
   }
 
   const insert = (url: string) => {
-    const result = insertParenthesizedUrl(String(value ?? ''), cursorRef.current, url)
+    const invalidLabel = labelError(label)
+    if (invalidLabel) {
+      setError(invalidLabel)
+      return
+    }
+    const result = insertParenthesizedUrl(String(value ?? ''), cursorRef.current, url, label)
     setValue(result.value)
     setOpen(false)
     setError(null)
@@ -86,10 +98,10 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
   const insertWebUrl = () => {
     const url = validExternalUrl(webUrl)
     if (!url) {
-      setError('Enter a complete https:// web address.')
+      setError('Enter a complete web address starting with http:// or https://.')
       return
     }
-    insert(url)
+    insert(normalizeAresAddress(url, aresAddresses))
   }
 
   const rememberAsTarget = (eventTarget: EventTarget | null) => {
@@ -116,19 +128,21 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
       onMouseUpCapture={(event) => rememberAsTarget(event.target)}
       onSelectCapture={(event) => rememberAsTarget(event.target)}
     >
-      <TextareaField {...props} />
+      <TextareaField {...fieldProps} path={path} readOnly={readOnly} />
 
       {open && (
         <Modal title="Insert link" className="prose-link-dialog" onClose={() => setOpen(false)}>
           <p className="modal__body">
-            The complete address will be inserted in parentheses at the cursor.
+            <strong>New feature.</strong> Paste an address from ARES or the web. It is added to the
+            text in brackets and becomes a clickable link in the Word and PDF documents. Tell your
+            administrator if a link does not work.
           </p>
           <label className="modal__field">
-            <span>Internet address</span>
+            <span>Web address</span>
             <input
               type="url"
               inputMode="url"
-              placeholder="https://www.youtube.com/watch?v=…"
+              placeholder="http://ares.local/modules/…"
               value={webUrl}
               onChange={(event) => {
                 setWebUrl(event.target.value)
@@ -142,35 +156,54 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
               }}
             />
           </label>
+          <label className="modal__field">
+            <span>Label (optional)</span>
+            <input
+              type="text"
+              placeholder="Plant transport video"
+              value={label}
+              onChange={(event) => {
+                setLabel(event.target.value)
+                setError(null)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  insertWebUrl()
+                }
+              }}
+            />
+            <small>Leave blank to insert just the address.</small>
+          </label>
           <div className="modal__actions">
             <Button className="lp-btn" buttonStyle="primary" size="small" onClick={insertWebUrl}>
               Insert address
             </Button>
           </div>
 
-          <div className="prose-link-dialog__divider" role="separator">
-            PDFs on the Rock
-          </div>
-          {loading ? (
-            <p className="modal__body" role="status">
-              Loading PDFs…
-            </p>
-          ) : files.length > 0 ? (
-            <ul className="prose-link-dialog__files">
-              {files.map((file) => (
-                <li key={file.href}>
-                  <button
-                    type="button"
-                    onClick={() => insert(new URL(file.href, window.location.origin).href)}
-                  >
-                    <span>{file.name}</span>
-                    <small>{displaySize(file.size)}</small>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="modal__body">No PDF files are available.</p>
+          {configured && (
+            <>
+              <div className="prose-link-dialog__divider" role="separator">
+                PDFs on the Rock
+              </div>
+              {files.length > 0 ? (
+                <ul className="prose-link-dialog__files">
+                  {files.map((file) => (
+                    <li key={file.href}>
+                      <button
+                        type="button"
+                        onClick={() => insert(new URL(file.href, window.location.origin).href)}
+                      >
+                        <span>{file.name}</span>
+                        <small>{displaySize(file.size)}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="modal__body">No PDF files are available.</p>
+              )}
+            </>
           )}
           {error && (
             <p className="prose-link-dialog__error" role="alert">

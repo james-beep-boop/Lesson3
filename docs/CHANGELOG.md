@@ -10,6 +10,14 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Insert link accepts HTTP/HTTPS ARES addresses in the four framework columns, with an optional
+  label, and stores recognized ARES/tracker addresses as `http://ares.local…`. The button is hidden
+  during Combine review. Both guides and Help explain the workflow; the dialog carries the approved
+  New feature note.
+- The optional Rock PDF folder is disabled in fresh-install templates. When configured, direct PDF
+  links open without signing in independently of Explore; the list remains authenticated and file
+  safety checks stay in place. Plan A+ document-time address rewriting remains separate.
+
 - Restoring an unfinished combination keeps the other version when the comparison is only briefly
   unavailable (for example after many requests): it offers *Retry combination* instead of turning
   the draft into an ordinary one.
