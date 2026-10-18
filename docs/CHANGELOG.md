@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Further authorization audit: native account changes, Official promotions and version deletions
+  re-check authority after their lock waits. Save re-checks both editing and structural/deletion
+  permissions before committing, rolling back the version and draft changes if authority was lost.
+  Post-lock checks also reject sessions revoked while the request waited.
+
 - Follow-up audit fixes: administrative requests refuse callers whose email verification was revoked
   while waiting; saves without a checked recovery token preserve the source version and its drafts.
   Combine refuses ambiguous row correspondence, handles large paragraph insertions without a stack

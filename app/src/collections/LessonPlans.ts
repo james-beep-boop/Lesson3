@@ -19,6 +19,7 @@ import {
 } from '../hooks/lessonPlan'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { requestEditingEndpoint } from '../endpoints/requestEditing'
+import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 
 export const LessonPlans: CollectionConfig = {
   slug: 'lesson-plans',
@@ -42,6 +43,7 @@ export const LessonPlans: CollectionConfig = {
     delete: lessonPlanDelete,
   },
   hooks: {
+    beforeOperation: [refreshMutationAuthority],
     beforeValidate: [
       enforcePlanSubjectGradeImmutable,
       validateOfficialVersionPointer,

@@ -27,7 +27,18 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 # CURRENT STATE — 2026-10-18: drafts, audit fixes and Combine phase 2 are on `main`
 
-Everything from the 2026-10-17 sessions is merged; `main` is the only branch. Seven commits since
+**Follow-up audit branch:** `fix/lesson3-current-audit`, based on `41673af`. It closes additional
+post-lock authority gaps in native user/plan/version mutations and Save/Make Official, including
+session revocation and Save's structural/source-deletion permissions. All effects roll back on a
+failed closing check. No migration or deployment. See DECISIONS 2026-10-18 "Audit the merged native
+mutation paths"; the prior merged-suite counts below describe main before these corrections.
+
+Independent validation on the corrected production build: 1,504 unit, 310 integration, 363 wire
+(four SMTP skips), 92 browser tests without retries, and 12 restore-drill cases passed. TypeScript,
+ESLint, full formatting check and production build passed. `audit:prod` passed its high/critical
+threshold but still reports nine existing moderate advisories; dependencies were not changed.
+
+At audit start, everything from the 2026-10-17 sessions was merged into `main`. Seven commits since
 **v0.97** (`2c25ed8`), **no migration** — a source deploy is `scripts/deploy.sh`; no release is tagged
 and the demo server has not been redeployed (operator's call). Full suite on the merged code: unit
 1,494, integration 310, wire 336 (+4 SMTP skips), browser 92/92; CI passed on `7d51645`.
@@ -37,8 +48,8 @@ and the demo server has not been redeployed (operator's call). Full suite on the
   changes*; Edit reads *Continue editing* when a draft exists; *Your Drafts* on Manage; a draft warning
   on the four version-delete confirmations. ⚑ Vocabulary: "draft" = private, unnumbered work;
   "version" = a numbered save, never called a draft. Internal names (`edit-recovery`) stay.
-- **Audit fixes** (DECISIONS 2026-10-17 "night" and "Follow-up audit"): every lock-then-write
-  endpoint re-reads its caller after the wait (`refreshCaller`: gone, disabled, unverified or demoted
+- **Audit fixes** (DECISIONS 2026-10-17 "night" and "Follow-up audit"): account-action and assignment
+  endpoints re-read their caller after the wait (`refreshCaller`: gone, disabled, unverified or demoted
   → 403); a failed draft lookup is `unchecked`, never "no draft", and a tokenless save never deletes
   its source; the draft-count warning has a deadline; the restore drill accepts a new installation.
 - **Combine versions, phase 2** (SPEC §6): `lib/combine/` and the read-only
@@ -50,9 +61,10 @@ and the demo server has not been redeployed (operator's call). Full suite on the
   editor). ⚑ Our push credentials lack GitHub's `workflow` scope: any change under
   `.github/workflows/` is refused on push, so hand such edits to the operator.
 
-**Combine's strict rule costs nothing for current content** (DECISIONS 2026-10-18): all 95 ARES plans
-pass it; all 806 lessons share one five-phase sequence. A refusal needs an administrator to duplicate a
-lesson or repeat a phase inside Lesson3. Re-check future exports with the operator-kept scan script
+**Combine corpus check** (DECISIONS 2026-10-18): all 95 ARES plans pass the correspondence rule when
+compared with themselves; all 806 lessons share one five-phase sequence. Cross-version structural
+changes, including reordered or changed unique labels, can still cause refusal. Re-check future
+exports with the operator-kept scan script
 (`/tmp/ares-scan-tools/scan.py <folder of ARES JSON>`; not in the repo).
 
 **Next — Combine phase 3** (recommended order: 3 now, 5 when wanted): the Combine screen in the editor

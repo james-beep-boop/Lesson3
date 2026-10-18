@@ -33,6 +33,7 @@ import { aresExportEndpoint } from '../endpoints/aresExport'
 import { cascadeDeleteVersionFavorites } from './Favorites'
 import { cascadeDeleteVersionRecovery } from './EditRecovery'
 import { recoveryEndpoints } from '../endpoints/recovery'
+import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 import { combinePreviewEndpoint } from '../endpoints/combinePreview'
 import {
   collapseOnEntry,
@@ -87,6 +88,7 @@ export const LessonBundleVersions: CollectionConfig = {
     delete: lessonBundleVersionDelete,
   },
   hooks: {
+    beforeOperation: [refreshMutationAuthority],
     beforeValidate: [
       numberBundleVersionRows,
       enforceVersionPlanConsistency,

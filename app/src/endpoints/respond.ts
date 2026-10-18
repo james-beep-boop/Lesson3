@@ -54,6 +54,13 @@ export async function refreshCaller(req: PayloadRequest): Promise<User> {
     req,
   })
   if (!fresh || fresh.signInDisabled || !fresh._verified) throw new APIError('Forbidden', 403)
+  // JWT authentication also requires the session identified by `_sid` to exist. Logging out or
+  // resetting a password can revoke it without changing any account-status or permission fields.
+  // Trusted Local API callers without an authenticated session retain their existing contract.
+  const sid = (req.user as User & { _sid?: string })._sid
+  if (sid && !fresh.sessions?.some((session) => session.id === sid)) {
+    throw new APIError('Forbidden', 403)
+  }
   caller.roles = fresh.roles
   caller.assignments = fresh.assignments
   caller.signInDisabled = fresh.signInDisabled

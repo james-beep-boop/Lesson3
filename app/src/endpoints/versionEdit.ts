@@ -20,8 +20,9 @@ import {
   type PayloadRequest,
 } from 'payload'
 
-import { json } from './respond'
+import { json, refreshCaller } from './respond'
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
+import { canDeleteVersionDoc } from '../access/versioning'
 import { applyEditorFieldSplit } from '../hooks/fieldSplit'
 import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
 import { parsePreviewForm } from './previewParse'
@@ -270,6 +271,27 @@ export const saveAsNewEndpoint: Endpoint = {
           sourceDeleted = true
         }
 
+        // Creating a version, retiring its draft, or deleting its source can all wait on DB locks.
+        // Recheck AFTER those waits while the entire save can still be rolled back. Checking only
+        // editing access is insufficient: a demoted administrator may retain prose editing while
+        // losing the right to the structural content already prepared from their earlier snapshot.
+        const currentCaller = await refreshCaller(req)
+        if (!isEditorFor(currentCaller, toId(source.subjectGrade))) {
+          throw new APIError('Not allowed', 403)
+        }
+        const permittedNow = applyEditorFieldSplit({
+          data: { ...edited, subjectGrade: toId(source.subjectGrade) },
+          originalDoc: source as unknown as Record<string, unknown>,
+          operation: 'update',
+          req,
+          editorTopLevelKeys: VERSION_EDITOR_KEYS,
+        }) as Record<string, unknown>
+        if (
+          comparableContent(permittedNow) !== comparableContent(merged) ||
+          (sourceDeleted && !canDeleteVersionDoc(currentCaller, source))
+        )
+          throw new APIError('Not allowed', 403)
+
         if (shouldCommit) await commitTransaction(req)
         return json({
           id: created.id,
@@ -378,6 +400,11 @@ export const makeOfficialEndpoint: Endpoint = {
         previousDeleted = true
       }
 
+      // The plan update (and optional deletion) may have waited after the opening authorization.
+      // Refuse before committing, rolling back the pointer, cleanup and follower changes together.
+      if (!isSubjectAdminFor(await refreshCaller(req), toId(version.subjectGrade))) {
+        throw new APIError('Not allowed', 403)
+      }
       if (shouldCommit) await commitTransaction(req)
       return json({ ok: true, officialVersion: version.id, previousOfficialId, previousDeleted })
     } catch (e) {

@@ -11,6 +11,47 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Audit the merged native mutation paths and transaction boundaries
+
+Fresh audit started at `41673af`, after the earlier fixes were merged. The intervening changes were
+CI, documentation and comments; the earlier fixes remained present. Additional confirmed gaps:
+
+- Native user PATCH evaluated access before its invariant lock. A caller demoted, disabled or
+  unverified during that wait could still grant Site Administrator. Native user DELETE and native
+  plan/version mutations had the same ordering problem. A shared `beforeOperation` hook now takes
+  `adminCount`, then the target user/plan row lock, then refreshes authority **before** Payload reads
+  the target and evaluates collection/field access. Installed Payload starts the transaction before
+  this hook. Native version deletion locks its parent plan, matching the Official retention guard.
+- Save-as-new could wait while retiring a draft after creating a candidate version. It then committed
+  an administrator's structural changes and deleted the source even if authority had been revoked.
+  Recheck after all writes while rollback is possible: current editing access, the current field
+  split, and source-deletion permission. A demoted administrator who retains editing access can
+  still save prose and delete their own source; they cannot save structural changes or delete
+  someone else's version. Make Official also checks current administration before commit.
+- Account status and roles do not establish that a JWT session still exists. `refreshCaller` now
+  checks the authenticated `_sid` against the fresh account's sessions, matching installed Payload
+  JWT authentication. Trusted Local API callers without `_sid` keep their existing contract.
+
+The shared administrator lock deliberately serializes low-volume native account/plan/version
+mutations across plans and blocks normal role/account revocation during subsequent waits. Trusted
+`overrideAccess` operations bypass this new hook and must enforce their own authorization boundary;
+the closing Save/Make Official checks cover their transactional writes. No migration, generator,
+deployment or CI workflow change.
+
+Regression evidence: nine initial custom/native wire cases returned 200 instead of 403 on untouched
+`41673af`; six additional native plan/version cases did the same before the shared guard; six
+signed-out cases and a unit case failed before the session check. New wire tests also verify atomic
+rollback of the candidate, draft retirement and source deletion, plus allowed self-service/prose
+operations. Final validation: 1,504 unit, 310 integration, 363 wire (four SMTP skips), 92 browser
+without retries and 12 restore-drill cases passed; TypeScript, ESLint, full formatting check and
+production build passed. Dependency audit met the high/critical gate, with nine existing moderate
+advisories remaining and no dependency changes.
+
+Clarification to the ARES scan below: comparing a document with itself establishes that the current
+corpus has no ambiguous duplicate identities. It does not prove every future pair can combine.
+Changing or reordering unique phase/section/summary labels or lesson upload identities across
+versions can also fail correspondence; duplicate rows are not the only reason for refusal.
+
 ## 2026-10-18 — Combine's strict row matching costs nothing for current ARES plans
 
 Question before Phase 3: the follow-up audit made Combine refuse any pair whose rows cannot be matched

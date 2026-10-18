@@ -537,6 +537,14 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
 
 ## 8. Roles & authorization
 
+- **Authority after waiting:** native user/plan updates and user/plan/version deletes acquire the
+  shared administrator lock and relevant target/plan row lock before refreshing the caller and
+  evaluating Payload access. This deliberately serializes those native mutations across plans;
+  trusted `overrideAccess` writes retain their own authorization contract. A refresh rejects a
+  missing, disabled or unverified account, or a revoked authenticated session, and uses current
+  roles/assignments. Save-as-new and Make Official also recheck before committing their transaction;
+  Save must still satisfy the current field split and any source-deletion permission. Failure rolls
+  back the entire operation, including draft retirement and deletion cascades.
 - **Open self-registration (decided 2026-07-09):** anyone may create an account from the login
   page's Sign up link (standard Payload create); new accounts are plain **Teachers** — the
   privileged fields (`roles`, `assignments`, `_verified`) are create-gated, and signups are

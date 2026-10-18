@@ -26,6 +26,7 @@ import {
   refuseDisabledLogin,
 } from '../hooks/userRoles'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
+import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 import { preserveAccountDisabledWire } from '../errors/AccountDisabled'
 import { emailLinkBase } from '../lib/emailLinkBase'
 import { suppressFirstUserVerificationEmail } from '../lib/firstUserBootstrap'
@@ -130,7 +131,11 @@ export const Users: CollectionConfig = {
     // forgot-password budgets, per target identifier + site-global. See hooks/authRateLimit.
     // Payload otherwise emails a verification link during first-register and only then marks that
     // same account verified. Suppress only that trusted bootstrap send; ordinary signup still mails.
-    beforeOperation: [suppressFirstUserVerificationEmail, rateLimitAuthOperations],
+    beforeOperation: [
+      suppressFirstUserVerificationEmail,
+      rateLimitAuthOperations,
+      refreshMutationAuthority,
+    ],
     // ⚑ `beforeLogin` runs in BOTH `login` and `resetPassword` (the latter inline, before it signs
     // the token — verified in auth/operations/resetPassword.js:113). One hook, two entry points;
     // see `refuseDisabledLogin` for why that is intended rather than incidental.
