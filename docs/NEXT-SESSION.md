@@ -79,11 +79,12 @@ Always fetch before comparing branches or commits.
 
 ## Remaining work
 
-1. **After #405 merges, plan the small draft-to-Combine shortcut.** For a restorable ordinary draft
+1. **After #405 merges, implement the approved small draft-to-Combine shortcut.** For a restorable ordinary draft
    with a newer readable descendant in the same plan (proved by lineage), explain that the teacher
    can save the draft as a version and then combine it with that descendant. After the save, offer
    **Combine with {newer}**, using the existing `?combineWith=` handoff to open the review directly.
-   List strings for approval before coding. No migration, new endpoint, frozen input or state-machine
+   The operator approved the three strings on 2026-10-18 (restore notice, action and Guide sentence).
+   No migration, new endpoint, frozen input or state-machine
    refactor. The complete direct-update design is **deferred until teachers need it**:
    [`DESIGN-update-draft-2026-10-19.md`](DESIGN-update-draft-2026-10-19.md). Revisit when frequent use
    and confusing intermediate versions justify it. The Combine state machine stays deferred too.

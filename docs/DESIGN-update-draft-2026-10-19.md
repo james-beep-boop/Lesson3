@@ -9,10 +9,11 @@ new version followed by Combine versions. Versions are immutable: a draft remain
 its original version after newer versions are saved.
 
 The small alternative is a restore-prompt notice and an action after saving that opens the existing
-Combine review. It needs no migration, new endpoint, frozen input or state-machine rewrite. Its
-wording needs approval before implementation, and implementation starts after #405 merges.
+Combine review. It needs no migration, new endpoint, frozen input or state-machine rewrite. The
+operator approved the small alternative and its three strings on 2026-10-18. Implementation starts
+after #405 merges. The full design below remains deferred.
 
-## Small alternative proposed for approval
+## Approved small alternative
 
 - For a restorable ordinary draft, find the highest-numbered readable newer descendant of its
   source, in the same plan, using recorded lineage. Require current editing access. A higher version
