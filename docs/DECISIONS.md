@@ -11,6 +11,18 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — "Exit edit mode" replaces "Decide later" in the restore prompt
+
+Operator question: what exactly do the prompt's three buttons do, and are all three needed? Answer:
+*Decide later* closed the prompt but left the teacher IN the editor on the saved version, and the
+first keystroke started a new draft that replaced the one being offered — "later" never came for
+anyone who typed. Operator decision: the middle button becomes **Exit edit mode**, which leaves the
+editor with the draft untouched (asked again on the next Continue editing), with the line "Exit edit
+mode keeps your draft for next time." Same for the copy-only prompt, whose "Continue editing" had the
+same trap; to edit again there, copy what is needed and discard. The administrator warning on Save as
+draft now reads "Changes to structure, rubrics and answer keys are not…" — "structure" alone would
+have implied that reworded rubrics and exemplars are kept, and they are not.
+
 ## 2026-10-18 — Audit the merged native mutation paths and transaction boundaries
 
 Fresh audit started at `41673af`, after the earlier fixes were merged. The intervening changes were

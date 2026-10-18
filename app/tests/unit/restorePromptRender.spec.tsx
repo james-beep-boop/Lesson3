@@ -14,7 +14,7 @@
  * a teacher pasting their recovered work somewhere would find out.
  */
 import React from 'react'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -71,7 +71,7 @@ const show = (readOnly: boolean, now: string = TYPED) =>
       readOnly={readOnly}
       busy={false}
       onRestore={() => {}}
-      onKeep={() => {}}
+      onExit={() => {}}
       onDiscard={() => {}}
     />,
   )
@@ -133,7 +133,7 @@ describe('a field the restore would CLEAR', () => {
         readOnly={false}
         busy={false}
         onRestore={() => {}}
-        onKeep={() => {}}
+        onExit={() => {}}
         onDiscard={() => {}}
       />,
     )
@@ -177,7 +177,7 @@ describe('a READ-ONLY capture shows plain text, so it can be copied', () => {
         readOnly
         busy={false}
         onRestore={() => {}}
-        onKeep={() => {}}
+        onExit={() => {}}
         onDiscard={() => {}}
       />,
     )
@@ -189,4 +189,36 @@ describe('a READ-ONLY capture shows plain text, so it can be copied', () => {
     show(true)
     expect(screen.getByText(/cannot be put back automatically/)).toBeTruthy()
   })
+})
+
+/**
+ * ⚑ "Exit edit mode" REPLACED "Decide later" / "Continue editing" (operator decision 2026-10-18). Both
+ * old buttons left the teacher in the editor, where the first keystroke replaced the draft this panel
+ * offers. The middle choice must now say what it does, in both forms of the panel, and the panel must
+ * say the draft survives it — that is the reassurance the label alone cannot give.
+ */
+describe('the middle choice leaves the editor and keeps the draft', () => {
+  it.each([false, true])(
+    'read-only %s: one "Exit edit mode" button, and the promise beside it',
+    (ro) => {
+      const onExit = vi.fn()
+      render(
+        <EditRecoveryRestorePrompt
+          capture={{ ...capture, stale: ro }}
+          anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
+          saved={{ 'lesson:L1': { overview: SAVED } }}
+          readOnly={ro}
+          busy={false}
+          onRestore={() => {}}
+          onExit={onExit}
+          onDiscard={() => {}}
+        />,
+      )
+      expect(screen.queryByRole('button', { name: 'Decide later' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Continue editing' })).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Exit edit mode' }))
+      expect(onExit).toHaveBeenCalledTimes(1)
+      expect(document.body.textContent).toContain('Exit edit mode keeps your draft for next time.')
+    },
+  )
 })

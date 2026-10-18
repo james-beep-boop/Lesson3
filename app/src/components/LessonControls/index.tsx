@@ -475,7 +475,7 @@ export default function LessonControls({
    * the two differ: this asks, then DELETES the draft, then reverts.
    *
    * A pristine form has nothing to discard, so it simply leaves edit mode — without asking, and
-   * without touching a draft the teacher may have chosen to "Decide later" about.
+   * without touching an earlier draft that is still on the server.
    */
   const onDiscardChanges = async () => {
     if (busy || saveInFlight.current) return
@@ -519,7 +519,7 @@ export default function LessonControls({
     if (
       canEditStructure &&
       !window.confirm(
-        'Only your wording is saved in a draft. Changes to lessons, phases, durations, rubrics and answer keys are not, and will be discarded.\n\nSave your wording as a draft?',
+        'Only your wording is saved in a draft. Changes to structure, rubrics and answer keys are not, and will be discarded.\n\nSave your wording as a draft?',
       )
     ) {
       return
@@ -1010,7 +1010,7 @@ export default function LessonControls({
           readOnly={recovery.entry.readOnly}
           busy={restoring}
           onRestore={onRestore}
-          onKeep={recovery.keepOffer}
+          onExit={leaveEditMode}
           onDiscard={async () => {
             await recovery.discardOffer()
             setDraftOverride({ id, exists: false })

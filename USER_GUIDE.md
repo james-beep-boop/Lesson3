@@ -119,9 +119,11 @@ Lesson3, not in a Word file.
   will be replaced is struck through in red. Lesson3 normally shows only what your draft changes.
   Some changes cannot be shown word by word: *Emptied* means a field will be cleared, *Paragraph
   breaks changed* means only line breaks changed, and *Spacing only* means the words stayed the same.
-  Choose *Restore my draft*, *Decide later*, or *Discard the draft*. Discarding cannot be undone.
+  Choose *Restore my draft*, *Discard the draft*, or *Exit edit mode*, which keeps your draft and
+  asks again next time. Discarding cannot be undone.
 - **If someone saves a newer version while you are away:** Lesson3 cannot restore your draft
-  automatically. It shows the whole draft so you can copy what you still need.
+  automatically. It shows the whole draft so you can copy what you still need; then choose *Discard
+  the draft* to edit the newer version.
 - **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and
   additions in green. Lesson3 lists the parts that changed; choose one to jump to it. Turn off
   *Changes only* to read both versions in full. If a part says *Spacing or document structure

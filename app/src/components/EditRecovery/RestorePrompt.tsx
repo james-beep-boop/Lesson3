@@ -48,7 +48,7 @@ export function EditRecoveryRestorePrompt({
   readOnly,
   busy,
   onRestore,
-  onKeep,
+  onExit,
   onDiscard,
 }: {
   capture: OfferedCapture
@@ -71,7 +71,11 @@ export function EditRecoveryRestorePrompt({
   readOnly: boolean
   busy: boolean
   onRestore: () => void
-  onKeep: () => void
+  /**
+   * "Exit edit mode": leave the editor with the draft untouched (2026-10-18; was "Decide later").
+   * Also what Escape and a backdrop click do.
+   */
+  onExit: () => void
   onDiscard: () => void
 }) {
   // Both inputs are stable for the life of the offer — the capture came off one response and the
@@ -94,14 +98,15 @@ export function EditRecoveryRestorePrompt({
   )
 
   return (
-    // ⚑ `onClose` routes to KEEP, never discard. Escape and backdrop-click are ambiguous gestures,
-    // and the safe reading of an ambiguous gesture is "leave my work alone" — a stray keypress must
-    // not be the thing that destroys the capture. It is also vetoed while a restore is in flight, so
+    // ⚑ `onClose` routes to EXIT EDIT MODE, never discard. Escape and backdrop-click are ambiguous
+    // gestures, and the safe reading of an ambiguous gesture is "leave my work alone" — a stray
+    // keypress must not be the thing that destroys the capture, nor drop the teacher into an editor
+    // where typing would replace it. It is also vetoed while a restore is in flight, so
     // the panel cannot vanish mid-`reset`.
     <Modal
       title="You have a draft from an earlier session"
       onClose={() => {
-        if (!busy) onKeep()
+        if (!busy) onExit()
       }}
       className="lp-restore"
     >
@@ -188,6 +193,7 @@ export function EditRecoveryRestorePrompt({
           `Modal` now emits `lp-modal` and the admin stylesheet scopes the button system on it, so
           every button in every dialog is styled by construction and there is nothing to remember.
           `Modal/index.tsx` and the selector list in `custom.scss` carry the contract. */}
+      <p className="modal__body">Exit edit mode keeps your draft for next time.</p>
       <div className="modal__actions">
         {/* No Restore control at all when read-only — a disabled button invites the user to hunt for
             the condition that would enable it, and there is none they can reach. */}
@@ -196,8 +202,13 @@ export function EditRecoveryRestorePrompt({
             {busy ? 'Restoring…' : 'Restore my draft'}
           </Button>
         )}
-        <Button buttonStyle="secondary" size="small" onClick={onKeep} disabled={busy}>
-          {readOnly ? 'Continue editing' : 'Decide later'}
+        {/* ⚑ "Exit edit mode" REPLACED "Decide later" (and, when read-only, "Continue editing")
+            on 2026-10-18 (operator decision). Both left the teacher IN the editor on the saved
+            version, where the first keystroke started a new draft that replaced the one this panel
+            was asking about — "later" never came for anyone who typed. Leaving the editor makes the
+            choice explicit: restore it, discard it, or go, and be asked again next time. */}
+        <Button buttonStyle="secondary" size="small" onClick={onExit} disabled={busy}>
+          Exit edit mode
         </Button>
         <Button buttonStyle="error" size="small" onClick={onDiscard} disabled={busy}>
           Discard the draft

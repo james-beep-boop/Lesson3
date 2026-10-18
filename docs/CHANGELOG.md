@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- The draft prompt's middle button is now *Exit edit mode*: it leaves the editor and keeps the draft
+  for next time (previously *Decide later*, where typing replaced the draft). The administrator
+  warning on *Save as draft* is shorter.
+
 - Further authorization audit: native account changes, Official promotions and version deletions
   re-check authority after their lock waits. Save re-checks both editing and structural/deletion
   permissions before committing, rolling back the version and draft changes if authority was lost.

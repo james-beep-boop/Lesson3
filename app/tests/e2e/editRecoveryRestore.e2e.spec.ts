@@ -260,9 +260,14 @@ test.describe('the offer is a real barrier, not just a panel on top', () => {
 
     // And the panel itself is still interactive — a barrier that covered its own dialog would pass
     // the assertion above for entirely the wrong reason.
-    await expect(page.getByRole('button', { name: 'Decide later' })).toBeVisible()
-    await page.getByRole('button', { name: 'Decide later' }).click()
+    await expect(page.getByRole('button', { name: 'Exit edit mode' })).toBeVisible()
+    await page.getByRole('button', { name: 'Exit edit mode' }).click()
     await expect(prompt(page)).toHaveCount(0)
+
+    // ⚑ "Exit edit mode" (2026-10-18) LEAVES the editor and KEEPS the draft: no editor to type a
+    // replacement into, and the way back says a draft is waiting — and offers that same draft again.
+    await page.getByRole('button', { name: 'Continue editing' }).click()
+    await expect(prompt(page), 'the kept draft is offered again').toBeVisible()
   })
 })
 
@@ -408,9 +413,11 @@ test.describe('cases 9 and 10 — a capture that cannot be trusted is READ-ONLY'
       await expect(page.getByRole('button', { name: 'Restore my draft' })).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Discard the draft' })).toBeVisible()
 
-      // Continuing leaves the form on the SAVED content — nothing untrusted reaches it.
-      await page.getByRole('button', { name: 'Continue editing' }).click()
+      // Exiting leaves the SAVED content on screen — nothing untrusted reaches it — and leaves the
+      // editor, so there is no form to type a replacement for the unread draft into.
+      await page.getByRole('button', { name: 'Exit edit mode' }).click()
       await expect(prompt(page)).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Save as new version' })).toHaveCount(0)
       await expandLessons(page)
       await expect(page.locator(OVERVIEW)).toHaveValue(saved)
     })

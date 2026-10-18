@@ -359,8 +359,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     being replaced is struck through in red.
                   </li>
                   <li>
-                    Choose <em>Restore my draft</em>, <em>Decide later</em>, or{' '}
-                    <em>Discard the draft</em>. Discarding cannot be undone.
+                    Choose <em>Restore my draft</em>, <em>Discard the draft</em>, or{' '}
+                    <em>Exit edit mode</em>, which keeps your draft and asks again next time.
+                    Discarding cannot be undone.
                   </li>
                 </ol>
                 <p>
@@ -369,7 +370,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <em>Paragraph breaks changed</em> means only the line breaks changed; and{' '}
                   <em>Spacing only</em> means the words stayed the same. If someone saves a newer
                   version while you are away, Lesson3 cannot restore your draft automatically. It
-                  shows the whole draft so you can copy what you still need.
+                  shows the whole draft so you can copy what you still need; then choose{' '}
+                  <em>Discard the draft</em> to edit the newer version.
                 </p>
               </GuideAccordionPanel>
             )}

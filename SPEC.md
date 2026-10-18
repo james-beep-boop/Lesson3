@@ -396,6 +396,11 @@ observable contract, and a failed or backed-off capture must say so rather than 
   capture's schema version or base source version no longer matches. On a 409 the stale tab must
   surface its content read-only so the user can copy it out — silently discarding real keystrokes
   would defeat the purpose of the feature.
+- **The restore prompt offers Restore my draft · Exit edit mode · Discard the draft** (2026-10-18).
+  *Exit edit mode* leaves the editor with the draft untouched, and the prompt says so; Escape and a
+  backdrop click do the same. It replaced "Decide later" (and, for a copy-only draft, "Continue
+  editing"), which left the teacher in the editor, where the first keystroke started a new draft
+  that replaced the unread one.
 - **Expiry still clears the screen.** Clearing the editor at logout is itself a privacy control on a
   shared machine, so the rule is *capture the working copy, then clear* — never "stop unmounting".
   Both expiry paths must clear.
