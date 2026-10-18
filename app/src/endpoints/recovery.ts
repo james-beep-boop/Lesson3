@@ -128,38 +128,49 @@ function requirePlanId(version: LessonBundleVersion): number {
   return id
 }
 
-/** Reauthorize the stored id on every restore. Never trust metadata as an access grant. */
-async function authorizeContext(
+/** Optional session metadata is untrusted until restore. Never use it as an access grant. */
+async function restoreContext(
   req: PayloadRequest,
   source: LessonBundleVersion,
   value: unknown,
-  restoring = false,
-): Promise<CombineContext | null> {
-  let context: CombineContext | null
+): Promise<{
+  context: CombineContext | null
+  reason?: 'parent-unavailable' | 'comparison-unavailable'
+}> {
+  if (value == null) return { context: null }
   try {
-    context = parseCombineContext(value)
+    const context = parseCombineContext(value)
+    if (!context) return { context: null }
+    // Charge the same budget as combine-preview BEFORE parent lookup, ancestry or engine work.
+    // A denied/unavailable optional comparison still returns the owner's recoverable prose.
+    if (await enforceUserRateLimit(req, 'preview'))
+      return { context: null, reason: 'comparison-unavailable' }
+    const other = await findReadableVersion(req.payload, {
+      id: context.mergeParent,
+      user: req.user as User,
+      req,
+    })
+    if (
+      !other ||
+      other.id === source.id ||
+      relId(other.lessonPlan) !== requirePlanId(source) ||
+      !isEditorFor(req.user as User, toId(other.subjectGrade))
+    ) {
+      return { context: null, reason: 'parent-unavailable' }
+    }
+    const base = await findCommonAncestor(req, req.user as User, source, other)
+    const comparison = planCombine({ base, a: source, b: other })
+    const allowed = new Set(comparison.ok ? comparison.conflicts.map(conflictKey) : [])
+    return {
+      context: { ...context, resolvedKeys: context.resolvedKeys.filter((key) => allowed.has(key)) },
+    }
   } catch {
-    if (restoring) return null
-    throw new APIError('Invalid Combine draft metadata.', 400)
+    req.payload.logger.warn(
+      { sourceVersionId: source.id },
+      'Combine draft comparison unavailable; returning prose without Combine metadata',
+    )
+    return { context: null, reason: 'comparison-unavailable' }
   }
-  if (!context) return null
-  const other = await findReadableVersion(req.payload, {
-    id: context.mergeParent,
-    user: req.user as User,
-    req,
-  })
-  // A vanished second parent must not prevent backing up the teacher's prose. Restore explains
-  // why this becomes an ordinary draft. The editing source still cascades its drafts on deletion.
-  if (!other) return restoring ? null : { ...context, resolvedKeys: [] }
-  if (other.id === source.id || relId(other.lessonPlan) !== requirePlanId(source)) {
-    if (restoring) return null
-    throw new APIError('Both versions must belong to the same lesson plan.', 400)
-  }
-  if (!isEditorFor(req.user as User, toId(other.subjectGrade))) return null
-  const base = await findCommonAncestor(req, req.user as User, source, other)
-  const comparison = planCombine({ base, a: source, b: other })
-  const allowed = new Set(comparison.ok ? comparison.conflicts.map(conflictKey) : [])
-  return { ...context, resolvedKeys: context.resolvedKeys.filter((key) => allowed.has(key)) }
 }
 
 /** 1. Explicit session start — the ONLY insert/reactivate path. */
@@ -217,7 +228,7 @@ export const recoveryCaptureEndpoint: Endpoint = {
       expectedRevision: requireCounter(payload.expectedRevision, 'expectedRevision'),
       // The RAW form document; the kernel projects it, so the prose whitelist cannot be bypassed here.
       formDocument: requireDocument(payload.document),
-      combineContext: await authorizeContext(req, version, payload.combineContext),
+      combineContext: payload.combineContext,
     })
 
     if (result.ok) return json({ token: result.token })
@@ -245,15 +256,16 @@ export const recoveryGetEndpoint: Endpoint = {
     })
     if (!active) return json({ capture: null })
 
-    const combineContext = await authorizeContext(req, version, active.combineContext, true)
+    const restored = await restoreContext(req, version, active.combineContext)
 
     // The client compares these against the source it just loaded; a mismatch means the capture is
     // view/copy/discard only and must never be applied (SPEC §5).
     return json({
       capture: {
         content: active.content,
-        combineContext,
-        combineUnavailable: active.combineContext != null && combineContext === null,
+        combineContext: restored.context,
+        combineUnavailable: restored.reason !== undefined,
+        combineUnavailableReason: restored.reason,
         // ⚑ When the CAPTURE was written — the row's own `updated_at`, which is what the restore
         // prompt shows the teacher. Distinct from `baseUpdatedAt` below, which is the SOURCE
         // VERSION's mtime and exists only for the staleness comparison; showing that one dates a

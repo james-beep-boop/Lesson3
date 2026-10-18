@@ -538,7 +538,7 @@ describe('S6 — op 7 discloses counts, only to someone who may delete', () => {
 })
 
 describe('Combine draft metadata over the wire', () => {
-  it('round trips owner-only metadata and refuses a cross-plan second parent', async () => {
+  it('round trips owner-only metadata and excludes a cross-plan second parent on restore', async () => {
     const source = await makeVersion('7.0.1')
     const other = await makeVersion('7.0.2')
     const held = await startAs(source, 'editor')
@@ -578,7 +578,8 @@ describe('Combine draft metadata over the wire', () => {
         document: minimalBundleContent(),
         combineContext: { mergeParent: foreign.id, resolvedKeys: [] },
       })
-      expect(rejected.status).toBe(400)
+      expect(rejected.status).toBe(200)
+      // Metadata never blocks prose capture; the stored id remains untrusted until restore.
       // A forged stored id is reauthorized on GET too, independently of the capture gate.
       await drizzleOf(fx.payload).execute(
         sql`UPDATE edit_recovery SET combine_context = ${JSON.stringify({ mergeParent: foreign.id, resolvedKeys: [] })}::jsonb WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${source}`,
@@ -617,4 +618,51 @@ describe('Combine draft metadata over the wire', () => {
     })
     expect((await call(source, '/recovery', 'GET', 'editor')).status).toBe(404)
   })
+})
+
+it('returns ordinary draft prose when the shared preview budget is exhausted', async () => {
+  const source = await makeVersion('7.1.1')
+  const other = await makeVersion('7.1.2')
+  const held = await startAs(source, 'editor')
+  expect(
+    (
+      await call(source, '/recovery', 'POST', 'editor', {
+        generation: held.generation,
+        expectedRevision: held.revision,
+        document: { lessons: [{ id: 'own', overview: 'Prose survives a preview limit' }] },
+        combineContext: { mergeParent: other, resolvedKeys: [] },
+      })
+    ).status,
+  ).toBe(200)
+  const key = `preview:${fx.users.editor.id}`
+  try {
+    await drizzleOf(fx.payload)
+      .execute(sql`INSERT INTO rate_limit_counters (bucket_key, window_start, count)
+      VALUES (${key}, floor(extract(epoch FROM now()) * 1000 / 60000) * 60000, 1000000)
+      ON CONFLICT (bucket_key) DO UPDATE SET window_start = EXCLUDED.window_start, count = EXCLUDED.count`)
+    const res = await call(source, '/recovery', 'GET', 'editor')
+    expect(res.status).toBe(200)
+    expect((await res.json()).capture).toMatchObject({
+      combineContext: null,
+      combineUnavailableReason: 'comparison-unavailable',
+      content: { 'lesson:own': { overview: 'Prose survives a preview limit' } },
+    })
+    // Capture uses its own recovery budget and never runs the blocked comparison.
+    const current = await call(source, '/recovery', 'GET', 'editor')
+    const next = (await current.json()).token
+    expect(
+      (
+        await call(source, '/recovery', 'POST', 'editor', {
+          generation: next.generation,
+          expectedRevision: next.revision,
+          document: { lessons: [{ id: 'own', overview: 'New prose saved under preview limit' }] },
+          combineContext: { mergeParent: other, resolvedKeys: [] },
+        })
+      ).status,
+    ).toBe(200)
+  } finally {
+    await drizzleOf(fx.payload).execute(
+      sql`DELETE FROM rate_limit_counters WHERE bucket_key = ${key}`,
+    )
+  }
 })
