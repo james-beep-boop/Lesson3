@@ -579,14 +579,18 @@ describe('Combine draft metadata over the wire', () => {
         combineContext: { mergeParent: foreign.id, resolvedKeys: [] },
       })
       expect(rejected.status).toBe(200)
-      // Metadata never blocks prose capture; the stored id remains untrusted until restore.
-      // A forged stored id is reauthorized on GET too, independently of the capture gate.
+      // Metadata never blocks prose capture. The stored id is the owner's own note: restore returns
+      // it, and combine-preview — the one gate for the pair — refuses it, so the client continues
+      // with an ordinary draft.
       await drizzleOf(fx.payload).execute(
         sql`UPDATE edit_recovery SET combine_context = ${JSON.stringify({ mergeParent: foreign.id, resolvedKeys: [] })}::jsonb WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${source}`,
       )
       const forged = await (await call(source, '/recovery', 'GET', 'editor')).json()
-      expect(forged.capture.combineContext).toBeNull()
-      expect(forged.capture.combineUnavailable).toBe(true)
+      expect(forged.capture.combineContext).toEqual({ mergeParent: foreign.id, resolvedKeys: [] })
+      expect(forged.capture.content).toBeTruthy()
+      expect(
+        (await call(source, `/combine-preview?with=${foreign.id}`, 'GET', 'editor')).status,
+      ).toBe(400)
       await drizzleOf(fx.payload).execute(
         sql`UPDATE edit_recovery SET combine_context = ${JSON.stringify({ mergeParent: other, resolvedKeys: [] })}::jsonb WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${source}`,
       )
@@ -607,10 +611,11 @@ describe('Combine draft metadata over the wire', () => {
       id: other,
       overrideAccess: true,
     })
+    // A deleted second parent: the prose is still offered, and the preview's 404 is what tells the
+    // client to continue as an ordinary draft.
     const fallback = await (await call(source, '/recovery', 'GET', 'editor')).json()
-    expect(fallback.capture.combineContext).toBeNull()
-    expect(fallback.capture.combineUnavailable).toBe(true)
     expect(fallback.capture.content).toBeTruthy()
+    expect((await call(source, `/combine-preview?with=${other}`, 'GET', 'editor')).status).toBe(404)
     await fx.payload.delete({
       collection: 'lesson-bundle-versions',
       id: source,
@@ -620,7 +625,7 @@ describe('Combine draft metadata over the wire', () => {
   })
 })
 
-it('returns ordinary draft prose when the shared preview budget is exhausted', async () => {
+it('restore neither needs nor spends the shared preview budget', async () => {
   const source = await makeVersion('7.1.1')
   const other = await makeVersion('7.1.2')
   const held = await startAs(source, 'editor')
@@ -642,9 +647,10 @@ it('returns ordinary draft prose when the shared preview budget is exhausted', a
       ON CONFLICT (bucket_key) DO UPDATE SET window_start = EXCLUDED.window_start, count = EXCLUDED.count`)
     const res = await call(source, '/recovery', 'GET', 'editor')
     expect(res.status).toBe(200)
+    // The note comes back intact, so the client can retry the preview once the budget allows —
+    // a rate limit no longer turns the draft into an ordinary one.
     expect((await res.json()).capture).toMatchObject({
-      combineContext: null,
-      combineUnavailableReason: 'comparison-unavailable',
+      combineContext: { mergeParent: other, resolvedKeys: [] },
       content: { 'lesson:own': { overview: 'Prose survives a preview limit' } },
     })
     // Capture uses its own recovery budget and never runs the blocked comparison.

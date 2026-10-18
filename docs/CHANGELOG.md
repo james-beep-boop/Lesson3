@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Restoring an unfinished combination keeps the other version when the comparison is only briefly
+  unavailable (for example after many requests): it offers *Retry combination* instead of turning
+  the draft into an ordinary one.
+
 - The editor's *Back* button is readable in dark mode again (its text had turned near-white on its
   light background, so it looked blank on phones and computers set to dark mode).
 

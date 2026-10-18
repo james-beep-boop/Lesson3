@@ -150,8 +150,6 @@ export const fingerprint = (s: string): string => {
  */
 export type OfferedCapture = {
   combineContext?: import('../../lib/combine/draft').CombineContext | null
-  combineUnavailable?: boolean
-  combineUnavailableReason?: 'parent-unavailable' | 'comparison-unavailable'
   content: Record<string, Record<string, string | null>> | null
   /**
    * The SOURCE version's `updatedAt` as it was when the session began — the value `stale` is computed

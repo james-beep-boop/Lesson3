@@ -1,6 +1,10 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({ read: vi.fn(), find: vi.fn() }))
-vi.mock('@/lib/readBundle', () => ({ findReadableVersion: mock.read }))
+// The real `findReadableVersionChoices`, so the assertion below checks the query it actually sends.
+vi.mock('@/lib/readBundle', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/readBundle')>()),
+  findReadableVersion: mock.read,
+}))
 vi.mock('@/lib/editRecovery/kernel', () => ({ hasUnsavedWork: async () => false }))
 vi.mock('@/lib/systemFlags', () => ({ systemFlagsForRender: async () => ({}) }))
 vi.mock('@/components/LessonControls', () => ({ default: () => null }))

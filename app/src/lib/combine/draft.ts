@@ -1,3 +1,5 @@
+import { relId } from '../relId'
+
 /** Bounded, private recovery metadata; never exported or treated as version content. */
 export type CombineContext = { mergeParent: number; resolvedKeys: string[] }
 export const MAX_COMBINE_CONTEXT_BYTES = 64 * 1024
@@ -11,9 +13,9 @@ export function parseCombineContext(value: unknown): CombineContext | null {
   const row = value as Record<string, unknown>
   if (
     Object.keys(row).some((key) => key !== 'mergeParent' && key !== 'resolvedKeys') ||
-    !Number.isSafeInteger(row.mergeParent) ||
-    Number(row.mergeParent) <= 0 ||
-    Number(row.mergeParent) > 2147483647 ||
+    // A JSON number only (never a digit string), in the schema's id range — `relId` owns that range.
+    typeof row.mergeParent !== 'number' ||
+    relId(row.mergeParent) === null ||
     !Array.isArray(row.resolvedKeys) ||
     row.resolvedKeys.length > 1000 ||
     row.resolvedKeys.some(

@@ -68,6 +68,35 @@ export async function findReadableVersions(
   payload: Payload,
   args: { planId: number | string; user: User | null },
 ): Promise<ReadableVersionListItem[]> {
+  return (await findPlanVersions(payload, args, {
+    semver: true,
+    title: true,
+    createdAt: true,
+    meta: { subject: true, grade: true, substrand_name: true },
+    // The two OPTIONAL deliverable groups — the lesson page's T2 document strip decides its
+    // buttons from them (`versionDeliverables`). A plan's version set is naturally bounded.
+    finalExplanation: true,
+    summaryTable: true,
+  })) as ReadableVersionListItem[]
+}
+
+/** The same caller-scoped list, id and version number only — the Combine version picker's need. */
+export async function findReadableVersionChoices(
+  payload: Payload,
+  args: { planId: number | string; user: User | null },
+): Promise<{ id: number; semver?: string | null }[]> {
+  return (await findPlanVersions(payload, args, { semver: true })).map(({ id, semver }) => ({
+    id,
+    semver,
+  }))
+}
+
+/** The ONE visibility rule for a plan's version list; callers choose only the projection. */
+async function findPlanVersions(
+  payload: Payload,
+  args: { planId: number | string; user: User | null },
+  select: LessonBundleVersionsSelect<true>,
+): Promise<Pick<LessonBundleVersion, 'id' | 'semver'>[]> {
   const { docs } = await payload.find({
     collection: 'lesson-bundle-versions',
     where: { lessonPlan: { equals: args.planId } },
@@ -76,18 +105,9 @@ export async function findReadableVersions(
     depth: 0,
     pagination: false,
     sort: 'createdAt',
-    select: {
-      semver: true,
-      title: true,
-      createdAt: true,
-      meta: { subject: true, grade: true, substrand_name: true },
-      // The two OPTIONAL deliverable groups — the lesson page's T2 document strip decides its
-      // buttons from them (`versionDeliverables`). A plan's version set is naturally bounded.
-      finalExplanation: true,
-      summaryTable: true,
-    },
+    select,
   })
-  return docs as ReadableVersionListItem[]
+  return docs as Pick<LessonBundleVersion, 'id' | 'semver'>[]
 }
 
 type ReadableVersionArgs = {

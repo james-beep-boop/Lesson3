@@ -12,6 +12,11 @@ const mock = vi.hoisted(() => ({
   load: vi.fn(),
   keep: vi.fn(),
   setProcessing: vi.fn(),
+  // ⚑ STABLE across renders, like Payload's own form setters. A fresh function per render made the
+  // apply effect (which lists `setModified` as a dependency) silently re-run and succeed after the
+  // deliberate failure, so the retry test passed or failed on timing (2026-10-18).
+  setModified: vi.fn(),
+  setDisabled: vi.fn(),
   saved: {
     id: 1,
     lessonPlan: 7,
@@ -52,10 +57,8 @@ vi.mock('@payloadcms/ui', () => ({
     dispatchFields: mock.dispatch,
     getData: mock.getData,
     setProcessing: mock.setProcessing,
-    setModified: (value: boolean) => {
-      mock.modified = value
-    },
-    setDisabled: vi.fn(),
+    setModified: mock.setModified,
+    setDisabled: mock.setDisabled,
     reset: mock.reset,
   }),
   useFormModified: () => mock.modified,
@@ -93,6 +96,7 @@ vi.mock('@/components/EditRecovery/RestorePrompt', () => ({
 vi.mock('@/components/EditRecovery/Indicator', () => ({ EditRecoveryIndicator: () => null }))
 vi.mock('@/components/LessonControls/EditJumpNav', () => ({ default: () => null }))
 import Controls from '@/components/LessonControls'
+import { ComparisonError, PARENT_GONE } from '@/components/CombineVersions/comparisonError'
 beforeEach(() => {
   vi.clearAllMocks()
   mock.modified = false
@@ -108,6 +112,9 @@ beforeEach(() => {
     mock.entry = { phase: 'clear' }
   })
   mock.load.mockResolvedValue(mock.comparison)
+  mock.setModified.mockImplementation((value: boolean) => {
+    mock.modified = value
+  })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ officialVersion: 99 })))
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1280 })
 })
@@ -161,6 +168,22 @@ it('retries a restored draft comparison without applying the prose twice or losi
   expect(mock.getData().lessons[0].overview).toBe('private draft words')
   expect(mock.load).toHaveBeenLastCalledWith(1, 2)
   expect(screen.getByText('Combine choices remaining: 0')).toBeTruthy()
+})
+it('continues as an ordinary draft when the preview refuses the stored second parent', async () => {
+  // Restore returns the stored note unchecked; combine-preview's refusal (here a 404: deleted or
+  // unreadable) is what turns the draft into an ordinary one — not a retry, which could never succeed.
+  mock.entry = offer()
+  mock.load.mockRejectedValueOnce(new ComparisonError(404))
+  render(<Controls />)
+  fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }))
+  fireEvent.click(screen.getByText('Restore test draft'))
+  await screen.findByText(PARENT_GONE)
+  expect(screen.queryByRole('button', { name: 'Retry combination' })).toBeNull()
+  expect(screen.queryByText(/Combine choices remaining/)).toBeNull()
+  expect(mock.getData().lessons[0].overview).toBe('private draft words')
+  expect(
+    (screen.getByRole('button', { name: 'Save as new version' }) as HTMLButtonElement).disabled,
+  ).toBe(false)
 })
 it('explains when restoring an ordinary draft cancels the new combination', async () => {
   mock.entry = offer(false)

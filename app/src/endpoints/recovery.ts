@@ -55,9 +55,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 import { isEditorFor, isSiteAdmin, toId } from '../access'
 import { canDeleteVersionDoc } from '../access/versioning'
 import { findReadableVersion } from '../lib/readBundle'
-import { parseCombineContext, conflictKey, type CombineContext } from '../lib/combine/draft'
-import { findCommonAncestor } from '../lib/combine/ancestry'
-import { planCombine } from '../lib/combine/engine'
+import { parseCombineContext, type CombineContext } from '../lib/combine/draft'
 import { relId } from '../lib/relId'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import {
@@ -128,48 +126,22 @@ function requirePlanId(version: LessonBundleVersion): number {
   return id
 }
 
-/** Optional session metadata is untrusted until restore. Never use it as an access grant. */
-async function restoreContext(
-  req: PayloadRequest,
-  source: LessonBundleVersion,
-  value: unknown,
-): Promise<{
-  context: CombineContext | null
-  reason?: 'parent-unavailable' | 'comparison-unavailable'
-}> {
-  if (value == null) return { context: null }
+/**
+ * The owner's stored Combine note, shape-checked exactly as capture checks it (`parseCombineContext`);
+ * malformed metadata reads as none rather than hiding the prose.
+ *
+ * ⚑ NOT AUTHORIZED HERE, deliberately (simplify, 2026-10-18). The note is the caller's own draft row
+ * — this endpoint is owner-only — so returning the id they stored grants nothing. The client's very
+ * next step is `combine-preview`, which is the ONE place that authorizes the pair (readable, same
+ * plan, editing access), rate-limits it, and computes the current conflicts; a refusal there turns
+ * the draft into an ordinary one. Re-running that gate here computed every comparison twice, kept a
+ * second copy of the authorization rule, and let a rate-limited restore permanently drop the note.
+ */
+function storedContext(value: unknown): CombineContext | null {
   try {
-    const context = parseCombineContext(value)
-    if (!context) return { context: null }
-    // Charge the same budget as combine-preview BEFORE parent lookup, ancestry or engine work.
-    // A denied/unavailable optional comparison still returns the owner's recoverable prose.
-    if (await enforceUserRateLimit(req, 'preview'))
-      return { context: null, reason: 'comparison-unavailable' }
-    const other = await findReadableVersion(req.payload, {
-      id: context.mergeParent,
-      user: req.user as User,
-      req,
-    })
-    if (
-      !other ||
-      other.id === source.id ||
-      relId(other.lessonPlan) !== requirePlanId(source) ||
-      !isEditorFor(req.user as User, toId(other.subjectGrade))
-    ) {
-      return { context: null, reason: 'parent-unavailable' }
-    }
-    const base = await findCommonAncestor(req, req.user as User, source, other)
-    const comparison = planCombine({ base, a: source, b: other })
-    const allowed = new Set(comparison.ok ? comparison.conflicts.map(conflictKey) : [])
-    return {
-      context: { ...context, resolvedKeys: context.resolvedKeys.filter((key) => allowed.has(key)) },
-    }
+    return parseCombineContext(value)
   } catch {
-    req.payload.logger.warn(
-      { sourceVersionId: source.id },
-      'Combine draft comparison unavailable; returning prose without Combine metadata',
-    )
-    return { context: null, reason: 'comparison-unavailable' }
+    return null
   }
 }
 
@@ -256,16 +228,12 @@ export const recoveryGetEndpoint: Endpoint = {
     })
     if (!active) return json({ capture: null })
 
-    const restored = await restoreContext(req, version, active.combineContext)
-
     // The client compares these against the source it just loaded; a mismatch means the capture is
     // view/copy/discard only and must never be applied (SPEC §5).
     return json({
       capture: {
         content: active.content,
-        combineContext: restored.context,
-        combineUnavailable: restored.reason !== undefined,
-        combineUnavailableReason: restored.reason,
+        combineContext: storedContext(active.combineContext),
         // ⚑ When the CAPTURE was written — the row's own `updated_at`, which is what the restore
         // prompt shows the teacher. Distinct from `baseUpdatedAt` below, which is the SOURCE
         // VERSION's mtime and exists only for the staleness comparison; showing that one dates a

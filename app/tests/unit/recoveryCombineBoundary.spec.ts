@@ -63,43 +63,26 @@ it('capture does no optional parent lookup or comparison, so those failures cann
     expect.objectContaining({ combineContext: context }),
   )
 })
-it.each(['parent', 'ancestor', 'engine', 'limiter'])(
-  'returns prose as an ordinary draft when optional %s validation fails',
-  async (failure) => {
-    if (failure === 'parent')
-      mock.read.mockResolvedValueOnce(source).mockRejectedValue(new Error('unavailable'))
-    if (failure === 'ancestor') mock.base.mockRejectedValue(new Error('unavailable'))
-    if (failure === 'engine')
-      mock.plan.mockImplementation(() => {
-        throw new Error('unavailable')
-      })
-    if (failure === 'limiter') mock.limit.mockRejectedValue(new Error('unavailable'))
-    const res = await recoveryGetEndpoint.handler(request())
-    expect(res.status).toBe(200)
-    expect((await res.json()).capture).toMatchObject({
-      content: prose,
-      combineContext: null,
-      combineUnavailableReason: 'comparison-unavailable',
-    })
-  },
-)
-it('an exhausted preview budget prevents expensive work without hiding the prose', async () => {
-  mock.limit.mockResolvedValue(new Response(null, { status: 429 }))
+it("restore returns the owner's stored note with no parent lookup, comparison or preview charge", async () => {
+  // combine-preview, which the client calls next, is the ONE place that authorizes the pair and
+  // computes conflicts; restore re-running it doubled the work and let a rate limit drop the note.
   const res = await recoveryGetEndpoint.handler(request())
-  expect((await res.json()).capture.content).toEqual(prose)
-  expect(mock.limit).toHaveBeenCalledWith(expect.anything(), 'preview')
-  expect(mock.read).toHaveBeenCalledTimes(1)
+  expect(res.status).toBe(200)
+  expect((await res.json()).capture).toMatchObject({ content: prose, combineContext: context })
+  expect(mock.read).toHaveBeenCalledTimes(1) // the source version only
+  expect(mock.limit).not.toHaveBeenCalledWith(expect.anything(), 'preview')
   expect(mock.base).not.toHaveBeenCalled()
   expect(mock.plan).not.toHaveBeenCalled()
 })
-it('ordinary drafts do not consume the comparison budget', async () => {
+it('malformed stored metadata reads as none and never hides the prose', async () => {
   mock.active.mockResolvedValue({
     content: prose,
-    combineContext: null,
+    combineContext: { mergeParent: 'not an id', resolvedKeys: [] },
     token: { updatedAt: source.updatedAt },
     baseUpdatedAt: source.updatedAt,
     schemaVersion: '1',
   })
-  expect((await recoveryGetEndpoint.handler(request())).status).toBe(200)
-  expect(mock.limit).not.toHaveBeenCalled()
+  const res = await recoveryGetEndpoint.handler(request())
+  expect(res.status).toBe(200)
+  expect((await res.json()).capture).toMatchObject({ content: prose, combineContext: null })
 })

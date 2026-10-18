@@ -89,6 +89,18 @@ export type FieldRender =
   | { kind: 'plain'; text: string }
 
 /**
+ * The statement shown for a change the diff engine cannot draw. ⚑ Three different statements, because
+ * they mean different things to a teacher: the field is cleared, its paragraphs moved (a real change to
+ * the generated document), or only invisible spacing differs. Shared by the restore prompt and the
+ * Combine review so the wording cannot drift between them.
+ */
+export const RENDER_NOTE = {
+  emptied: 'Emptied',
+  paragraphs: 'Paragraph breaks changed — the words are the same',
+  spacing: 'Spacing only — no visible change',
+} as const satisfies Record<'emptied' | 'paragraphs' | 'spacing', string>
+
+/**
  * The LINE SHAPE of a prose value: one entry per paragraph, inner runs of whitespace collapsed.
  *
  * Comparing two of these separates the two invisible cases cleanly, which is the whole point:

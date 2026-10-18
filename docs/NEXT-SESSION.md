@@ -43,8 +43,8 @@ offers parent deletion, creates Not Official, and leaves Official unchanged. Alr
 messages require equality with the descendant after applying the engine's overlay.
 
 Unfinished combinations capture only the second-parent id and resolved field keys (64 KiB cap),
-atomically with draft prose. Restore reauthorizes that id and plan, reruns preview, preserves text,
-and asks for unresolved choices. Missing second parents yield ordinary drafts with an explanation.
+atomically with draft prose. Restore returns that id to its owner; the following Combine preview
+authorizes it and computes current conflicts, preserving text and asking for unresolved choices. Missing second parents yield ordinary drafts with an explanation.
 **Operator decision: do not retain drafts after the editing source is deleted.** Keep the existing
 cascade; an editor still open explains a failed save and leaves text available for copying.
 
@@ -68,6 +68,12 @@ stack. Never tear down another agent's stack. Always fetch before comparing bran
    second parent.
 4. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
    allow drafts to hold structural edits.
+
+**Deferred from /simplify (2026-10-18), each its own change:** one state machine for LessonControls'
+five Combine `useState`s (their reset sites have drifted); save-as-new returning which parent is
+missing, replacing the client probe in `CombineVersions/saveFailure.ts`; a `ConflictSides` component
+for the duplicated A/B markup; one module-level scope/whitelist table for `captureFieldPath` and
+`applyCapture` in `lib/editRecovery/projection.ts`.
 
 **Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
 predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections

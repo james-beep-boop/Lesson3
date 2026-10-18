@@ -3004,6 +3004,12 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   // about it. Do not re-add a `display: none` here.
 }
 
+// Both Combine surfaces show prose sides verbatim; wrap rather than scroll sideways.
+.modal--combine pre,
+.lp-combine pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 // Combine uses the existing modal and native form state, including on shared school devices.
 .modal--combine {
   width: min(54rem, 95vw);
@@ -3015,10 +3021,6 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     width: 100%;
     margin: 0.75rem 0;
   }
-  pre {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
 }
 .lp-combine {
   max-height: 45vh;
@@ -3027,10 +3029,6 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   border: 1px solid var(--theme-elevation-200);
   fieldset {
     margin: 1rem 0;
-  }
-  pre {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
   }
   label {
     display: block;
