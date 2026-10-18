@@ -100,8 +100,8 @@ The app is built and validated end to end. Ingest, versioning, field-level RBAC,
 frontend, editing/recovery/preview, and high-fidelity DOCX/PDF export are live. The canonical GitHub
 gate builds the real Compose stack, applies migrations to disposable Postgres, and runs unit,
 integration, HTTP, browser, lint, format, contract, and production-audit checks. The Rock 5B remains
-the deployment verification environment. See `docs/NEXT-SESSION.md` for dated deployment evidence and
-the current next steps; re-measure those claims rather than treating the handoff as live telemetry.
+the deployment verification environment. See `docs/NEXT-SESSION.md` for the current next steps and
+`docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md` for dated deployment evidence; re-measure those claims rather than treating the handoff as live telemetry.
 
 ## Licence
 

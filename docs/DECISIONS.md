@@ -11,6 +11,17 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — NEXT-SESSION holds current state only; its history moved to the archive
+
+`docs/NEXT-SESSION.md` had grown to ~5,100 lines of dated handoff blocks above which the current state
+sat, and every new session (and every new agent) had to find the live section and ignore the rest.
+Operator decision: the history moved verbatim to `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md`
+(with the "Editor"/"draft" vocabulary caveat that has to travel with it); NEXT-SESSION is now orientation,
+current state, the phase plan and a handoff prompt — about 100 lines. Keep it that way: when a phase
+lands, rewrite the current-state section rather than stacking a new dated block on top, and move a
+superseded block to the archive if it records something worth keeping. Code comments and older
+records that say "see NEXT-SESSION" for a dated item now mean the archive file (it says so).
+
 ## 2026-10-18 — "Exit edit mode" replaces "Decide later" in the restore prompt
 
 Operator question: what exactly do the prompt's three buttons do, and are all three needed? Answer:
