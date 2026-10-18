@@ -101,11 +101,23 @@ never rewritten; versions, Combine and edit recovery are unaffected.
 7. **Fix the help text**, which still says the button is "beneath a text field" or offers "a PDF
    from the Rock": `app/src/app/(frontend)/guide/page.tsx` (~line 428), `USER_GUIDE.md` (~line 228),
    and the editor's Help dialog in `LessonControls/index.tsx` (~line 1064).
+8. **A "New feature" note at the top of the dialog — not a badge on the button.** Operator,
+   2026-10-18: the feature still feels experimental, but "(beta)" on the toolbar would crowd a row
+   that already had to be fixed for wrapping, and is jargon to many teachers. The button stays
+   "Insert link". The dialog opens with a short note, proposed wording (list it for approval with
+   the other strings):
+
+   > **New feature.** Paste an address from ARES or the web. It is added to the text in brackets
+   > and becomes a clickable link in the Word and PDF documents. Tell your administrator if a link
+   > does not work.
+
+   ⚑ **Removal condition, decided now so the note does not stay forever:** remove it once Plan A has
+   been used in a school for a term with no link problems reported. Record the removal in DECISIONS.
 
 **Tests.** Unit: the normaliser (each tracker form, ARES host/alias/Kolibri rewrite, a non-ARES
 address untouched, malformed input), `validExternalUrl` for `http`, the label insertion. Browser:
 the button is enabled only in the four columns; pasting an `http://ares.local/…` address and a
-tracker-wrapped address inserts the stored form; the label form; the button is absent during the
+tracker-wrapped address inserts the stored form; the label form; the "New feature" note shows in the dialog; the button is absent during the
 Combine review; the PDF section absent when unconfigured. Wire: the PDF file endpoint's new public
 access as described in step 6, alongside its existing 404 cases; no other endpoint changes.
 
