@@ -95,6 +95,11 @@ export const EditRecovery: CollectionConfig = {
   },
   fields: [
     {
+      // Only a second-parent id and resolved field keys; bounded and authorized by recovery endpoints.
+      name: 'combineContext',
+      type: 'json',
+    },
+    {
       name: 'user',
       type: 'relationship',
       relationTo: 'users',

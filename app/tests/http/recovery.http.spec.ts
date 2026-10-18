@@ -31,6 +31,8 @@
  * Runs against the app the compose stack serves; see the header of `endpoints.http.spec.ts`.
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { sql } from '@payloadcms/db-postgres'
+import { drizzleOf } from '../helpers/db'
 
 import {
   MARK,
@@ -532,5 +534,87 @@ describe('S6 — op 7 discloses counts, only to someone who may delete', () => {
     const { status, body } = await countAs(v, 'teacher')
     expect(status).toBe(403)
     expect(body).not.toHaveProperty('otherUsers')
+  })
+})
+
+describe('Combine draft metadata over the wire', () => {
+  it('round trips owner-only metadata and refuses a cross-plan second parent', async () => {
+    const source = await makeVersion('7.0.1')
+    const other = await makeVersion('7.0.2')
+    const held = await startAs(source, 'editor')
+    const captured = await call(source, '/recovery', 'POST', 'editor', {
+      generation: held.generation,
+      expectedRevision: held.revision,
+      document: minimalBundleContent(),
+      combineContext: { mergeParent: other, resolvedKeys: [] },
+    })
+    expect(captured.status).toBe(200)
+    const restored = await (await call(source, '/recovery', 'GET', 'editor')).json()
+    expect(restored.capture.combineContext).toEqual({ mergeParent: other, resolvedKeys: [] })
+    expect(await (await call(source, '/recovery', 'GET', 'subjectAdmin')).json()).toEqual({
+      capture: null,
+    })
+    const foreignPlan = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}foreign combine`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })
+    const foreign = await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...minimalBundleContent(),
+        lessonPlan: foreignPlan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.1',
+        title: `${MARK}foreign combine`,
+      } as never,
+      overrideAccess: true,
+    })
+    try {
+      const next = (await captured.json()).token
+      const rejected = await call(source, '/recovery', 'POST', 'editor', {
+        generation: next.generation,
+        expectedRevision: next.revision,
+        document: minimalBundleContent(),
+        combineContext: { mergeParent: foreign.id, resolvedKeys: [] },
+      })
+      expect(rejected.status).toBe(400)
+      // A forged stored id is reauthorized on GET too, independently of the capture gate.
+      await drizzleOf(fx.payload).execute(
+        sql`UPDATE edit_recovery SET combine_context = ${JSON.stringify({ mergeParent: foreign.id, resolvedKeys: [] })}::jsonb WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${source}`,
+      )
+      const forged = await (await call(source, '/recovery', 'GET', 'editor')).json()
+      expect(forged.capture.combineContext).toBeNull()
+      expect(forged.capture.combineUnavailable).toBe(true)
+      await drizzleOf(fx.payload).execute(
+        sql`UPDATE edit_recovery SET combine_context = ${JSON.stringify({ mergeParent: other, resolvedKeys: [] })}::jsonb WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${source}`,
+      )
+
+      expect(
+        (await (await call(source, '/recovery', 'GET', 'editor')).json()).capture.combineContext
+          .mergeParent,
+      ).toBe(other)
+    } finally {
+      await fx.payload.delete({
+        collection: 'lesson-plans',
+        id: foreignPlan.id,
+        overrideAccess: true,
+      })
+    }
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: other,
+      overrideAccess: true,
+    })
+    const fallback = await (await call(source, '/recovery', 'GET', 'editor')).json()
+    expect(fallback.capture.combineContext).toBeNull()
+    expect(fallback.capture.combineUnavailable).toBe(true)
+    expect(fallback.capture.content).toBeTruthy()
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: source,
+      overrideAccess: true,
+    })
+    expect((await call(source, '/recovery', 'GET', 'editor')).status).toBe(404)
   })
 })

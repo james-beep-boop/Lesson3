@@ -178,11 +178,20 @@ export function useEditRecovery(args: {
    */
   changeSignal: unknown
   /** The live form document. Called at capture time so the snapshot is never stale. */
+  getCombineContext?: () => import('../../lib/combine/draft').CombineContext | null
   getDocument: () => Record<string, unknown>
   /** Registers the pre-expiry flush; see `flushRegistry`. */
   registerFlush: (entry: Registration) => () => void
 }): UseEditRecovery {
-  const { versionId, active, modified, changeSignal, getDocument, registerFlush } = args
+  const {
+    versionId,
+    active,
+    modified,
+    changeSignal,
+    getDocument,
+    getCombineContext,
+    registerFlush,
+  } = args
 
   const [status, setStatus] = useState<RecoveryStatus>({ kind: 'off' })
   const [entry, setEntry] = useState<RecoveryEntry>({ phase: 'idle' })
@@ -283,9 +292,9 @@ export function useEditRecovery(args: {
   // Refs mirroring props, so the registered flush and the timers read CURRENT values rather than the
   // closure they were created in. ⚑ Assigned in an effect, not during render: writing a ref while
   // rendering is a React rule violation (and the lint enforces it), because a render may be discarded.
-  const live = useRef({ active, modified, getDocument, versionId, changeSignal })
+  const live = useRef({ active, modified, getDocument, getCombineContext, versionId, changeSignal })
   useEffect(() => {
-    live.current = { active, modified, getDocument, versionId, changeSignal }
+    live.current = { active, modified, getDocument, getCombineContext, versionId, changeSignal }
   })
 
   /**
@@ -343,6 +352,7 @@ export function useEditRecovery(args: {
     const body = JSON.stringify({
       generation: held.generation,
       expectedRevision: held.revision,
+      combineContext: live.current.getCombineContext?.(),
       document,
     })
 

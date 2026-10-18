@@ -149,6 +149,8 @@ export const fingerprint = (s: string): string => {
  * "warns", which would have let a stale overlay land on a changed source.
  */
 export type OfferedCapture = {
+  combineContext?: import('../../lib/combine/draft').CombineContext | null
+  combineUnavailable?: boolean
   content: Record<string, Record<string, string | null>> | null
   /**
    * The SOURCE version's `updatedAt` as it was when the session began — the value `stale` is computed

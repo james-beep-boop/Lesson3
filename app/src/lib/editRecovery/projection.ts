@@ -453,3 +453,36 @@ export const applyCapture = (
     report: { ...report, droppedKeys: Object.keys(map).filter((k) => !seen.has(k)) },
   }
 }
+
+/** Locate a validated prose leaf in Payload's live form. Row identity and whitelists stay here. */
+export function captureFieldPath(doc: Doc, key: string, field: string): string | null {
+  const { scope, rowId } = parseKey(key)
+  const allowed: Record<string, readonly string[]> = {
+    lesson: LESSON_PROSE,
+    slo: SLO_PROSE,
+    prompt: SUMMARY_PROMPT_PROSE,
+    framework: FRAMEWORK_PROSE,
+    finalExplanation: FINAL_EXPLANATION_PROSE,
+    section: SECTION_PROSE,
+    summaryLesson: SUMMARY_LESSON_PROSE,
+  }
+  if (!Object.hasOwn(allowed, scope) || !allowed[scope].includes(field)) return null
+  if (scope === FINAL_EXPLANATION_KEY) return `finalExplanation.${field}`
+  for (const [i, lesson] of asRows(doc.lessons).entries()) {
+    if (String(lesson.id) === rowId) {
+      if (scope === 'lesson') return `lessons.${i}.${field}`
+      if (scope === 'slo') return `lessons.${i}.slo.${field}`
+      if (scope === 'prompt') return `lessons.${i}.summaryTablePrompt.${field}`
+    }
+    const j = asRows(lesson.framework).findIndex((row) => String(row.id) === rowId)
+    if (scope === 'framework' && j >= 0) return `lessons.${i}.framework.${j}.${field}`
+  }
+  const sections = asRows(asDoc(doc.finalExplanation)?.sections)
+  const summaries = asRows(asDoc(doc.summaryTable)?.lessons)
+  const rows = scope === 'section' ? sections : scope === 'summaryLesson' ? summaries : []
+  const index = rows.findIndex((row) => String(row.id) === rowId)
+  if (index < 0) return null
+  return scope === 'section'
+    ? `finalExplanation.sections.${index}.${field}`
+    : `summaryTable.lessons.${index}.${field}`
+}
