@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Approved distinct release and descendant advice
+
+Operator approved both messages. Render the release-specific sentence for a system-identified
+ARES release and #406's original “builds on” sentence only for an actual descendant. The server's
+suggestion kind selects the wording; URL parameters cannot select or spoof it. Both messages keep
+the existing ordinary/restorable, owner and editing-access gates; unfinished Combine stays excluded.
+No change to the narrowed eligibility rule: shared history for newer ARES releases, otherwise only
+descendants, never sibling teacher versions. Button remains “Combine with {newer}”. #410 is merged;
+#413 targets main and remains ready for review only. No merge or deployment authorized.
+
+Refreshed proof with the approved copy: types/lint/format/build, **1,638 unit, 316 integration,
+402 wire** (+4 existing SMTP skips), and **127 full browser tests without retries** pass on
+lesson3-codex-probe:3103. Both real restore-prompt messages are asserted in the browser; unit tests
+pin both messages and suppress them for copy-only recovery and unfinished Combine. Sibling
+exclusion, explicit Save → Combine, resource retention and unchanged Official remain proved.
+Tracked test environment restored. Ready #413 only; no merge or deployment.
+
 ## 2026-10-19 — Narrow draft advice fallback; #410 merged
 
 Operator approved #410 and it merged as e8f56db after all CI jobs passed. #413 now targets main.

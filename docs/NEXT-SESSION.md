@@ -26,8 +26,9 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 retargeted to main and refreshed with that merge. Its fallback is narrowed: shared readable common
 history is allowed for newer ingested ARES releases only; other suggestions must descend from the
 draft's version. Never suggest sibling teacher versions. Selection changes are complete; refreshed proof below.
-Two distinct messages (release and descendant) were listed for approval; that answer is pending.
-Refreshed local proof on lesson3-codex-probe:3103: types/lint/format/build, **1,635 unit,
+Both distinct messages (release and descendant) are approved and implemented. The server-provided
+kind selects the message; refreshed proof passes.
+Refreshed local proof on lesson3-codex-probe:3103: types/lint/format/build, **1,638 unit,
 316 integration, 402 wire** (+4 existing SMTP skips), **127 full browser tests without retries**.
 Release → descendant → no suggestion is proved in integration; sibling-only browser restoration
 saves ordinary text without a hint or shortcut. Tracked test environment restored.
@@ -146,8 +147,8 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 2. #410 is approved and merged at e8f56db, including no-op down and the approved distinct refusal.
 3. #413 now targets main. Shared-history suggestions are restricted to newer ingested releases;
    fallback is only a newer descendant of the draft's version. All ordinary-draft guards remain.
-   Two separate messages are awaiting approval; previous shared-history copy remains for now.
-   Narrowed selection and its proof are complete; push for CI. Do not merge or deploy.
+   Both separate messages are approved and implemented; refreshed proof passes.
+   Narrowed selection, approved messages and their proof are complete. Ready #413; do not merge/deploy.
 4. Full phase 4 is not approved; #412 is closed. Keep both designs as deferred until teacher use
    justifies them. No new input storage, transfer operations or Combine state rewrite.
 5. Modes, connectivity, identity and school networking remain direction only; Plan A+, stable row
@@ -165,8 +166,10 @@ marker before any manual version-bump control ships. No extra cleanup is require
 - #410 refusal: “One version changes content only an administrator can edit, and the other changes
   the resource links. These changes cannot be combined automatically. Open one version and copy
   across the text you need from the other.”
-- Widened hint: “Version {newer} shares version history with version {source}. To bring your
-  changes together, save your draft as a version, then combine it with {newer}.”
+- Release hint: “There's a newer ARES release, version {newer}. To bring your changes onto it,
+  save your draft as a version, then combine it with {newer}.”
+- Descendant hint: “Version {newer} builds on version {source}. To bring your changes together,
+  save your draft as a version, then combine it with {newer}.”
 - Existing “Combine with {newer}” action stays unchanged. Implement these exact approved messages.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
@@ -200,5 +203,5 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 > Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
 > #409/#411/#410 are merged after green CI; latest #410 merge is e8f56db. #413 targets main.
 > Its fallback is narrowed to descendants only; shared-history siblings qualify only if they are
-> newer ingested ARES releases. Two proposed messages await approval. Do not merge/deploy #413.
+> newer ingested ARES releases. Both distinct messages are approved and implemented. Do not merge/deploy #413.
 > Full phase 4 stays deferred, #412 closed, both designs retained. Only lesson3-codex-probe:3103.

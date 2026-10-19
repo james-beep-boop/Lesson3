@@ -1313,7 +1313,11 @@ export default function LessonControls({
           busy={restoring}
           newerVersion={
             draftCombineSuggestion?.semver && semver
-              ? { source: semver, newer: draftCombineSuggestion.semver }
+              ? {
+                  source: semver,
+                  newer: draftCombineSuggestion.semver,
+                  kind: draftCombineSuggestion.kind,
+                }
               : undefined
           }
           onRestore={onRestore}

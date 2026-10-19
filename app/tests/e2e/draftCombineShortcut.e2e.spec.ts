@@ -46,8 +46,9 @@ async function prepare(page: Page, semver?: string) {
   return source
 }
 const save = (page: Page) => page.getByRole('button', { name: 'Save as new version', exact: true })
-async function restoreAndSave(page: Page, sourceId: number) {
+async function restoreAndSave(page: Page, sourceId: number, expectedHint: string) {
   await openEditor(page, sourceId)
+  await expect(restorePrompt(page)).toContainText(expectedHint)
   await restorePrompt(page).getByRole('button', { name: 'Restore my draft', exact: true }).click()
   await save(page).click()
   await expect(page).toHaveURL(/draftCombineWith=/)
@@ -66,7 +67,7 @@ test('offers ARES 2.0.0 for a draft on teacher 1.0.1, then saves before explicit
   await version(fx.version.id, '2.0.9') // Prefer the new ingested release to newer teacher work.
   await openEditor(page, source.id)
   await expect(restorePrompt(page)).toContainText(
-    `Version ${target.semver} shares version history with version ${source.semver}. To bring your changes together, save your draft as a version, then combine it with ${target.semver}.`,
+    `There's a newer ARES release, version ${target.semver}. To bring your changes onto it, save your draft as a version, then combine it with ${target.semver}.`,
   )
   await restorePrompt(page).getByRole('button', { name: 'Restore my draft', exact: true }).click()
   await expandLessons(page)
@@ -151,7 +152,11 @@ test('a newer sibling teacher version is not offered for an ordinary restored dr
 test('a target deleted after Save cannot destroy the newly saved text', async ({ page }) => {
   const source = await prepare(page)
   const target = await version(source.id)
-  const id = await restoreAndSave(page, source.id)
+  const id = await restoreAndSave(
+    page,
+    source.id,
+    `Version ${target.semver} builds on version ${source.semver}. To bring your changes together, save your draft as a version, then combine it with ${target.semver}.`,
+  )
   await expect(
     page.getByRole('button', { name: `Combine with ${target.semver}`, exact: true }),
   ).toBeVisible()
