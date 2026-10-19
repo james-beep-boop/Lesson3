@@ -2657,6 +2657,27 @@ a.btn.lp-btn {
     }
   }
 
+  &__loading {
+    display: grid;
+    min-height: 3rem;
+    place-items: center;
+
+    span {
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid var(--theme-elevation-150);
+      border-top-color: var(--theme-elevation-600);
+      border-radius: 50%;
+      animation: prose-link-loading 1s linear infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      span {
+        animation: none;
+      }
+    }
+  }
+
   &__files {
     max-height: 15rem;
     margin: 0;
@@ -3065,4 +3086,10 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
 .modal--combine [data-match-type='create'] {
   background: var(--app-diff-create-bg);
   color: var(--app-diff-create-ink);
+}
+
+@keyframes prose-link-loading {
+  to {
+    transform: rotate(360deg);
+  }
 }

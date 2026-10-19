@@ -15,6 +15,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
   incompatible protected edits and ambiguous lesson correspondence still refuse. An audited,
   metadata-only migration backfills unambiguous legacy release chains and descendant lineage.
 
+- Insert link skips PDF listing on installations without a configured folder. Configured pickers
+  show a busy indicator immediately, cancel requests when closed, and ignore late responses after
+  reopening. Web addresses stay usable while PDFs load or fail. Framework labels are shared across
+  fields and help, and pasted addresses are parsed once before ARES normalization.
+
 - Ordinary Save as new version now rechecks its source under the plan lock, as Combine does.
   Concurrent source deletion returns the existing version-not-found response instead of a server
   error. Revoked editing access takes precedence, and failed saves commit no new version.

@@ -122,9 +122,7 @@ test('invalid addresses and long labels keep the dialog open with actionable err
   )
 })
 
-test('an unconfigured or unreadable PDF folder is hidden and never blocks a pasted address', async ({
-  page,
-}) => {
+test('an unavailable PDF folder never blocks a pasted address', async ({ page }) => {
   await edit(page)
   await page.route('**/api/resource-library', (route) =>
     route.fulfill({ json: { configured: false, files: [] } }),
@@ -139,10 +137,74 @@ test('an unconfigured or unreadable PDF folder is hidden and never blocks a past
   await expect(page.getByRole('dialog', { name: 'Insert link' }).getByRole('alert')).toContainText(
     'You can still paste a web address.',
   )
-  await expect(page.getByRole('dialog')).not.toContainText('PDFs on the Rock')
+  await expect(page.getByRole('region', { name: 'PDFs on the Rock' })).toBeVisible()
   await page.getByLabel('Web address').fill('http://ares.local/modules/a.pdf')
   await page.getByRole('button', { name: 'Insert address', exact: true }).click()
   await expect(column(page)).toHaveValue(/\(http:\/\/ares.local\/modules\/a.pdf\)/)
+})
+
+test('a pending PDF request is cancelled when a web address is inserted', async ({ page }) => {
+  await edit(page)
+  let release!: () => void
+  const gate = new Promise<void>((done) => {
+    release = done
+  })
+  let started!: () => void
+  const requested = new Promise<void>((done) => {
+    started = done
+  })
+  await page.route('**/api/resource-library', async (route) => {
+    started()
+    await gate
+    await route.fulfill({ json: { configured: true, files: [] } }).catch(() => {})
+  })
+  await openLink(page)
+  await requested
+  await expect(page.getByRole('region', { name: 'PDFs on the Rock' })).toHaveAttribute(
+    'aria-busy',
+    'true',
+  )
+  await expect(page.getByText('No PDF files are available.')).toHaveCount(0)
+  await page.getByLabel('Web address').fill('http://ares.local/modules/pending.pdf')
+  await page.getByRole('button', { name: 'Insert address', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(column(page)).toHaveValue(/\(http:\/\/ares.local\/modules\/pending.pdf\)/)
+  release()
+})
+
+test('closing and reopening ignores a late PDF error and makes a fresh request', async ({
+  page,
+}) => {
+  await edit(page)
+  let calls = 0
+  let release!: () => void
+  const gate = new Promise<void>((done) => {
+    release = done
+  })
+  let finished!: () => void
+  const oldFinished = new Promise<void>((done) => {
+    finished = done
+  })
+  await page.route('**/api/resource-library', async (route) => {
+    if (++calls === 1) {
+      await gate
+      await route.fulfill({ status: 503, json: { error: 'Old failure' } }).catch(() => {})
+      finished()
+    } else await route.fulfill({ json: { configured: true, files: [] } })
+  })
+  await openLink(page)
+  await expect.poll(() => calls).toBe(1)
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await openLink(page)
+  await expect(page.getByText('No PDF files are available.')).toBeVisible()
+  expect(calls).toBe(2)
+  release()
+  await oldFinished
+  await expect(page.getByRole('dialog').getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'PDFs on the Rock' })).toHaveAttribute(
+    'aria-busy',
+    'false',
+  )
 })
 
 test('a configured PDF picker inserts the optional label and an absolute document link', async ({
