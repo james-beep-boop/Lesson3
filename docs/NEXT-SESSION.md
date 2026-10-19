@@ -22,7 +22,18 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-19
 
-**Latest operator update:** #410 approved and merged as `e8f56db` after all CI passed. #413 is
+**Latest operator update:** #413 merged as `ff1fe9d` after green CI; main also includes Claude's
+modes/network note correction `c617dc6`. The operator approved a separate Gotenberg maintenance PR.
+Current branch `chore/gotenberg-8-38`, from fetched main, updates both full/Arial and LibreOffice-only
+pins to 8.38.0 (LibreOffice 26.8.1.1). Existing Arial installer and generator remain unchanged.
+PDF comparison passes: 24 old/new document pairs, 440 page pairs, identical pixels at 96 DPI,
+geometry, text and hyperlink destinations. All three pinned ARES fixture gates pass. Types/lint/
+format/build, 1,638 unit, 316 integration, 402 wire (+4 existing SMTP skips) and deployment packaging
+checks and 127 full browser tests without retries pass. See DEPENDENCY-REVIEW-2026-10-19.md.
+Open a ready PR; do not merge or deploy. Full phase 4 and network feature implementation stay deferred.
+Earlier state/proof below describes the preceding Combine work.
+
+**Preceding Combine update (record):** #410 approved and merged as `e8f56db` after all CI passed. #413 is
 retargeted to main and refreshed with that merge. Its fallback is narrowed: shared readable common
 history is allowed for newer ingested ARES releases only; other suggestions must descend from the
 draft's version. Never suggest sibling teacher versions. Selection changes are complete; refreshed proof below.
@@ -68,7 +79,7 @@ small advice-only hint to common-ancestor versions, preferring a newer ingested 
 wording is approved. No frozen-input migration, transfer endpoints or reducer rewrite.
 The operator reports prior merges are being deployed; completion has not been confirmed.
 
-**Current branch:** `feat/draft-common-history-hint` (#413), refreshed and retargeted to main after #410 merged.
+**Merged Combine branch:** `feat/draft-common-history-hint` (#413), merged as ff1fe9d after green CI.
 The narrowed hint accepts a newer readable ingested release with a readable common ancestor;
 otherwise it suggests only a newer descendant of the draft's version, never a sibling teacher version; teacher 1.0.1 versus release 2.0.0 sharing 1.0.0 is
 covered. Owner/ordinary/restorable/editing-access guards remain, unfinished Combine excluded.
@@ -143,17 +154,17 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 
 ## Remaining work — latest operator order
 
-1. #409 is merged as 7169f84 and #411 as 815d35e after all CI passed. No deployment.
-2. #410 is approved and merged at e8f56db, including no-op down and the approved distinct refusal.
-3. #413 now targets main. Shared-history suggestions are restricted to newer ingested releases;
-   fallback is only a newer descendant of the draft's version. All ordinary-draft guards remain.
-   Both separate messages are approved and implemented; refreshed proof passes.
-   Narrowed selection, approved messages and their proof are complete. Ready #413; do not merge/deploy.
-4. Full phase 4 is not approved; #412 is closed. Keep both designs as deferred until teacher use
-   justifies them. No new input storage, transfer operations or Combine state rewrite.
-5. Modes, connectivity, identity and school networking remain direction only; Plan A+, stable row
-   identity and structural drafts remain deferred. ARES hardware installation/backup remains an
-   operations priority with the operator; ask ARES about ares.edu.
+1. #409/#411/#410/#413 are merged. Latest baseline is ff1fe9d, including the modes/network note
+   correction c617dc6. No deployment was performed by Codex.
+2. Review the completed separate Gotenberg 8.38.0 maintenance PR on `chore/gotenberg-8-38`: both image pins,
+   font preservation, DOCX/PDF comparison and isolated checks. Ready PR only; no merge or deploy.
+3. Next operational priority: validate installation, links, exports, permissions and backup/restore
+   on an actual ARES machine, with the operator coordinating access and deployment.
+4. Full phase 4 remains unapproved/deferred; #412 is closed. Keep both designs until teacher use
+   justifies direct updating. The approved Save → Combine flow is retained. Stable row identity is
+   a separate deferred proposal with no assigned phase number.
+5. Modes, connectivity, identity and school networking are direction only. Each needs a separate
+   proposal and approval. Ask ARES about ares.edu; Plan A+ and structural drafts remain deferred.
 
 Nonblocking #410 follow-ups: filter plans with an unlinked whole major > 1; recompute only affected
 release descendants in id order and remove linear row lookups; consolidate re-ingest's history
@@ -200,8 +211,8 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 ## Handoff prompt
 
-> Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> #409/#411/#410 are merged after green CI; latest #410 merge is e8f56db. #413 targets main.
-> Its fallback is narrowed to descendants only; shared-history siblings qualify only if they are
-> newer ingested ARES releases. Both distinct messages are approved and implemented. Do not merge/deploy #413.
-> Full phase 4 stays deferred, #412 closed, both designs retained. Only lesson3-codex-probe:3103.
+> Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC → this file and recent relevant DECISIONS.
+> #413 merged as ff1fe9d. Current work is the separate Gotenberg 8.38.0 maintenance branch,
+> chore/gotenberg-8-38: both image variants, Arial preserved, representative DOCX/PDF proof and
+> full isolated checks. See DEPENDENCY-REVIEW-2026-10-19.md. Ready PR only; do not merge/deploy.
+> Full phase 4 and network implementations remain deferred. Only lesson3-codex-probe:3103.

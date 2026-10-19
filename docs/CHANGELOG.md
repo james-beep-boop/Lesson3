@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Update both PDF converter images to Gotenberg 8.38.0 / LibreOffice 26.8.1.1 with pinned
+  multi-architecture digests. Arial remains installed in the custom image. Representative PDFs
+  retain identical rendering, page geometry and links across the update.
+
 - Restoring an ordinary draft can suggest a newer ARES release sharing earlier history with the
   teacher's version. The hint prefers a newer ingested release, then newer descendants of the
   draft's version by numeric version number; sibling teacher versions are excluded. The prompt

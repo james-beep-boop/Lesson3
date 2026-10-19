@@ -106,7 +106,7 @@ Using `scans/` summaries and the latest `DEPENDENCY-REVIEW`: for each outdated o
 decide whether it matters (reachable at runtime? prod or dev? known exploit path in this app?). Check
 Payload and Next.js changelogs between pinned and latest for security fixes. Check that each
 `overrides` entry is still needed. Check base images (`node:24.21.0-alpine`, `node:24.21.0-bookworm`),
-Gotenberg `8.37.0`, Postgres `16.15`, and GitHub Actions versions. Check `docx` against ARES's
+Gotenberg `8.38.0`, Postgres `16.15`, and GitHub Actions versions. Check `docx` against ARES's
 generator version. Apply release-age caution to routine updates; a necessary verified security fix is not blocked by an arbitrary waiting period. Note the one caret range in
 devDependencies (`@testing-library/dom`). Findings: `findings/C11-dependencies.md`.
 
