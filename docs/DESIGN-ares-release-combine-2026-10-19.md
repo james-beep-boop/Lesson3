@@ -16,7 +16,9 @@ Initial 1.0.0 stays a root; next majors stay Not Official and do not move Offici
 Audit existing re-ingested majors and backfilling only unambiguous release chains,
 then recomputing affected descendants' bounded lineage. Preserve content, version numbers, authors,
 timestamps, Official and recorded deleted ancestors. Report ambiguous/missing history rather than
-invent edges. Only trusted ingest creates whole-major versions; exclude authored and two-parent versions.
+invent edges. The immutable save-as-new path has allocated patches since its introduction (`db1a8c6`);
+the earlier in-place bundle bump selector predates this version model. A future bump chooser must
+introduce explicit ingest provenance first. Only trusted ingest currently creates whole-major versions; exclude authored and two-parent versions.
 Backfill only consecutive surviving majors sharing a nonempty sub-strand identity; preserve existing
 relationships and closures whose source was deleted, and report gaps or ambiguity. Detect cycles
 before any write to a plan. Migration SQL changes metadata only; undo uses the pre-migration backup. Future-only ancestry avoids that

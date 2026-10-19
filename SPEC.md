@@ -532,6 +532,9 @@ source still cascades its draft away; no draft is retained after source deletion
 - The versioned unit is the **whole sub-strand bundle**. Each save is an **immutable snapshot**.
 - Store a stable Lesson Plan identity separately from immutable Lesson Bundle Version snapshots.
 - Add **semver** (`x.y.z`) and an **official-version pointer** on the Lesson Plan. First uploaded/imported version is **1.0.0 Official**; default edit bump is **patch**; user may choose patch/minor/major. At most one official version per lesson plan.
+- The current **Save as new version** endpoint allocates the next patch; upload/import allocates
+  whole majors (§7). A future patch/minor/major chooser must first add explicit ingest provenance:
+  release ancestry must never mistake a teacher-chosen whole major for an ARES release.
 - Any version regenerates its documents (up to four) on demand.
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
