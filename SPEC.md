@@ -229,15 +229,27 @@ External-launch targets must be complete HTTP/HTTPS URLs. Malformed targets leav
 unchanged. All of this is a local string transformation, never a network lookup. Plan A does not
 rewrite stored versions or generated document destinations; that remains separate Plan A+.
 
+Labels must not introduce another renderable parenthesized HTTP/HTTPS link or begin (after
+leading whitespace) with `- ` or `|`. Rejection preserves the input and explains the correction;
+ordinary parentheses, bare addresses and web-like prose such as `phet.colorado.edu` remain allowed.
+Label validation and document rendering share the same pure link tokenizer. Labelled insertions
+add separating spaces when adjoining words need them, preserving existing whitespace and avoiding
+an extra space before closing punctuation. Bare-address insertion retains its existing behavior.
+Focusing another form control clears the remembered insertion field. Focusing Insert link itself
+or its dialog preserves it, including mouse, Enter and Space activation.
+
 ARES PDFs normally live under `/modules/`: open the PDF in ARES and paste its address. The optional
 Rock PDF picker appears only after the server confirms `PDF_LIBRARY_DIR` is configured and readable.
 Both environment templates leave that setting commented out. The folder is flat, read-only and
 operator-managed; Lesson3 cannot upload, rename, replace or delete files there.
 
-**Configuring this folder makes eligible PDFs public by direct link, independently of
-`PUBLIC_LIBRARY_ENABLED`.** Only `GET /api/resource-library/file/:token` is anonymous;
-`GET /api/resource-library` still requires sign-in for every role. An unconfigured folder returns
-404 for files. Serving retains the filename/path checks, no symlinks, non-hidden `.pdf` extension,
+**Configuring the folder alone requires sign-in to open PDFs.** Only the explicit setting
+`PDF_LIBRARY_PUBLIC=1` makes `GET /api/resource-library/file/:token` anonymous, independently of
+`PUBLIC_LIBRARY_ENABLED`. Unset, empty, `0` and every other value retain authenticated opening;
+an inherited `PDF_LIBRARY_DIR` never opts an upgraded installation into public serving. Both
+settings are required for public files. `GET /api/resource-library` always requires sign-in for
+every role. An unconfigured folder returns 404 for files, regardless of the publication flag. Serving
+retains the filename/path checks, no symlinks, non-hidden `.pdf` extension,
 25 MiB limit, exact `%PDF-` signature and `nosniff`. Oversized files return 404, like missing files.
 Read only the signature before streaming from the same open descriptor, with bounded queues and
 reads capped at the verified file size; completion, cancellation and read errors close the handle.

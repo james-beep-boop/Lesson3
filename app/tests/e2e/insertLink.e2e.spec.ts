@@ -17,7 +17,7 @@ test.afterAll(async () => {
   await fx?.teardown()
 })
 
-async function edit(page: Page) {
+async function edit(page: Page, role: 'editor' | 'subjectAdmin' = 'editor') {
   const version = await fx.payload.create({
     collection: 'lesson-bundle-versions',
     overrideAccess: true,
@@ -30,7 +30,7 @@ async function edit(page: Page) {
       semver: `70.${++sequence}.0`,
     } as never,
   })
-  await loginAs(page, fx, 'editor')
+  await loginAs(page, fx, role)
   await openEditor(page, version.id)
   await expandLessons(page)
   for (const button of await page.getByRole('button', { name: 'Show All', exact: true }).all()) {
@@ -70,9 +70,9 @@ test('inserts labelled HTTP ARES text at the cursor, restores focus and captures
   page,
 }) => {
   const versionId = await edit(page)
-  await column(page).fill('Before  after')
+  await column(page).fill('Beforeafter')
   await column(page).press('Home')
-  for (let i = 0; i < 7; i++) await column(page).press('ArrowRight')
+  for (let i = 0; i < 6; i++) await column(page).press('ArrowRight')
   await insertButton(page).click()
   const dialog = page.getByRole('dialog', { name: 'Insert link' })
   await expect(dialog).toContainText('New feature.')
@@ -176,4 +176,68 @@ test('normalizes URL syntax while keeping an unconfigured ARES service port', as
   await page.getByLabel('Web address').fill('HTTP://ARES.LOCAL:8082/a b')
   await page.getByRole('button', { name: 'Insert address', exact: true }).click()
   await expect(column(page)).toHaveValue('(http://ares.local:8082/a%20b)')
+})
+
+for (const activation of ['click', 'Enter', 'Space'] as const) {
+  test(`Insert link keeps its field when activated with ${activation}`, async ({ page }) => {
+    await edit(page)
+    await column(page).fill('Watch this')
+    await column(page).press('End')
+    if (activation === 'click') await insertButton(page).click()
+    else {
+      await insertButton(page).focus()
+      await expect(insertButton(page)).toBeEnabled()
+      await insertButton(page).press(activation)
+    }
+    const dialog = page.getByRole('dialog', { name: 'Insert link' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByLabel('Web address').fill('https://example.org/video')
+    await dialog.getByLabel('Label (optional)').fill('Video')
+    await dialog.getByRole('button', { name: 'Insert address', exact: true }).click()
+    await expect(column(page)).toHaveValue('Watch this Video (https://example.org/video)')
+    await expect(column(page)).toBeFocused()
+  })
+}
+
+test('moving to a phase dropdown clears the link target', async ({ page }) => {
+  await edit(page, 'subjectAdmin')
+  await column(page).click()
+  await expect(insertButton(page)).toBeEnabled()
+  await page.locator('#field-lessons__0__framework__0__phase').click()
+  await expect(insertButton(page)).toBeDisabled()
+})
+
+test('labels refuse real links and line markup while preserving harmless web-like text', async ({
+  page,
+}) => {
+  await edit(page)
+  await column(page).fill('')
+  await openLink(page)
+  const dialog = page.getByRole('dialog', { name: 'Insert link' })
+  await dialog.getByLabel('Web address').fill('https://example.org/video')
+  for (const [label, message] of [
+    [
+      'See (https://evil.example) notes',
+      'Keep web addresses out of the label. Use the Web address box.',
+    ],
+    [
+      '- Video',
+      'A label can\'t start with "- " or "|". Those turn the line into a bullet or a table.',
+    ],
+    [
+      '| Video',
+      'A label can\'t start with "- " or "|". Those turn the line into a bullet or a table.',
+    ],
+  ]) {
+    await dialog.getByLabel('Label (optional)').fill(label)
+    await dialog.getByRole('button', { name: 'Insert address', exact: true }).click()
+    await expect(dialog.getByRole('alert')).toHaveText(message)
+    await expect(dialog.getByLabel('Label (optional)')).toHaveValue(label)
+    await expect(column(page)).toHaveValue('')
+  }
+  await dialog.getByLabel('Label (optional)').fill('PhET simulation at phet.colorado.edu')
+  await dialog.getByRole('button', { name: 'Insert address', exact: true }).click()
+  await expect(column(page)).toHaveValue(
+    'PhET simulation at phet.colorado.edu (https://example.org/video)',
+  )
 })

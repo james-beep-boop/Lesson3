@@ -310,7 +310,14 @@ export default function LessonControls({
   useEffect(() => {
     const clearOtherField = (event: FocusEvent) => {
       const target = event.target
-      if (target instanceof HTMLTextAreaElement && !target.closest('.prose-link-field'))
+      if (!(target instanceof Element)) return
+      if (target.closest('.prose-link-field textarea, [data-insert-link], .prose-link-dialog'))
+        return
+      if (
+        target.closest(
+          'input, textarea, select, button, [role="combobox"], [contenteditable="true"]',
+        )
+      )
         clearActiveLinkTarget()
     }
     document.addEventListener('focusin', clearOtherField)
@@ -1147,6 +1154,7 @@ export default function LessonControls({
             <Button
               buttonStyle="secondary"
               size="small"
+              extraButtonProps={{ 'data-insert-link': true }}
               onClick={openActiveLinkTarget}
               disabled={saving || !linkTargetReady}
               tooltip={

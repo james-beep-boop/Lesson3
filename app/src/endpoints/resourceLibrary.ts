@@ -1,11 +1,11 @@
 /**
- * Optional read-only PDF library: authenticated listing, public file links.
+ * Optional read-only PDF library: authenticated listing, explicitly opt-in public file links.
  *
  * The browser must never browse the Rock's filesystem directly. These two endpoints
  * expose only ordinary `.pdf` files from one configured, flat directory:
  *
  *   GET /api/resource-library              list safe PDF names (requires sign-in)
- *   GET /api/resource-library/file/:token stream one safe PDF (public when configured)
+ *   GET /api/resource-library/file/:token stream one safe PDF (sign-in required unless explicitly published)
  *
  * The token is an encoded filename, not a client-supplied path. Listing excludes directories,
  * symlinks, hidden files, non-PDF extensions and oversized files. Serving repeats every check,
@@ -154,8 +154,11 @@ export const resourceLibraryFileEndpoint: Endpoint = {
   method: 'get',
   handler: async (req) => {
     const root = configuredRoot()
+    if (!root) return notFound()
+    // Old installations already set the directory. Only a separate explicit opt-in publishes it.
+    if (process.env.PDF_LIBRARY_PUBLIC !== '1' && !req.user) return unauthorized()
     const token = req.routeParams?.token
-    if (!root || typeof token !== 'string') return notFound()
+    if (typeof token !== 'string') return notFound()
 
     try {
       const result = await readPdfFile(root, token)

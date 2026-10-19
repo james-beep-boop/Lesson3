@@ -22,10 +22,17 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** `origin/main` at `330de55`, including #405's reviewed unavailable-parent response. The
-operator authorized merging green #405 and implementing the approved small draft-to-Combine
-shortcut. Work is on `feat/draft-combine-shortcut`, including the separate planning documentation.
-Push and a ready PR are authorized; do not merge or deploy this new feature without instruction.
+**Base:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
+Insert link cleanup is ready in [#408](https://github.com/james-beep-boop/Lesson3/pull/408), branch
+`fix/insert-link-cleanup`. Its types/lint/format/build, 1,598 unit, 313 integration and 397 wire
+(+4 existing SMTP skips) checks passed, together with 118 full browser cases and a final rebuilt
+12-case Insert link confirmation. The tracked test configuration was restored.
+
+Current work updates [#406](https://github.com/james-beep-boop/Lesson3/pull/406),
+`feat/draft-combine-shortcut`, on top of #408. It is stacked against the cleanup branch so its review
+diff shows the small restore/save hint separately. Combined validation is in progress. The operator
+explicitly wants to review #406 before merge. Do not merge either PR or deploy without instruction.
+After #408 merges, retarget #406 to latest main and check the resulting diff and CI again.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -34,9 +41,10 @@ The `combine_lineage` and `combine_draft_context` migrations ran in that deploym
 Insert link Plan A is merged; its deployment has not been confirmed.
 
 **Insert link Plan A:** approved wording, HTTP/HTTPS, four framework columns, optional label,
-ARES/tracker normalization, Combine hiding, opt-in Rock PDF picker. Configured PDF files are public
-independently of Explore; listing remains authenticated. No new migration, dependency or generator
-change. Plan A+ document-time rewriting is deferred. `ares.edu` is not a default alias pending an
+ARES/tracker normalization, Combine hiding, opt-in Rock PDF picker. Only explicit
+`PDF_LIBRARY_PUBLIC=1` makes configured files public, independently of Explore; listing remains
+authenticated. An absent publication flag keeps file opening authenticated. No new migration,
+dependency or generator change. Plan A+ document-time rewriting is deferred. `ares.edu` is not a default alias pending an
 answer from the ARES team.
 
 The screen picks two versions, reviews automatic changes and conflicts, and opens the engine's
@@ -77,33 +85,30 @@ Use an isolated stack with both a distinct project name and port: Codex uses `le
 `127.0.0.1:3103`. Claude uses a separate clone and stack. Never tear down another agent's stack.
 Always fetch before comparing branches or commits.
 
-**Shortcut validation:** types, lint, format, production image build, **1,580 unit tests**,
-**314 integration tests**, and **396 wire tests + 4 existing SMTP skips** passed on the isolated
-stack. All **113 existing browser tests** passed in the full run. The four new shortcut cases
-passed together in a confirmation run after fixing two test-setup issues: an alert selector also
-matched Next's route announcer, and changing users needed a cleared cookie session. No application
-fix was required for those failures. Tracked test configuration was restored. No schema, endpoint,
-dependency or generator change.
+**Small draft-to-Combine hint:** an ordinary restorable draft can name the highest numeric readable
+newer same-plan descendant of its source, using recorded lineage. After restoring and saving as a
+numbered version, **Combine with {newer}** opens the existing review through `?combineWith=`. It
+never starts Combine automatically. No migration, endpoint, frozen input or state-machine rewrite.
+The full design remains [deferred until teachers need it](DESIGN-update-draft-2026-10-19.md).
 
 ## Remaining work
 
-1. **Review the approved small draft-to-Combine shortcut** on `feat/draft-combine-shortcut`.
-   Implementation names the highest numeric newer readable descendant of a restorable ordinary
-   draft's source, in the same plan, using recorded lineage. After restoring and saving as a version,
-   **Combine with {newer}** opens the existing review through `?combineWith=`. No automatic Combine,
-   migration, new endpoint, frozen input or state-machine refactor.
-   The full direct-update design remains **deferred until teachers need it**:
-   [`DESIGN-update-draft-2026-10-19.md`](DESIGN-update-draft-2026-10-19.md). Revisit when frequent use
-   and confusing intermediate versions justify it. The Combine state machine stays deferred too.
-2. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
-   installation. Not required for school use and not implemented in Plan A.
-3. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
-   allow drafts to hold structural edits.
+1. Review the approved Insert link cleanup in #408. #407 is merged;
+   explicit PDF publication consent and both built-app authorization modes are in place.
+2. Review the approved small draft-to-Combine shortcut in #406. Full direct draft updates and the
+   Combine state-machine refactor remain deferred until teacher use justifies them; the blueprint
+   and approved smaller flow are preserved in that PR's design document.
+3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
+   and narrow URL-check cleanup. Public PDF edge limiting/cache policy is
+   also separate; follow the existing exposure checklist when deliberately publishing a folder.
+4. Plan A+ — optional document-time translation of stored `ares.local` addresses for online installs.
+5. Stable row identity and structural drafts remain deferred.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
 `captureFieldPath` and `applyCapture` in `lib/editRecovery/projection.ts`. The unavailable-parent
-response is implemented in the current follow-up; the Combine state machine stays deferred with the full draft-update feature.
+response is implemented in #405; the Combine state machine stays deferred with full direct draft
+updates.
 
 **Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
 predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections
@@ -127,8 +132,8 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 ## Handoff prompt
 
-> Pick up Lesson3 (`james-beep-boop/Lesson3`). Fetch first. Read AGENTS.md → CLAUDE.md → SPEC §5
-> and §6 → this file → the newest five or six DECISIONS entries. Combine and its simplification
-> and Insert link Plan A are merged through PR #404; #405 adds unavailable-parent responses.
-> The approved draft-to-Combine shortcut is on `feat/draft-combine-shortcut`; check its PR state. Do not merge or deploy
-> unless asked. Preserve the source-deletion draft cascade.
+> Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
+> Main contains #407. #408 is the Insert link cleanup; #406 is stacked on it with the small
+> draft-to-Combine hint. Check validation and PR states, and leave #406 for operator review.
+> Do not merge or deploy
+> without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.

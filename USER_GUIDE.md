@@ -243,6 +243,8 @@ These rules are also available from *Help* at the top of the editor.
   cursor, after your label if supplied. Links become clickable on screen and in Word and PDF documents,
   except inside table text. Web and PDF links open separately so your editing page stays open. Insert
   link is hidden during Combine review.
+- Keep web addresses out of the label. Use the Web address box.
+- A label can't start with "- " or "|". Those turn the line into a bullet or a table.
 - Bold, italics, and underlining are not supported.
 - Change the field for the section you want to update. Lesson3 makes the Word and PDF files from
   these fields.

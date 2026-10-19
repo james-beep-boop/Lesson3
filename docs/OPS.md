@@ -7,7 +7,7 @@ the Rock unless noted.
 
 ---
 
-## Optional public PDF link library
+## Optional PDF link library
 
 Lesson prose can link to internet addresses and to PDFs in one flat directory on the Rock. This is a
 read-only folder, not file management: Lesson3 never writes, renames, replaces or deletes the
@@ -19,10 +19,13 @@ files. The Compose app receives only this mount:
 
 One-time setup after pulling the feature:
 
-1. Explicitly set `PDF_LIBRARY_DIR=/var/lib/lesson3-resources` in the Rock's `.env`. Both
-   templates leave it commented out. **This publishes eligible PDFs to anyone who can reach the
-   site, independently of `PUBLIC_LIBRARY_ENABLED`.** Leave it unset on ARES installations and
-   paste ARES `/modules/` addresses instead.
+1. Set `PDF_LIBRARY_DIR=/var/lib/lesson3-resources` in the Rock's `.env` to enable authenticated
+   PDF opening. Both templates leave the folder commented out. **Existing installations with this
+   setting keep sign-in required after upgrade.** Leave it unset on ARES installations and paste
+   ARES `/modules/` addresses instead. To deliberately publish the folder, separately set
+   `PDF_LIBRARY_PUBLIC=1`; this makes eligible files available to anyone who can reach the site,
+   independently of `PUBLIC_LIBRARY_ENABLED`. The default is `0`; an absent setting also stays
+   authenticated. Do not set it to `1` until the operator has reviewed the folder for publication.
 2. Copy a few PDFs into `/srv/lesson3/out/resource-library/` on the Rock. Use a flat directory,
    ordinary `.pdf` filenames, and files no larger than 25 MiB. Hidden files, subdirectories,
    symlinks, other extensions, and content without a PDF signature are not offered.
@@ -31,13 +34,15 @@ One-time setup after pulling the feature:
 4. Sign in through the standard public HTTPS app address, open a lesson version for editing, and use
    *Insert link*. Selecting a Rock PDF inserts an absolute URL using that browser origin.
 
-Opening a configured PDF does not require an account; listing filenames still requires sign-in.
-Filename tokens are not secrets. Disabling Explore does not disable these document links. Existing
+Opening a configured PDF requires an account unless `PDF_LIBRARY_PUBLIC=1`; listing filenames
+always requires sign-in. Filename tokens are not secrets. Disabling Explore does not revoke an
+explicitly published PDF folder. To require sign-in again, remove the publication opt-in or set it
+to `0`, then recreate the app container; already downloaded copies cannot be recalled. Existing
 public-exposure security configuration and the Going public checklist still apply on an internet
 host. Do not rename or overwrite a linked PDF: the URL is stable only while the filename and bytes
 stay stable.
 
-⚠ The database backup does **not** include `out/resource-library`. For this proof of concept, retain
+⚠ The database backup does **not** include `out/resource-library`. Retain
 the source PDFs elsewhere and be prepared to copy them back. A production resource library needs an
 explicit backup/versioning policy before these files become records of value.
 
@@ -166,6 +171,19 @@ windows it applied); counts before/after via
 - ⚑ **And no row of any kind proves the backup is RESTORABLE.** The record says an upload succeeded, not
   that the ciphertext decrypts or that `pg_restore` accepts it. Only the drill below establishes that,
   and nothing on this screen can substitute for having run it.
+
+### Isolated HTTP/browser test stacks
+
+`npm run test:http` and the legacy-named `npm run test:rock` write and delete test records. They
+require an isolated app/database and must never target the live Rock or another live deployment.
+A folder from a normal installation is not a substitute for the mandatory committed PDF fixture.
+
+Load `docker-compose.yml` plus `docker-compose.test.yml` under a disposable project name (AGENTS.md
+has the isolation rules). The override starts the ordinary app with `PDF_LIBRARY_PUBLIC=1`, and
+an internal-only `pdf-private` service running the same production build with the publication flag
+unset. Both mount `public-wire.pdf` read-only; neither mode's authorization test skips. The private
+service publishes no host port and shares only the disposable test database/cache. The existing CI
+Stack up command already loads this override; no workflow edit is needed for these two modes.
 
 ### CI and local test rate-limit state
 
@@ -622,8 +640,15 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
 6. **Verify, over the public URL:**
    - `curl -sD- https://…/login` → `Content-Security-Policy` with a fresh `'nonce-…'` per
      request ✓ (shipped: middleware CSP), `Set-Cookie` on login carries `Secure`.
-   - `test:http` against the public base (`E2E_BASE_URL=https://…`) — the suite asserts the CSP,
-     auth gates, and rate limits over the wire.
+   - Run `test:http`/`test:rock` only on an **isolated staging stack with a disposable database**.
+     These suites create/delete fixtures and are not production health checks. Load
+     `docker-compose.test.yml`: it supplies the mandatory PDF fixture and both public/private app
+     modes. Test the public-URL posture on a disposable staging installation, never the live site.
+   - On the live installation, use non-mutating HTTP checks instead: `/login` for headers,
+     anonymous `/api/resource-library` for 401, and a known PDF file URL for 200 only if deliberately
+     published (401 when the folder is configured but not public, 404 when unconfigured). Verify
+     `Content-Type: application/pdf` and `X-Content-Type-Options: nosniff` on a successful PDF.
+     Do not copy the test override or its fixture into the installation to make a suite pass.
    - Backups + heartbeat crons live (sections above); Gotenberg image digest-pinned ✓.
 7. **Local ARES-server deployments** (SPEC's offline box): keep `SERVER_URL` EMPTY (or http) —
    they stay on the internal posture (Lax-cookie CSRF, no Secure flag over plaintext) by design.

@@ -69,6 +69,7 @@ describe('PDF access independently of public discovery', () => {
       const root = await directory()
       await writeFile(path.join(root, 'public.pdf'), '%PDF-1.7\nexample')
       vi.stubEnv('PDF_LIBRARY_DIR', root)
+      vi.stubEnv('PDF_LIBRARY_PUBLIC', '1')
       vi.stubEnv('PUBLIC_LIBRARY_ENABLED', discovery)
       const req = { routeParams: { token: encodePdfToken('public.pdf') } } as never
       const response = await resourceLibraryFileEndpoint.handler(req)
@@ -80,7 +81,28 @@ describe('PDF access independently of public discovery', () => {
     },
   )
 
+  it.each([undefined, '', '0', 'true', 'yes', ' 1'])(
+    'an inherited folder stays authenticated with publication=%j',
+    async (publication) => {
+      const root = await directory()
+      await writeFile(path.join(root, 'private.pdf'), '%PDF-1.7\nprivate')
+      vi.stubEnv('PDF_LIBRARY_DIR', root)
+      vi.stubEnv('PDF_LIBRARY_PUBLIC', publication)
+      vi.stubEnv('PUBLIC_LIBRARY_ENABLED', '1')
+      const routeParams = { token: encodePdfToken('private.pdf') }
+      expect((await resourceLibraryFileEndpoint.handler({ routeParams } as never)).status).toBe(401)
+      const signedIn = await resourceLibraryFileEndpoint.handler({
+        routeParams,
+        user: { id: 1 },
+      } as never)
+      expect(signedIn.status).toBe(200)
+      expect(await signedIn.text()).toBe('%PDF-1.7\nprivate')
+      expect((await resourceLibraryListEndpoint.handler({ routeParams } as never)).status).toBe(401)
+    },
+  )
+
   it('returns 404 without a folder, and for malformed anonymous file tokens', async () => {
+    vi.stubEnv('PDF_LIBRARY_PUBLIC', '1')
     vi.stubEnv('PDF_LIBRARY_DIR', '')
     expect(
       (
@@ -101,6 +123,7 @@ describe('anonymous PDF safety checks', () => {
   it('still refuses symlinks, renamed non-PDF content and oversized files', async () => {
     const root = await directory()
     vi.stubEnv('PDF_LIBRARY_DIR', root)
+    vi.stubEnv('PDF_LIBRARY_PUBLIC', '1')
     await writeFile(path.join(root, 'fake.pdf'), '<script>not a PDF</script>')
     await symlink(path.join(root, 'fake.pdf'), path.join(root, 'linked.pdf'))
     const large = await open(path.join(root, 'large.pdf'), 'w')

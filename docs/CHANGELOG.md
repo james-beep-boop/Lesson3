@@ -10,6 +10,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Insert link labels now refuse extra parenthesized links and leading bullet/table markers with
+  an explanation. Labelled links gain spacing where needed. Moving to another form control clears
+  the insertion target; clicking Insert link or pressing Enter/Space on it keeps the chosen field.
+
+- PDF folders now require sign-in unless the operator explicitly sets `PDF_LIBRARY_PUBLIC=1`.
+  An inherited `PDF_LIBRARY_DIR` no longer publishes private files during upgrade. Explore and
+  authenticated listing remain independent. Wire tests cover both publication modes on isolated
+  fixture stacks; the runbook no longer directs fixture-writing suites at live installations.
+
 - Restoring an ordinary draft can suggest a newer descendant to combine with. Save the draft as a
   version, then choose Combine with that version to open the existing review. Guidance is optional;
   the save remains an ordinary Not Official version and leaves Official unchanged.
