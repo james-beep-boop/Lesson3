@@ -26,7 +26,10 @@ import {
 } from '../helpers/fixtures.js'
 import { sql } from '@payloadcms/db-postgres'
 import { drizzleOf } from '../helpers/db.js'
-import { up as backfillReleases } from '../../src/migrations/20261019_120000_release_ancestry.js'
+import {
+  up as backfillReleases,
+  down as retainReleaseAncestry,
+} from '../../src/migrations/20261019_120000_release_ancestry.js'
 import { planCombine } from '../../src/lib/combine/engine.js'
 import { findCommonAncestor } from '../../src/lib/combine/ancestry.js'
 import { applyCapture, asRows } from '../../src/lib/editRecovery/projection.js'
@@ -302,6 +305,11 @@ describe('re-ingest (SPEC §7)', () => {
     await backfillReleases(args)
     expect(await read(second.id)).toEqual(releaseAfter)
     expect(await read(teacher.id)).toEqual(after)
+    // Batch rollback must succeed without erasing provenance subsequent saves may depend on.
+    await expect(retainReleaseAncestry()).resolves.toBeUndefined()
+    expect(await read(second.id)).toEqual(releaseAfter)
+    expect(await read(teacher.id)).toEqual(after)
+    expect(await officialOf(planId)).toBe(first)
   })
 
   it('a batch with two files for the SAME sub-strand fails pre-flight (writes nothing)', async () => {

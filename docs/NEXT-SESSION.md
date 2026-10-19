@@ -22,7 +22,7 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** fetched `origin/main` at `3472843` (merged #408/#406 plus the modes/connectivity/network
+**Base:** merged fetched `origin/main` at `7169f84` (merged #408/#406 plus the modes/connectivity/network
 note). #409 was merged after operator approval and green CI as `7169f84`; it includes both
 documentation histories and the ordinary-save copy-text client fix at `a0ff598`. Its local proof passes: types/lint/format,
 build, 1,607 unit, 314 integration, 400 wire (+4 existing SMTP skips), 123 full browser cases without
@@ -34,6 +34,10 @@ Re-ingest selects the previous release under the plan lock; the metadata-only mi
 consecutive unlinked majors and descendant lineage, reporting gaps/ambiguity and preserving
 snapshots, timestamps, Official and deleted ids. The engine selects the sole changed resource side
 with a usable ancestor while protecting row correspondence and administrator/system ownership.
+The no-op down fix is implemented and preserves repaired rows/Official in integration. Refreshed
+proof after merged #409: types/lint/format/build, 1,620 unit, 316 integration, 401 wire (+4 existing
+SMTP skips), 123 full browser cases without retries. Tracked test environment is restored.
+The separate refusal fix is not implemented yet because its new wording is awaiting approval.
 Proof passes: types/lint/format/build, **1,616 unit, 316 integration, 398 wire (+4 existing SMTP
 skips), 122 browser tests without retries**. The real migration and three-way re-ingest path pass;
 tracked test configuration is restored. See
@@ -127,6 +131,15 @@ release descendants in id order and remove linear row lookups; consolidate re-in
 reads; scope the migration integration test to its own plan and clean its user in finally; remove
 impossible duplicate-major handling and duplicate release regexes. Add a system-written release
 marker before any manual version-bump control ships. No extra cleanup is required for these two fixes.
+
+### Wording awaiting operator approval
+
+- #410 refusal: “One version changes content only an administrator can edit, and the other changes
+  the resource links. These changes cannot be combined automatically. Open one version and copy
+  across the text you need from the other.”
+- Widened hint: “Version {newer} shares version history with version {source}. To bring your
+  changes together, save your draft as a version, then combine it with {newer}.”
+- Existing “Combine with {newer}” action stays unchanged. No new wording has been implemented.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for

@@ -28,6 +28,11 @@ first; prove teacher-1.0.1 versus next-release behavior in unit/int/browser test
 for #410 or the widened hint. Nonblocking performance/test-isolation/regex cleanup is recorded in
 NEXT-SESSION; a system-written release marker must precede any manual version-bump control.
 
+No-op down and its preservation assertion pass all refreshed local checks after merging #409:
+types/lint/format/build, 1,620 unit, 316 integration, 401 wire (+4 SMTP skips), 123 full browser
+cases without retries on lesson3-codex-probe:3103. The separate refusal and wider hint await wording
+approval; proposed copy is recorded in NEXT-SESSION. No new UI wording was implemented.
+
 ## 2026-10-19 — Approved release predecessor and audited metadata backfill
 
 The operator approved reusing `sourceVersion` for an ingested release's predecessor and auditing/

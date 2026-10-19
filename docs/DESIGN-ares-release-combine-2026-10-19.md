@@ -1,7 +1,7 @@
 # ARES releases combine cleanly — implementation plan
 
 Status: **operator approved existing `sourceVersion` and audited backfill**; implementation and
-all isolated proof complete; ready for review. Separate from #409; based on fetched main `3472843`. Parent
+original isolated proof complete; operator review fixes in progress. Separate from #409; based on fetched main `3472843`. Parent
 brief: §8 of `DESIGN-modes-connectivity-network-2026-10-19.md`. No merge or deployment authorized.
 
 ## Approved release ancestry
@@ -22,7 +22,9 @@ introduce explicit ingest provenance first. Only trusted ingest currently create
 exclude authored and two-parent versions.
 Backfill only consecutive surviving majors sharing a nonempty sub-strand identity; preserve existing
 relationships and closures whose source was deleted, and report gaps or ambiguity. Detect cycles
-before any write to a plan. Migration SQL changes metadata only; undo uses the pre-migration backup. Future-only ancestry would leave existing release forks on the old fallback. The operator
+before any write to a plan. Migration SQL changes metadata only. Down is a documented no-op: earlier code tolerates the
+links, later saves may depend on them, and later batch rollbacks must proceed. A pre-migration
+backup remains the route to undo the data repair. Future-only ancestry would leave existing release forks on the old fallback. The operator
 approved sourceVersion and the audited backfill before data implementation.
 
 ## Engine work independent of that choice
@@ -38,6 +40,19 @@ For resource updates with a usable ancestor, allow the remaining upload keys (`s
 `aresKeywords`) only when unique and unchanged in order. Do not use titles, lesson numbering or
 positions alone. Repeated keys, reorders, renamed phases and ambiguous arrays stay refused; stable
 row identity remains deferred. An unaligned ancestor provides no permission to merge resources.
+
+## Review revision — 2026-10-19
+
+The operator approved the core and requested a documented no-op down, now implemented. The real
+migration integration test asserts that down succeeds and keeps repaired release/teacher records
+and Official unchanged. After merging main's #409, all refreshed local gates pass: types, lint,
+format, production build, 1,620 unit, 316 integration, 401 wire (+4 existing SMTP skips), 123 browser
+cases without retries on lesson3-codex-probe:3103. Tracked test configuration is restored.
+
+The opposite-side administrator/resource case still needs its separate refusal; new copy has been
+listed for operator approval and has not been implemented. Do not merge this PR yet. Full phase 4
+was not approved; #412 is closed and both designs are retained as deferred. Next is the widened
+advice-only hint, after these two fixes, as a separate ready PR with its own approved wording.
 
 ## Proof and completion
 

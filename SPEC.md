@@ -704,8 +704,9 @@ version remains a later phase, alongside stable row identity and support for str
   gaps, inconsistent identities and cyclic plans are reported and skipped. Recompute descendant
   lineage with the existing 2,000-id cap, preserving recorded deleted ancestors. Metadata-only SQL
   leaves snapshot content, semver, authors, timestamps and Official unchanged. Rerunning is safe.
-  This is a forward-only data repair; undo requires the pre-migration database backup, never erasing
-  provenance subsequently used by teachers' versions.
+  Migration down is intentionally a no-op: the added links are harmless to earlier code and
+  may be used by later versions. Do not obstruct later batch down/reset/refresh operations or erase
+  their provenance. Restoring a pre-migration database backup can undo the data repair if necessary.
 - **Validate against the schema on upload/import, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo`, `summaryTablePrompt`, a complete and valid `resourceLinks` map, and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced before any version is saved; export then trusts validated-in data.
 - **Resource handling (§3):** validate and store the already-resolved `LESSONS[].resourceLinks` exactly;
   do not run the recommender, infer missing buckets, or silently drop unknown/malformed resource fields.

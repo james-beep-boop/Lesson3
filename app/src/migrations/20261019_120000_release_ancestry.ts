@@ -57,9 +57,8 @@ export async function up({ db, payload }: MigrateUpArgs): Promise<void> {
   }
 }
 
-/** No schema to undo. Removing repaired ancestry could erase provenance used by subsequent saves. */
-export async function down(): Promise<void> {
-  throw new Error(
-    'Release ancestry is a forward-only data repair. Restore the pre-migration backup to undo it.',
-  )
-}
+/**
+ * Intentionally preserve the added ancestry: earlier code tolerates these links, and later saves
+ * may depend on them. A no-op also lets later migrations in the batch down/reset/refresh normally.
+ */
+export async function down(): Promise<void> {}
