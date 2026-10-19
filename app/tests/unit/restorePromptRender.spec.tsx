@@ -223,7 +223,11 @@ describe('the middle choice leaves the editor and keeps the draft', () => {
   )
 })
 
-describe('draft Combine guidance', () => {
+describe.each(['release', 'descendant'] as const)('draft Combine guidance: %s', (kind) => {
+  const releaseMessage =
+    "There's a newer ARES release, version 1.0.2. To bring your changes onto it, save your draft as a version, then combine it with 1.0.2."
+  const descendantMessage =
+    'Version 1.0.2 builds on version 1.0.0. To bring your changes together, save your draft as a version, then combine it with 1.0.2.'
   it.each([
     [false, false, true],
     [true, false, false],
@@ -239,12 +243,15 @@ describe('draft Combine guidance', () => {
         saved={{}}
         readOnly={readOnly}
         busy={false}
-        newerVersion={{ source: '1.0.0', newer: '1.0.2' }}
+        newerVersion={{ source: '1.0.0', newer: '1.0.2', kind }}
         onRestore={() => {}}
         onExit={() => {}}
         onDiscard={() => {}}
       />,
     )
-    expect(screen.queryByText(/Version 1.0.2 builds on version 1.0.0/) !== null).toBe(visible)
+    expect(
+      screen.queryByText(kind === 'release' ? releaseMessage : descendantMessage) !== null,
+    ).toBe(visible)
+    expect(screen.queryByText(kind === 'release' ? descendantMessage : releaseMessage)).toBeNull()
   })
 })

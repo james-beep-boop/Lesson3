@@ -8,8 +8,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await fx?.teardown()
 })
-it('selects the highest numeric newer descendant, excluding a higher-numbered sibling', async () => {
-  const make = (semver: string, sourceVersion: number) =>
+it('offers a related ARES release for teacher 1.0.1, preferring it to newer teacher work', async () => {
+  const make = (semver: string, sourceVersion: number | null, ingested = false) =>
     fx.payload.create({
       collection: 'lesson-bundle-versions',
       overrideAccess: true,
@@ -20,17 +20,35 @@ it('selects the highest numeric newer descendant, excluding a higher-numbered si
         subjectGrade: fx.subjectGrade.id,
         semver,
         sourceVersion,
+        ...(ingested ? {} : { author: fx.users.editor.id }),
       } as never,
     })
-  const source = await make('2.1.0', fx.version.id)
-  await make('2.99.0', fx.version.id)
-  await make('1.0.1', source.id)
-  await make('2.9.0', source.id)
-  const newest = await make('2.10.0', source.id)
+  const source = await make('1.0.1', fx.version.id)
+  const descendant = await make('1.0.9', source.id)
+  const newestTeacher = await make('2.0.9', fx.version.id)
+  const release = await make('2.0.0', fx.version.id, true)
+  await make('3.0.0', null, true) // Unrelated upload history cannot supply advice.
   expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.editor)).toEqual({
-    id: newest.id,
-    semver: '2.10.0',
+    id: release.id,
+    semver: '2.0.0',
+    kind: 'release',
   })
   expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.teacher)).toBeNull()
-  expect(await findDraftCombineSuggestion(fx.payload, newest, fx.users.editor)).toBeNull()
+  await fx.payload.delete({
+    collection: 'lesson-bundle-versions',
+    id: release.id,
+    overrideAccess: true,
+  })
+  expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.editor)).toEqual({
+    id: descendant.id,
+    semver: '1.0.9',
+    kind: 'descendant',
+  })
+  await fx.payload.delete({
+    collection: 'lesson-bundle-versions',
+    id: descendant.id,
+    overrideAccess: true,
+  })
+  expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.editor)).toBeNull()
+  expect(await findDraftCombineSuggestion(fx.payload, newestTeacher, fx.users.editor)).toBeNull()
 })

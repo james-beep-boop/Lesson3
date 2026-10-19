@@ -11,6 +11,66 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Approved distinct release and descendant advice
+
+Operator approved both messages. Render the release-specific sentence for a system-identified
+ARES release and #406's original “builds on” sentence only for an actual descendant. The server's
+suggestion kind selects the wording; URL parameters cannot select or spoof it. Both messages keep
+the existing ordinary/restorable, owner and editing-access gates; unfinished Combine stays excluded.
+No change to the narrowed eligibility rule: shared history for newer ARES releases, otherwise only
+descendants, never sibling teacher versions. Button remains “Combine with {newer}”. #410 is merged;
+#413 targets main and remains ready for review only. No merge or deployment authorized.
+
+Refreshed proof with the approved copy: types/lint/format/build, **1,638 unit, 316 integration,
+402 wire** (+4 existing SMTP skips), and **127 full browser tests without retries** pass on
+lesson3-codex-probe:3103. Both real restore-prompt messages are asserted in the browser; unit tests
+pin both messages and suppress them for copy-only recovery and unfinished Combine. Sibling
+exclusion, explicit Save → Combine, resource retention and unchanged Official remain proved.
+Tracked test environment restored. Ready #413 only; no merge or deployment.
+
+## 2026-10-19 — Narrow draft advice fallback; #410 merged
+
+Operator approved #410 and it merged as e8f56db after all CI jobs passed. #413 now targets main.
+The hint's shared-history exception applies only to newer ingested ARES releases with a readable
+common ancestor. Without one, retain #406's highest numeric newer descendant rule: never suggest
+a sibling teacher version. The earlier broad fallback was too wide; shared history alone does
+not make other teachers' sibling work an appropriate default suggestion. Unit, integration and
+browser coverage pin exclusion and fallback after release deletion. No migration or endpoint.
+
+Two distinct proposed messages are awaiting operator approval; retain the previously approved
+shared-history copy until that answer arrives. Release: “There's a newer ARES release, version
+{newer}. To bring your changes onto it, save your draft as a version, then combine it with {newer}.”
+Descendant: “Version {newer} builds on version {source}. To bring your changes together, save your
+draft as a version, then combine it with {newer}.” No merge or deployment of #413 authorized.
+
+Refreshed local proof on lesson3-codex-probe:3103: types/lint/format/build, **1,635 unit,
+316 integration, 402 wire** (+4 existing SMTP skips), **127 full browser tests without retries**.
+Release → descendant → no suggestion is proved in integration; sibling-only browser restoration
+saves ordinary text without a hint or shortcut. Tracked test environment restored.
+
+## 2026-10-19 — Widen advice-only draft hint to shared release history
+
+Operator approved replacing the full phase 4 with Save → Combine advice. A newer ARES release is
+usually a sibling of a teacher's version, not its descendant: teacher 1.0.1 and release 2.0.0 both
+include release 1.0.0. Suggest newer readable same-plan versions sharing a surviving readable
+ancestor; prefer the highest numeric newer ingested release, otherwise the highest numeric related
+version. Reuse ingest's release predicate; no clock or Official ordering and no content reads.
+
+Approved copy: “Version {newer} shares version history with version {source}. To bring your changes
+together, save your draft as a version, then combine it with {newer}.” Button remains “Combine with
+{newer}”. Advice remains optional, only for the owner's ordinary restorable draft with editing access;
+copy-only captures and unfinished Combine are unchanged. Save produces one Not Official version;
+only an explicit later action opens Combine. No new storage, migration, endpoint or state-machine
+rewrite. Full phase 4 and both proposals remain deferred until teacher use justifies them.
+
+Validation on lesson3-codex-probe:3103: types/lint/format/build, **1,634 unit, 316 integration,
+402 wire** (+4 existing SMTP skips), and all **126 browser cases** covered. The full browser run
+passed 125 cases; the new test missed the existing second review after a starting-version switch.
+After correcting that assertion, all four hint browser cases passed without retries. The test also
+waits for the final save response/URL and proves retained teacher prose/new resource links, parent
+ids, the intermediate Not Official version and unchanged Official. No app fix was needed for this
+test correction. Tracked test environment restored.
+
 ## 2026-10-19 — Release review fixes complete with approved refusal
 
 Migration down deliberately succeeds without erasing compatible predecessor links. Opposite-side

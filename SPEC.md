@@ -489,8 +489,15 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
   Manage page still opens straight onto "My saved versions" (numbered versions). Server-rendered from
   the session user; no listing endpoint.
 - **Bringing an ordinary draft together with newer work (2026-10-18):** a restorable ordinary
-  draft's restore prompt may name the highest-numbered readable newer descendant in the same plan,
-  proved by recorded lineage. Saving the restored draft creates an ordinary Not Official version;
+  draft's restore prompt may name a readable newer version in the same plan sharing a surviving,
+  readable common ancestor, proved by recorded lineage. Prefer the highest numeric newer ingested
+  release when available; otherwise choose only the highest numeric newer descendant of the draft's
+  version, as proved by its recorded lineage. Never suggest sibling teacher versions. The release
+  case alone permits shared ancestry without direct descent: teacher 1.0.1 and ARES 2.0.0 can share
+  1.0.0. Its prompt says “There's a newer ARES release, version {newer}. To bring your changes onto
+  it, save your draft as a version, then combine it with {newer}.” For a descendant, it says “Version
+  {newer} builds on version {source}. To bring your changes together, save your draft as a version,
+  then combine it with {newer}.” Saving the restored draft creates an ordinary Not Official version;
   a **Combine with {newer}** action then opens the existing Combine review through `combineWith`.
   The save itself never opens or commits a combination. Suggestions are optional: failures do not
   block restoration or save. URL hints contain only a version id, are checked against the caller's

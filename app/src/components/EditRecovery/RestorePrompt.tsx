@@ -29,6 +29,7 @@ import React, { useMemo } from 'react'
 
 import Modal from '../Modal'
 import type { CaptureMap } from '../../lib/editRecovery/projection'
+import type { DraftCombineSuggestion } from '../../lib/editRecovery/draftCombineSuggestion'
 import type { OfferedCapture } from './protocol'
 import { RENDER_NOTE, renderOf } from './restoreDiff'
 import { groupsOf } from './restoreGroups'
@@ -71,7 +72,7 @@ export function EditRecoveryRestorePrompt({
   /** `offerKind(capture) === 'readOnly'` — stale or schema-mismatched, so it may be read, not applied. */
   readOnly: boolean
   busy: boolean
-  newerVersion?: { source: string; newer: string }
+  newerVersion?: { source: string; newer: string; kind: DraftCombineSuggestion['kind'] }
   onRestore: () => void
   /**
    * "Exit edit mode": leave the editor with the draft untouched (2026-10-18; was "Decide later").
@@ -122,8 +123,9 @@ export function EditRecoveryRestorePrompt({
 
       {!readOnly && !capture.combineContext && newerVersion && (
         <p className="modal__body">
-          Version {newerVersion.newer} builds on version {newerVersion.source}. To bring your
-          changes together, save your draft as a version, then combine it with {newerVersion.newer}.
+          {newerVersion.kind === 'release'
+            ? `There's a newer ARES release, version ${newerVersion.newer}. To bring your changes onto it, save your draft as a version, then combine it with ${newerVersion.newer}.`
+            : `Version ${newerVersion.newer} builds on version ${newerVersion.source}. To bring your changes together, save your draft as a version, then combine it with ${newerVersion.newer}.`}
         </p>
       )}
 

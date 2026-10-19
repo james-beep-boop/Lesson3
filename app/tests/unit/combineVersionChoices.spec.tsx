@@ -45,21 +45,28 @@ it('optional suggestion failure preserves the normal controls', async () => {
   expect(controls.props.draftCombineSuggestion).toBeNull()
   expect(controls.props.hasDraft).toBe(true)
 })
-it('queries a suggested descendant with the caller access and same-plan filter', async () => {
+it('queries a common-history suggestion with the caller access and same-plan filter', async () => {
   mock.hasDraft.mockResolvedValue(true)
   mock.read.mockResolvedValue({ id: 1, lessonPlan: 7, subjectGrade: 5, semver: '1.0.0' })
-  mock.find
-    .mockResolvedValueOnce({ docs: [] })
-    .mockResolvedValueOnce({ docs: [{ id: 2, semver: '1.0.2' }] })
+  mock.find.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
+    docs: [
+      { id: 1, semver: '1.0.0' },
+      { id: 2, semver: '1.0.2', lineage: [1] },
+    ],
+  })
   const user = { id: 1, roles: ['siteAdmin'] }
   const controls = await Controls({ payload: { find: mock.find }, id: 1, user } as never)
   expect(mock.find).toHaveBeenLastCalledWith(
     expect.objectContaining({
-      where: { and: [{ lessonPlan: { equals: 7 } }, { lineage: { equals: 1 } }] },
-      select: { semver: true },
+      where: { lessonPlan: { equals: 7 } },
+      select: { semver: true, lineage: true, author: true, mergedFrom: true },
       overrideAccess: false,
       user,
     }),
   )
-  expect(controls.props.draftCombineSuggestion).toEqual({ id: 2, semver: '1.0.2' })
+  expect(controls.props.draftCombineSuggestion).toEqual({
+    id: 2,
+    semver: '1.0.2',
+    kind: 'descendant',
+  })
 })
