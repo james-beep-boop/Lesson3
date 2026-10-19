@@ -22,7 +22,19 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
+**Base:** refreshed #409 from fetched `origin/main` at `3472843`, including merged #408/#406
+and the modes/connectivity/network design. The operator reports
+those changes are being deployed; completion has not been confirmed. Current approved code work is
+`fix/ordinary-save-source-race`: take the plan lock for every save, refresh authorization before
+re-reading the source, and return #405's unavailable-source 404 instead of a creation failure.
+The wire tests cover deletion, revoked access plus deletion, rollback and an unchanged normal save.
+Validation after refreshing main and fixing the client passed on `lesson3-codex-probe`, port 3103: types, lint, format, production build,
+**1,607 unit**, **314 integration**, **400 wire + 4 existing SMTP skips** and **123 browser tests
+without retries**. All three new wire cases passed against the built app. The four new unit cases
+failed on the original endpoint and pass with the fix. Tracked test configuration was restored.
+The ordinary-source-deletion browser case and a non-source 404 fallback both pass. Push and a ready PR are authorized; do not merge or deploy.
+
+**Recent merged work:**
 Insert link cleanup is merged ([#408](https://github.com/james-beep-boop/Lesson3/pull/408), `9f6b6ff`):
 actual-link and leading bullet/table label validation, word spacing, and stale focus targets
 (mouse, Enter and Space). The small draft-to-Combine hint
@@ -31,7 +43,7 @@ and merged after it: when a restorable ordinary draft's source has a newer reada
 restore prompt suggests saving and then combining, and the saved version offers "Combine with
 {version}". Combined validation: types, lint, format, production build, **1,603 unit**, **314
 integration**, **397 wire + 4 existing SMTP skips** and **122 browser tests without retries**.
-Not yet deployed: deploy only on the operator's instruction (no migration).
+The operator is handling deployment; this agent has not deployed these changes (no migration).
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -90,28 +102,32 @@ numbered version, **Combine with {newer}** opens the existing review through `?c
 never starts Combine automatically. No migration, endpoint, frozen input or state-machine rewrite.
 The full design remains [deferred until teachers need it](DESIGN-update-draft-2026-10-19.md).
 
-## Remaining work
+## Remaining work — current operator order (2026-10-19)
 
-1. Deploy #404–#408 and #406 when the operator chooses (no migration). #407 is merged;
-   explicit PDF publication consent and both built-app authorization modes are in place.
-2. **Next (operator, 2026-10-19): complete Combine phase 4 first.** The small draft-to-Combine
-   shortcut (#406) is merged; the full direct-draft-update blueprint is
-   `docs/DESIGN-update-draft-2026-10-19.md`. **Confirm phase 4's scope with the operator at the start**
-   — that blueprint was previously deferred in favour of #406. Do alongside it the two small items in
-   §8 of `docs/DESIGN-modes-connectivity-network-2026-10-19.md`: record each ARES re-upload's
-   predecessor (re-ingest currently sets no `sourceVersion`), and let Combine take `resourceLinks` from
-   whichever side changed when an ancestor exists (it currently refuses any difference). Without them,
-   bringing edits onto a new ARES release (about every two weeks) is all conflicts or a refusal.
-   Also in flight: Codex's fix for ordinary saves whose source is deleted mid-save (500 → #405's
-   `unavailable: 'source'` 404).
-3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
-   and narrow URL-check cleanup. Public PDF edge limiting/cache policy is
-   also separate; follow the existing exposure checklist when deliberately publishing a folder.
-4. Plan A+ — optional document-time translation of stored `ares.local` addresses for online installs.
-5. Stable row identity and structural drafts remain deferred.
-6. **After phase 4 — Standard/Advanced mode, connectivity and the school network:** direction agreed,
-   not approved for building; see `docs/DESIGN-modes-connectivity-network-2026-10-19.md` (decisions,
-   an inventory for the operator to mark up, the proposed order, open items).
+1. Finish #409 (`fix/ordinary-save-source-race`): merged latest main with both documentation records
+   retained; show the approved source-deleted/copy-text message on every save, including ordinary
+   saves. Add a real-source-deletion browser case, revalidate, push; do not merge.
+2. New ready PR, **ARES releases combine cleanly** — §8 of
+   [`DESIGN-modes-connectivity-network-2026-10-19.md`](DESIGN-modes-connectivity-network-2026-10-19.md).
+   Record the previous *ingested release* (not a teacher edit) on re-ingest. Propose `sourceVersion`
+   versus `previousRelease` and whether to backfill existing majors; await the operator's choice
+   before any migration. With a usable ancestor, select resource links from the sole changed side;
+   refuse divergent changes on both sides and retain the two-way refusal. Unit, re-ingest and
+   three-way teacher-edit/next-release tests; update SPEC §6/§7.
+3. One small Insert link tidy-up PR: PDF-picker request/loading lifecycle, shared field-label
+   wording and the duplicated address check. Public PDF edge/cache hardening remains separate.
+4. Propose phase 4 scope to the operator **before coding**. The full direct-update blueprint is
+   [`DESIGN-update-draft-2026-10-19.md`](DESIGN-update-draft-2026-10-19.md); it was previously
+   deferred in favor of #406, so do not assume the full blueprint is now approved.
+5. After phase 4: Standard/Advanced mode, connectivity and the school network remain **direction
+   only**, not approved for building. The modes/connectivity/network note preserves the decisions,
+   worldwide identity proposal, operator inventory, open questions and staged order. Each needs
+   its own plan and approval. Plan A+ waits for an online deployment; stable row identity and
+   structural drafts stay deferred until justified. Ask the ARES team about `ares.edu`; it is not
+   a default alias.
+
+Actual ARES installation remains an operations priority: verify local `ares.local` links, machine
+performance, exports and backup/restore with the operator. Do not deploy from these feature PRs.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
@@ -119,8 +135,7 @@ component for duplicated version-side markup; one module-level scope/whitelist t
 response is implemented in #405; the Combine state machine stays deferred with full direct draft
 updates.
 
-**Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
-predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections
+**Separate follow-ups:** routine reads also load lineage; consider narrower projections
 if plans reach hundreds of versions. Backfill batching is optional at much larger histories.
 Lineage keeps the newest 2,000 ids and full windows conservatively use two-way comparison.
 
@@ -142,11 +157,8 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> Main contains #404–#408 and #406 (Insert link for ARES with its clean-up, opt-in public PDFs,
-> identified unavailable Combine parents, and the draft-to-Combine hint). Check PR states.
-> Do not merge or deploy
-> without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.
-> Next is Combine phase 4 (confirm its scope with the operator first) plus the two small ARES-release
-> items in §8 of `docs/DESIGN-modes-connectivity-network-2026-10-19.md`. That note also records the
-> agreed direction for Standard/Advanced mode, connectivity and a school network — direction only,
-> not approved for building. Propose a plan and wait for approval before coding.
+> Main includes #408/#406 and the modes/connectivity/network design. Finish #409's ordinary-save
+> deletion client correction; then the separate ARES-release Combine PR (predecessor/backfill choice
+> before migration); then Insert link tidy-ups; then propose phase 4 scope before coding. Preserve
+> both documentation records and current decisions. Ready PRs only; do not merge or deploy. Preserve
+> source-deletion draft cascades and explicit PDF publication consent.

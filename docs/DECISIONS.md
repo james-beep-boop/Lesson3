@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Ordinary source deletion uses the existing copy-text message; revised work order
+
+The operator requested refreshing #409 from latest main, preserving both sets of decisions and the
+current handoff. The client must handle `404` with `unavailable: 'source'` for every save, not only
+Combine. Keep the approved deletion/copy-text message and the existing draft cascade; do not retain
+or recreate drafts after the source disappears. Parse a cloned response so unknown ordinary 404s
+retain their original server message. Browser coverage deletes a real ordinary source before Save.
+
+The current order supersedes earlier sequencing: finish #409; a separate “ARES releases combine
+cleanly” PR for §8 of the modes/connectivity/network design (predecessor choice and backfill decision
+before migrations); one small Insert link tidy-up PR; then propose phase 4 scope before any code.
+The Standard/Advanced, connectivity, identity and school-network direction stays recorded, with
+building outside the explicitly requested items still awaiting its own plan and approval. Actual
+ARES hardware installation, local links, performance and backups remain an operations priority.
+
 ## 2026-10-19 — Direction for Standard/Advanced mode, connectivity and a school network
 
 Operator discussion, recorded in full in `docs/DESIGN-modes-connectivity-network-2026-10-19.md`.
@@ -41,6 +56,29 @@ items in §8 of the design note — record each ARES re-upload's predecessor, an
 resource links from whichever side changed when a common ancestor exists — because the two-weekly
 ARES releases otherwise make "bring my edits onto the new release" refuse or turn every paragraph into
 a conflict.
+
+## 2026-10-18 — Every save rechecks its source under the plan lock
+
+The operator approved fixing the remaining ordinary-save deletion race before more feature work.
+Only Combine previously locked the plan and re-read its parents before candidate creation. Ordinary
+save-as-new could read the source, lose it to concurrent deletion and fail during creation instead
+of returning the existing source-unavailable response. Take the plan lock for every save attempt,
+refresh the caller and check editing access first, then re-read the source (and the second parent
+only for Combine). Use the endpoint-owned 404 with `unavailable: 'source'`; do not expose that marker
+when editing access has been revoked. Preserve the final authorization check, rollback, semver retry,
+recovery retirement and source-deletion cascade. No new messages, schema or endpoint.
+
+Wire regressions hold the same plan lock and delete the source inside its owning transaction before
+letting the save resume. The shared lock helper now passes its transaction to the callback while
+preserving finally-based release for existing callers. A bounded SQL timeout prevents a regression
+from hanging on a foreign-key lock. Check 404/source, 403/no marker after revocation plus deletion,
+no committed candidate and an unchanged Official pointer; a source that survives the wait still
+saves normally with its prose and provenance. Unit tests also pin unreadable-source parity, early
+authorization and propagation of database errors. The four new unit cases fail on the old endpoint.
+
+After this correctness fix, prioritize installation and use on actual ARES hardware: local links,
+performance, export and backup/restore. Keep Plan A+, Insert link tidy-ups, full direct draft updates,
+the Combine state machine and stable row identity deferred until there is a demonstrated need.
 
 ## 2026-10-18 — Keep Insert link labels plain and retain the field through toolbar focus
 

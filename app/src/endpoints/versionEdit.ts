@@ -242,31 +242,28 @@ export const saveAsNewEndpoint: Endpoint = {
     for (let attempt = 0; ; attempt++) {
       const shouldCommit = await initTransaction(req)
       try {
-        if (mergeParent !== null) {
-          // Native parent deletion takes this same plan lock. Re-read both parents after waiting;
-          // a concurrent deletion must be a controlled 404, not a failed foreign-key insert.
-          await lockRows(req, 'lesson_plans', [planId])
-          const currentCaller = await refreshCaller(req)
-          if (!isEditorFor(currentCaller, toId(source.subjectGrade))) {
-            throw new APIError('Not allowed', 403)
+        // Native deletion takes the same plan lock. Every save rechecks its source after waiting;
+        // a concurrent deletion must be a controlled 404, not a failed foreign-key insert.
+        await lockRows(req, 'lesson_plans', [planId])
+        const callerAfterLock = await refreshCaller(req)
+        if (!isEditorFor(callerAfterLock, toId(source.subjectGrade))) {
+          throw new APIError('Not allowed', 403)
+        }
+        const parents: ['source' | 'secondParent', number][] = [['source', source.id]]
+        if (mergeParent !== null) parents.push(['secondParent', mergeParent])
+        for (const [label, parentId] of parents) {
+          const parent = await findReadableVersion(req.payload, {
+            id: parentId,
+            user: callerAfterLock,
+            req,
+            select: { lessonPlan: true, subjectGrade: true },
+          })
+          if (!parent) throw new VersionUnavailableError(label)
+          if (relId(parent.lessonPlan) !== planId) {
+            throw new APIError('Both versions must belong to the same lesson plan.', 400)
           }
-          for (const [label, parentId] of [
-            ['source', source.id],
-            ['secondParent', mergeParent],
-          ] as const) {
-            const parent = await findReadableVersion(req.payload, {
-              id: parentId,
-              user: currentCaller,
-              req,
-              select: { lessonPlan: true, subjectGrade: true },
-            })
-            if (!parent) throw new VersionUnavailableError(label)
-            if (relId(parent.lessonPlan) !== planId) {
-              throw new APIError('Both versions must belong to the same lesson plan.', 400)
-            }
-            if (!isEditorFor(currentCaller, toId(parent.subjectGrade))) {
-              throw new APIError('Not allowed', 403)
-            }
+          if (!isEditorFor(callerAfterLock, toId(parent.subjectGrade))) {
+            throw new APIError('Not allowed', 403)
           }
         }
         // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
