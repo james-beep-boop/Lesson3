@@ -4,6 +4,7 @@ import { canEditStructure, systemOnly } from '../access/bundle'
 import { isSubjectAdminFor, siteAdminField, toId } from '../access'
 import { prose, proseAdmin, structureText } from './bundleFields'
 import { PHASE_OPTIONS } from './phases'
+import { FRAMEWORK_PROSE_LABELS } from '../lib/frameworkProse'
 import type { User } from '../payload-types'
 import { isSafeHttpUrl, RESOURCE_PHASE_KEYS } from '../ingest/resourceLinks'
 
@@ -357,10 +358,9 @@ export const lessonEditableContentFields: Field[] = [
             options: PHASE_OPTIONS,
             access: { update: canEditStructure },
           }),
-          prose('learnerExperience', 'Learner experience', { linkable: true }),
-          prose('teacherMoves', 'Teacher moves', { linkable: true }),
-          prose('sensemakingStrategy', 'Sensemaking strategy', { linkable: true }),
-          prose('formativeAssessment', 'Formative assessment', { linkable: true }),
+          ...Object.entries(FRAMEWORK_PROSE_LABELS).map(([name, label]) =>
+            prose(name, label, { linkable: true }),
+          ),
         ],
       },
       prose('teacherReflection', 'Teacher reflection'),

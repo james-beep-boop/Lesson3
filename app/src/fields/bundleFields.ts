@@ -19,6 +19,7 @@ const linkComponent = {
     Field: {
       path: '@/components/LinkedTextarea#default',
       clientProps: {
+        pdfLibraryConfigured: Boolean(process.env.PDF_LIBRARY_DIR?.trim()),
         aresAddresses: {
           siteUrl: process.env.ARES_SITE_URL,
           kolibriUrl: process.env.ARES_KOLIBRI_URL,
