@@ -23,19 +23,15 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 # CURRENT STATE — 2026-10-18
 
 **Base:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
-Insert link cleanup is ready in [#408](https://github.com/james-beep-boop/Lesson3/pull/408), branch
-`fix/insert-link-cleanup`. Its types/lint/format/build, 1,598 unit, 313 integration and 397 wire
-(+4 existing SMTP skips) checks passed, together with 118 full browser cases and a final rebuilt
-12-case Insert link confirmation. The tracked test configuration was restored.
-
-Current work updates [#406](https://github.com/james-beep-boop/Lesson3/pull/406),
-`feat/draft-combine-shortcut`, on top of #408. It is stacked against the cleanup branch so its review
-diff shows the small restore/save hint separately. Combined validation passed: types, lint, format,
-production build, **1,603 unit**, **314 integration**, **397 wire + 4 existing SMTP skips** and
-**122 browser tests without retries**. Tracked test configuration was restored. CI is dispatched
-manually on this branch because the workflow's automatic PR trigger targets only main; no workflow
-file change is needed. The operator explicitly wants to review #406 before merge. Do not merge either PR or deploy without instruction.
-After #408 merges, retarget #406 to latest main and check the resulting diff and CI again.
+Insert link cleanup is merged ([#408](https://github.com/james-beep-boop/Lesson3/pull/408), `9f6b6ff`):
+actual-link and leading bullet/table label validation, word spacing, and stale focus targets
+(mouse, Enter and Space). The small draft-to-Combine hint
+([#406](https://github.com/james-beep-boop/Lesson3/pull/406)) was reviewed by the operator's request
+and merged after it: when a restorable ordinary draft's source has a newer readable descendant, the
+restore prompt suggests saving and then combining, and the saved version offers "Combine with
+{version}". Combined validation: types, lint, format, production build, **1,603 unit**, **314
+integration**, **397 wire + 4 existing SMTP skips** and **122 browser tests without retries**.
+Not yet deployed: deploy only on the operator's instruction (no migration).
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -96,9 +92,9 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 
 ## Remaining work
 
-1. Review the approved Insert link cleanup in #408. #407 is merged;
+1. Deploy #404–#408 and #406 when the operator chooses (no migration). #407 is merged;
    explicit PDF publication consent and both built-app authorization modes are in place.
-2. Review the approved small draft-to-Combine shortcut in #406. Full direct draft updates and the
+2. The small draft-to-Combine shortcut (#406) is merged. Full direct draft updates and the
    Combine state-machine refactor remain deferred until teacher use justifies them; the blueprint
    and approved smaller flow are preserved in that PR's design document.
 3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
@@ -136,7 +132,7 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> Main contains #407. #408 is the Insert link cleanup; #406 is stacked on it with the small
-> draft-to-Combine hint. Check validation and PR states, and leave #406 for operator review.
+> Main contains #404–#408 and #406 (Insert link for ARES with its clean-up, opt-in public PDFs,
+> identified unavailable Combine parents, and the draft-to-Combine hint). Check PR states.
 > Do not merge or deploy
 > without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.
