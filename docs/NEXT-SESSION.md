@@ -28,11 +28,11 @@ those changes are being deployed; completion has not been confirmed. Current app
 `fix/ordinary-save-source-race`: take the plan lock for every save, refresh authorization before
 re-reading the source, and return #405's unavailable-source 404 instead of a creation failure.
 The wire tests cover deletion, revoked access plus deletion, rollback and an unchanged normal save.
-Validation passed on `lesson3-codex-probe`, port 3103: types, lint, format, production build,
-**1,607 unit**, **314 integration**, **400 wire + 4 existing SMTP skips** and **122 browser tests
+Validation after refreshing main and fixing the client passed on `lesson3-codex-probe`, port 3103: types, lint, format, production build,
+**1,607 unit**, **314 integration**, **400 wire + 4 existing SMTP skips** and **123 browser tests
 without retries**. All three new wire cases passed against the built app. The four new unit cases
 failed on the original endpoint and pass with the fix. Tracked test configuration was restored.
-Push and a ready PR are authorized; do not merge or deploy.
+The ordinary-source-deletion browser case and a non-source 404 fallback both pass. Push and a ready PR are authorized; do not merge or deploy.
 
 **Recent merged work:**
 Insert link cleanup is merged ([#408](https://github.com/james-beep-boop/Lesson3/pull/408), `9f6b6ff`):
