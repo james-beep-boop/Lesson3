@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 import { isEditorFor, toId } from '../../access'
+import { releaseMajor } from '../../ingest/releaseAncestry'
 import type { LessonBundleVersion, User } from '../../payload-types'
 import { relId } from '../relId'
 import { compareSemver } from '../semver'
@@ -7,7 +8,7 @@ import { compareSemver } from '../semver'
 type Source = Pick<LessonBundleVersion, 'id' | 'lessonPlan' | 'subjectGrade' | 'semver'>
 export type DraftCombineSuggestion = { id: number; semver: string }
 
-/** Optional guidance only. A retained lineage id proves descent even in a bounded history window. */
+/** Optional advice: readable common history, preferring the next ingested release over teacher work. */
 export async function findDraftCombineSuggestion(
   payload: Payload,
   source: Source,
@@ -18,22 +19,43 @@ export async function findDraftCombineSuggestion(
     return null
   const { docs } = await payload.find({
     collection: 'lesson-bundle-versions',
-    where: { and: [{ lessonPlan: { equals: planId } }, { lineage: { equals: source.id } }] },
-    select: { semver: true },
+    where: { lessonPlan: { equals: planId } },
+    select: { semver: true, lineage: true, author: true, mergedFrom: true },
     depth: 0,
     pagination: false,
     overrideAccess: false,
     user,
   })
-  return docs.reduce<DraftCombineSuggestion | null>((best, version) => {
+  const current = docs.find((version) => version.id === source.id)
+  if (!current) return null
+  const readable = new Set(docs.map((version) => version.id))
+  const ancestors = new Set(
+    [source.id, ...(current.lineage ?? [])].filter((id) => readable.has(id)),
+  )
+  let best: DraftCombineSuggestion | null = null
+  let bestIsRelease = false
+  for (const version of docs) {
     if (
       version.id === source.id ||
       !version.semver ||
-      compareSemver(version.semver, source.semver!) <= 0
+      compareSemver(version.semver, source.semver) <= 0 ||
+      ![version.id, ...(version.lineage ?? [])].some((id) => ancestors.has(id))
     )
-      return best
-    return !best || compareSemver(version.semver, best.semver) > 0
-      ? { id: version.id, semver: version.semver }
-      : best
-  }, null)
+      continue
+    const isRelease =
+      releaseMajor({
+        semver: version.semver,
+        author: relId(version.author),
+        second: relId(version.mergedFrom),
+      }) !== null
+    if (
+      !best ||
+      (isRelease && !bestIsRelease) ||
+      (isRelease === bestIsRelease && compareSemver(version.semver, best.semver) > 0)
+    ) {
+      best = { id: version.id, semver: version.semver }
+      bestIsRelease = isRelease
+    }
+  }
+  return best
 }

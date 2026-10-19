@@ -4,15 +4,23 @@ import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { openEditor, expandLessons, typeProse, restorePrompt } from '../helpers/editRecoveryUi'
 let fx: RoleFixture
 let sequence = 0
-test.beforeAll(async () => {
+test.beforeEach(async () => {
   fx = await setupRoleFixture()
 })
-test.afterAll(async () => {
+test.afterEach(async () => {
   await fx?.teardown()
 })
-async function version(sourceVersion = fx.version.id, semver = `60.${++sequence}.0`) {
+async function version(
+  sourceVersion = fx.version.id,
+  semver = `60.${++sequence}.0`,
+  release = false,
+) {
   const content = minimalBundleContent()
   content.lessons[0].overview = `Saved text ${semver}`
+  if (release) {
+    ;(content.lessons[0].resourceLinks as Record<string, unknown>[])[0].fallback_search_url =
+      'http://ares.local/modules/new-release'
+  }
   return fx.payload.create({
     collection: 'lesson-bundle-versions',
     overrideAccess: true,
@@ -21,13 +29,14 @@ async function version(sourceVersion = fx.version.id, semver = `60.${++sequence}
       title: fx.version.title,
       semver,
       sourceVersion,
+      ...(release ? {} : { author: fx.users.editor.id }),
       lessonPlan: fx.plan.id,
       subjectGrade: fx.subjectGrade.id,
     } as never,
   })
 }
-async function prepare(page: Page) {
-  const source = await version()
+async function prepare(page: Page, semver?: string) {
+  const source = await version(fx.version.id, semver)
   await loginAs(page, fx, 'editor')
   await openEditor(page, source.id)
   await expandLessons(page)
@@ -49,16 +58,15 @@ async function official() {
     .officialVersion
 }
 
-test('restores an older ordinary draft, saves once, and explicitly opens Combine with its highest numeric descendant', async ({
+test('offers ARES 2.0.0 for a draft on teacher 1.0.1, then saves before explicitly combining', async ({
   page,
 }) => {
-  const source = await prepare(page)
-  await version(source.id, '70.9.0')
-  const target = await version(source.id, '70.10.0')
-  await version(fx.version.id, '99.0.0') // A newer sibling is not a descendant of this draft's source.
+  const source = await prepare(page, '1.0.1')
+  const target = await version(fx.version.id, '2.0.0', true)
+  await version(fx.version.id, '2.0.9') // Prefer the new ingested release to newer teacher work.
   await openEditor(page, source.id)
   await expect(restorePrompt(page)).toContainText(
-    `Version ${target.semver} builds on version ${source.semver}. To bring your changes together, save your draft as a version, then combine it with ${target.semver}.`,
+    `Version ${target.semver} shares version history with version ${source.semver}. To bring your changes together, save your draft as a version, then combine it with ${target.semver}.`,
   )
   await restorePrompt(page).getByRole('button', { name: 'Restore my draft', exact: true }).click()
   await expandLessons(page)
@@ -74,6 +82,11 @@ test('restores an older ordinary draft, saves once, and explicitly opens Combine
   await save(page).click()
   await expect(page).toHaveURL(new RegExp(`draftCombineWith=${target.id}$`))
   const intermediateId = Number(new URL(page.url()).pathname.split('/').pop())
+  const intermediate = await fx.payload.findByID({
+    collection: 'lesson-bundle-versions',
+    id: intermediateId,
+    depth: 0,
+  })
   await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(
     (
@@ -88,18 +101,32 @@ test('restores an older ordinary draft, saves once, and explicitly opens Combine
   await expect(page).toHaveURL(new RegExp(`combineWith=${target.id}$`))
   await expect(page.getByRole('dialog')).toContainText(`with version ${target.semver}`)
   await page.getByRole('button', { name: 'Continue in editor', exact: true }).click()
+  await expect(page).toHaveURL(
+    new RegExp(`/lesson-bundle-versions/${target.id}\\?combineWith=${intermediateId}$`),
+  )
+  await page.getByRole('button', { name: 'Continue in editor', exact: true }).click()
+  await expect(page.locator('.lp-combine')).toBeVisible()
   await expect(save(page)).toBeDisabled()
-  await page.getByRole('button', { name: `Use ${target.semver}’s text`, exact: true }).click()
+  await page.getByRole('button', { name: `Use ${intermediate.semver}’s text`, exact: true }).click()
+  const response = page.waitForResponse(
+    (r) => r.url().includes('/save-as-new') && r.request().method() === 'POST',
+  )
   await save(page).click()
-  await expect(page).not.toHaveURL(new RegExp(`/${intermediateId}(?:\\?|$)`))
-  const finalId = Number(new URL(page.url()).pathname.split('/').pop())
+  const saved = await response
+  expect(saved.status()).toBe(200)
+  const finalId = (await saved.json()).id as number
+  await expect(page).toHaveURL(new RegExp(`/lesson-bundle-versions/${finalId}$`))
   const combined = await fx.payload.findByID({
     collection: 'lesson-bundle-versions',
     id: finalId,
     depth: 0,
   })
-  expect(combined.sourceVersion).toBe(intermediateId)
-  expect(combined.mergedFrom).toBe(target.id)
+  expect(combined.lessons?.[0].overview).toBe(`${MARK}Private restored wording`)
+  expect(combined.sourceVersion).toBe(target.id)
+  expect(combined.mergedFrom).toBe(intermediateId)
+  expect(combined.lessons?.[0].resourceLinks?.[0].fallback_search_url).toBe(
+    'http://ares.local/modules/new-release',
+  )
   await expect(page.getByText('Not Official', { exact: true })).toBeVisible()
   expect(await official()).toBe(fx.version.id)
   expect(

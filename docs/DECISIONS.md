@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Widen advice-only draft hint to shared release history
+
+Operator approved replacing the full phase 4 with Save → Combine advice. A newer ARES release is
+usually a sibling of a teacher's version, not its descendant: teacher 1.0.1 and release 2.0.0 both
+include release 1.0.0. Suggest newer readable same-plan versions sharing a surviving readable
+ancestor; prefer the highest numeric newer ingested release, otherwise the highest numeric related
+version. Reuse ingest's release predicate; no clock or Official ordering and no content reads.
+
+Approved copy: “Version {newer} shares version history with version {source}. To bring your changes
+together, save your draft as a version, then combine it with {newer}.” Button remains “Combine with
+{newer}”. Advice remains optional, only for the owner's ordinary restorable draft with editing access;
+copy-only captures and unfinished Combine are unchanged. Save produces one Not Official version;
+only an explicit later action opens Combine. No new storage, migration, endpoint or state-machine
+rewrite. Full phase 4 and both proposals remain deferred until teacher use justifies them.
+
+Validation on lesson3-codex-probe:3103: types/lint/format/build, **1,634 unit, 316 integration,
+402 wire** (+4 existing SMTP skips), and all **126 browser cases** covered. The full browser run
+passed 125 cases; the new test missed the existing second review after a starting-version switch.
+After correcting that assertion, all four hint browser cases passed without retries. The test also
+waits for the final save response/URL and proves retained teacher prose/new resource links, parent
+ids, the intermediate Not Official version and unchanged Official. No app fix was needed for this
+test correction. Tracked test environment restored.
+
 ## 2026-10-19 — Release review fixes complete with approved refusal
 
 Migration down deliberately succeeds without erasing compatible predecessor links. Opposite-side

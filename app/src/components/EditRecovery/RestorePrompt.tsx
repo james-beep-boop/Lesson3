@@ -122,8 +122,9 @@ export function EditRecoveryRestorePrompt({
 
       {!readOnly && !capture.combineContext && newerVersion && (
         <p className="modal__body">
-          Version {newerVersion.newer} builds on version {newerVersion.source}. To bring your
-          changes together, save your draft as a version, then combine it with {newerVersion.newer}.
+          Version {newerVersion.newer} shares version history with version {newerVersion.source}. To
+          bring your changes together, save your draft as a version, then combine it with{' '}
+          {newerVersion.newer}.
         </p>
       )}
 

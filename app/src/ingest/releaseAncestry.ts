@@ -7,7 +7,7 @@ export interface ReleaseRow extends LineageRow {
 }
 
 /** Only ingest creates whole-major versions; author alone is insufficient (deleted users become null). */
-export function releaseMajor(row: ReleaseRow): number | null {
+export function releaseMajor(row: Pick<ReleaseRow, 'semver' | 'author' | 'second'>): number | null {
   if (row.author != null || row.second != null || !/^[1-9]\d*\.0\.0$/.test(row.semver)) return null
   const major = Number(row.semver.split('.')[0])
   return Number.isSafeInteger(major) ? major : null

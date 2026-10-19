@@ -3,7 +3,7 @@
 **Status: deferred until teacher use justifies it. Not approved for implementation.**
 
 Operator reaffirmed this decision on 2026-10-19 and closed #412 without merging. Keep Save →
-Combine; its small hint will be widened for the newer ARES-release case. The unapproved
+Combine; its small hint is widened for the newer ARES-release case. The unapproved
 [phase 4 scope](DESIGN-phase4-scope-2026-10-19.md) is preserved as deferred too.
 
 This preserves the direct-update proposal discussed on 2026-10-18. The filename follows the
@@ -15,14 +15,15 @@ its original version after newer versions are saved.
 The small alternative is a restore-prompt notice and an action after saving that opens the existing
 Combine review. It needs no migration, new endpoint, frozen input or state-machine rewrite. The
 operator approved the small alternative and its three strings on 2026-10-18. Implementation starts
-after #405 merges. The full design below remains deferred.
+after #405 merged. The 2026-10-19 approved widening below follows #410; the full design remains deferred.
 
 ## Approved small alternative
 
-- For a restorable ordinary draft, find the highest-numbered readable newer descendant of its
-  source, in the same plan, using recorded lineage. Require current editing access. A higher version
-  number alone is not ancestry. Keep the existing stale-source and schema-mismatch copy-only rules.
-- Add this restore-prompt notice: "Version {newer} builds on version {source}. To bring your changes
+- For a restorable ordinary draft, find a newer readable same-plan version sharing a surviving,
+  readable common ancestor with its source. Prefer the highest numeric newer ingested release;
+  otherwise choose the highest numeric related version. Require current editing access. A higher
+  version number alone is not ancestry. Keep the existing stale-source and schema-mismatch copy-only rules.
+- Add this restore-prompt notice: "Version {newer} shares version history with version {source}. To bring your changes
   together, save your draft as a version, then combine it with {newer}."
 - After a successful Save as new version, offer "Combine with {newer}" on the newly saved version.
   Clicking it uses the existing `?combineWith=` handoff. That handoff already opens the comparison
@@ -35,7 +36,7 @@ after #405 merges. The full design below remains deferred.
 - Exclude unfinished Combine drafts from this hint; preserve their current second-parent workflow.
 - Proposed Guide wording: "To bring a draft together with a newer version, save the draft as a
   version, then use Combine versions."
-- Prove descendant selection, access and owner gating, restoration without a suggestion, the
+- Prove common-history and release selection, access and owner gating, restoration without a suggestion, the
   post-save action, version/URL handoff, deleted targets, existing conflict choices and unchanged
   Official status. Run the required checks on lesson3-codex-probe, port 3103.
 

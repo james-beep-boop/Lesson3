@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Restoring an ordinary draft can suggest a newer ARES release sharing earlier history with the
+  teacher's version. The hint prefers a newer ingested release, then other related versions by
+  numeric version number. Save first, then explicitly choose Combine; Official remains unchanged.
+
 - Re-ingested ARES releases record their preceding release so teacher edits and a newer release
   share ancestry. Combine can retain the sole changed resource map while bringing prose together;
   incompatible protected edits and ambiguous lesson correspondence still refuse. An audited,

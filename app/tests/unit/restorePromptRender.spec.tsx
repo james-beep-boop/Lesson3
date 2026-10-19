@@ -245,6 +245,8 @@ describe('draft Combine guidance', () => {
         onDiscard={() => {}}
       />,
     )
-    expect(screen.queryByText(/Version 1.0.2 builds on version 1.0.0/) !== null).toBe(visible)
+    expect(
+      screen.queryByText(/Version 1.0.2 shares version history with version 1.0.0/) !== null,
+    ).toBe(visible)
   })
 })

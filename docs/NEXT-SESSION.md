@@ -20,7 +20,7 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# CURRENT STATE — 2026-10-18
+# CURRENT STATE — 2026-10-19
 
 **Base:** merged fetched `origin/main` at `815d35e` (merged #408/#406 plus the modes/connectivity/network
 note). #409 was merged after operator approval and green CI as `7169f84`; it includes both
@@ -28,7 +28,7 @@ documentation histories and the ordinary-save copy-text client fix at `a0ff598`.
 build, 1,607 unit, 314 integration, 400 wire (+4 existing SMTP skips), 123 full browser cases without
 retries; all six focused save-browser cases also pass. #409 CI is green and the merge is complete.
 
-**Current branch:** `feat/ares-release-combine`, the separate §8 release work, complete and ready
+**Release branch:** `feat/ares-release-combine`, the separate §8 release work, complete and ready
 for review. The operator approved existing `sourceVersion` plus audited unambiguous backfill.
 Re-ingest selects the previous release under the plan lock; the metadata-only migration repairs
 consecutive unlinked majors and descendant lineage, reporting gaps/ambiguity and preserving
@@ -56,6 +56,20 @@ Preserve both designs as deferred until teacher use justifies them. After #410 f
 small advice-only hint to common-ancestor versions, preferring a newer ingested release; approve
 wording is approved. No frozen-input migration, transfer endpoints or reducer rewrite.
 The operator reports prior merges are being deployed; completion has not been confirmed.
+
+**Current branch:** `feat/draft-common-history-hint`, a separate ready-PR change stacked on #410.
+The approved hint now accepts newer readable same-plan versions with a surviving readable common
+ancestor, preferring a newer ingested release; teacher 1.0.1 versus release 2.0.0 sharing 1.0.0 is
+covered. Owner/ordinary/restorable/editing-access guards remain, unfinished Combine excluded.
+No new storage, migration, endpoint or state-machine rewrite.
+Validation on lesson3-codex-probe:3103: types/lint/format/build, **1,634 unit, 316 integration,
+402 wire** (+4 existing SMTP skips), and all **126 browser cases** covered. The full browser run
+passed 125 cases; the new test missed the existing second review after a starting-version switch.
+After correcting that assertion, all four hint browser cases passed without retries. The test also
+waits for the final save response/URL and proves retained teacher prose/new resource links, parent
+ids, the intermediate Not Official version and unchanged Official. No app fix was needed for this
+test correction. Tracked test environment restored.
+Ready for review; do not merge/deploy.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -109,7 +123,8 @@ Use an isolated stack with both a distinct project name and port: Codex uses `le
 Always fetch before comparing branches or commits.
 
 **Small draft-to-Combine hint:** an ordinary restorable draft can name the highest numeric readable
-newer same-plan descendant of its source, using recorded lineage. After restoring and saving as a
+newer readable same-plan version sharing a surviving readable ancestor, preferring a newer ingested
+release and otherwise the highest numeric related version. After restoring and saving as a
 numbered version, **Combine with {newer}** opens the existing review through `?combineWith=`. It
 never starts Combine automatically. No migration, endpoint, frozen input or state-machine rewrite.
 The full design remains [deferred until teachers need it](DESIGN-update-draft-2026-10-19.md).
@@ -117,14 +132,12 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 ## Remaining work — latest operator order
 
 1. #409 is merged as 7169f84 and #411 as 815d35e after all CI passed. No deployment.
-2. Finish #410's two review fixes: migration down is a documented no-op, and opposite-side
-   administrator/resource changes get an accurate distinct refusal. Both proposed messages are now approved.
-   Push ready; do not merge or deploy #410.
-3. Then widen #406's hint: newest readable newer same-plan version sharing a common ancestor,
-   preferring a newer ingested release. Preserve owner/ordinary/restorable/editing-access guards,
-   excluding unfinished Combine. Advice only; no migration or endpoint. Wording is approved.
-   Prove unit, integration and browser behavior including teacher 1.0.1 versus next ARES release.
-   Separate ready PR; do not merge or deploy.
+2. #410's two review fixes are complete and pushed at 8aa912a: documented no-op down and the
+   approved distinct administrator/resource refusal. Ready for review; do not merge or deploy.
+3. The wider #406 hint is implemented on `feat/draft-common-history-hint`, stacked on #410.
+   It uses newer readable same-plan shared history and prefers newer ingested releases, retaining
+   all ordinary-draft guards. Approved wording and unit/integration/browser proof are complete.
+   Ready PR only, no merge/deploy; after #410 merges, refresh/retarget the hint to main.
 4. Full phase 4 is not approved; #412 is closed. Keep both designs as deferred until teacher use
    justifies them. No new input storage, transfer operations or Combine state rewrite.
 5. Modes, connectivity, identity and school networking remain direction only; Plan A+, stable row
@@ -175,8 +188,8 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> #409 and #411 are merged after green CI (7169f84 and 815d35e). #410 needs two
-> review fixes (no-op down; accurate separate protected-side refusal), with wording now approved.
-> Then widen the advice-only hint for common ancestors/newer releases in a separate ready PR.
-> Full phase 4 is rejected/deferred; #412 is closed. Preserve both design docs. No deployment;
-> do not merge #410 or the hint. Use only lesson3-codex-probe:3103.
+> #409 and #411 are merged after green CI (7169f84 and 815d35e). #410 review fixes are
+> pushed at 8aa912a. The approved wider advice-only common-history/release hint is complete on
+> feat/draft-common-history-hint, stacked on #410, with local proof above. Review before merging;
+> refresh/retarget the hint to main after #410 merges. Full phase 4 remains rejected/deferred,
+> #412 closed, both designs retained. Do not merge or deploy. Only lesson3-codex-probe:3103.
