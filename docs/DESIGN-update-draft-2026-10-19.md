@@ -2,6 +2,11 @@
 
 **Status: deferred until teachers need it. Not approved for implementation.**
 
+A [new phase 4 scope proposal](DESIGN-phase4-scope-2026-10-19.md) is awaiting approval. It also
+covers a newer ARES release on a sibling branch using the real common ancestor; the preserved
+proposal below assumed the target descended from the draft's source. Neither proposal authorizes
+implementation, migration or new screen wording.
+
 This preserves the direct-update proposal discussed on 2026-10-18. The filename follows the
 operator's requested 2026-10-19 design date. Revisit when teachers frequently combine work from
 older drafts and the intermediate numbered versions cause confusion. Until then, use Save as

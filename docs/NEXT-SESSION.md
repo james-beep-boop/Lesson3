@@ -20,9 +20,36 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# CURRENT STATE — 2026-10-18
+# CURRENT STATE — 2026-10-19
 
-**Base:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
+**Current base:** fetched `origin/main` `3472843`. #409 is refreshed from that main and pushed
+at `a0ff598`, including the ordinary-source 404 client message and browser test; all local gates
+and CI pass. Do not merge. **#410 — ARES releases combine cleanly** is ready for review, pushed
+at `1209878` on `feat/ares-release-combine`. Existing `sourceVersion` plus audited unambiguous
+backfill were approved before implementation. Its complete local proof passes: types/lint/format/
+build, 1,616 unit, 316 integration, 398 wire (+4 existing SMTP skips), 122 full browser cases without
+retries. It has a metadata-only forward repair migration; inspect its design and backup notes in
+that branch before deployment. No merge or deployment is authorized.
+
+**Completed tidy-up:** [#411](https://github.com/james-beep-boop/Lesson3/pull/411),
+`f90b930` on `fix/insert-link-picker-lifecycle`, branched from fetched main independently of
+#410. Skip PDF requests on unconfigured installs; cancel per-open requests and fence late responses;
+show a configured busy region without blocking addresses; centralize framework labels and parse
+pasted addresses once. No new endpoint, migration, publication rule or wording. Types/lint/format/
+build, **1,609 unit, 314 integration, 397 wire (+4 existing SMTP skips), 124 full browser tests
+without retries** pass, as do all 14 focused Insert link browser cases. Tracked test configuration
+is restored. Ready for review; do not merge or deploy.
+
+**Current branch:** `docs/phase4-scope-proposal`, from freshly fetched main. The
+[phase 4 scope proposal](DESIGN-phase4-scope-2026-10-19.md) is ready for operator review only.
+It proposes ordinary-draft updates using the real common ancestor, including newer ARES releases
+on sibling branches, a reducer as the first implementation step, existing conflict review and
+atomic resumable apply. Storage and endpoint cost are explicit; exact schema, migration, contracts
+and screen wording still need the concrete design approval. **No phase 4 implementation is approved
+or started.** The existing Save → Combine flow remains available. No test stack is running; only
+Codex's lesson3-codex-probe:3103 was used and removed after proof.
+
+**Previous merged baseline:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
 Insert link cleanup is merged ([#408](https://github.com/james-beep-boop/Lesson3/pull/408), `9f6b6ff`):
 actual-link and leading bullet/table label validation, word spacing, and stale focus targets
 (mouse, Enter and Space). The small draft-to-Combine hint
@@ -90,28 +117,28 @@ numbered version, **Combine with {newer}** opens the existing review through `?c
 never starts Combine automatically. No migration, endpoint, frozen input or state-machine rewrite.
 The full design remains [deferred until teachers need it](DESIGN-update-draft-2026-10-19.md).
 
-## Remaining work
+## Remaining work — latest operator order
 
-1. Deploy #404–#408 and #406 when the operator chooses (no migration). #407 is merged;
-   explicit PDF publication consent and both built-app authorization modes are in place.
-2. **Next (operator, 2026-10-19): complete Combine phase 4 first.** The small draft-to-Combine
-   shortcut (#406) is merged; the full direct-draft-update blueprint is
-   `docs/DESIGN-update-draft-2026-10-19.md`. **Confirm phase 4's scope with the operator at the start**
-   — that blueprint was previously deferred in favour of #406. Do alongside it the two small items in
-   §8 of `docs/DESIGN-modes-connectivity-network-2026-10-19.md`: record each ARES re-upload's
-   predecessor (re-ingest currently sets no `sourceVersion`), and let Combine take `resourceLinks` from
-   whichever side changed when an ancestor exists (it currently refuses any difference). Without them,
-   bringing edits onto a new ARES release (about every two weeks) is all conflicts or a refusal.
-   Also in flight: Codex's fix for ordinary saves whose source is deleted mid-save (500 → #405's
-   `unavailable: 'source'` 404).
-3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
-   and narrow URL-check cleanup. Public PDF edge limiting/cache policy is
-   also separate; follow the existing exposure checklist when deliberately publishing a folder.
-4. Plan A+ — optional document-time translation of stored `ares.local` addresses for online installs.
-5. Stable row identity and structural drafts remain deferred.
-6. **After phase 4 — Standard/Advanced mode, connectivity and the school network:** direction agreed,
-   not approved for building; see `docs/DESIGN-modes-connectivity-network-2026-10-19.md` (decisions,
-   an inventory for the operator to mark up, the proposed order, open items).
+1. #409's latest-main and ordinary-source client correction is pushed, all local gates and CI green;
+   await review. Do not merge.
+2. #410 completes §8 of `DESIGN-modes-connectivity-network-2026-10-19.md`: release predecessor,
+   audited backfill and resource-side Combine rule, with real re-ingest/three-way and all local proof.
+   Await CI/review; do not merge or deploy.
+3. This separate Insert link tidy-up is complete and ready for review: PDF-picker request/loading lifecycle,
+   shared field-label wording and duplicated address check. Public PDF edge/cache policy remains
+   separate. Full proof on lesson3-codex-probe:3103 passes; tracked test configuration is restored.
+4. Review [phase 4 scope](DESIGN-phase4-scope-2026-10-19.md) **before any phase 4 code**.
+   The previous full direct-update design remains deferred in favor of #406 and is input, not
+   implementation approval. If scope is approved, produce the concrete data/endpoint/wording design
+   for approval; do not silently implement the old 512 KiB blueprint.
+5. Standard/Advanced mode, connectivity, worldwide identity and school networking remain direction
+   only, not approved for building. See `DESIGN-modes-connectivity-network-2026-10-19.md` for
+   the inventory, decisions, open questions and staged order. Each needs its own plan. Plan A+
+   waits for an online installation; stable row identity and structural drafts remain deferred.
+
+Actual ARES installation remains an operations priority: local links, performance, exports and
+backup/restore with the operator. Ask the ARES team about `ares.edu`; it is not a default alias.
+No merging or deployment from these feature branches is authorized.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
@@ -119,8 +146,7 @@ component for duplicated version-side markup; one module-level scope/whitelist t
 response is implemented in #405; the Combine state machine stays deferred with full direct draft
 updates.
 
-**Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
-predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections
+**Separate follow-ups:** #409 addresses the ordinary-save deletion race. Routine reads also load lineage; consider narrower projections
 if plans reach hundreds of versions. Backfill batching is optional at much larger histories.
 Lineage keeps the newest 2,000 ids and full windows conservatively use two-way comparison.
 
@@ -142,11 +168,8 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> Main contains #404–#408 and #406 (Insert link for ARES with its clean-up, opt-in public PDFs,
-> identified unavailable Combine parents, and the draft-to-Combine hint). Check PR states.
-> Do not merge or deploy
-> without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.
-> Next is Combine phase 4 (confirm its scope with the operator first) plus the two small ARES-release
-> items in §8 of `docs/DESIGN-modes-connectivity-network-2026-10-19.md`. That note also records the
-> agreed direction for Standard/Advanced mode, connectivity and a school network — direction only,
-> not approved for building. Propose a plan and wait for approval before coding.
+> #409 is refreshed/pushed at a0ff598, CI green. #410 (release ancestry/backfill/resources) and #411
+> (Insert link request/label/parser tidy-up) are ready PRs; full local proof passes for each.
+> Current branch docs/phase4-scope-proposal is design only. Await scope approval before the concrete
+> phase 4 data/endpoint/wording design; no phase 4 code or migration is approved. Preserve both doc
+> histories and the latest operator order. No merge or deployment. Codex's test stack is removed.

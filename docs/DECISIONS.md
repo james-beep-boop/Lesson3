@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Phase 4 scope proposal only; preceding code PRs ready
+
+The operator's latest order is #409 ordinary-source correction, ARES-release Combine support,
+Insert link tidy-up, then phase 4 scope approval before code. #409 is pushed at `a0ff598`, all
+local checks and CI green; #410 is ready at `1209878`, with sourceVersion/audited backfill approved
+before implementation and all local proof (1,616 unit, 316 integration, 398 wire +4 SMTP skips,
+122 browser) passing. #411 is ready at `f90b930`, with all local proof (1,609 unit, 314 integration,
+397 wire +4 SMTP skips, 124 browser plus 14 focused Insert link cases) passing. Both also pass
+production build, types/lint/format. None is authorized to merge or deploy. This supersedes the
+phase-4-first sequencing in the earlier direction note; do not rewrite that historical record.
+
+`DESIGN-phase4-scope-2026-10-19.md` is a proposal, not approval to implement. It includes ordinary
+private drafts and a newer readable same-plan target, correct common-ancestor selection for sibling
+ARES/teacher branches, existing review, a reducer first within the feature and atomic resumable
+apply. The old blueprint assumed a direct descendant; a new ARES major does not descend from every
+teacher patch. Never pass the draft's source as the base without checking ancestry.
+
+The proposal explicitly exposes the possible additional 512 KiB sparse frozen-input cost and
+migration/SPEC exception, preview/apply operations, concurrency/retry work and proof requirements.
+Conflict-only storage is not assumed sufficient for recomputing after an engine change. Exact
+schema, migration, endpoint contracts and new wording still need concrete design approval. Keep
+Save → Combine available; no phase 4 code, migration or unapproved wording has been written.
+Only Codex's isolated lesson3-codex-probe:3103 was used, then removed. Tracked test env is restored.
+
 ## 2026-10-19 — Direction for Standard/Advanced mode, connectivity and a school network
 
 Operator discussion, recorded in full in `docs/DESIGN-modes-connectivity-network-2026-10-19.md`.
