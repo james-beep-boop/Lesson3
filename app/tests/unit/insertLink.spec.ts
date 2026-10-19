@@ -16,7 +16,7 @@ import { lessonContentFields } from '../../src/fields/lessonContent'
 
 afterEach(() => clearActiveLinkTarget())
 
-describe('proof-of-concept link insertion', () => {
+describe('plain-text link insertion', () => {
   it('inserts a parenthesized URL at the cursor and returns the new cursor', () => {
     expect(insertParenthesizedUrl('Read  first.', 5, 'https://example.org/file.pdf')).toEqual({
       value: 'Read (https://example.org/file.pdf) first.',
@@ -116,5 +116,47 @@ describe('optional plain-text labels', () => {
     expect(labelError('x'.repeat(121))).toBe('Keep the label to 120 characters or fewer.')
     expect(labelError('a\nb')).toBe('Keep the label on one line.')
     expect(labelError(' (plants) ')).toBeNull()
+  })
+})
+
+describe('label insertion boundaries', () => {
+  it.each([
+    ['Watch this', 10, 'Watch this Video (https://example.org)'],
+    ['Beforeafter', 6, 'Before Video (https://example.org) after'],
+    ['Read .', 5, 'Read Video (https://example.org).'],
+    ['(read)', 1, '(Video (https://example.org) read)'],
+    ['', 0, 'Video (https://example.org)'],
+  ])('separates words without adding space before punctuation: %s', (value, cursor, expected) => {
+    const result = insertParenthesizedUrl(value, cursor, 'https://example.org', 'Video')
+    expect(result.value).toBe(expected)
+    expect(result.value.slice(result.cursor)).toBe(value.slice(cursor))
+  })
+})
+
+describe('labels cannot introduce document markup', () => {
+  it.each([
+    'See (https://evil.example) notes',
+    '(HTTP://example.org/a(b))',
+    '(http://example.org)',
+  ])('rejects a real link: %s', (label) => {
+    expect(labelError(label)).toBe('Keep web addresses out of the label. Use the Web address box.')
+  })
+  it.each(['- Video', '  - Video', '| Video'])(
+    'rejects a leading bullet or table marker: %s',
+    (label) => {
+      expect(labelError(label)).toBe(
+        'A label can\'t start with "- " or "|". Those turn the line into a bullet or a table.',
+      )
+    },
+  )
+  it.each([
+    'PhET simulation at phet.colorado.edu',
+    'Visit https://example.org',
+    'Plants (transport)',
+    '(https://)',
+    '(https://example.org',
+    'A - B | C',
+  ])('allows plain label text: %s', (label) => {
+    expect(labelError(label)).toBeNull()
   })
 })

@@ -456,6 +456,12 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     links open separately so your editing page stays open. Insert link is hidden
                     during Combine review.
                   </li>
+                  <li>Keep web addresses out of the label. Use the Web address box.</li>
+                  <li>
+                    {
+                      'A label can\'t start with "- " or "|". Those turn the line into a bullet or a table.'
+                    }
+                  </li>
                   <li>Bold, italics, and underlining are not supported.</li>
                   <li>
                     Change the field for the section you want to update. Lesson3 makes the Word and
