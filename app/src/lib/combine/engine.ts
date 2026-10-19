@@ -56,7 +56,7 @@ type Doc = Record<string, unknown>
 
 export type CombineSide = 'a' | 'b'
 
-export type CombineRefusal = 'structure' | 'admin-both' | 'system' | 'size'
+export type CombineRefusal = 'structure' | 'admin-both' | 'admin-resource' | 'system' | 'size'
 
 /** One field a person must decide. Keys are the STARTING version's capture keys. */
 export interface CombineConflict {
@@ -103,6 +103,8 @@ const REFUSAL_MESSAGES: Record<CombineRefusal, string> = {
     'These rows cannot be matched reliably. They may have been reordered, renamed, or repeated. Open one version and copy across the changes you need.',
   'admin-both':
     'Both versions change content only an administrator can edit, such as phases, durations, rubrics or answer keys, so they cannot be combined automatically. A subject administrator can copy the changes across by hand.',
+  'admin-resource':
+    'One version changes content only an administrator can edit, and the other changes the resource links. These changes cannot be combined automatically. Open one version and copy across the text you need from the other.',
   system:
     'These versions come from different uploads of the lesson plan, so they cannot be combined.',
 }
@@ -262,7 +264,7 @@ export function planCombine(input: { base: object | null; a: object; b: object }
   // The editor can apply prose only. Its starting version must already contain every protected
   // field we selected; never synthesize an administrator/system overlay for a teacher to save.
   if (resourceStart) {
-    if (formA !== formB && start !== resourceStart) return refuse('admin-both')
+    if (formA !== formB && start !== resourceStart) return refuse('admin-resource')
     start = resourceStart
   }
 

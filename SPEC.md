@@ -568,7 +568,8 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   `system`. Equal resource maps remain safe. Without a usable ancestor, differing maps still refuse.
   Administrator fields retain their existing one-sided-change rule. The result must start from one
   parent containing all selected protected fields: if the administrator and resource choices require
-  opposite parents, refuse rather than synthesize a protected-field overlay. Teacher prose is still
+  opposite parents, refuse with `admin-resource` and explain the incompatible changes rather than
+  synthesize a protected-field overlay. Teacher prose is still
   the only overlay applied in the editor.
 - **Per prose leaf:** one side changed → take it; both made the same change → take it; one emptied
   and one edited → conflict; both changed differently → paragraph-level three-way merge (the grammar's
@@ -587,7 +588,7 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   plan names the version to START from, an edit-recovery-shaped `overlay` keyed by that version's
   rows (only fields whose combined text differs from it), the automatic `changes`, and the
   `conflicts` (each with ancestor, A and B text and a reason: `both-edited`, `emptied`,
-  `no-ancestor`). Refusals are `structure`, `admin-both`, `system` and `size`, each with a plain message.
+  `no-ancestor`). Refusals are `structure`, `admin-both`, `admin-resource`, `system` and `size`, each with a plain message.
   Rows pair through `captureAnchors`' document order — the same walk edit recovery uses — and "prose"
   is the field split's whitelists, so the three features cannot disagree about either.
 - `GET /api/lesson-bundle-versions/:id/combine-preview?with=:otherId` → `{ a, b, base, plan }`.

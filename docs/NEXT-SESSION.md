@@ -37,7 +37,11 @@ with a usable ancestor while protecting row correspondence and administrator/sys
 The no-op down fix is implemented and preserves repaired rows/Official in integration. Refreshed
 proof after merged #409: types/lint/format/build, 1,620 unit, 316 integration, 401 wire (+4 existing
 SMTP skips), 123 full browser cases without retries. Tracked test environment is restored.
-The separate refusal fix is next; its wording and the wider hint wording are now approved.
+Both review fixes are complete, including the distinct approved `admin-resource` refusal.
+Latest proof after merging #411: types/lint/format/build, **1,626 unit, 316 integration, 402 wire**
+(+4 existing SMTP skips; initial new-fixture title mismatch corrected and all 18 preview wire
+cases rerun) and **126 full browser tests without retries** pass. Tracked test environment is
+restored. The wider hint wording is approved and follows separately.
 Proof passes: types/lint/format/build, **1,616 unit, 316 integration, 398 wire (+4 existing SMTP
 skips), 122 browser tests without retries**. The real migration and three-way re-ingest path pass;
 tracked test configuration is restored. See
@@ -50,7 +54,7 @@ cases and 14 focused Insert link cases. The main refresh passes 1,613 combined u
 It skips unconfigured PDF requests, cancels stale requests, shares labels and parses addresses once. **Full phase 4 is not approved. #412 is closed without merging. Keep Save → Combine.**
 Preserve both designs as deferred until teacher use justifies them. After #410 fixes, widen the
 small advice-only hint to common-ancestor versions, preferring a newer ingested release; approve
-wording first. No frozen-input migration, transfer endpoints or reducer rewrite.
+wording is approved. No frozen-input migration, transfer endpoints or reducer rewrite.
 The operator reports prior merges are being deployed; completion has not been confirmed.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
@@ -118,7 +122,7 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
    Push ready; do not merge or deploy #410.
 3. Then widen #406's hint: newest readable newer same-plan version sharing a common ancestor,
    preferring a newer ingested release. Preserve owner/ordinary/restorable/editing-access guards,
-   excluding unfinished Combine. Advice only; no migration or endpoint. Approve wording first.
+   excluding unfinished Combine. Advice only; no migration or endpoint. Wording is approved.
    Prove unit, integration and browser behavior including teacher 1.0.1 versus next ARES release.
    Separate ready PR; do not merge or deploy.
 4. Full phase 4 is not approved; #412 is closed. Keep both designs as deferred until teacher use

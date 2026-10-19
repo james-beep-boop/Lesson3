@@ -33,7 +33,7 @@ Compare administrator fields separately from resource maps. With a usable ancest
 sole changed resource side; distinct resource changes on both sides refuse, identical maps remain
 safe, and unequal maps without an ancestor still refuse. Choose one starting parent satisfying
 both administrator and system choices; incompatible choices refuse rather than letting a teacher
-write protected fields. No new refusal wording.
+write protected fields. Opposite-side administrator/resource changes have a distinct `admin-resource` refusal using operator-approved wording.
 
 Resource maps also participate in current lesson correspondence. Keep that strict match available.
 For resource updates with a usable ancestor, allow the remaining upload keys (`substrand` and
@@ -49,15 +49,19 @@ and Official unchanged. After merging main's #409, all refreshed local gates pas
 format, production build, 1,620 unit, 316 integration, 401 wire (+4 existing SMTP skips), 123 browser
 cases without retries on lesson3-codex-probe:3103. Tracked test configuration is restored.
 
-The opposite-side administrator/resource case still needs its separate refusal; new copy has been
-listed for operator approval and has not been implemented. Do not merge this PR yet. Full phase 4
-was not approved; #412 is closed and both designs are retained as deferred. Next is the widened
-advice-only hint, after these two fixes, as a separate ready PR with its own approved wording.
+The opposite-side administrator/resource case now has its own `admin-resource` refusal with the
+approved message: “One version changes content only an administrator can edit, and the other changes
+the resource links. These changes cannot be combined automatically. Open one version and copy across
+the text you need from the other.” Unit and built wire tests cover both version orders; a browser
+case proves the teacher sees this refusal without creating a version. Full phase 4 was not approved;
+#412 is closed and both designs are retained as deferred. The wider advice-only hint has approved
+wording and follows in a separate ready PR.
 
 ## Proof and completion
 
-Types, lint, formatting, production build, **1,616 unit**, **316 integration**, **398 wire**
-(+4 existing SMTP skips) and **122 browser** tests without retries pass on `lesson3-codex-probe`,
+Types, lint, formatting, production build, **1,626 unit**, **316 integration**, **402 wire**
+(+4 existing SMTP skips; corrected new fixture verified by all 18 preview cases) and **126 browser**
+tests without retries pass on `lesson3-codex-probe`,
 port 3103. The production migration runner also applies the new migration successfully. Tracked
 test configuration was restored. No dependency, workflow, generator or endpoint change.
 
@@ -74,5 +78,5 @@ snapshots/timestamps and deleted ancestor ids, repairs descendant closure and is
 The built preview endpoint also proves the teacher/new-release comparison starts from the new
 release and carries the teacher's prose.
 
-SPEC §6/§7 record the approved rules. Next: the separate Insert link tidy-up PR, then a phase 4
-scope proposal before any phase 4 code. No merge or deployment authorized.
+SPEC §6/§7 record the approved rules. #411 is merged. Next: widen the advice-only draft hint;
+full phase 4 stays deferred until teacher use justifies it. No merge or deployment authorized.

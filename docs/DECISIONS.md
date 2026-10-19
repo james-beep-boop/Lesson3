@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Release review fixes complete with approved refusal
+
+Migration down deliberately succeeds without erasing compatible predecessor links. Opposite-side
+administrator/resource requirements return `admin-resource` with the approved truthful message;
+true both-administrator changes retain their existing refusal. Unit and built wire tests pin both
+orders; browser coverage checks the exact message and that no version is created.
+
+After merging main including #409/#411: types/lint/format/build, 1,626 unit, 316 integration,
+402 wire (+4 existing SMTP skips; corrected fixture verified by the complete 18-case preview rerun),
+and 126 full browser tests without retries pass on lesson3-codex-probe:3103. The initial new wire
+fixture accidentally changed both titles relative to its ancestor; matching the ancestor title
+isolates the intended administrator-versus-resource case. Tracked test environment restored.
+Next is the separate advice-only wider hint with approved copy. No merge/deployment; full phase 4
+remains deferred and #412 closed.
+
 ## 2026-10-19 — Approved copy; #409 and #411 merged after green CI
 
 #409 merged as 7169f84 and #411 as 815d35e, the latter after refreshed head 51ce703 passed every

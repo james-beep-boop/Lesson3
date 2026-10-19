@@ -449,10 +449,17 @@ describe('P5 — structure, system data, and an unusable ancestor', () => {
     const b = version((c) => {
       c.lessons[0].resourceLinks = links('new')
     })
-    expect(planCombine({ base: version(), a, b })).toMatchObject({
-      ok: false,
-      refusal: 'admin-both',
-    })
+    for (const [first, second] of [
+      [a, b],
+      [b, a],
+    ]) {
+      expect(planCombine({ base: version(), a: first, b: second })).toMatchObject({
+        ok: false,
+        refusal: 'admin-resource',
+        message:
+          'One version changes content only an administrator can edit, and the other changes the resource links. These changes cannot be combined automatically. Open one version and copy across the text you need from the other.',
+      })
+    }
   })
 
   it('resource updates still refuse ambiguous lesson keys while unchanged resource identities work', () => {
