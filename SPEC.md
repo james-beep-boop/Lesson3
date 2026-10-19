@@ -229,6 +229,15 @@ External-launch targets must be complete HTTP/HTTPS URLs. Malformed targets leav
 unchanged. All of this is a local string transformation, never a network lookup. Plan A does not
 rewrite stored versions or generated document destinations; that remains separate Plan A+.
 
+Labels must not introduce another renderable parenthesized HTTP/HTTPS link or begin (after
+leading whitespace) with `- ` or `|`. Rejection preserves the input and explains the correction;
+ordinary parentheses, bare addresses and web-like prose such as `phet.colorado.edu` remain allowed.
+Label validation and document rendering share the same pure link tokenizer. Labelled insertions
+add separating spaces when adjoining words need them, preserving existing whitespace and avoiding
+an extra space before closing punctuation. Bare-address insertion retains its existing behavior.
+Focusing another form control clears the remembered insertion field. Focusing Insert link itself
+or its dialog preserves it, including mouse, Enter and Space activation.
+
 ARES PDFs normally live under `/modules/`: open the PDF in ARES and paste its address. The optional
 Rock PDF picker appears only after the server confirms `PDF_LIBRARY_DIR` is configured and readable.
 Both environment templates leave that setting commented out. The folder is flat, read-only and

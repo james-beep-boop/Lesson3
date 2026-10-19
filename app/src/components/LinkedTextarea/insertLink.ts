@@ -1,4 +1,6 @@
-/** Insert a labelled parenthesized address without changing any surrounding prose. */
+import { hasParenthesizedUrl } from '../../lib/proseLinkTokens'
+
+/** Insert a parenthesized address, separating a label from surrounding words. */
 export function insertParenthesizedUrl(
   value: string,
   cursor: number,
@@ -11,9 +13,13 @@ export function insertParenthesizedUrl(
   const safeCursor = Math.max(0, Math.min(cursor, value.length))
   // Encode delimiters for new links, including legal URLs with an unmatched parenthesis.
   const insertion = `${label.trim() ? `${label.trim()} ` : ''}(${url.replace(/\(/g, '%28').replace(/\)/g, '%29')})`
+  const before = value.slice(0, safeCursor)
+  const after = value.slice(safeCursor)
+  const prefix = label.trim() && before && !/[\s([{]$/.test(before) ? ' ' : ''
+  const suffix = label.trim() && after && !/^[\s.,;:!?)}\]]/.test(after) ? ' ' : ''
   return {
-    value: `${value.slice(0, safeCursor)}${insertion}${value.slice(safeCursor)}`,
-    cursor: safeCursor + insertion.length,
+    value: `${before}${prefix}${insertion}${suffix}${after}`,
+    cursor: safeCursor + prefix.length + insertion.length + suffix.length,
   }
 }
 
@@ -35,5 +41,9 @@ export function validExternalUrl(value: string): string | null {
 export function labelError(label: string): string | null {
   if (/[\r\n]/.test(label)) return 'Keep the label on one line.'
   if (label.trim().length > 120) return 'Keep the label to 120 characters or fewer.'
+  if (hasParenthesizedUrl(label))
+    return 'Keep web addresses out of the label. Use the Web address box.'
+  if (/^(?:- |\|)/.test(label.trimStart()))
+    return 'A label can\'t start with "- " or "|". Those turn the line into a bullet or a table.'
   return null
 }

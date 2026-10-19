@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Keep Insert link labels plain and retain the field through toolbar focus
+
+The operator approved the Insert link cleanup after #407. Reject only real parenthesized HTTP/HTTPS
+links in labels, using the same tokenizer as document rendering; do not reject domains or arbitrary
+web-like prose. Extract the pure tokenizer without changing its grammar, keeping docx/server imports
+out of the client. Preserve rejected input. The approved messages explain the Web address box and
+why leading `- ` or `|` is refused. Labelled insertion separates adjoining words without duplicating
+whitespace or adding a space before closing punctuation; existing bare-address behavior stays.
+
+Clear the field target on another form control, with explicit exceptions for the Insert link button
+and dialog. Focusing the toolbar button is part of activation, not abandonment of the field. Browser
+regressions cover click, Enter and Space, a phase dropdown, error correction and a harmless domain in
+a label. The #406 draft-to-Combine shortcut must be updated after this cleanup and reviewed by the
+operator before any merge. Full direct draft updates and the state-machine refactor stay deferred.
+
 ## 2026-10-18 — PDF publication requires fresh consent, not an inherited folder setting
 
 Review of #404 identified an upgrade-safety gap: the old env template already set PDF_LIBRARY_DIR,

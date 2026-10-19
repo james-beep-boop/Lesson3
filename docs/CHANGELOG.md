@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Insert link labels now refuse extra parenthesized links and leading bullet/table markers with
+  an explanation. Labelled links gain spacing where needed. Moving to another form control clears
+  the insertion target; clicking Insert link or pressing Enter/Space on it keeps the chosen field.
+
 - PDF folders now require sign-in unless the operator explicitly sets `PDF_LIBRARY_PUBLIC=1`.
   An inherited `PDF_LIBRARY_DIR` no longer publishes private files during upgrade. Explore and
   authenticated listing remain independent. Wire tests cover both publication modes on isolated

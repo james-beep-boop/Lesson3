@@ -68,6 +68,11 @@ never rewritten; versions, Combine and edit recovery are unaffected.
    `Label (http://…)`; without, today's `(http://…)`. Plain text — no markup, so the editor grammar
    rule holds. Trim it, refuse a newline, cap the length (e.g. 120 characters); parentheses in the
    label are harmless (only `(http…` starts a link) but test that.
+   **Approved cleanup:** refuse actual parenthesized HTTP/HTTPS links using the renderer's token
+   grammar, and leading `- ` / `|`; keep harmless web-like text. Add word separation around labelled
+   insertions. Clear stale targets on another form control, preserving the toolbar action and its
+   dialog for mouse/Enter/Space. Approved errors: "Keep web addresses out of the label. Use the Web
+   address box." and `A label can't start with "- " or "|". Those turn the line into a bullet or a table.`
 5. **Convert pasted ARES addresses to the stored form before inserting.** A pure function
    (unit-tested; no network) applied to the typed address:
    - **Unwrap the tracker** (operator decision: store the plain address). `local_launch` →

@@ -22,16 +22,16 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** fetched `origin/main` at `330de55` (#405). Current work is the operator-approved PDF
-publication-safety fix on `fix/pdf-publication-opt-in`: require explicit `PDF_LIBRARY_PUBLIC=1`
-for anonymous file opening; an inherited directory setting alone keeps files authenticated. Keep
-mandatory public/private wire fixtures on isolated stacks and correct the live-testing runbook.
-Validation passed: types, lint, format, production build, **1,581 unit**, **313 integration**,
-**397 wire + 4 existing SMTP skips**, and **113 browser tests without retries** on
-`lesson3-codex-probe`, port 3103. Both publication modes ran against the built app; the private
-service had no host port. Tracked test configuration was restored. Push and a ready PR are
-authorized; do not merge or deploy without instruction.
-The separate draft-to-Combine shortcut is ready in [#406](https://github.com/james-beep-boop/Lesson3/pull/406).
+**Base:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
+Current approved work is the Insert link cleanup on `fix/insert-link-cleanup`: actual-link and
+leading bullet/table label validation, word spacing and stale focus targets, including mouse,
+Enter and Space activation. The operator approved both new messages. Types, lint, format,
+production build, **1,598 unit**, **313 integration**, **397 wire + 4 existing SMTP skips** and
+**118 full browser tests without retries** pass. After the final focus hook changed to Payload's
+supported `extraButtonProps`, a rebuilt app passed all **12 Insert link browser tests** again.
+Tracked test configuration was restored.
+Push and a ready PR are authorized; do not merge or deploy. After cleanup, update #406 on top of it;
+the operator explicitly wants to review that restore-prompt change before merge.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -86,14 +86,13 @@ Always fetch before comparing branches or commits.
 
 ## Remaining work
 
-1. Review the PDF publication-safety fix on `fix/pdf-publication-opt-in`, after its local suites and
-   CI pass. An upgrade must not publish an already configured folder without a new explicit opt-in.
+1. Finish/review the approved Insert link cleanup on `fix/insert-link-cleanup`. #407 is merged;
+   explicit PDF publication consent and both built-app authorization modes are in place.
 2. Review the approved small draft-to-Combine shortcut in #406. Full direct draft updates and the
    Combine state-machine refactor remain deferred until teacher use justifies them; the blueprint
    and approved smaller flow are preserved in that PR's design document.
-3. Separate Insert link follow-up: label syntax and insertion spacing, clearing stale field targets,
-   PDF-picker request/loading lifecycle, shared field-label wording and narrow URL-check cleanup.
-   Propose new validation wording before implementation. Public PDF edge limiting/cache policy is
+3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
+   and narrow URL-check cleanup. Public PDF edge limiting/cache policy is
    also separate; follow the existing exposure checklist when deliberately publishing a folder.
 4. Plan A+ — optional document-time translation of stored `ares.local` addresses for online installs.
 5. Stable row identity and structural drafts remain deferred.
@@ -127,6 +126,6 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> Main contains #405. The approved PDF opt-in safety fix is on `fix/pdf-publication-opt-in`; #406
-> is the separate draft-to-Combine shortcut. Check PR states before new work. Do not merge or deploy
+> Main contains #407. The approved Insert link cleanup is on `fix/insert-link-cleanup`. Update
+> #406 after that cleanup and leave it for operator review. Check PR states. Do not merge or deploy
 > without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.
