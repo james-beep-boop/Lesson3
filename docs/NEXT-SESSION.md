@@ -94,14 +94,24 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 
 1. Deploy #404–#408 and #406 when the operator chooses (no migration). #407 is merged;
    explicit PDF publication consent and both built-app authorization modes are in place.
-2. The small draft-to-Combine shortcut (#406) is merged. Full direct draft updates and the
-   Combine state-machine refactor remain deferred until teacher use justifies them; the blueprint
-   and approved smaller flow are preserved in that PR's design document.
+2. **Next (operator, 2026-10-19): complete Combine phase 4 first.** The small draft-to-Combine
+   shortcut (#406) is merged; the full direct-draft-update blueprint is
+   `docs/DESIGN-update-draft-2026-10-19.md`. **Confirm phase 4's scope with the operator at the start**
+   — that blueprint was previously deferred in favour of #406. Do alongside it the two small items in
+   §8 of `docs/DESIGN-modes-connectivity-network-2026-10-19.md`: record each ARES re-upload's
+   predecessor (re-ingest currently sets no `sourceVersion`), and let Combine take `resourceLinks` from
+   whichever side changed when an ancestor exists (it currently refuses any difference). Without them,
+   bringing edits onto a new ARES release (about every two weeks) is all conflicts or a refusal.
+   Also in flight: Codex's fix for ordinary saves whose source is deleted mid-save (500 → #405's
+   `unavailable: 'source'` 404).
 3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
    and narrow URL-check cleanup. Public PDF edge limiting/cache policy is
    also separate; follow the existing exposure checklist when deliberately publishing a folder.
 4. Plan A+ — optional document-time translation of stored `ares.local` addresses for online installs.
 5. Stable row identity and structural drafts remain deferred.
+6. **After phase 4 — Standard/Advanced mode, connectivity and the school network:** direction agreed,
+   not approved for building; see `docs/DESIGN-modes-connectivity-network-2026-10-19.md` (decisions,
+   an inventory for the operator to mark up, the proposed order, open items).
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
@@ -136,3 +146,7 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 > identified unavailable Combine parents, and the draft-to-Combine hint). Check PR states.
 > Do not merge or deploy
 > without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.
+> Next is Combine phase 4 (confirm its scope with the operator first) plus the two small ARES-release
+> items in §8 of `docs/DESIGN-modes-connectivity-network-2026-10-19.md`. That note also records the
+> agreed direction for Standard/Advanced mode, connectivity and a school network — direction only,
+> not approved for building. Propose a plan and wait for approval before coding.
