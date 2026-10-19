@@ -26,15 +26,19 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 note). #409 remains open, refreshed from that main with both documentation records retained and the
 ordinary-save copy-text client fix, pushed at `a0ff598`. Its local proof passes: types/lint/format,
 build, 1,607 unit, 314 integration, 400 wire (+4 existing SMTP skips), 123 full browser cases without
-retries; all six focused save-browser cases also pass. Its fresh CI is running. Do not merge it.
+retries; all six focused save-browser cases also pass. Its native-arm and checks jobs pass; the final gate is queued. Do not merge it.
 
-**Current branch:** `feat/ares-release-combine`, the separate §8 release work. The pure engine
-portion is prepared and passes types, lint, format, 43 engine tests and all 1,612 unit tests.
-The operator approved `sourceVersion` plus audited, unambiguous backfill. Data implementation is
-in progress: re-ingest selects the previous release under the plan lock; the metadata-only migration
-repairs consecutive unlinked majors and descendant lineage, reporting gaps/ambiguity. See
+**Current branch:** `feat/ares-release-combine`, the separate §8 release work, complete and ready
+for review. The operator approved existing `sourceVersion` plus audited unambiguous backfill.
+Re-ingest selects the previous release under the plan lock; the metadata-only migration repairs
+consecutive unlinked majors and descendant lineage, reporting gaps/ambiguity and preserving
+snapshots, timestamps, Official and deleted ids. The engine selects the sole changed resource side
+with a usable ancestor while protecting row correspondence and administrator/system ownership.
+Proof passes: types/lint/format/build, **1,616 unit, 316 integration, 398 wire (+4 existing SMTP
+skips), 122 browser tests without retries**. The real migration and three-way re-ingest path pass;
+tracked test configuration is restored. See
 [`DESIGN-ares-release-combine-2026-10-19.md`](DESIGN-ares-release-combine-2026-10-19.md).
-Finish all isolated suites and review before opening the complete release PR as ready.
+Next is one separate Insert link tidy-up PR, then propose phase 4 before code. Do not merge.
 The operator reports prior merges are being deployed; completion has not been confirmed.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
@@ -97,10 +101,8 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 ## Remaining work — latest operator order
 
 1. #409's latest-main and ordinary-source client correction is pushed; await its CI/review.
-2. Finish **ARES releases combine cleanly** as a new ready PR: answer the two data choices above,
-   implement predecessor recording and any approved backfill, complete real re-ingest and
-   teacher-edit/next-release three-way tests, update SPEC §7 and finish all required isolated checks.
-   The engine part and SPEC §6 are prepared. §8 of the modes/connectivity/network note is the brief.
+2. **ARES releases combine cleanly** is complete on `feat/ares-release-combine`; await CI/review
+   of its ready PR. SPEC §6/§7, migration and all local proof are complete.
 3. One small ready Insert link tidy-up PR: PDF-picker request/loading lifecycle, shared field-label
    wording and duplicated address check. Public PDF edge/cache hardening remains separate.
 4. Propose phase 4 scope to the operator **before any code**. The prior direct-update blueprint was
@@ -144,7 +146,6 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
 > #409 is refreshed/pushed at a0ff598. Current branch feat/ares-release-combine has the engine portion
-> and an approved sourceVersion/backfill plan; finish
-> the complete release PR and all proof. Next is one Insert link tidy-up PR, then a phase 4 scope
+> and complete release ancestry/backfill implementation with all proof passing. Next is one Insert link tidy-up PR, then a phase 4 scope
 > proposal before code. Preserve both documentation histories/current decisions. Ready PRs only;
 > do not merge or deploy. Preserve source-deletion draft cascades and explicit PDF publication consent.

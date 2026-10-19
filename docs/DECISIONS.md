@@ -27,6 +27,12 @@ Raw metadata SQL leaves content, version numbers, authors, timestamps and Offici
 The data repair is forward-only: undo through the database backup rather than erase ancestry that
 subsequent versions may already depend on. No new endpoint, UI wording, schema field or dependency.
 
+Completed proof: types/lint/format/build; 1,616 unit, 316 integration, 398 wire (+4 existing SMTP
+skips) and 122 browser cases without retries on lesson3-codex-probe:3103. Real re-ingest, real
+ancestor lookup and teacher/new-release result, production migration application, legacy repair
+without snapshot/timestamp changes, deleted-history preservation and rerun safety are covered.
+Tracked test configuration restored. Ready PR only; no merge or deployment.
+
 ## 2026-10-19 — Prepare release-link Combine support; wait for release ancestry choices
 
 Latest operator order: update #409 from main and show the copy-text message for ordinary source
