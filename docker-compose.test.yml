@@ -4,5 +4,31 @@ services:
   app:
     environment:
       PDF_LIBRARY_DIR: /var/lib/lesson3-test-pdfs
+      PDF_LIBRARY_PUBLIC: "1"
     volumes:
       - ./app/tests/fixtures/pdf-library:/var/lib/lesson3-test-pdfs:ro
+    depends_on:
+      pdf-private:
+        condition: service_healthy
+
+  # Same production build and fixture, but simulate an upgrade whose old env only sets the folder.
+  # Internal only: no host port, no separate production config and no workflow edits required.
+  pdf-private:
+    extends:
+      file: docker-compose.yml
+      service: app
+    ports: !reset []
+    environment:
+      PDF_LIBRARY_DIR: /var/lib/lesson3-test-pdfs
+      SERVER_URL: ""
+      PUBLIC_LIBRARY_ENABLED: "0"
+      # Keep this auxiliary server out of the normal job-worker poll during wire/browser tests.
+      JOBS_AUTORUN_CRON: "0 0 1 1 *"
+    command: ["sh", "-c", "unset PDF_LIBRARY_PUBLIC; exec node server.js"]
+    volumes:
+      - ./app/tests/fixtures/pdf-library:/var/lib/lesson3-test-pdfs:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/', {redirect:'manual'}).then(r=>process.exit(r.status===307?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      retries: 60

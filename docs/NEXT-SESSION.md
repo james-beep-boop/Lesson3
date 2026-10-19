@@ -22,10 +22,16 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** `origin/main` at `11cdf8a`, including Insert link Plan A (#404). Its reviewed source and
-the operator's PDF-fixture workflow edit passed CI and are merged. The next change is on
-`fix/combine-unavailable-parent`: server-owned unavailable-parent responses and removal of client
-probes. Push and a ready PR are authorized; merge/deployment of this follow-up is not.
+**Base:** fetched `origin/main` at `330de55` (#405). Current work is the operator-approved PDF
+publication-safety fix on `fix/pdf-publication-opt-in`: require explicit `PDF_LIBRARY_PUBLIC=1`
+for anonymous file opening; an inherited directory setting alone keeps files authenticated. Keep
+mandatory public/private wire fixtures on isolated stacks and correct the live-testing runbook.
+Validation passed: types, lint, format, production build, **1,581 unit**, **313 integration**,
+**397 wire + 4 existing SMTP skips**, and **113 browser tests without retries** on
+`lesson3-codex-probe`, port 3103. Both publication modes ran against the built app; the private
+service had no host port. Tracked test configuration was restored. Push and a ready PR are
+authorized; do not merge or deploy without instruction.
+The separate draft-to-Combine shortcut is ready in [#406](https://github.com/james-beep-boop/Lesson3/pull/406).
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -34,9 +40,10 @@ The `combine_lineage` and `combine_draft_context` migrations ran in that deploym
 Insert link Plan A is merged; its deployment has not been confirmed.
 
 **Insert link Plan A:** approved wording, HTTP/HTTPS, four framework columns, optional label,
-ARES/tracker normalization, Combine hiding, opt-in Rock PDF picker. Configured PDF files are public
-independently of Explore; listing remains authenticated. No new migration, dependency or generator
-change. Plan A+ document-time rewriting is deferred. `ares.edu` is not a default alias pending an
+ARES/tracker normalization, Combine hiding, opt-in Rock PDF picker. Only explicit
+`PDF_LIBRARY_PUBLIC=1` makes configured files public, independently of Explore; listing remains
+authenticated. An absent publication flag keeps file opening authenticated. No new migration,
+dependency or generator change. Plan A+ document-time rewriting is deferred. `ares.edu` is not a default alias pending an
 answer from the ARES team.
 
 The screen picks two versions, reviews automatic changes and conflicts, and opens the engine's
@@ -79,21 +86,23 @@ Always fetch before comparing branches or commits.
 
 ## Remaining work
 
-1. **Phase 4 — bring a stale draft up to date using the Combine engine. Start by designing and
-   implementing one typed Combine state machine**, including phase 4's offer-to-update, applying,
-   conflict and failure states. Do not make this a standalone refactor of the currently working
-   screen. Replace the five independent Combine state variables as part of that design. Prove each
-   transition with unit tests and retain browser coverage for retry, restore, version/URL switching
-   and discard. Safe Combine metadata capture/restoration already exists; preserve the second parent.
-2. Plan A+ — optional document-time translation of stored `ares.local` addresses for an online
-   installation. Not required for school use and not implemented in Plan A.
-3. Stable row identity: remove strict correspondence refusals, fix ordinal compare cascades and
-   allow drafts to hold structural edits.
+1. Review the PDF publication-safety fix on `fix/pdf-publication-opt-in`, after its local suites and
+   CI pass. An upgrade must not publish an already configured folder without a new explicit opt-in.
+2. Review the approved small draft-to-Combine shortcut in #406. Full direct draft updates and the
+   Combine state-machine refactor remain deferred until teacher use justifies them; the blueprint
+   and approved smaller flow are preserved in that PR's design document.
+3. Separate Insert link follow-up: label syntax and insertion spacing, clearing stale field targets,
+   PDF-picker request/loading lifecycle, shared field-label wording and narrow URL-check cleanup.
+   Propose new validation wording before implementation. Public PDF edge limiting/cache policy is
+   also separate; follow the existing exposure checklist when deliberately publishing a folder.
+4. Plan A+ — optional document-time translation of stored `ares.local` addresses for online installs.
+5. Stable row identity and structural drafts remain deferred.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
 `captureFieldPath` and `applyCapture` in `lib/editRecovery/projection.ts`. The unavailable-parent
-response is implemented in the current follow-up; the Combine state machine belongs to phase 4.
+response is implemented in #405; the Combine state machine stays deferred with full direct draft
+updates.
 
 **Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
 predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections
@@ -117,8 +126,7 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 ## Handoff prompt
 
-> Pick up Lesson3 (`james-beep-boop/Lesson3`). Fetch first. Read AGENTS.md → CLAUDE.md → SPEC §5
-> and §6 → this file → the newest five or six DECISIONS entries. Combine and its simplification
-> and Insert link Plan A are merged through PR #404. The unavailable-parent response is on
-> `fix/combine-unavailable-parent`; check its PR state before new work. Do not merge or deploy
-> unless asked. Preserve the source-deletion draft cascade.
+> Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
+> Main contains #405. The approved PDF opt-in safety fix is on `fix/pdf-publication-opt-in`; #406
+> is the separate draft-to-Combine shortcut. Check PR states before new work. Do not merge or deploy
+> without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.
