@@ -12,6 +12,8 @@ import {
   validExternalUrl,
   labelError,
 } from '../../src/components/LinkedTextarea/insertLink'
+import { FRAMEWORK_PROSE_LABELS, LINKABLE_FIELD_LIST } from '../../src/lib/frameworkProse'
+import { FRAMEWORK_PROSE, PROSE_LABELS } from '../../src/hooks/fieldSplit'
 import { lessonContentFields } from '../../src/fields/lessonContent'
 
 afterEach(() => clearActiveLinkTarget())
@@ -45,6 +47,20 @@ describe('linkable prose field wiring', () => {
       fields?: unknown[]
     }
 
+  it('keeps permission keys, native field labels and help wording on the same framework labels', () => {
+    const fields = childFields(
+      named(childFields(named(lessonContentFields, 'lessons')), 'framework'),
+    )
+    expect(FRAMEWORK_PROSE).toEqual(Object.keys(FRAMEWORK_PROSE_LABELS))
+    for (const [key, label] of Object.entries(FRAMEWORK_PROSE_LABELS)) {
+      expect(named(fields, key)).toHaveProperty('label', label)
+      expect(PROSE_LABELS[key]).toBe(label)
+    }
+    expect(LINKABLE_FIELD_LIST).toBe(
+      'Learner experience, Teacher moves, Sensemaking strategy or Formative assessment',
+    )
+  })
+
   it('offers insertion only on the four framework columns, never other prose', () => {
     const lessons = named(lessonContentFields, 'lessons')
     const framework = named(childFields(lessons), 'framework')
@@ -56,6 +72,7 @@ describe('linkable prose field wiring', () => {
     ]) {
       expect(named(childFields(framework), name).admin?.components?.Field).toMatchObject({
         path: '@/components/LinkedTextarea#default',
+        clientProps: { pdfLibraryConfigured: Boolean(process.env.PDF_LIBRARY_DIR?.trim()) },
       })
     }
     for (const name of ['overview', 'title', 'teacherReflection'])

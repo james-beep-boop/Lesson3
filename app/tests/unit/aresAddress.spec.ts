@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { parseExternalUrl } from '../../src/components/LinkedTextarea/insertLink'
 import { normalizeAresAddress as normalize } from '../../src/components/LinkedTextarea/aresAddress'
 
 describe('ARES stored addresses', () => {
@@ -18,6 +19,17 @@ describe('ARES stored addresses', () => {
     ['http://ares.edu:8082/file', 'http://ares.edu:8082/file'],
     ['not a URL', 'not a URL'],
   ])('normalizes %s to %s', (input, expected) => expect(normalize(input)).toBe(expected))
+
+  it('accepts the already parsed dialog address without relaxing complete-address validation', () => {
+    const address = parseExternalUrl('  HTTP://ARES.LOCAL/modules/a b  ')
+    expect(address).not.toBeNull()
+    expect(normalize(address!)).toBe('http://ares.local/modules/a%20b')
+    expect(normalize(parseExternalUrl('  HTTPS://EXAMPLE.ORG:443/a b  ')!)).toBe(
+      'https://example.org/a%20b',
+    )
+    expect(parseExternalUrl('https:example.org')).toBeNull()
+    expect(parseExternalUrl('http://ares.local/a\tb')).toBeNull()
+  })
 
   it('uses configured site/Kolibri hosts and exact aliases, preserving query and fragment', () => {
     const settings = {

@@ -17,7 +17,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { apiBaseFrom } from '../../lib/apiBase'
 import Modal from '../Modal'
 import { activateLinkTarget, clearActiveLinkTarget } from './activeTarget'
-import { insertParenthesizedUrl, labelError, validExternalUrl } from './insertLink'
+import { insertParenthesizedUrl, labelError, parseExternalUrl } from './insertLink'
 
 import { normalizeAresAddress, type AresAddresses } from './aresAddress'
 
@@ -26,6 +26,9 @@ type PdfResource = {
   name: string
   size: number
 }
+
+type LibraryState =
+  { status: 'off' | 'loading' | 'error' } | { status: 'ready'; files: PdfResource[] }
 
 type LibraryResponse = { configured: boolean; files: PdfResource[] } | { error: string }
 
@@ -37,9 +40,10 @@ const displaySize = (bytes: number): string => {
 export default function LinkedTextarea(
   props: TextareaFieldClientProps & {
     aresAddresses?: AresAddresses
+    pdfLibraryConfigured?: boolean
   },
 ) {
-  const { path, readOnly, aresAddresses, ...fieldProps } = props
+  const { path, readOnly, aresAddresses, pdfLibraryConfigured = false, ...fieldProps } = props
   const { value, setValue, disabled } = useField<string>({ path })
   const { config } = useConfig()
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -48,35 +52,41 @@ export default function LinkedTextarea(
   const [open, setOpen] = useState(false)
   const [webUrl, setWebUrl] = useState('')
   const [label, setLabel] = useState('')
-  const [configured, setConfigured] = useState(false)
-  const [files, setFiles] = useState<PdfResource[]>([])
+  const [library, setLibrary] = useState<LibraryState>({ status: 'off' })
   const [error, setError] = useState<string | null>(null)
 
   const textarea = (): HTMLTextAreaElement | null =>
     wrapperRef.current?.querySelector('textarea') ?? null
 
-  const showDialog = async () => {
+  const showDialog = () => {
     setOpen(true)
     setError(null)
     setWebUrl('')
     setLabel('')
-    setConfigured(false)
-    setFiles([])
-    try {
-      const response = await fetch(`${apiBaseFrom(config)}/resource-library`, {
-        credentials: 'same-origin',
-      })
-      const body = (await response.json().catch(() => ({}))) as LibraryResponse
-      if (!response.ok) {
-        setError('Could not load PDFs from the Rock. You can still paste a web address.')
-      } else if ('files' in body) {
-        setConfigured(body.configured)
-        setFiles(body.files)
-      }
-    } catch {
-      setError('Could not load PDFs from the Rock. You can still paste a web address.')
-    }
+    setLibrary({ status: pdfLibraryConfigured ? 'loading' : 'off' })
   }
+
+  const apiBase = apiBaseFrom(config)
+  useEffect(() => {
+    if (!open || !pdfLibraryConfigured) return
+    const controller = new AbortController()
+    void (async () => {
+      try {
+        const response = await fetch(`${apiBase}/resource-library`, {
+          credentials: 'same-origin',
+          signal: controller.signal,
+        })
+        const body = (await response.json()) as LibraryResponse
+        if (controller.signal.aborted) return
+        if (!response.ok || !('files' in body)) setLibrary({ status: 'error' })
+        else
+          setLibrary(body.configured ? { status: 'ready', files: body.files } : { status: 'off' })
+      } catch {
+        if (!controller.signal.aborted) setLibrary({ status: 'error' })
+      }
+    })()
+    return () => controller.abort()
+  }, [apiBase, open, pdfLibraryConfigured])
 
   const insert = (url: string) => {
     const invalidLabel = labelError(label)
@@ -96,7 +106,7 @@ export default function LinkedTextarea(
   }
 
   const insertWebUrl = () => {
-    const url = validExternalUrl(webUrl)
+    const url = parseExternalUrl(webUrl)
     if (!url) {
       setError('Enter a complete web address starting with http:// or https://.')
       return
@@ -181,14 +191,22 @@ export default function LinkedTextarea(
             </Button>
           </div>
 
-          {configured && (
-            <>
+          {library.status !== 'off' && (
+            <section aria-label="PDFs on the Rock" aria-busy={library.status === 'loading'}>
               <div className="prose-link-dialog__divider" role="separator">
                 PDFs on the Rock
               </div>
-              {files.length > 0 ? (
+              {library.status === 'loading' ? (
+                <div className="prose-link-dialog__loading" aria-hidden="true">
+                  <span />
+                </div>
+              ) : library.status === 'error' ? (
+                <p className="prose-link-dialog__error" role="alert">
+                  Could not load PDFs from the Rock. You can still paste a web address.
+                </p>
+              ) : library.status === 'ready' && library.files.length > 0 ? (
                 <ul className="prose-link-dialog__files">
-                  {files.map((file) => (
+                  {library.files.map((file) => (
                     <li key={file.href}>
                       <button
                         type="button"
@@ -203,7 +221,7 @@ export default function LinkedTextarea(
               ) : (
                 <p className="modal__body">No PDF files are available.</p>
               )}
-            </>
+            </section>
           )}
           {error && (
             <p className="prose-link-dialog__error" role="alert">

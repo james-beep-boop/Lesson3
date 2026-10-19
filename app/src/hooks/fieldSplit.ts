@@ -28,6 +28,7 @@ import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
 import { isObject } from '../ingest/resourceLinks'
 import { canonicalJson } from '../lib/canonicalJson'
 import { stripIds } from '../lib/stripIds'
+import { FRAMEWORK_PROSE_LABELS } from '../lib/frameworkProse'
 
 type Doc = Record<string, unknown> & { id?: string | number }
 type Row = { id?: string | number }
@@ -120,12 +121,7 @@ export const SLO_PROSE = [
   'purposeInStoryline',
   'safetyNotes',
 ]
-export const FRAMEWORK_PROSE = [
-  'learnerExperience',
-  'teacherMoves',
-  'sensemakingStrategy',
-  'formativeAssessment',
-]
+export const FRAMEWORK_PROSE = Object.keys(FRAMEWORK_PROSE_LABELS)
 export const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained']
 export const FINAL_EXPLANATION_PROSE = ['instructions']
 export const SECTION_PROSE = ['prompt']
@@ -172,10 +168,7 @@ export const PROSE_LABELS: Record<string, string> = {
   keyInquiry: 'Key inquiry question',
   purposeInStoryline: 'Purpose in the storyline',
   safetyNotes: 'Safety notes',
-  learnerExperience: 'Learner experience',
-  teacherMoves: 'Teacher moves',
-  sensemakingStrategy: 'Sensemaking strategy',
-  formativeAssessment: 'Formative assessment',
+  ...FRAMEWORK_PROSE_LABELS,
   observed: 'Observed',
   learned: 'Learned',
   explained: 'Explained',

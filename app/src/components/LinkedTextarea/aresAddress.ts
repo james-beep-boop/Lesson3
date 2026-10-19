@@ -6,7 +6,7 @@ export type AresAddresses = { siteUrl?: string; kolibriUrl?: string; aliases?: s
 type AresBase = { origin: string; prefix: string; kolibri: boolean }
 
 /** Match an origin and a whole path prefix; a shared hostname alone grants no match. */
-export function normalizeAresAddress(value: string, settings: AresAddresses = {}): string {
+export function normalizeAresAddress(value: string | URL, settings: AresAddresses = {}): string {
   const bases: AresBase[] = []
   const add = (address: string | undefined, kolibri: boolean) => {
     const url = address && parseExternalUrl(address)
@@ -35,8 +35,9 @@ export function normalizeAresAddress(value: string, settings: AresAddresses = {}
         base.origin === url.origin &&
         (url.pathname === base.prefix || url.pathname.startsWith(`${base.prefix}/`)),
     )
-  const normalize = (address: string, depth: number): string => {
-    const url = parseExternalUrl(address)
+  const normalize = (input: string | URL, depth: number): string => {
+    const address = typeof input === 'string' ? input : input.href
+    const url = typeof input === 'string' ? parseExternalUrl(input) : input
     const base = url && match(url)
     if (!url || !base) return address
     const relativePath = url.pathname.slice(base.prefix.length) || '/'
@@ -51,10 +52,10 @@ export function normalizeAresAddress(value: string, settings: AresAddresses = {}
         // URL resolution can interpret a path as a new authority (including after control stripping).
         // Check the result, not just the supplied characters; also retain the configured path scope.
         if (resolved.origin !== url.origin || !match(resolved)) return address
-        return normalize(resolved.href, depth + 1)
+        return normalize(resolved, depth + 1)
       }
       const external = parseExternalUrl(target)
-      return external ? normalize(external.href, depth + 1) : address
+      return external ? normalize(external, depth + 1) : address
     }
     return `http://ares.local${base.kolibri ? ':8069' : ''}${relativePath}${url.search}${url.hash}`
   }

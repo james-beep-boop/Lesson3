@@ -1,4 +1,5 @@
 import React from 'react'
+import { LINKABLE_FIELD_LIST } from '@/lib/frameworkProse'
 
 import PageBackLink from '@/components/PageBackLink'
 import PageHeader from '@/components/PageHeader'
@@ -447,11 +448,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     Start a line with <code>- </code> to make a bullet.
                   </li>
                   <li>
-                    While editing, place the cursor in Learner experience, Teacher moves,
-                    Sensemaking strategy or Formative assessment, then choose Insert link in the
-                    toolbar. Paste an address from ARES or the web and add an optional label. To
-                    link an ARES PDF, open it in ARES and copy its address. If PDFs on the Rock is
-                    shown, you can choose a PDF there instead. The address is inserted in
+                    While editing, place the cursor in {LINKABLE_FIELD_LIST}, then choose Insert
+                    link in the toolbar. Paste an address from ARES or the web and add an optional
+                    label. To link an ARES PDF, open it in ARES and copy its address. If PDFs on the
+                    Rock is shown, you can choose a PDF there instead. The address is inserted in
                     parentheses at the cursor, after your label if supplied. Links become clickable
                     on screen and in Word and PDF documents, except inside table text. Web and PDF
                     links open separately so your editing page stays open. Insert link is hidden

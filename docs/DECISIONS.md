@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Insert link request lifecycle and shared framework labels
+
+Latest operator order: refresh #409 from main and fix ordinary-source 404 wording (pushed at
+`a0ff598`, CI green, not merged); complete ARES releases combine cleanly (#410, `1209878`, ready
+for review, no merge/deploy); then this separate Insert link tidy-up; then propose phase 4 scope
+before any phase 4 code. This supersedes the earlier phase-4-first sequencing below. #410 uses the
+operator-approved existing sourceVersion and audited backfill; its local types/lint/format/build,
+1,616 unit, 316 integration, 398 wire (+4 SMTP skips) and 122 browser cases pass.
+
+Pass only a PDF-folder-configured boolean through the native field's existing server props. No
+folder path goes to the browser. An unconfigured installation never requests the PDF list. A
+configured dialog displays its PDF section immediately with a busy indicator; listing is abortable
+per open, including close/insert/unmount. Late responses cannot replace a reopened dialog's state.
+Keep library failures separate from address/label validation, and keep pasted addresses usable.
+Use the existing wording and a visual busy indicator, with aria-busy on the named region.
+
+One pure framework field/label map now supplies native fields, permission keys, prose labels and
+the toolbar/Help/Guide field list. English wording is unchanged. Parse the pasted complete HTTP(S)
+address once and pass the URL object to ARES normalization; trusted tracker recursion retains its
+resolved-origin check. Do not combine this parser with the generator/ingest grammars.
+No endpoint, migration, PDF-publication authorization, generator, workflow or dependency change.
+
+Proof passes on lesson3-codex-probe:3103: types, lint, format, production build, 1,609 unit,
+314 integration, 397 wire (+4 existing SMTP skips), 124 full browser tests without retries and
+all 14 focused Insert link browser cases. Component tests prove no request when unconfigured,
+close/insert/unmount cancellation and ignored late failures after reopening, including a mock
+transport that ignores cancellation. Browser tests prove loading does not block addresses and
+a late failure cannot overwrite the reopened picker. Tracked test configuration restored.
+Ready PR only; no merge/deploy.
+
 ## 2026-10-19 — Direction for Standard/Advanced mode, connectivity and a school network
 
 Operator discussion, recorded in full in `docs/DESIGN-modes-connectivity-network-2026-10-19.md`.

@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Insert link skips PDF listing on installations without a configured folder. Configured pickers
+  show a busy indicator immediately, cancel requests when closed, and ignore late responses after
+  reopening. Web addresses stay usable while PDFs load or fail. Framework labels are shared across
+  fields and help, and pasted addresses are parsed once before ARES normalization.
+
 - Insert link labels now refuse extra parenthesized links and leading bullet/table markers with
   an explanation. Labelled links gain spacing where needed. Moving to another form control clears
   the insertion target; clicking Insert link or pressing Enter/Space on it keeps the chosen field.

@@ -23,6 +23,7 @@
  * Injected via `admin.components.edit.beforeDocumentControls`; the native Save button and the Edit/API
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
+import { LINKABLE_FIELD_LIST } from '../../lib/frameworkProse'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1158,9 +1159,7 @@ export default function LessonControls({
               onClick={openActiveLinkTarget}
               disabled={saving || !linkTargetReady}
               tooltip={
-                !linkTargetReady
-                  ? 'Place the cursor in Learner experience, Teacher moves, Sensemaking strategy or Formative assessment first.'
-                  : undefined
+                !linkTargetReady ? `Place the cursor in ${LINKABLE_FIELD_LIST} first.` : undefined
               }
             >
               Insert link
@@ -1366,9 +1365,8 @@ export default function LessonControls({
             <div className="help-rows__row">
               <dt>Insert a link</dt>
               <dd>
-                Place the cursor in Learner experience, Teacher moves, Sensemaking strategy or
-                Formative assessment, then choose <em>Insert link</em> in the toolbar. Paste an
-                address from ARES or the web and add an optional label.
+                Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in the
+                toolbar. Paste an address from ARES or the web and add an optional label.
               </dd>
             </div>
             <div className="help-rows__row">
