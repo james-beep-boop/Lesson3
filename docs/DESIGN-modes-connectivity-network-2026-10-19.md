@@ -2,14 +2,16 @@
 
 **Status: DIRECTION AGREED, NOT A BUILD PLAN.** Everything below came out of an operator discussion on
 2026-10-18/19. It records decisions and the reasoning behind them so a later session can turn each
-part into its own plan. **Nothing here is approved for implementation** except where §8 says so, and
-each part still needs a proposal → operator approval → build, like any other change.
+part into its own plan. **Nothing here is approved for implementation.** Each part still needs a
+proposal → operator approval → build, like any other change. (§8's two Combine items were approved
+separately and shipped in #410; §8 is now a record.)
 
-**Sequencing (operator, 2026-10-19): Combine phase 4 is completed first.** The main work in this
-document waits. §8 lists the two small items worth doing alongside phase 4 now.
+**Sequencing (updated 2026-10-19):** the original order put Combine phase 4 first. Phase 4 was
+then deferred until teacher use justifies it (`DESIGN-phase4-scope-2026-10-19.md`; #412 closed), so
+nothing in this document is waiting on it.
 
 Read with: `SPEC.md` §5/§6 (drafts, Combine), §8 (the three user types), `docs/DESIGN-insert-link-ares-
-2026-10-18.md` (ARES links, `ares.local`), `docs/DESIGN-update-draft-2026-10-19.md` (phase 4), and
+2026-10-18.md` (ARES links, `ares.local`), `docs/DESIGN-phase4-scope-2026-10-19.md` (phase 4, deferred), and
 `globals/SystemSettings.ts` + `lib/systemFlagNames.ts` (the existing settings switchboard).
 
 ---
@@ -53,8 +55,12 @@ Read with: `SPEC.md` §5/§6 (drafts, Combine), §8 (the three user types), `doc
   reads the three levels directly except one resolver (`effectiveMode(user, subjectGrade?)`).
   Otherwise the mode becomes scattered `if`s and every test runs twice.
 - Storage: three small values — a field on the `system-settings` global, one on `SubjectGrade`, one
-  on `User`. The SubjectGrade field is writable by that subject-grade's administrator (existing
-  per-subject-grade access), the User field by the user. Changes on the switchboard keep its
+  on `User`. The User field is writable by the user. The SubjectGrade field should be writable by
+  that subject-grade's administrator, but **that is a new permission**: `SubjectGrade` is
+  `update: siteAdminOnly` today. The plan must grant it on that one field only (not by widening
+  collection-level `update`, which would also expose name and grade), and it lands with wire-level
+  authz tests (401/403 for other Subject Administrators and Teachers, the happy path, and a
+  Site Administrator). Changes on the switchboard keep its
   existing audit trail (`flagChanges`).
 - The Guide and USER_GUIDE describe the More menu once ("If you don't see an action, ask your
   administrator or switch on advanced tools in your account menu"), not two versions of every page.
@@ -215,12 +221,16 @@ consent when a teacher links their account to the hub, a short privacy notice at
 to delete one's data from the hub. Offline installations (the default) never send anything, and show
 none of this.
 
-## 8. Do now, alongside Combine phase 4 — the two small items
+## 8. Two small Combine items — shipped in #410
+
+**Shipped.** Both items below were approved and merged in #410. The decisions taken there supersede
+the options listed here: the predecessor is recorded in the existing `sourceVersion`, with an audited
+backfill. See `docs/DESIGN-ares-release-combine-2026-10-19.md` and SPEC §6/§7. The text is kept as
+the original brief.
 
 New ARES releases arrive about every two weeks and are mostly reworded. Bringing a school's edits onto
-a new release is exactly what Combine (and phase 4) is for — but two blockers make Combine fall back
-to "everything is a conflict" or refuse outright for that case. Both are small, local, useful with or
-without a network, and directly serve phase 4. **These are the items to do now.**
+a new release is exactly what Combine is for. But two blockers made Combine fall back to "everything
+is a conflict", or refuse outright, in that case.
 
 1. **Record each re-upload's predecessor.** A re-ingested release (the next major, e.g. 2.0.0) is
    created with **no `sourceVersion`** (`app/src/ingest/index.ts` ~line 428: "No sourceVersion (this
@@ -246,11 +256,15 @@ without a network, and directly serve phase 4. **These are the items to do now.*
    it changes, and the engine's unit tests (one-side-changed takes it; both-changed still refuses;
    two-way still refuses).
 
-Together these make "bring my edits onto the new ARES release" automatic except where a teacher and
-ARES edited the same paragraph. Stable row identity (phase 5) can stay deferred while ARES releases
-mostly reword; revisit if releases start restructuring lessons.
+Together these let reworded prose and changed resource links on a new ARES release combine with a
+teacher's edits, paragraph by paragraph. **They do not cover structural or identity changes.** Combine
+still refuses (`structure`) when a release changes a lesson's `aresKeywords` or sub-strand. It also
+refuses when a release renames or reorders a framework phase, a final-explanation section title or a
+summary-table lesson title, or reorders lessons. Rows are still matched by those keys
+(`lib/combine/correspondence.ts`). Stable row identity would lift that limit. It remains deferred and
+unscheduled; revisit it if ARES releases start renaming or restructuring these rows.
 
-## 9. Proposed order after phase 4 (each its own plan and approval)
+## 9. Proposed order (each its own plan and approval)
 
 1. Worldwide ids and content fingerprints (§5) — cheapest before data spreads.
 2. Standard/Advanced mode (§2) — after the operator marks up the inventory.
