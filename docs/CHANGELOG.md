@@ -15,6 +15,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
   incompatible protected edits and ambiguous lesson correspondence still refuse. An audited,
   metadata-only migration backfills unambiguous legacy release chains and descendant lineage.
 
+- Ordinary Save as new version now rechecks its source under the plan lock, as Combine does.
+  Concurrent source deletion returns the existing version-not-found response instead of a server
+  error. Revoked editing access takes precedence, and failed saves commit no new version.
+  Both ordinary and Combine saves explain that the deleted source’s text remains on screen for copying.
+
 - Insert link labels now refuse extra parenthesized links and leading bullet/table markers with
   an explanation. Labelled links gain spacing where needed. Moving to another form control clears
   the insertion target; clicking Insert link or pressing Enter/Space on it keeps the chosen field.

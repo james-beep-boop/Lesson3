@@ -23,10 +23,10 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 # CURRENT STATE — 2026-10-18
 
 **Base:** fetched `origin/main` at `3472843` (merged #408/#406 plus the modes/connectivity/network
-note). #409 remains open, refreshed from that main with both documentation records retained and the
-ordinary-save copy-text client fix, pushed at `a0ff598`. Its local proof passes: types/lint/format,
+note). #409 was merged after operator approval and green CI as `7169f84`; it includes both
+documentation histories and the ordinary-save copy-text client fix at `a0ff598`. Its local proof passes: types/lint/format,
 build, 1,607 unit, 314 integration, 400 wire (+4 existing SMTP skips), 123 full browser cases without
-retries; all six focused save-browser cases also pass. Its native-arm and checks jobs pass; the final gate is queued. Do not merge it.
+retries; all six focused save-browser cases also pass. #409 CI is green and the merge is complete.
 
 **Current branch:** `feat/ares-release-combine`, the separate §8 release work, complete and ready
 for review. The operator approved existing `sourceVersion` plus audited unambiguous backfill.
@@ -38,7 +38,14 @@ Proof passes: types/lint/format/build, **1,616 unit, 316 integration, 398 wire (
 skips), 122 browser tests without retries**. The real migration and three-way re-ingest path pass;
 tracked test configuration is restored. See
 [`DESIGN-ares-release-combine-2026-10-19.md`](DESIGN-ares-release-combine-2026-10-19.md).
-Next is one separate Insert link tidy-up PR, then propose phase 4 before code. Do not merge.
+Operator review approves the core but requires a documented no-op migration down and a distinct
+opposite-side administrator/resource refusal with wording approved first. Do not merge #410.
+#411 was approved and refreshed onto merged #409 at `51ce703`, preserving both docs histories;
+local types/lint/format and 1,613 combined unit tests pass; fresh CI must pass before its authorized
+merge. **Full phase 4 is not approved. #412 is closed without merging. Keep Save → Combine.**
+Preserve both designs as deferred until teacher use justifies them. After #410 fixes, widen the
+small advice-only hint to common-ancestor versions, preferring a newer ingested release; approve
+wording first. No frozen-input migration, transfer endpoints or reducer rewrite.
 The operator reports prior merges are being deployed; completion has not been confirmed.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
@@ -100,21 +107,26 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 
 ## Remaining work — latest operator order
 
-1. #409's latest-main and ordinary-source client correction is pushed; await its CI/review.
-2. **ARES releases combine cleanly** is complete on `feat/ares-release-combine`; await CI/review
-   of its ready PR. SPEC §6/§7, migration and all local proof are complete.
-3. One small ready Insert link tidy-up PR: PDF-picker request/loading lifecycle, shared field-label
-   wording and duplicated address check. Public PDF edge/cache hardening remains separate.
-4. Propose phase 4 scope to the operator **before any code**. The prior direct-update blueprint was
-   deferred in favor of #406; it is input to that proposal, not approval to build it in full.
-5. Standard/Advanced mode, connectivity, worldwide identity and the school network remain direction
-   only, not approved for building. See `DESIGN-modes-connectivity-network-2026-10-19.md` for the
-   decisions, operator inventory, open questions and staged order. Each needs its own plan. Plan A+
-   waits for an online deployment; stable row identity and structural drafts remain deferred.
+1. #409 is merged as 7169f84 after green CI. Merge approved #411 once refreshed CI passes.
+2. Finish #410's two review fixes: migration down is a documented no-op, and opposite-side
+   administrator/resource changes get an accurate distinct refusal. Wording approval is pending.
+   Push ready; do not merge or deploy #410.
+3. Then widen #406's hint: newest readable newer same-plan version sharing a common ancestor,
+   preferring a newer ingested release. Preserve owner/ordinary/restorable/editing-access guards,
+   excluding unfinished Combine. Advice only; no migration or endpoint. Approve wording first.
+   Prove unit, integration and browser behavior including teacher 1.0.1 versus next ARES release.
+   Separate ready PR; do not merge or deploy.
+4. Full phase 4 is not approved; #412 is closed. Keep both designs as deferred until teacher use
+   justifies them. No new input storage, transfer operations or Combine state rewrite.
+5. Modes, connectivity, identity and school networking remain direction only; Plan A+, stable row
+   identity and structural drafts remain deferred. ARES hardware installation/backup remains an
+   operations priority with the operator; ask ARES about ares.edu.
 
-Actual ARES installation remains an operations priority: local links, performance, exports and
-backup/restore with the operator. Ask the ARES team about `ares.edu`; it is not a default alias.
-No merging or deployment from these feature branches is authorized.
+Nonblocking #410 follow-ups: filter plans with an unlinked whole major > 1; recompute only affected
+release descendants in id order and remove linear row lookups; consolidate re-ingest's history
+reads; scope the migration integration test to its own plan and clean its user in finally; remove
+impossible duplicate-major handling and duplicate release regexes. Add a system-written release
+marker before any manual version-bump control ships. No extra cleanup is required for these two fixes.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
@@ -144,8 +156,9 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 ## Handoff prompt
 
-> Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> #409 is refreshed/pushed at a0ff598. Current branch feat/ares-release-combine has the engine portion
-> and complete release ancestry/backfill implementation with all proof passing. Next is one Insert link tidy-up PR, then a phase 4 scope
-> proposal before code. Preserve both documentation histories/current decisions. Ready PRs only;
-> do not merge or deploy. Preserve source-deletion draft cascades and explicit PDF publication consent.
+> Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
+> #409 is merged. #411 refreshed at 51ce703 is approved for merge once CI passes. #410 needs two
+> review fixes (no-op down; accurate separate protected-side refusal), with wording approval pending.
+> Then widen the advice-only hint for common ancestors/newer releases in a separate ready PR.
+> Full phase 4 is rejected/deferred; #412 is closed. Preserve both design docs. No deployment;
+> do not merge #410 or the hint. Use only lesson3-codex-probe:3103.

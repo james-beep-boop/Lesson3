@@ -1,6 +1,10 @@
 # Update your draft — deferred design
 
-**Status: deferred until teachers need it. Not approved for implementation.**
+**Status: deferred until teacher use justifies it. Not approved for implementation.**
+
+Operator reaffirmed this decision on 2026-10-19 and closed #412 without merging. Keep Save →
+Combine; its small hint will be widened for the newer ARES-release case. The unapproved
+[phase 4 scope](DESIGN-phase4-scope-2026-10-19.md) is preserved as deferred too.
 
 This preserves the direct-update proposal discussed on 2026-10-18. The filename follows the
 operator's requested 2026-10-19 design date. Revisit when teachers frequently combine work from
