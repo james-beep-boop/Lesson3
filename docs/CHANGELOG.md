@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Re-ingested ARES releases record their preceding release so teacher edits and a newer release
+  share ancestry. Combine can retain the sole changed resource map while bringing prose together;
+  incompatible protected edits and ambiguous lesson correspondence still refuse. An audited,
+  metadata-only migration backfills unambiguous legacy release chains and descendant lineage.
+
 - Insert link labels now refuse extra parenthesized links and leading bullet/table markers with
   an explanation. Labelled links gain spacing where needed. Moving to another form control clears
   the insertion target; clicking Insert link or pressing Enter/Space on it keeps the chosen field.

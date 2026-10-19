@@ -11,6 +11,22 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Approved release predecessor and audited metadata backfill
+
+The operator approved reusing `sourceVersion` for an ingested release's predecessor and auditing/
+backfilling unambiguous existing release chains. No separate previousRelease field. Trusted ingest
+alone creates whole majors; authorship alone cannot identify uploads because deleting a user nulls
+that relationship. Select the highest numeric whole-major, unauthored, single-parent release with
+matching sub-strand identity under the subject-grade and plan locks, never a teacher patch or
+Official. The lineage hook then supplies the common ancestor automatically.
+
+Backfill only absent links between consecutive surviving release majors with matching nonempty
+identity; preserve existing links and deleted-source closures, report gaps/ambiguity, skip cyclic
+plans before writing, and recompute bounded descendant closure while preserving deleted ids.
+Raw metadata SQL leaves content, version numbers, authors, timestamps and Official unchanged.
+The data repair is forward-only: undo through the database backup rather than erase ancestry that
+subsequent versions may already depend on. No new endpoint, UI wording, schema field or dependency.
+
 ## 2026-10-19 — Prepare release-link Combine support; wait for release ancestry choices
 
 Latest operator order: update #409 from main and show the copy-text message for ordinary source

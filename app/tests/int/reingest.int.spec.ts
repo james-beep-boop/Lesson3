@@ -19,9 +19,18 @@ import {
   MARK,
   MARK_BASE,
   enqueuedKindsFor,
+  createUserVerified,
+  deleteUserFixture,
   minimalResourceLinks,
   purgeMarked,
 } from '../helpers/fixtures.js'
+import { sql } from '@payloadcms/db-postgres'
+import { drizzleOf } from '../helpers/db.js'
+import { up as backfillReleases } from '../../src/migrations/20261019_120000_release_ancestry.js'
+import { planCombine } from '../../src/lib/combine/engine.js'
+import { findCommonAncestor } from '../../src/lib/combine/ancestry.js'
+import { applyCapture, asRows } from '../../src/lib/editRecovery/projection.js'
+import type { PayloadRequest } from 'payload'
 import { relId } from '../../src/lib/relId.js'
 
 let payload: Payload
@@ -152,6 +161,147 @@ describe('re-ingest (SPEC §7)', () => {
     const [r3] = await ingestItems(payload, [item('b3.json', rawBundle('97.2', 'V3'))])
     expect(r3.semver).toBe('3.0.0')
     expect(await officialOf(planId)).toBe(officialBefore) // still unmoved
+  })
+
+  it('links releases past teacher patches and combines teacher prose with new release resources', async () => {
+    const raw = rawBundle('97.201', 'Release ancestry')
+    const [{ id: planId }] = await ingestItems(payload, [item('release1.json', raw)])
+    const firstId = (await officialOf(planId))!
+    const first = await payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: firstId,
+      depth: 0,
+    })
+    const teacher = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(raw as never),
+        lessonPlan: planId,
+        subjectGrade: relId(first.subjectGrade),
+        semver: '1.0.9',
+        sourceVersion: firstId,
+        lessons: asRows(rawToBundle(raw as never).lessons).map((l) => ({
+          ...l,
+          teacherReflection: 'Teacher reflection.',
+        })),
+      } as never,
+    })
+    const nextRaw = structuredClone(raw)
+    const lesson = (nextRaw.LESSONS as Record<string, unknown>[])[0]
+    ;(lesson.slo as Record<string, string>).purpose = 'Updated release purpose.'
+    ;(lesson.resourceLinks as Record<string, Record<string, unknown>>).predict.fallback_search_url =
+      'http://ares.local/modules/new-release'
+    await ingestItems(payload, [item('release2.json', nextRaw)])
+    const { docs } = await payload.find({
+      collection: 'lesson-bundle-versions',
+      where: { and: [{ lessonPlan: { equals: planId } }, { semver: { equals: '2.0.0' } }] },
+      depth: 0,
+    })
+    const next = docs[0]
+    expect(relId(next.sourceVersion)).toBe(firstId)
+    expect(next.lineage).toEqual([firstId])
+    expect(await officialOf(planId)).toBe(firstId)
+    // Real lookup with access, not a manually supplied engine base.
+    const user = await createUserVerified(payload, {
+      name: `${MARK}Release reader`,
+      email: `${MARK}release-reader@example.com`,
+      password: 'ReleaseReader-Str0ng!',
+      roles: ['siteAdmin'],
+    })
+    const base = await findCommonAncestor({ payload } as PayloadRequest, user, teacher, next)
+    expect(base?.id).toBe(firstId)
+    const combined = planCombine({ a: teacher, b: next, base })
+    expect(combined).toMatchObject({ ok: true, ancestry: 'three-way', start: 'b', conflicts: [] })
+    if (!combined.ok) throw new Error(JSON.stringify(combined))
+    const applied = applyCapture(next as unknown as Record<string, unknown>, combined.overlay)
+      .doc as unknown as typeof next
+    expect(applied.lessons![0].teacherReflection).toBe('Teacher reflection.')
+    expect(applied.lessons![0].slo!.purpose).toBe('Updated release purpose.')
+    expect(applied.lessons![0].resourceLinks).toEqual(next.lessons![0].resourceLinks)
+    // A teacher patch on the new release must not become the next ingest's predecessor.
+    await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(nextRaw as never),
+        lessonPlan: planId,
+        subjectGrade: relId(first.subjectGrade),
+        semver: '2.0.1',
+        sourceVersion: next.id,
+      } as never,
+    })
+    const skipped = await ingestUploadItems(payload, [item('unchanged.json', nextRaw)])
+    expect(skipped.skipped).toHaveLength(1)
+    expect(skipped.bundles).toHaveLength(0)
+    await ingestItems(payload, [item('release3.json', nextRaw)])
+    const third = (
+      await payload.find({
+        collection: 'lesson-bundle-versions',
+        where: {
+          and: [{ lessonPlan: { equals: planId } }, { semver: { equals: '3.0.0' } }],
+        },
+        depth: 0,
+      })
+    ).docs[0]
+    expect(relId(third.sourceVersion)).toBe(next.id)
+    expect(third.lineage).toEqual([firstId, next.id])
+    expect(await officialOf(planId)).toBe(firstId)
+    await deleteUserFixture(payload, user.id)
+  })
+
+  it('the real migration repairs legacy releases and teacher descendants without changing snapshots', async () => {
+    const raw = rawBundle('97.202', 'Legacy ancestry')
+    const [{ id: planId }] = await ingestItems(payload, [item('legacy1.json', raw)])
+    const first = (await officialOf(planId))!
+    await ingestItems(payload, [item('legacy2.json', raw)])
+    const second = (
+      await payload.find({
+        collection: 'lesson-bundle-versions',
+        where: {
+          and: [{ lessonPlan: { equals: planId } }, { semver: { equals: '2.0.0' } }],
+        },
+        depth: 0,
+      })
+    ).docs[0]
+    const teacher = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(raw as never),
+        lessonPlan: planId,
+        subjectGrade: relId(second.subjectGrade),
+        semver: '2.0.1',
+        sourceVersion: second.id,
+      } as never,
+    })
+    // Simulate the pre-change database: unlinked second release, descendant retaining a deleted id.
+    const db = drizzleOf(payload)
+    await db.execute(
+      sql`UPDATE lesson_bundle_versions SET source_version_id = NULL WHERE id = ${second.id}`,
+    )
+    await db.execute(
+      sql`DELETE FROM lesson_bundle_versions_numbers WHERE parent_id IN (${second.id}, ${teacher.id}) AND path = 'lineage'`,
+    )
+    await db.execute(sql`INSERT INTO lesson_bundle_versions_numbers (number, "order", parent_id, path)
+      VALUES (${second.id}, 1, ${teacher.id}, 'lineage'), (999999, 2, ${teacher.id}, 'lineage')`)
+    const read = (id: number) =>
+      payload.findByID({ collection: 'lesson-bundle-versions', id, depth: 0 })
+    const before = await read(teacher.id)
+    const releaseBefore = await read(second.id)
+    const args = { db, payload } as unknown as Parameters<typeof backfillReleases>[0]
+    await backfillReleases(args)
+    expect(relId((await read(second.id)).sourceVersion)).toBe(first)
+    const after = await read(teacher.id)
+    expect(after.lineage).toEqual([first, second.id, 999999])
+    expect({ ...after, lineage: null }).toEqual({ ...before, lineage: null })
+    expect(await officialOf(planId)).toBe(first)
+    const releaseAfter = await read(second.id)
+    expect({ ...releaseAfter, sourceVersion: null, lineage: null }).toEqual({
+      ...releaseBefore,
+      sourceVersion: null,
+      lineage: null,
+    })
+    await backfillReleases(args)
+    expect(await read(second.id)).toEqual(releaseAfter)
+    expect(await read(teacher.id)).toEqual(after)
   })
 
   it('a batch with two files for the SAME sub-strand fails pre-flight (writes nothing)', async () => {

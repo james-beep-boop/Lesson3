@@ -1,3 +1,4 @@
+import * as migration_20261019_120000_release_ancestry from './20261019_120000_release_ancestry'
 import * as migration_20261018_095242_combine_draft_context from './20261018_095242_combine_draft_context'
 import * as migration_20260608_024132_initial from './20260608_024132_initial'
 import * as migration_20260608_145602_lesson_entities from './20260608_145602_lesson_entities'
@@ -197,5 +198,10 @@ export const migrations = [
     up: migration_20261018_095242_combine_draft_context.up,
     down: migration_20261018_095242_combine_draft_context.down,
     name: '20261018_095242_combine_draft_context',
+  },
+  {
+    up: migration_20261019_120000_release_ancestry.up,
+    down: migration_20261019_120000_release_ancestry.down,
+    name: '20261019_120000_release_ancestry',
   },
 ]

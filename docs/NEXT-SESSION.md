@@ -30,12 +30,11 @@ retries; all six focused save-browser cases also pass. Its fresh CI is running. 
 
 **Current branch:** `feat/ares-release-combine`, the separate §8 release work. The pure engine
 portion is prepared and passes types, lint, format, 43 engine tests and all 1,612 unit tests.
-No ingest metadata or migration has been changed. Required operator choices are pending:
-`sourceVersion` versus `previousRelease`, and audited backfill versus future uploads only. Recommend
-sourceVersion plus audited, unambiguous backfill. See
+The operator approved `sourceVersion` plus audited, unambiguous backfill. Data implementation is
+in progress: re-ingest selects the previous release under the plan lock; the metadata-only migration
+repairs consecutive unlinked majors and descendant lineage, reporting gaps/ambiguity. See
 [`DESIGN-ares-release-combine-2026-10-19.md`](DESIGN-ares-release-combine-2026-10-19.md).
-Do not write a migration before the operator answers, and do not open the combined release PR as
-ready until its data portion, re-ingest/three-way tests and all isolated suites are complete.
+Finish all isolated suites and review before opening the complete release PR as ready.
 The operator reports prior merges are being deployed; completion has not been confirmed.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
@@ -145,7 +144,7 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
 > #409 is refreshed/pushed at a0ff598. Current branch feat/ares-release-combine has the engine portion
-> and a plan; wait for the operator's predecessor/backfill choices before migration, then finish
+> and an approved sourceVersion/backfill plan; finish
 > the complete release PR and all proof. Next is one Insert link tidy-up PR, then a phase 4 scope
 > proposal before code. Preserve both documentation histories/current decisions. Ready PRs only;
 > do not merge or deploy. Preserve source-deletion draft cascades and explicit PDF publication consent.

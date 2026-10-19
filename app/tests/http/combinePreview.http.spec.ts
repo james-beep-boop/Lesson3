@@ -169,6 +169,27 @@ describe('H — the happy paths', () => {
     })
   })
 
+  it('starts from the next release when only its resource links changed, retaining teacher prose', async () => {
+    const release = await makeVersion('4.0.0', (c) => {
+      ;(c.lessons[0].resourceLinks as Record<string, unknown>[])[0].fallback_search_url =
+        'http://ares.local/modules/new-release'
+    })
+    const res = await preview(siblingA, release, 'editor')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      base: { id: fx.version.id },
+      plan: {
+        ok: true,
+        ancestry: 'three-way',
+        start: 'b',
+        conflicts: [],
+        overlay: {
+          [`lesson:${await lessonRowId(release)}`]: { overview: 'Overview edited by A.' },
+        },
+      },
+    })
+  })
+
   it('H2 the same field edited differently is a conflict with all three texts', async () => {
     const a = await makeVersion('3.1.1', (c) => (c.lessons[0].overview = 'A says this.'))
     const b = await makeVersion('3.1.2', (c) => (c.lessons[0].overview = 'B says that.'))
