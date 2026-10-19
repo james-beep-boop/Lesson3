@@ -27,14 +27,20 @@ test.beforeAll(async () => {
 })
 
 test.afterAll(async () => {
-  const { docs } = await fx.payload.find({
-    collection: 'users',
-    where: { email: { equals: email } },
-    overrideAccess: true,
-    depth: 0,
-  })
-  for (const user of docs) await deleteUserFixture(fx.payload, user.id)
-  await fx?.teardown()
+  // Setup may have failed before `fx` was assigned; and the signed-up account's removal must not be
+  // able to skip the fixture's own teardown (#415 review).
+  if (!fx) return
+  try {
+    const { docs } = await fx.payload.find({
+      collection: 'users',
+      where: { email: { equals: email } },
+      overrideAccess: true,
+      depth: 0,
+    })
+    for (const user of docs) await deleteUserFixture(fx.payload, user.id)
+  } finally {
+    await fx.teardown()
+  }
 })
 
 const signIn = async (page: Page) => {

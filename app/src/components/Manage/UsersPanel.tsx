@@ -379,6 +379,12 @@ function UserRow({
   )
 }
 
+/** The page to move to when `response` is a page past the end of a non-empty list, else null. */
+export const pageWithinRange = (response: UserSearchResponse): number | null =>
+  response.docs.length === 0 && response.totalPages > 0 && response.page > response.totalPages
+    ? response.totalPages
+    : null
+
 export function UsersPanel({
   emailEnabled = true,
   initialStatus = '',
@@ -428,7 +434,16 @@ export function UsersPanel({
         signal: controller.signal,
       })
       if (!response.ok) throw new Error(await wireErrorMessage(response, 'Could not load users'))
-      setResult((await response.json()) as UserSearchResponse)
+      const body = (await response.json()) as UserSearchResponse
+      const lastPage = pageWithinRange(body)
+      if (lastPage !== null) {
+        // The list shrank under us — the last row of the last page was approved or deleted. Move to
+        // the new last page (its effect reloads) instead of showing an empty page that reads as
+        // "nothing here" while earlier pages still hold results (#415 review).
+        setPage(lastPage)
+        return
+      }
+      setResult(body)
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return
       setError(caught instanceof Error ? caught.message : 'Could not load users')
