@@ -468,3 +468,91 @@ describe('Combine save provenance', () => {
     30_000,
   )
 })
+
+describe('ordinary save source checks under the plan lock', () => {
+  const ordinaryForm = (source: LessonBundleVersion) => {
+    const body = new FormData()
+    body.set(
+      'data',
+      JSON.stringify({
+        ...source,
+        lessons: source.lessons!.map((lesson) => ({
+          ...lesson,
+          overview: `${MARK}ordinary save ${++sequence}`,
+        })),
+      }),
+    )
+    return body
+  }
+
+  it('saves normally after waiting when the source remains available', async () => {
+    const source = await version()
+    const body = ordinaryForm(source)
+    const before = await count()
+    let pending!: Promise<Response>
+    await whileRowLocked(fx.payload, 'lesson_plans', fx.plan.id, async () => {
+      pending = save(body, tokens.editor, '', source.id)
+      expect(await stillPendingAfterWindow(pending)).toBe(true)
+    })
+    const res = await pending
+    expect(res.status, await res.clone().text()).toBe(200)
+    const result = (await res.json()) as { id: number; sourceDeleted: boolean }
+    expect(result.sourceDeleted).toBe(false)
+    const saved = await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: result.id,
+      depth: 0,
+    })
+    expect(saved.sourceVersion).toBe(source.id)
+    expect(saved.mergedFrom).toBeNull()
+    expect(saved.lessons![0].overview).toBe(
+      JSON.parse(String(body.get('data'))).lessons[0].overview,
+    )
+    expect(await count()).toBe(before + 1)
+    const plan = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
+    expect(plan.officialVersion).toBe(fx.version.id)
+  }, 30_000)
+
+  it.each([false, true])(
+    'source deleted while waiting returns the expected error with no candidate (access revoked: %s)',
+    async (revoked) => {
+      const user = await createUserVerified(fx.payload, {
+        name: `${MARK}ordinary waiting`,
+        email: `${MARK}ordinary-waiting-${++sequence}@example.test`,
+        password: fx.password,
+        assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'editor' }],
+      })
+      const jwt = await login(user.email, fx.password)
+      const source = await version()
+      const body = ordinaryForm(source)
+      const before = await count()
+      let pending!: Promise<Response>
+      await whileRowLocked(fx.payload, 'lesson_plans', fx.plan.id, async (tx) => {
+        // Bound a regression's FK-lock wait; the helper still releases the plan lock in finally.
+        await tx.execute(sql`SET LOCAL statement_timeout = '5s'`)
+        pending = save(body, jwt, '', source.id)
+        expect(await stillPendingAfterWindow(pending)).toBe(true)
+        if (revoked)
+          await tx.execute(sql`DELETE FROM users_assignments WHERE _parent_id = ${user.id}`)
+        await tx.execute(sql`DELETE FROM lesson_bundle_versions WHERE id = ${source.id}`)
+      })
+      const res = await pending
+      expect(res.status, await res.clone().text()).toBe(revoked ? 403 : 404)
+      const result = await res.json()
+      if (revoked) expect(result).not.toHaveProperty('unavailable')
+      else
+        expect(result).toEqual({
+          errors: [{ message: 'Version not found' }],
+          unavailable: 'source',
+        })
+      expect(await count()).toBe(before - 1)
+      const plan = await fx.payload.findByID({
+        collection: 'lesson-plans',
+        id: fx.plan.id,
+        depth: 0,
+      })
+      expect(plan.officialVersion).toBe(fx.version.id)
+    },
+    30_000,
+  )
+})

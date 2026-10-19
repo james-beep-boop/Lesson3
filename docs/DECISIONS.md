@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-18 — Every save rechecks its source under the plan lock
+
+The operator approved fixing the remaining ordinary-save deletion race before more feature work.
+Only Combine previously locked the plan and re-read its parents before candidate creation. Ordinary
+save-as-new could read the source, lose it to concurrent deletion and fail during creation instead
+of returning the existing source-unavailable response. Take the plan lock for every save attempt,
+refresh the caller and check editing access first, then re-read the source (and the second parent
+only for Combine). Use the endpoint-owned 404 with `unavailable: 'source'`; do not expose that marker
+when editing access has been revoked. Preserve the final authorization check, rollback, semver retry,
+recovery retirement and source-deletion cascade. No new messages, schema or endpoint.
+
+Wire regressions hold the same plan lock and delete the source inside its owning transaction before
+letting the save resume. The shared lock helper now passes its transaction to the callback while
+preserving finally-based release for existing callers. A bounded SQL timeout prevents a regression
+from hanging on a foreign-key lock. Check 404/source, 403/no marker after revocation plus deletion,
+no committed candidate and an unchanged Official pointer; a source that survives the wait still
+saves normally with its prose and provenance. Unit tests also pin unreadable-source parity, early
+authorization and propagation of database errors. The four new unit cases fail on the old endpoint.
+
+After this correctness fix, prioritize installation and use on actual ARES hardware: local links,
+performance, export and backup/restore. Keep Plan A+, Insert link tidy-ups, full direct draft updates,
+the Combine state machine and stable row identity deferred until there is a demonstrated need.
+
 ## 2026-10-18 — Keep Insert link labels plain and retain the field through toolbar focus
 
 The operator approved the Insert link cleanup after #407. Reject only real parenthesized HTTP/HTTPS

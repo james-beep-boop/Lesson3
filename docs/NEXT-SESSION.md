@@ -22,7 +22,18 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-18
 
-**Base:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
+**Base:** fetched `origin/main` at `add25b9`, including merged #408 and #406. The operator reports
+those changes are being deployed; completion has not been confirmed. Current approved code work is
+`fix/ordinary-save-source-race`: take the plan lock for every save, refresh authorization before
+re-reading the source, and return #405's unavailable-source 404 instead of a creation failure.
+The wire tests cover deletion, revoked access plus deletion, rollback and an unchanged normal save.
+Validation passed on `lesson3-codex-probe`, port 3103: types, lint, format, production build,
+**1,607 unit**, **314 integration**, **400 wire + 4 existing SMTP skips** and **122 browser tests
+without retries**. All three new wire cases passed against the built app. The four new unit cases
+failed on the original endpoint and pass with the fix. Tracked test configuration was restored.
+Push and a ready PR are authorized; do not merge or deploy.
+
+**Recent merged work:**
 Insert link cleanup is merged ([#408](https://github.com/james-beep-boop/Lesson3/pull/408), `9f6b6ff`):
 actual-link and leading bullet/table label validation, word spacing, and stale focus targets
 (mouse, Enter and Space). The small draft-to-Combine hint
@@ -31,7 +42,7 @@ and merged after it: when a restorable ordinary draft's source has a newer reada
 restore prompt suggests saving and then combining, and the saved version offers "Combine with
 {version}". Combined validation: types, lint, format, production build, **1,603 unit**, **314
 integration**, **397 wire + 4 existing SMTP skips** and **122 browser tests without retries**.
-Not yet deployed: deploy only on the operator's instruction (no migration).
+The operator is handling deployment; this agent has not deployed these changes (no migration).
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -92,16 +103,17 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 
 ## Remaining work
 
-1. Deploy #404–#408 and #406 when the operator chooses (no migration). #407 is merged;
-   explicit PDF publication consent and both built-app authorization modes are in place.
-2. The small draft-to-Combine shortcut (#406) is merged. Full direct draft updates and the
-   Combine state-machine refactor remain deferred until teacher use justifies them; the blueprint
-   and approved smaller flow are preserved in that PR's design document.
-3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
-   and narrow URL-check cleanup. Public PDF edge limiting/cache policy is
-   also separate; follow the existing exposure checklist when deliberately publishing a folder.
-4. Plan A+ — optional document-time translation of stored `ares.local` addresses for online installs.
-5. Stable row identity and structural drafts remain deferred.
+1. Review `fix/ordinary-save-source-race`; all required local suites and built-app wire races pass. #404–#408 and #406 are merged; deployment is being handled by the operator.
+2. After that correctness fix, pause feature work and install/use Lesson3 on an actual ARES machine:
+   verify `ares.local` links, machine performance, exports and backup/restore. Plan operations with
+   the operator before changing that installation.
+3. Batch the remaining Insert link tidy-ups (PDF-picker lifecycle, shared field-label wording and
+   narrow URL-check cleanup) into the next justified Insert link change. Public PDF edge/cache
+   policy remains a separate exposure-hardening item.
+4. Plan A+ stays deferred until an online version is actually planned. Ask the ARES team whether
+   `ares.edu` should be a known alias; it is not one by default.
+5. Full direct draft updates, the Combine state machine, stable row identity and structural drafts
+   remain deferred until teacher use justifies them. The small Save-then-Combine hint is merged.
 
 **Other deferred work from /simplify (2026-10-18), each its own change:** a `ConflictSides`
 component for duplicated version-side markup; one module-level scope/whitelist table for
@@ -109,8 +121,7 @@ component for duplicated version-side markup; one module-level scope/whitelist t
 response is implemented in #405; the Combine state machine stays deferred with full direct draft
 updates.
 
-**Separate follow-ups:** ordinary saves can return a 500 if their source is deleted mid-save; this
-predates 3a and needs its own change. Routine reads also load lineage; consider narrower projections
+**Separate follow-ups:** routine reads also load lineage; consider narrower projections
 if plans reach hundreds of versions. Backfill batching is optional at much larger histories.
 Lineage keeps the newest 2,000 ids and full windows conservatively use two-way comparison.
 
@@ -134,5 +145,5 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
 > Main contains #404–#408 and #406 (Insert link for ARES with its clean-up, opt-in public PDFs,
 > identified unavailable Combine parents, and the draft-to-Combine hint). Check PR states.
-> Do not merge or deploy
-> without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.
+> The approved ordinary-save race fix is on `fix/ordinary-save-source-race`. Review its proof
+> before merge; actual ARES installation is next. Do not merge or deploy without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.

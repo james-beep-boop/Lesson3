@@ -24,11 +24,11 @@ import { drizzleOf } from './db'
  */
 export const BLOCKED_WINDOW_MS = 1_500
 
+export type LockTransaction = { execute: (q: unknown) => Promise<unknown> }
+
 /** Drizzle's transaction API, which takes a DEDICATED connection — the point of using it here. */
 type TxRunner = {
-  transaction: <T>(
-    fn: (tx: { execute: (q: unknown) => Promise<unknown> }) => Promise<T>,
-  ) => Promise<T>
+  transaction: <T>(fn: (tx: LockTransaction) => Promise<T>) => Promise<T>
 }
 
 /** Table names these helpers may lock. Closed for the same reason `LockableTable` is in `txDb.ts`. */
@@ -36,7 +36,8 @@ export type LockableTestTable = 'subject_grades' | 'users' | 'lesson_plans' | 'd
 
 /**
  * Hold `table.id = id` locked in an independent transaction for as long as `work` runs, then release
- * it and return what `work` produced.
+ * it and return what `work` produced. `work` receives the lock-owning transaction so it can
+ * commit a competing deletion before the waiter resumes; existing zero-argument callbacks still work.
  *
  * Uses drizzle's own `transaction`, which checks out a dedicated connection — a `FOR UPDATE` issued
  * on the shared pool would be released the moment the statement returned and would hold nothing.
@@ -50,7 +51,7 @@ export async function whileRowLocked<T>(
   payload: Payload,
   table: LockableTestTable,
   id: number,
-  work: () => Promise<T>,
+  work: (tx: LockTransaction) => Promise<T>,
 ): Promise<T> {
   return whileLockHeld(
     payload,
@@ -74,7 +75,7 @@ export async function whileRowLocked<T>(
 export async function whileLockHeld<T>(
   payload: Payload,
   lockStatement: ReturnType<typeof sql>,
-  work: () => Promise<T>,
+  work: (tx: LockTransaction) => Promise<T>,
 ): Promise<T> {
   let release!: () => void
   const gate = new Promise<void>((resolve) => {
@@ -86,7 +87,9 @@ export async function whileLockHeld<T>(
     started = resolve
   })
 
+  let lockedTransaction!: LockTransaction
   const holder = (drizzleOf(payload) as unknown as TxRunner).transaction(async (tx) => {
+    lockedTransaction = tx
     await tx.execute(lockStatement)
     started()
     await gate
@@ -94,7 +97,7 @@ export async function whileLockHeld<T>(
 
   await holding
   try {
-    return await work()
+    return await work(lockedTransaction)
   } finally {
     release()
     await holder
