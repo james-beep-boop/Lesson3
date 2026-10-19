@@ -809,23 +809,28 @@ export default function LessonControls({
         { method: 'POST', body, credentials: 'same-origin' },
       )
       if (!res.ok) {
-        if (res.status === 404 && combineContext) {
-          const failure = (await res.json().catch(() => null)) as { unavailable?: unknown } | null
+        if (res.status === 404) {
+          const failure = (await res
+            .clone()
+            .json()
+            .catch(() => null)) as { unavailable?: unknown } | null
           if (failure?.unavailable === 'source')
             throw new Error(
               'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
             )
-          if (failure?.unavailable === 'secondParent') {
-            setCombineContext(null)
-            setComparison(null)
-            setCombineFailure(null)
+          if (combineContext) {
+            if (failure?.unavailable === 'secondParent') {
+              setCombineContext(null)
+              setComparison(null)
+              setCombineFailure(null)
+              throw new Error(
+                'The other version is no longer available. Your text is still on screen. You can save it as an ordinary version.',
+              )
+            }
             throw new Error(
-              'The other version is no longer available. Your text is still on screen. You can save it as an ordinary version.',
+              'Could not save this combination. Your text is still on screen. Try again.',
             )
           }
-          throw new Error(
-            'Could not save this combination. Your text is still on screen. Try again.',
-          )
         }
         throw new Error(await errorMessage(res, 'Save'))
       }

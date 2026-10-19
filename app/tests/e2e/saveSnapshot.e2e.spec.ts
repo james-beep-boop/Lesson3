@@ -118,7 +118,8 @@ for (const role of ['editor', 'subjectAdmin'] as const) {
           await save.promise
           if (failSave)
             return route.fulfill({
-              status: 503,
+              // Ordinary 404 without a source marker must preserve the server's message too.
+              status: role === 'editor' ? 404 : 503,
               json: { errors: [{ message: 'Injected save failure' }] },
             })
           await route.continue()
@@ -195,3 +196,45 @@ for (const role of ['editor', 'subjectAdmin'] as const) {
     })
   }
 }
+
+test('an ordinary save whose source was deleted explains copying the text and does not recreate its draft', async ({
+  page,
+}) => {
+  const version = await makeRecoveryVersion(fx.payload, {
+    planId: fx.plan.id,
+    subjectGradeId: fx.subjectGrade.id,
+    sourceVersionId: fx.version.id,
+    semver: '9.4.0',
+  })
+  await loginAs(page, fx, 'editor')
+  await openEditor(page, version.id)
+  await expandLessons(page)
+  const text = `${MARK}ordinary prose to copy after deletion`
+  await typeProse(page, text)
+  await awaitCaptured(page)
+  await fx.payload.delete({
+    collection: 'lesson-bundle-versions',
+    id: version.id,
+    overrideAccess: true,
+  })
+  expect(await recoveryRow(fx.payload, version.id, fx.users.editor.id)).toBeUndefined()
+  const saving = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname ===
+        `/api/lesson-bundle-versions/${version.id}/save-as-new` &&
+      response.request().method() === 'POST',
+  )
+  await page.getByRole('button', { name: 'Save as new version', exact: true }).click()
+  const response = await saving
+  expect(response.status()).toBe(404)
+  expect(await response.json()).toMatchObject({ unavailable: 'source' })
+  await expect(
+    page.getByText(
+      'The version you were editing was deleted. Your text is still on screen. Copy it before leaving this page.',
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await expandLessons(page)
+  await expect(page.locator(OVERVIEW)).toHaveValue(text)
+  expect(await recoveryRow(fx.payload, version.id, fx.users.editor.id)).toBeUndefined()
+})

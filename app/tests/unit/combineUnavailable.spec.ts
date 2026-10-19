@@ -27,10 +27,10 @@ const source = {
   updatedAt: '2026-10-18T00:00:00.000Z',
 }
 const caller = { id: 3, roles: ['siteAdmin'] }
-const request = (findByID: ReturnType<typeof vi.fn>) => {
+const request = (findByID: ReturnType<typeof vi.fn>, combine = true) => {
   const form = new FormData()
   form.set('data', JSON.stringify({ ...source, title: 'Changed prose' }))
-  form.set('mergeParent', '2')
+  if (combine) form.set('mergeParent', '2')
   return {
     user: caller,
     payload: { findByID },
@@ -98,5 +98,35 @@ it('does not turn a database failure into a missing-parent response', async () =
     .mockResolvedValueOnce(source)
     .mockRejectedValue(failure)
   await expect(saveAsNewEndpoint.handler(request(find))).rejects.toBe(failure)
+  expect(mock.rollback).toHaveBeenCalledTimes(1)
+})
+
+it.each([403, 404])(
+  'ordinary source read denial %s after the lock rolls back with unavailable source',
+  async (status) => {
+    const find = vi.fn().mockResolvedValueOnce(source).mockRejectedValue({ status })
+    const res = await saveAsNewEndpoint.handler(request(find, false))
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({
+      errors: [{ message: 'Version not found' }],
+      unavailable: 'source',
+    })
+    expect(mock.lock).toHaveBeenCalledWith(expect.anything(), 'lesson_plans', [7])
+    expect(mock.rollback).toHaveBeenCalledTimes(1)
+  },
+)
+it('ordinary save checks revoked editing access before re-reading its source', async () => {
+  mock.refresh.mockResolvedValue({ id: 3, roles: [], assignments: [] })
+  const find = vi.fn().mockResolvedValueOnce(source).mockRejectedValue({ status: 404 })
+  await expect(saveAsNewEndpoint.handler(request(find, false))).rejects.toMatchObject({
+    status: 403,
+  })
+  expect(find).toHaveBeenCalledTimes(1)
+  expect(mock.rollback).toHaveBeenCalledTimes(1)
+})
+it('ordinary save does not disguise a database error as an unavailable source', async () => {
+  const failure = new Error('Database unavailable')
+  const find = vi.fn().mockResolvedValueOnce(source).mockRejectedValue(failure)
+  await expect(saveAsNewEndpoint.handler(request(find, false))).rejects.toBe(failure)
   expect(mock.rollback).toHaveBeenCalledTimes(1)
 })
