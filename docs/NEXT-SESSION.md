@@ -30,8 +30,11 @@ Insert link cleanup is ready in [#408](https://github.com/james-beep-boop/Lesson
 
 Current work updates [#406](https://github.com/james-beep-boop/Lesson3/pull/406),
 `feat/draft-combine-shortcut`, on top of #408. It is stacked against the cleanup branch so its review
-diff shows the small restore/save hint separately. Combined validation is in progress. The operator
-explicitly wants to review #406 before merge. Do not merge either PR or deploy without instruction.
+diff shows the small restore/save hint separately. Combined validation passed: types, lint, format,
+production build, **1,603 unit**, **314 integration**, **397 wire + 4 existing SMTP skips** and
+**122 browser tests without retries**. Tracked test configuration was restored. CI is dispatched
+manually on this branch because the workflow's automatic PR trigger targets only main; no workflow
+file change is needed. The operator explicitly wants to review #406 before merge. Do not merge either PR or deploy without instruction.
 After #408 merges, retarget #406 to latest main and check the resulting diff and CI again.
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
