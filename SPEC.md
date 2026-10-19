@@ -553,11 +553,20 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   link); if no common ancestor survives, every difference is a conflict.
 - **Alignment requires both shape and reliable correspondence** — regenerated row ids cannot pair
   versions, and matching shapes cannot detect a reorder. Multiple lessons require distinct, unchanged
-  system upload identities (`substrand`, `aresKeywords`, `resourceLinks`) in the same order. Multiple
-  framework, section and summary rows require unique, unchanged phase/title labels in the same order.
-  Ambiguous or reordered arrays are refused until stable row identity is built. An unaligned ancestor
-  is ignored, yielding a two-way comparison of aligned sides. Version 1 also refuses admin-field
-  changes on both sides and differing system fields, each with a clear message.
+  system upload identities (`substrand`, `aresKeywords`, `resourceLinks`) in the same order. With
+  a usable ancestor, a resource update may instead pair lessons by `substrand` and `aresKeywords`,
+  only when those remaining keys are unique and unchanged in order. The original strict match stays
+  available when resources are unchanged, including plans whose resource identities distinguish
+  repeated keywords. Multiple framework, section and summary rows still require unique, unchanged
+  phase/title labels in the same order. Ambiguous or reordered arrays are refused until stable row
+  identity is built. An unaligned ancestor is ignored, yielding a two-way comparison of aligned sides.
+- **Protected fields:** administrator content and system-owned `resourceLinks` are compared separately.
+  With a usable ancestor, take a sole changed resource side; distinct updates on both sides refuse
+  `system`. Equal resource maps remain safe. Without a usable ancestor, differing maps still refuse.
+  Administrator fields retain their existing one-sided-change rule. The result must start from one
+  parent containing all selected protected fields: if the administrator and resource choices require
+  opposite parents, refuse rather than synthesize a protected-field overlay. Teacher prose is still
+  the only overlay applied in the editor.
 - **Per prose leaf:** one side changed → take it; both made the same change → take it; one emptied
   and one edited → conflict; both changed differently → paragraph-level three-way merge (the grammar's
   `\n` paragraphs and `- ` bullets), conflicting where the same paragraph was edited. No

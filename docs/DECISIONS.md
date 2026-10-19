@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Prepare release-link Combine support; wait for release ancestry choices
+
+Latest operator order: update #409 from main and show the copy-text message for ordinary source
+404s too (pushed as `a0ff598`, all local checks including 123 browser cases pass); then a separate
+ARES-release Combine PR; then one Insert link tidy-up PR; then propose phase 4 scope before code.
+This supersedes the earlier “phase 4 first” sequencing below. No merge or deployment is authorized.
+
+The independent engine portion is prepared: with a usable ancestor, take the sole changed resource
+side; differing maps on both sides refuse, equal maps remain safe, and two-way differing maps still
+refuse. Compare administrator fields separately so identical administrator edits do not falsely
+conflict with a resource update. The starting parent must contain every selected protected field;
+opposite parent requirements refuse rather than granting teachers a protected-field overlay.
+
+Resource maps also served as lesson row identities. Preserve the original strict correspondence.
+Only with a usable ancestor may unchanged, unique `substrand`/`aresKeywords` keys in unchanged order
+support a resource update. Duplicate keys, reorders and ambiguous phase/section/summary rows still
+refuse. Stable identity is not being introduced. Unit cases pin these guards and the existing
+teacher-prose overlay. The pure engine portion passes types/lint/format and all 1,612 unit tests;
+full-stack proof and re-ingest tests wait until the data portion is complete.
+
+Proposal awaiting operator answer: reuse sourceVersion versus a separate previousRelease, and
+whether to audit/backfill existing re-ingested majors and descendant lineage. The recommendation is
+sourceVersion plus an audited, unambiguous backfill. **No data implementation or migration has been
+written.** The plan is `DESIGN-ares-release-combine-2026-10-19.md`. Do not interpret a preselected
+question option or silence as approval. §7 will be updated after that decision.
+
 ## 2026-10-19 — Direction for Standard/Advanced mode, connectivity and a school network
 
 Operator discussion, recorded in full in `docs/DESIGN-modes-connectivity-network-2026-10-19.md`.

@@ -18,7 +18,9 @@
  * keys, META, structure — must come whole from ONE side, because the saved result is checked against
  * the version it was opened from. If only one side changed non-prose content since the ancestor, the
  * combine starts from that side; otherwise from `a`. Both sides changing it differently is refused
- * (version 1); so is differing structure, and differing system data (`resourceLinks`).
+ * (version 1); so is differing structure. With a usable ancestor, resource links may come from the
+ * sole changed side. If administrator and resource choices require different sides, refuse rather
+ * than splice protected fields. Differing resource links without a usable ancestor are refused.
  *
  * ⚑ PER PROSE FIELD: one side changed it → take that side; both made the same change → take it; one
  * emptied it and the other edited it → conflict (never silently); both changed it differently → merge
@@ -152,8 +154,13 @@ export const withoutProse = (doc: Doc): Doc => {
   return out
 }
 
-/** Canonical non-prose content — the save no-op guard's "same content" rule, applied without prose. */
-const nonProseForm = (doc: Doc): string => comparableContent(withoutProse(doc))
+/** Administrator-owned content, compared separately from system-owned resource links. */
+const administratorForm = (doc: Doc): string => {
+  const out = withoutProse(doc)
+  if (Array.isArray(out.lessons))
+    out.lessons = asRows(out.lessons).map((lesson) => without(lesson, ['resourceLinks']))
+  return comparableContent(out)
+}
 
 /** System-owned data that no edit can change: the lessons' resolved resource links. */
 const systemForm = (doc: Doc): string =>
@@ -215,29 +222,48 @@ export function planCombine(input: { base: object | null; a: object; b: object }
   const anchorsB = captureAnchors(b)
   const shape = shapeOf(anchorsA)
   if (shapeOf(anchorsB) !== shape) return refuse('structure')
-  if (systemForm(a) !== systemForm(b)) return refuse('system')
-  if (!rowsCorrespond(a, b)) return refuse('structure')
 
   // An ancestor whose prose rows do not pair with ours (e.g. an older one, from before a structural
   // edit both sides inherited) cannot be used position by position. Fall back to two-way rather
   // than refuse: every difference becomes a person's choice, which is never wrong.
   const candidateAnchors = base ? captureAnchors(base) : null
   const baseAnchors =
-    candidateAnchors && shapeOf(candidateAnchors) === shape && base && rowsCorrespond(a, base)
+    candidateAnchors &&
+    shapeOf(candidateAnchors) === shape &&
+    base &&
+    rowsCorrespond(a, base, { allowResourceChanges: true })
       ? candidateAnchors
       : null
   const usableBase = baseAnchors ? base : null
 
-  const formA = nonProseForm(a)
-  const formB = nonProseForm(b)
+  const systemA = systemForm(a)
+  const systemB = systemForm(b)
+  let resourceStart: CombineSide | null = null
+  if (systemA !== systemB) {
+    if (!usableBase) return refuse('system')
+    const systemBase = systemForm(usableBase)
+    if (systemA !== systemBase && systemB !== systemBase) return refuse('system')
+    resourceStart = systemA === systemBase ? 'b' : 'a'
+  }
+  if (!rowsCorrespond(a, b, { allowResourceChanges: usableBase !== null }))
+    return refuse('structure')
+
+  const formA = administratorForm(a)
+  const formB = administratorForm(b)
   let start: CombineSide = 'a'
   if (formA !== formB) {
     if (!usableBase) return refuse('admin-both')
-    const formBase = nonProseForm(usableBase)
+    const formBase = administratorForm(usableBase)
     const changedA = formA !== formBase
     const changedB = formB !== formBase
     if (changedA && changedB) return refuse('admin-both')
     if (changedB) start = 'b'
+  }
+  // The editor can apply prose only. Its starting version must already contain every protected
+  // field we selected; never synthesize an administrator/system overlay for a teacher to save.
+  if (resourceStart) {
+    if (formA !== formB && start !== resourceStart) return refuse('admin-both')
+    start = resourceStart
   }
 
   const proseA = projectCapture(a)
