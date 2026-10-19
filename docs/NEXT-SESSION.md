@@ -22,16 +22,20 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-19
 
-**Latest operator update:** #413 merged as `ff1fe9d` after green CI; main also includes Claude's
-modes/network note correction `c617dc6`. The operator approved a separate Gotenberg maintenance PR.
-Current branch `chore/gotenberg-8-38`, from fetched main, updates both full/Arial and LibreOffice-only
-pins to 8.38.0 (LibreOffice 26.8.1.1). Existing Arial installer and generator remain unchanged.
-PDF comparison passes: 24 old/new document pairs, 440 page pairs, identical pixels at 96 DPI,
-geometry, text and hyperlink destinations. All three pinned ARES fixture gates pass. Types/lint/
-format/build, 1,638 unit, 316 integration, 402 wire (+4 existing SMTP skips) and deployment packaging
-checks and 127 full browser tests without retries pass. See DEPENDENCY-REVIEW-2026-10-19.md.
-Open a ready PR; do not merge or deploy. Full phase 4 and network feature implementation stay deferred.
-Earlier state/proof below describes the preceding Combine work.
+**Latest operator update:** #414 merged as `ca16830` after green CI. Annotated release
+[v0.98](https://github.com/james-beep-boop/Lesson3/releases/tag/v0.98) is published at that commit.
+The publisher passed; the documented latest bundle download, checksum and app/migrate image pins
+for AMD64 and ARM64 were verified. The bundle pins Gotenberg 8.38.0 LibreOffice-only; the source
+Dockerfile pins full Gotenberg 8.38.0 and preserves the Arial installer. LibreOffice is 26.8.1.1.
+The local checkout is on main; eight merged local branches were deleted, with unmerged work retained.
+Publication is complete; Codex has not installed or confirmed this release on the Rock.
+
+Maintenance proof: 24 old/new PDF pairs, 440 page pairs with identical pixels at 96 DPI, geometry,
+text and hyperlink destinations; all three pinned ARES fixture gates pass. Types/lint/format/build,
+1,638 unit, 316 integration, 402 wire (+4 existing SMTP skips), deployment packaging checks and
+127 full browser tests without retries passed. See DEPENDENCY-REVIEW-2026-10-19.md.
+Full phase 4 and network feature implementation stay deferred. Earlier state/proof below describes
+the preceding Combine work.
 
 **Preceding Combine update (record):** #410 approved and merged as `e8f56db` after all CI passed. #413 is
 retargeted to main and refreshed with that merge. Its fallback is narrowed: shared readable common
@@ -154,10 +158,10 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 
 ## Remaining work — latest operator order
 
-1. #409/#411/#410/#413 are merged. Latest baseline is ff1fe9d, including the modes/network note
-   correction c617dc6. No deployment was performed by Codex.
-2. Review the completed separate Gotenberg 8.38.0 maintenance PR on `chore/gotenberg-8-38`: both image pins,
-   font preservation, DOCX/PDF comparison and isolated checks. Ready PR only; no merge or deploy.
+1. #409/#411/#410/#413/#414 are merged. Release v0.98 at ca16830 is published and its bundle verified.
+   The handoff update after the tag is documentation only; do not move the release tag.
+2. Installing the release is a separate operational step. Codex has not deployed it on the Rock.
+   Use the installation's documented deployment/update procedure so its Gotenberg sidecar updates too.
 3. Next operational priority: validate installation, links, exports, permissions and backup/restore
    on an actual ARES machine, with the operator coordinating access and deployment.
 4. Full phase 4 remains unapproved/deferred; #412 is closed. Keep both designs until teacher use
@@ -212,7 +216,9 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC → this file and recent relevant DECISIONS.
-> #413 merged as ff1fe9d. Current work is the separate Gotenberg 8.38.0 maintenance branch,
-> chore/gotenberg-8-38: both image variants, Arial preserved, representative DOCX/PDF proof and
-> full isolated checks. See DEPENDENCY-REVIEW-2026-10-19.md. Ready PR only; do not merge/deploy.
+> #414 merged as ca16830; v0.98 is published with verified bundle/checksum and both architectures.
+> Gotenberg 8.38.0 / LibreOffice 26.8.1.1 maintenance is complete; Arial and PDF fidelity are proved.
+> See DEPENDENCY-REVIEW-2026-10-19.md. Rock installation has not been performed by Codex.
+> Next priority is deployment/ARES hardware validation with the operator. Plan and obtain approval
+> before further feature work; do not merge or deploy without authorization for that work.
 > Full phase 4 and network implementations remain deferred. Only lesson3-codex-probe:3103.
