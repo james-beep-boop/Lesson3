@@ -737,7 +737,13 @@ version remains a later phase, alongside stable row identity and support for str
   rate-capped per address + site-globally. Password reset is Payload's native forgot/reset flow,
   emailed to the frontend `/reset-password` page. **Email verification (added 2026-07-09,
   Payload `auth.verify`):** a new account cannot sign in until the emailed link (frontend
-  `/verify-email` page) is used; manual verify/unverify is a Site-Admin repair action. There is
+  `/verify-email` page) is used; manual verify/unverify is a Site-Admin repair action. **On a site
+  without email (no SMTP — an offline school server; amended 2026-10-19) that manual verify is the
+  approval route:** the sign-up form says before and after that a Site Administrator approves the
+  account; signing in unverified says "waiting for approval" rather than naming an email; Manage
+  shows a Site Administrator how many accounts are waiting, with a link to Accounts filtered to them
+  (`GET /api/users/search?status=awaiting`, Site-Admin-only), where the action reads **Approve**.
+  The account model is unchanged — this is wording and a filter over `_verified`. There is
   deliberately no resend endpoint in v1 — the signup caps bound abuse, and a lost email is a
   Site-Admin remedy. **Changing an account's email is Site-Admin-only** (verification happens
   only at create, so a self-service change would claim an unproven address); the verify

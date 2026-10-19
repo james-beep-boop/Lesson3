@@ -15,6 +15,8 @@ export default async function LoginPage() {
   const { payload, user } = await getSession()
   if (user) redirect('/')
   const initialized = await hasRegisteredUsers(payload)
+  // Same test as Sign up and Forgot password: without SMTP, accounts wait for administrator approval.
+  const emailEnabled = !!process.env.SMTP_HOST?.trim()
   return (
     <section className="login">
       <h1 className="login-title">ARES Lesson Plans</h1>
@@ -36,7 +38,7 @@ export default async function LoginPage() {
       */}
       {initialized ? (
         <>
-          <LoginForm />
+          <LoginForm emailEnabled={emailEnabled} />
           <p className="login-links">
             <Link href="/signup">Sign up</Link>
             <Link href="/forgot-password">Forgot password?</Link>

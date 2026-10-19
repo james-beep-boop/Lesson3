@@ -137,7 +137,7 @@ describe('role-aware guide content', () => {
       screen.queryByRole('button', { name: 'Hand administration to another person' }),
     ).toBeNull()
     expect(screen.getByRole('button', { name: 'Manage user roles' })).not.toBeNull()
-    expect(screen.getByRole('button', { name: 'Create and verify an account' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Approve or create an account' })).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'Set up the first Site administrator' }),
     ).not.toBeNull()

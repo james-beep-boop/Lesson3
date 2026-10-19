@@ -11,6 +11,22 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Offline sign-up: administrator approval, said plainly
+
+Offline schools go live within days, and their servers have no email. The account model already
+worked without it (Site Administrators verify accounts and mint reset links; Forgot password already
+detects missing SMTP), but sign-up still promised "we've emailed a verification link", and signing in
+early repeated it — a teacher would wait for an email that cannot arrive. Codex's check corrected an
+overstatement in Claude's first assessment (that password reset was also broken; it was not).
+
+Decided and built: no new account states. Without SMTP — the same test Forgot password and the email
+actions use — the sign-up form explains approval before and after; the unverified sign-in message
+names the Site Administrator; Manage shows administrators a "waiting for your approval" notice
+(count only) linking to Accounts filtered by a new Site-Admin-only `status=awaiting` search filter;
+and the verify action reads **Approve**. With SMTP every wording is unchanged ("Mark verified" stays a
+repair). The filter applies only when arriving from the notice, so searching for a colleague still
+finds verified accounts. Open self-registration stays; administrators can also create accounts.
+
 ## 2026-10-19 — Upgrade both PDF images together; preserve measured layout
 
 Operator approved a separate Gotenberg 8.38.0 maintenance PR after #413 merged as ff1fe9d. Update

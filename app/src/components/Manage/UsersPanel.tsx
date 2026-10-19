@@ -17,21 +17,45 @@ import {
   USER_SEARCH_TYPE_LABELS,
   type UserSearchDocument,
   type UserSearchResponse,
+  type UserSearchStatus,
   type UserSearchType,
 } from '../../lib/userSearchContract'
 import { wireErrorMessage } from '../../lib/wireError'
 import { usePanelJump, usePanelOpen } from './Accordion'
 import { subjectGradeAnchor } from './panelState'
 
+/**
+ * How an unverified account is named, per site (2026-10-19). With email, the person confirms their
+ * own emailed link and an administrator's verify is a repair; without email (an offline school
+ * server) nobody else can, so it is the administrator's approval — and the words say so.
+ */
+const unverifiedWords = (emailEnabled: boolean) =>
+  emailEnabled
+    ? {
+        status: 'Unverified',
+        filter: 'Unverified accounts',
+        action: 'Mark verified',
+        busy: 'Marking…',
+      }
+    : {
+        status: 'Awaiting approval',
+        filter: 'Awaiting approval',
+        action: 'Approve',
+        busy: 'Approving…',
+      }
+
 function UserRow({
   user,
   apiBase,
+  emailEnabled,
   onChanged,
 }: {
   user: UserSearchDocument
   apiBase: string
+  emailEnabled: boolean
   onChanged: () => Promise<void>
 }) {
+  const words = unverifiedWords(emailEnabled)
   const jumpTo = usePanelJump()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(user.name)
@@ -202,7 +226,7 @@ function UserRow({
         <span className="lp-users__summary-meta">
           {user.type}
           {user.signInDisabled ? ' · Sign-in disabled' : ''}
-          {!user.verified ? ' · Unverified' : ''}
+          {!user.verified ? ` · ${words.status}` : ''}
         </span>
       </button>
 
@@ -246,12 +270,17 @@ function UserRow({
               size="small"
               disabled={disabled}
               onClick={() =>
-                void run('Mark verified', () =>
-                  patch({ _verified: true }, `Marked ${user.name} verified.`),
+                void run(words.action, () =>
+                  patch(
+                    { _verified: true },
+                    emailEnabled
+                      ? `Marked ${user.name} verified.`
+                      : `Approved ${user.name}. They can sign in now.`,
+                  ),
                 )
               }
             >
-              {busy === 'Mark verified' ? 'Marking…' : 'Mark verified'}
+              {busy === words.action ? words.busy : words.action}
             </Button>
           )}
           <Button
@@ -350,7 +379,16 @@ function UserRow({
   )
 }
 
-export function UsersPanel() {
+export function UsersPanel({
+  emailEnabled = true,
+  initialStatus = '',
+}: {
+  /** False on a site without SMTP: unverified accounts wait for this administrator's approval. */
+  emailEnabled?: boolean
+  /** `'awaiting'` when the administrator arrived from the "waiting for your approval" notice. */
+  initialStatus?: UserSearchStatus | ''
+}) {
+  const words = unverifiedWords(emailEnabled)
   // ⚑ The panel's OWN id, which stopped being `users` in the 2026-08-18 regrouping — `users` is now
   // the group this panel sits inside. Keying the lazy gate on the parent would defeat the whole
   // optimisation in the quietest possible way: opening the group would fetch, even though the panel
@@ -366,6 +404,8 @@ export function UsersPanel() {
   // for no reason, and only while a search box happened to be non-empty.
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [type, setType] = useState<UserSearchType | ''>('')
+  // Approving removes a row from the filtered list; "All accounts" shows everyone.
+  const [status, setStatus] = useState<UserSearchStatus | ''>(initialStatus)
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<UserSearchResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -382,6 +422,7 @@ export function UsersPanel() {
       const params = new URLSearchParams({ page: String(page), limit: '20' })
       if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
       if (type) params.set('type', type)
+      if (status) params.set('status', status)
       const response = await fetch(`${apiBase}/users/search?${params}`, {
         credentials: 'include',
         signal: controller.signal,
@@ -397,7 +438,7 @@ export function UsersPanel() {
         setLoading(false)
       }
     }
-  }, [apiBase, debouncedQuery, page, type])
+  }, [apiBase, debouncedQuery, page, status, type])
 
   useEffect(() => {
     if (query === debouncedQuery) return
@@ -449,6 +490,18 @@ export function UsersPanel() {
             </option>
           ))}
         </select>
+        <select
+          className="lp-manage__select"
+          aria-label="Filter users by status"
+          value={status}
+          onChange={(event) => {
+            setStatus(event.target.value as UserSearchStatus | '')
+            setPage(1)
+          }}
+        >
+          <option value="">All accounts</option>
+          <option value="awaiting">{words.filter}</option>
+        </select>
         <a className="btn lp-btn lp-users__create" href={createUserPath}>
           Create user
         </a>
@@ -464,12 +517,24 @@ export function UsersPanel() {
         </p>
       )}
       {result && result.docs.length === 0 && !loading && (
-        <p className="lp-manage__empty">No users match this search.</p>
+        <p className="lp-manage__empty">
+          {status === 'awaiting' && !debouncedQuery.trim() && !type
+            ? emailEnabled
+              ? 'Every account is verified.'
+              : 'No accounts are waiting for approval.'
+            : 'No users match this search.'}
+        </p>
       )}
       {result && result.docs.length > 0 && (
         <ul className="lp-users__list" aria-busy={loading || undefined}>
           {result.docs.map((user) => (
-            <UserRow key={user.id} user={user} apiBase={apiBase} onChanged={load} />
+            <UserRow
+              key={user.id}
+              user={user}
+              apiBase={apiBase}
+              emailEnabled={emailEnabled}
+              onChanged={load}
+            />
           ))}
         </ul>
       )}

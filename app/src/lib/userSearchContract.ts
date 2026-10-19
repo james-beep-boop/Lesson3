@@ -15,6 +15,14 @@ export const USER_SEARCH_TYPES = ['siteAdmin', 'subjectAdmin', 'teacher'] as con
 export type UserSearchType = (typeof USER_SEARCH_TYPES)[number]
 
 /**
+ * The one status filter: accounts that cannot sign in yet because nobody has verified them. On a
+ * site that sends email the person confirms it themselves; on an email-less (offline) site a Site
+ * Administrator approves it — so the panel words it per site (`awaitingLabel`), the query does not.
+ */
+export const USER_SEARCH_STATUSES = ['awaiting'] as const
+export type UserSearchStatus = (typeof USER_SEARCH_STATUSES)[number]
+
+/**
  * What the filter calls each type — and deliberately `UserTypeLabel`, the same union
  * `access/index.ts` returns for the type shown on the row itself. Filtering by "Teacher" and then
  * reading "Teacher" on every result is the contract; two independently spelled vocabularies on one

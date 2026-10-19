@@ -32,6 +32,7 @@ import { UnsavedWorkList, type UnsavedWorkItem } from '../Manage/UnsavedWorkList
 import { listUnsavedWork } from '../../lib/editRecovery/unsavedWork'
 import { captureKeptUntil } from '../../lib/editRecovery/ttl'
 import { formatDay } from '../../lib/formatDate'
+import { countAwaitingApproval } from '../../lib/awaitingApproval'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
@@ -80,6 +81,9 @@ export default async function AdminDashboard({
   // the `Promise.all` barrier is deliberately NOT wrapped, since it is just the largest of them.
   const t = startRenderTimings('/admin')
   const deletable = deletableVersionsWhere(user)
+  // Same test as Sign up, Sign in and Forgot password. Without SMTP (an offline school server) new
+  // accounts wait for a Site Administrator's approval rather than an emailed link (2026-10-19).
+  const emailEnabled = !!process.env.SMTP_HOST?.trim()
   const [
     // ⚑ `typeLabel` is deliberately NOT taken. The user type stopped being printed beside the page
     // title on 2026-08-18 (operator decision): a signed-in user knows which kind of account they hold,
@@ -97,6 +101,7 @@ export default async function AdminDashboard({
     systemFacts,
     systemSettings,
     unsavedWork,
+    awaitingApproval,
   ] = await Promise.all([
     t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
     // ---- Saved versions (deletable candidates) ----
@@ -193,6 +198,10 @@ export default async function AdminDashboard({
     // The CALLER's own captures only — `listUnsavedWork` keys on `user.id` and re-applies the read
     // and editing-access gates the restore path would. See `lib/editRecovery/unsavedWork.ts`.
     user ? t.time('unsavedWork', () => listUnsavedWork(req, user)) : [],
+    // ---- Accounts awaiting approval (Site-Admin only) ----
+    // A count, no identities. Only an email-less site needs it surfaced: elsewhere a new account
+    // confirms its own emailed link, and nothing is waiting on an administrator.
+    siteAdmin && !emailEnabled ? t.time('awaitingApproval', () => countAwaitingApproval(req)) : 0,
   ])
   const versionDocs = versionsRes?.docs ?? []
   // Hoisted beside the other unwraps because `sgById` below reads it for a Site Admin — see wave 2.
@@ -565,6 +574,26 @@ export default async function AdminDashboard({
       {/* Above the accordion, and only when non-empty — see the ⚑ in UnsavedWorkList for why this is
           not a panel. */}
       <UnsavedWorkList rows={unsavedRows} />
+      {awaitingApproval > 0 && (
+        <section className="lp-manage__awaiting" aria-labelledby="lp-awaiting-heading">
+          <h2 id="lp-awaiting-heading" className="lp-manage__awaiting-title">
+            {awaitingApproval === 1
+              ? '1 new account is waiting for your approval'
+              : `${awaitingApproval} new accounts are waiting for your approval`}
+          </h2>
+          <p className="lp-manage__desc">
+            Teachers who sign up on this site cannot sign in until you approve them, because it does
+            not send email.{' '}
+            {/* A plain <a>, not next/link: a soft navigation keeps the already-mounted Accounts
+                panel and its filter state, so the queue would not open. A full load renders the
+                panel open (`?open=`) with the awaiting filter applied (`initialStatus`). */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full load intended, see above */}
+            <a href="/admin?open=users.accounts&at=users.accounts&accounts=awaiting">
+              Review them in Accounts
+            </a>
+          </p>
+        </section>
+      )}
 
       <AccordionProvider available={availablePanels} initialOpen={serverOpen} initialAt={serverAt}>
         {(siteAdmin || canSeeRolesAccess) && (
@@ -575,7 +604,12 @@ export default async function AdminDashboard({
                   Search and manage user accounts. Use Disable sign-in when a teacher leaves — this
                   preserves their history without deleting the account.
                 </p>
-                <UsersPanel />
+                <UsersPanel
+                  emailEnabled={emailEnabled}
+                  // Arriving from the notice above opens the list on the approval queue; anywhere
+                  // else it opens on every account, so searching for a colleague still finds them.
+                  initialStatus={searchParams?.accounts === 'awaiting' ? 'awaiting' : ''}
+                />
               </AccordionPanel>
             )}
 

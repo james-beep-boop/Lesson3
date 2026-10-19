@@ -164,8 +164,8 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'There is no default username or password',
   },
   {
-    what: 'accounts created on a no-email installation must be verified by a Site administrator',
-    claim: 'The person cannot sign in until that is done',
+    what: 'on a no-email installation, new accounts wait for a Site administrator to approve them',
+    claim: 'teachers who sign up cannot sign in until you approve them',
   },
   {
     what: 'the backup status distinguishes successful transport from demonstrated recovery',
