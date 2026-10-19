@@ -121,9 +121,8 @@ Lesson3, not in a Word file.
   breaks changed* means only line breaks changed, and *Spacing only* means the words stayed the same.
   Choose *Restore my draft*, *Discard the draft*, or *Exit edit mode*, which keeps your draft and
   asks again next time. Discarding cannot be undone.
-- **If someone saves a newer version while you are away:** Lesson3 cannot restore your draft
-  automatically. It shows the whole draft so you can copy what you still need; then choose *Discard
-  the draft* to edit the newer version.
+- To bring a draft together with a newer version, save the draft as a version, then use Combine
+  versions.
 - **Combine versions:** when a plan has at least two versions and you have editing access, open
   a saved version and choose *Combine versions*. Choose another version and *Review combination*.
   Lesson3 lists automatic changes and fields needing your choice. *Continue in editor* may switch

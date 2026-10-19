@@ -1,6 +1,7 @@
 import React from 'react'
 import type { BeforeDocumentControlsServerProps } from 'payload'
 
+import { findDraftCombineSuggestion } from '../../lib/editRecovery/draftCombineSuggestion'
 import { hasUnsavedWork } from '../../lib/editRecovery/kernel'
 import { systemFlagsForRender } from '../../lib/systemFlags'
 import { findReadableVersion, findReadableVersionChoices } from '../../lib/readBundle'
@@ -37,7 +38,7 @@ export default async function LessonControlsServer({
       ? findReadableVersion(payload, {
           id: versionId,
           user: user as User,
-          select: { lessonPlan: true, subjectGrade: true },
+          select: { lessonPlan: true, subjectGrade: true, semver: true },
         })
       : null,
   ])
@@ -47,5 +48,17 @@ export default async function LessonControlsServer({
     user && source && planId !== null && isEditorFor(user as User, toId(source.subjectGrade))
       ? await findReadableVersionChoices(payload, { planId, user: user as User })
       : []
-  return <LessonControls flags={flags} hasDraft={hasDraft} versions={versions} />
+  // Advice must never stop the editor or draft restoration if this optional query fails.
+  const draftCombineSuggestion =
+    hasDraft && source && user
+      ? await findDraftCombineSuggestion(payload, source, user as User).catch(() => null)
+      : null
+  return (
+    <LessonControls
+      flags={flags}
+      hasDraft={hasDraft}
+      versions={versions}
+      draftCombineSuggestion={draftCombineSuggestion}
+    />
+  )
 }

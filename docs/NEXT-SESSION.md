@@ -23,15 +23,15 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 # CURRENT STATE — 2026-10-18
 
 **Base:** fetched `origin/main` at `18379c6` (#407, operator reports deployment underway).
-Current approved work is the Insert link cleanup on `fix/insert-link-cleanup`: actual-link and
-leading bullet/table label validation, word spacing and stale focus targets, including mouse,
-Enter and Space activation. The operator approved both new messages. Types, lint, format,
-production build, **1,598 unit**, **313 integration**, **397 wire + 4 existing SMTP skips** and
-**118 full browser tests without retries** pass. After the final focus hook changed to Payload's
-supported `extraButtonProps`, a rebuilt app passed all **12 Insert link browser tests** again.
-Tracked test configuration was restored.
-Push and a ready PR are authorized; do not merge or deploy. After cleanup, update #406 on top of it;
-the operator explicitly wants to review that restore-prompt change before merge.
+Insert link cleanup is merged ([#408](https://github.com/james-beep-boop/Lesson3/pull/408), `9f6b6ff`):
+actual-link and leading bullet/table label validation, word spacing, and stale focus targets
+(mouse, Enter and Space). The small draft-to-Combine hint
+([#406](https://github.com/james-beep-boop/Lesson3/pull/406)) was reviewed by the operator's request
+and merged after it: when a restorable ordinary draft's source has a newer readable descendant, the
+restore prompt suggests saving and then combining, and the saved version offers "Combine with
+{version}". Combined validation: types, lint, format, production build, **1,603 unit**, **314
+integration**, **397 wire + 4 existing SMTP skips** and **122 browser tests without retries**.
+Not yet deployed: deploy only on the operator's instruction (no migration).
 
 **Deployed state (operator-confirmed in main's `23a997c` handoff):** Combine phases 1–3b,
 review corrections (#401), simplification/restore retry (#403), the dark-mode Back fix (#402), and
@@ -84,11 +84,17 @@ Use an isolated stack with both a distinct project name and port: Codex uses `le
 `127.0.0.1:3103`. Claude uses a separate clone and stack. Never tear down another agent's stack.
 Always fetch before comparing branches or commits.
 
+**Small draft-to-Combine hint:** an ordinary restorable draft can name the highest numeric readable
+newer same-plan descendant of its source, using recorded lineage. After restoring and saving as a
+numbered version, **Combine with {newer}** opens the existing review through `?combineWith=`. It
+never starts Combine automatically. No migration, endpoint, frozen input or state-machine rewrite.
+The full design remains [deferred until teachers need it](DESIGN-update-draft-2026-10-19.md).
+
 ## Remaining work
 
-1. Finish/review the approved Insert link cleanup on `fix/insert-link-cleanup`. #407 is merged;
+1. Deploy #404–#408 and #406 when the operator chooses (no migration). #407 is merged;
    explicit PDF publication consent and both built-app authorization modes are in place.
-2. Review the approved small draft-to-Combine shortcut in #406. Full direct draft updates and the
+2. The small draft-to-Combine shortcut (#406) is merged. Full direct draft updates and the
    Combine state-machine refactor remain deferred until teacher use justifies them; the blueprint
    and approved smaller flow are preserved in that PR's design document.
 3. Remaining Insert link tidy-ups: PDF-picker request/loading lifecycle, shared field-label wording
@@ -126,6 +132,7 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch first; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> Main contains #407. The approved Insert link cleanup is on `fix/insert-link-cleanup`. Update
-> #406 after that cleanup and leave it for operator review. Check PR states. Do not merge or deploy
+> Main contains #404–#408 and #406 (Insert link for ARES with its clean-up, opt-in public PDFs,
+> identified unavailable Combine parents, and the draft-to-Combine hint). Check PR states.
+> Do not merge or deploy
 > without instruction. Preserve source-deletion draft cascades and explicit PDF publication consent.

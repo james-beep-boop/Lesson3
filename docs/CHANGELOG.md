@@ -19,6 +19,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
   authenticated listing remain independent. Wire tests cover both publication modes on isolated
   fixture stacks; the runbook no longer directs fixture-writing suites at live installations.
 
+- Restoring an ordinary draft can suggest a newer descendant to combine with. Save the draft as a
+  version, then choose Combine with that version to open the existing review. Guidance is optional;
+  the save remains an ordinary Not Official version and leaves Official unchanged.
+
 - Combine save failures now identify which parent is unavailable directly in the server response.
   The screen keeps the current text and draft rules without making follow-up parent requests;
   when both versions are unavailable, it reports the editing source first. Editing access revoked

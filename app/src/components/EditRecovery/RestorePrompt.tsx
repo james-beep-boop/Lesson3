@@ -47,6 +47,7 @@ export function EditRecoveryRestorePrompt({
   saved,
   readOnly,
   busy,
+  newerVersion,
   onRestore,
   onExit,
   onDiscard,
@@ -70,6 +71,7 @@ export function EditRecoveryRestorePrompt({
   /** `offerKind(capture) === 'readOnly'` — stale or schema-mismatched, so it may be read, not applied. */
   readOnly: boolean
   busy: boolean
+  newerVersion?: { source: string; newer: string }
   onRestore: () => void
   /**
    * "Exit edit mode": leave the editor with the draft untouched (2026-10-18; was "Decide later").
@@ -117,6 +119,13 @@ export function EditRecoveryRestorePrompt({
       <p className="modal__body">
         Saved <time dateTime={capture.capturedAt}>{when(capture.capturedAt)}</time>.
       </p>
+
+      {!readOnly && !capture.combineContext && newerVersion && (
+        <p className="modal__body">
+          Version {newerVersion.newer} builds on version {newerVersion.source}. To bring your
+          changes together, save your draft as a version, then combine it with {newerVersion.newer}.
+        </p>
+      )}
 
       {readOnly && (
         <p className="lp-restore__warn">

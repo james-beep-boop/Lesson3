@@ -46,6 +46,39 @@ so no workflow edits or conditional skips are needed. Mark the old workflow-edit
 The remaining Insert link UX, shared label wording and URL-validation cleanup belong in a separate
 change. Public PDF edge limiting/cache policy also remains a separate exposure-hardening follow-up.
 
+## 2026-10-18 — Implement the approved draft-to-Combine shortcut after #405
+
+The operator approved the restore notice, Combine with {newer} action and shared Guide sentence,
+then authorized merging green #405 and starting the shortcut. Branch from fetched main at `330de55`.
+Suggestions query only caller-readable same-plan versions whose numeric lineage contains the
+original source id, and choose the highest numeric newer semver. Keep projections to id/semver.
+The optional query runs only for the caller's existing draft and cannot block the editor on failure.
+Read-only and unfinished Combine offers show no notice.
+
+Only restoring an ordinary draft arms the post-save hint. Carry a version id through navigation,
+verify its label against the current caller-scoped same-plan list, and use the existing full-page
+`combineWith` handoff when the teacher clicks. A normal save never starts Combine automatically.
+Discard/exit/new edit sessions clear the pending hint. No new endpoint, migration or stored prose.
+
+Both guides incorrectly claimed a newer numbered version prevents restoring a draft; immutable
+sources make that false. Replace that advice and its parity-test claim with the approved Save then
+Combine wording. Actual changed-source/schema mismatch rules remain unchanged. The direct-update
+blueprint and state-machine refactor remain deferred until teacher use justifies them.
+
+## 2026-10-18 — Defer direct draft updates; propose the existing Save and Combine path
+
+The proposed phase 4 would add frozen input, atomic draft transfer, new endpoints and a Combine
+state-machine rewrite to avoid one intermediate version. Immutable versions already let a teacher
+restore an older draft, save it as a numbered version and Combine it with newer work. With no
+teacher evidence that the extra version is confusing, defer the full feature and its state machine.
+Preserve the blueprint in `DESIGN-update-draft-2026-10-19.md`, marked deferred until teachers need it.
+
+Instead propose a lineage-based notice in the restore prompt and a Combine with {newer} action after
+numbered save. The existing `combineWith` query handoff opens comparison review directly, rather
+than merely filling the picker. No new migration, endpoint or frozen draft text. Wording approval
+comes before coding; implementation starts after #405 merges. Keep this planning change separate
+from #405 so its CI can finish.
+
 ## 2026-10-18 — Recheck editing access before classifying unavailable parents
 
 Review of #405 found that revoking editing access and deleting the source during a plan-lock wait

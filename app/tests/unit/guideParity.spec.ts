@@ -217,8 +217,9 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'shows only what your draft changes',
   },
   {
-    what: 'a stale capture is read-only — it can be copied out but not restored, which is why the prose is still shown in full',
-    claim: 'cannot restore your draft automatically',
+    what: 'an older draft can be saved as a version before combining it with newer work',
+    claim:
+      'To bring a draft together with a newer version, save the draft as a version, then use Combine versions',
   },
   {
     what: 'discarding is irreversible, and the dialog offers it as a plain button',
