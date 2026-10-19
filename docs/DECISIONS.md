@@ -11,6 +11,24 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Upgrade both PDF images together; preserve measured layout
+
+Operator approved a separate Gotenberg 8.38.0 maintenance PR after #413 merged as ff1fe9d. Update
+both the custom Arial image and the LibreOffice-only release-bundle pin by multi-architecture index
+digest. Both contain LibreOffice 26.8.1.1; keep the exact Arial installer and existing font policy.
+Do not update the host's LibreOffice or change generator/options while assessing the converter.
+
+Pinned ARES Physics, Indices and Trigonometry fixtures pass 5/5 content and 7/7 adapter checks each.
+Twelve shared DOCX inputs yield 24 old/new document pairs across the two image variants: 440 page
+pairs are pixel-identical at 96 DPI, with matching geometry, text layout and hyperlink destinations.
+Compare like font configurations; the smaller local image still uses substitution. No render-version
+bump is needed for unchanged measured output. Detailed inputs, digests, scope and proof are in
+DEPENDENCY-REVIEW-2026-10-19.md and its linked JSON evidence. Ready PR only; no merge/deployment.
+
+Full proof passes: production build/migrations, types/lint/format, 1,638 unit, 316 integration,
+402 wire (+4 existing SMTP skips), 127 full browser tests without retries, all 15 deploy-sidecar
+branches and the release-bundle/publishing/online-updater checks. Tracked test environment restored.
+
 ## 2026-10-19 — Approved distinct release and descendant advice
 
 Operator approved both messages. Render the release-specific sentence for a system-identified

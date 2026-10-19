@@ -46,7 +46,7 @@ services:
   # smaller than the internet tier's custom full image. DOCX fidelity is unchanged; locally-generated
   # PDFs use LibreOffice's Arial-compatible substitute and can have slightly different row heights.
   gotenberg:
-    image: gotenberg/gotenberg:8.37.0-libreoffice@sha256:c85f019d6ae4927714507254331cc0ed72da7b619ee798e3a45de01f54372c12
+    image: gotenberg/gotenberg:8.38.0-libreoffice@sha256:1fe17b234b6e625bb8e118173a0a86952b1f29754ce343e5f347ce2592f38302
     restart: unless-stopped
     logging: *default-logging
     command:
