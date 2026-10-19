@@ -365,14 +365,131 @@ describe('P5 — structure, system data, and an unusable ancestor', () => {
     expect(planCombine({ base: version(), a, b })).toMatchObject({ refusal: 'structure' })
   })
 
-  it('different resource links (a different upload) → refused', () => {
+  const links = (name: string) => ({
+    predict: { video: null, reading: null, fallback_search_url: `https://resources.test/${name}` },
+  })
+
+  it.each(['a', 'b'] as const)(
+    'takes one-sided resource updates from %s and keeps the teacher prose',
+    (changed) => {
+      const a = version((c) => {
+        c.lessons[0].teacherReflection = 'Teacher reflection.'
+      })
+      const b = version()
+      const updated = changed === 'a' ? a : b
+      ;(updated.lessons as Doc[])[0].resourceLinks = links('new')
+      const plan = ok(planCombine({ base: version(), a, b }))
+      expect(plan.start).toBe(changed)
+      expect(plan.ancestry).toBe('three-way')
+      expect(plan.conflicts).toEqual([])
+      if (changed === 'b')
+        expect(plan.overlay[lessonKey(b, 0)]).toMatchObject({
+          teacherReflection: 'Teacher reflection.',
+        })
+    },
+  )
+
+  it('refuses distinct resource updates on both sides', () => {
+    const a = version((c) => {
+      c.lessons[0].resourceLinks = links('a')
+    })
+    const b = version((c) => {
+      c.lessons[0].resourceLinks = links('b')
+    })
+    expect(planCombine({ base: version(), a, b })).toMatchObject({ ok: false, refusal: 'system' })
+  })
+
+  it('accepts the same resource update on both sides', () => {
+    const a = version((c) => {
+      c.lessons[0].resourceLinks = links('same')
+    })
+    const b = version((c) => {
+      c.lessons[0].resourceLinks = links('same')
+    })
+    expect(planCombine({ base: version(), a, b })).toMatchObject({
+      ok: true,
+      ancestry: 'three-way',
+    })
+  })
+
+  it('keeps refusing different resource links without a common ancestor', () => {
     const a = version()
     const b = version((c) => {
-      c.lessons[0].resourceLinks = {
-        predict: { video: null, reading: null, fallback_search_url: 'https://y/p' },
-      }
+      c.lessons[0].resourceLinks = links('new')
     })
-    expect(planCombine({ base: version(), a, b })).toMatchObject({ refusal: 'system' })
+    expect(planCombine({ base: null, a, b })).toMatchObject({ ok: false, refusal: 'system' })
+  })
+
+  it('an unaligned ancestor does not authorize differing resource links', () => {
+    const base = version((c) => {
+      c.lessons.pop()
+    })
+    const a = version()
+    const b = version((c) => {
+      c.lessons[0].resourceLinks = links('new')
+    })
+    expect(planCombine({ base, a, b })).toMatchObject({ ok: false, refusal: 'system' })
+  })
+
+  it('chooses the resource-updated side when administrator edits match on both sides', () => {
+    const a = version((c) => {
+      c.lessons[0].duration = '50 min'
+    })
+    const b = version((c) => {
+      c.lessons[0].duration = '50 min'
+      c.lessons[0].resourceLinks = links('new')
+    })
+    expect(planCombine({ base: version(), a, b })).toMatchObject({ ok: true, start: 'b' })
+  })
+
+  it('refuses when administrator and resource updates require different starting versions', () => {
+    const a = version((c) => {
+      c.lessons[0].duration = '50 min'
+    })
+    const b = version((c) => {
+      c.lessons[0].resourceLinks = links('new')
+    })
+    for (const [first, second] of [
+      [a, b],
+      [b, a],
+    ]) {
+      expect(planCombine({ base: version(), a: first, b: second })).toMatchObject({
+        ok: false,
+        refusal: 'admin-resource',
+        message:
+          'One version changes content only an administrator can edit, and the other changes the resource links. These changes cannot be combined automatically. Open one version and copy across the text you need from the other.',
+      })
+    }
+  })
+
+  it('resource updates still refuse ambiguous lesson keys while unchanged resource identities work', () => {
+    const repeated = (c: ReturnType<typeof content>) => {
+      for (const [i, lesson] of c.lessons.entries()) {
+        lesson.aresKeywords = 'shared keywords'
+        lesson.resourceLinks = links(`lesson-${i}`)
+      }
+    }
+    const base = version(repeated)
+    const a = version(repeated)
+    const unchanged = version(repeated)
+    expect(planCombine({ base, a, b: unchanged })).toMatchObject({ ok: true })
+    const changed = version((c) => {
+      repeated(c)
+      c.lessons[0].resourceLinks = links('updated')
+    })
+    expect(planCombine({ base, a, b: changed })).toMatchObject({ ok: false, refusal: 'structure' })
+  })
+
+  it('resource updates never justify reordering lessons with distinct upload keys', () => {
+    const a = version()
+    const b = version((c) => {
+      c.lessons.reverse()
+      c.lessons[0].resourceLinks = links('updated')
+    })
+    expect(planCombine({ base: version(), a, b })).toMatchObject({
+      ok: false,
+      refusal: 'structure',
+    })
   })
 
   it('no ancestor → every difference is a choice, and nothing is applied', () => {

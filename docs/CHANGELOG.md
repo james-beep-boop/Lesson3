@@ -10,6 +10,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Re-ingested ARES releases record their preceding release so teacher edits and a newer release
+  share ancestry. Combine can retain the sole changed resource map while bringing prose together;
+  incompatible protected edits and ambiguous lesson correspondence still refuse. An audited,
+  metadata-only migration backfills unambiguous legacy release chains and descendant lineage.
+  Its rollback deliberately preserves these compatible links and succeeds. Opposite-side
+  administrator and resource changes have their own accurate refusal.
+
 - Insert link skips PDF listing on installations without a configured folder. Configured pickers
   show a busy indicator immediately, cancel requests when closed, and ignore late responses after
   reopening. Web addresses stay usable while PDFs load or fail. Framework labels are shared across

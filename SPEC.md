@@ -532,6 +532,9 @@ source still cascades its draft away; no draft is retained after source deletion
 - The versioned unit is the **whole sub-strand bundle**. Each save is an **immutable snapshot**.
 - Store a stable Lesson Plan identity separately from immutable Lesson Bundle Version snapshots.
 - Add **semver** (`x.y.z`) and an **official-version pointer** on the Lesson Plan. First uploaded/imported version is **1.0.0 Official**; default edit bump is **patch**; user may choose patch/minor/major. At most one official version per lesson plan.
+- The current **Save as new version** endpoint allocates the next patch; upload/import allocates
+  whole majors (§7). A future patch/minor/major chooser must first add explicit ingest provenance:
+  release ancestry must never mistake a teacher-chosen whole major for an ARES release.
 - Any version regenerates its documents (up to four) on demand.
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
@@ -553,11 +556,21 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   link); if no common ancestor survives, every difference is a conflict.
 - **Alignment requires both shape and reliable correspondence** — regenerated row ids cannot pair
   versions, and matching shapes cannot detect a reorder. Multiple lessons require distinct, unchanged
-  system upload identities (`substrand`, `aresKeywords`, `resourceLinks`) in the same order. Multiple
-  framework, section and summary rows require unique, unchanged phase/title labels in the same order.
-  Ambiguous or reordered arrays are refused until stable row identity is built. An unaligned ancestor
-  is ignored, yielding a two-way comparison of aligned sides. Version 1 also refuses admin-field
-  changes on both sides and differing system fields, each with a clear message.
+  system upload identities (`substrand`, `aresKeywords`, `resourceLinks`) in the same order. With
+  a usable ancestor, a resource update may instead pair lessons by `substrand` and `aresKeywords`,
+  only when those remaining keys are unique and unchanged in order. The original strict match stays
+  available when resources are unchanged, including plans whose resource identities distinguish
+  repeated keywords. Multiple framework, section and summary rows still require unique, unchanged
+  phase/title labels in the same order. Ambiguous or reordered arrays are refused until stable row
+  identity is built. An unaligned ancestor is ignored, yielding a two-way comparison of aligned sides.
+- **Protected fields:** administrator content and system-owned `resourceLinks` are compared separately.
+  With a usable ancestor, take a sole changed resource side; distinct updates on both sides refuse
+  `system`. Equal resource maps remain safe. Without a usable ancestor, differing maps still refuse.
+  Administrator fields retain their existing one-sided-change rule. The result must start from one
+  parent containing all selected protected fields: if the administrator and resource choices require
+  opposite parents, refuse with `admin-resource` and explain the incompatible changes rather than
+  synthesize a protected-field overlay. Teacher prose is still
+  the only overlay applied in the editor.
 - **Per prose leaf:** one side changed → take it; both made the same change → take it; one emptied
   and one edited → conflict; both changed differently → paragraph-level three-way merge (the grammar's
   `\n` paragraphs and `- ` bullets), conflicting where the same paragraph was edited. No
@@ -575,7 +588,7 @@ versions** reconciles them into a new version (1.0.3). Operator decisions: the f
   plan names the version to START from, an edit-recovery-shaped `overlay` keyed by that version's
   rows (only fields whose combined text differs from it), the automatic `changes`, and the
   `conflicts` (each with ancestor, A and B text and a reason: `both-edited`, `emptied`,
-  `no-ancestor`). Refusals are `structure`, `admin-both`, `system` and `size`, each with a plain message.
+  `no-ancestor`). Refusals are `structure`, `admin-both`, `admin-resource`, `system` and `size`, each with a plain message.
   Rows pair through `captureAnchors`' document order — the same walk edit recovery uses — and "prose"
   is the field split's whitelists, so the three features cannot disagree about either.
 - `GET /api/lesson-bundle-versions/:id/combine-preview?with=:otherId` → `{ a, b, base, plan }`.
@@ -679,6 +692,22 @@ version remains a later phase, alongside stable row identity and support for str
 - Create the Lesson Plan and version snapshot via Payload's Local API. The **CLI stays all-or-nothing**; bulk import supports a file or directory. **Web uploads accept JSON files and ZIP archives containing JSON, including nested folders, and import every valid file even when others are malformed** (amended 2026-10-11). Read-only pre-flight validates and resolves each file; invalid files are rejected individually, and the valid subset is written in one transaction. A database/write failure still rolls back that transaction. The response and UI report imported files with version/action, rejected files with reasons, and skipped non-JSON archive entries. If there are neither imports nor unchanged matches, the response is 422; otherwise it is 200, including an entirely unchanged upload. Limits (sized 2026-10-11 from a real export: 95 JSON files, 7.4 MB zipped, 33 MB expanded; archives of ~20 MB are expected): 500 JSON files and 200 MiB of expanded JSON across the request, 5 MiB per expanded JSON, 50 MiB per ZIP, and 1000 entries per ZIP, counted from the archive's actual directory records (never its declared count) before it is parsed. Inflation stops at the actual JSON byte limits. Archives are read one at a time and released. Archives that cannot be read are rejected individually; exceeding the combined JSON count or expanded budget rejects the request before writes.
 - **Upload/import creates version 1.0.0 as Official.** Later edits create additional Not Official versions by default. Site Admins and matching Subject Admins can make any retained version Official; doing so only moves the official pointer and does not duplicate content.
 - **Re-ingest of an existing sub-strand (decided 2026-07-04, refined 2026-07-05; implemented — `app/src/ingest/index.ts`).** A web upload whose content matches the latest saved version (highest numeric semver, Official or Not Official) is skipped and reported as unchanged. Comparison happens inside the subject-grade write lock and excludes storage-added row IDs, empty optional-field padding and derived row numbers; meaningful content and array order are preserved. The CLI retains its previous revision behavior. Otherwise, an upload whose **`(subjectGrade, META.substrand_id)`** matches an existing lesson plan attaches to that SAME plan as the **next MAJOR version** (a 1.x plan gets `2.0.0`, a 2.x plan gets `3.0.0`), arriving **Not Official**. It is a candidate for review: a Subject/Site Admin promotes it via **Make Official** when ready, so a re-upload never silently supersedes the live Official content, and the library keeps showing the current Official until promotion. All prior versions are retained (never overwritten); the plan `title` is **not** refreshed on re-ingest (it mirrors the Official content, which is unchanged until promotion). Pre-flight rejects a file when the key matches **more than one** existing plan (legacy duplicates — resolve first) or when **two files in one batch** target the same key. Web uploads reject every member of a duplicate group and import unrelated valid files; CLI pre-flight still rejects the whole batch. An **empty `META.substrand_id`** can't be matched, so it always creates a new plan.
+- **Release ancestry (approved 2026-10-19):** re-ingest records the highest numeric surviving
+  ingested release of that same plan/sub-strand in the existing `sourceVersion` (“Based on version”)
+  relationship, independently of Official and teacher patches. Only trusted ingest creates whole
+  major `N.0.0` versions; authored or two-parent versions are excluded. The initial release has no
+  predecessor. Selection occurs inside the subject-grade transaction and shared plan lock, before
+  creating the new release; the existing hook carries predecessor lineage into it. With no surviving
+  release the new version remains a root and Combine falls back conservatively.
+  Migration `20261019_120000_release_ancestry` audits existing plans and links only unlinked,
+  unambiguous, consecutive whole-major releases with matching nonempty sub-strand identity and no
+  author/second parent. Existing relationships and closures without a surviving source are preserved;
+  gaps, inconsistent identities and cyclic plans are reported and skipped. Recompute descendant
+  lineage with the existing 2,000-id cap, preserving recorded deleted ancestors. Metadata-only SQL
+  leaves snapshot content, semver, authors, timestamps and Official unchanged. Rerunning is safe.
+  Migration down is intentionally a no-op: the added links are harmless to earlier code and
+  may be used by later versions. Do not obstruct later batch down/reset/refresh operations or erase
+  their provenance. Restoring a pre-migration database backup can undo the data repair if necessary.
 - **Validate against the schema on upload/import, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo`, `summaryTablePrompt`, a complete and valid `resourceLinks` map, and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced before any version is saved; export then trusts validated-in data.
 - **Resource handling (§3):** validate and store the already-resolved `LESSONS[].resourceLinks` exactly;
   do not run the recommender, infer missing buckets, or silently drop unknown/malformed resource fields.

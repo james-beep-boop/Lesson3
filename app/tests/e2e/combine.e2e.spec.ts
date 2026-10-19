@@ -25,10 +25,15 @@ async function version(
     reflection?: string
     source?: number | null
     extraPhase?: boolean
+    resourceUpdate?: boolean
   } = {},
 ) {
   const content = minimalBundleContent()
   content.lessons[0].overview = overview
+  if (options.resourceUpdate) {
+    ;(content.lessons[0].resourceLinks as Record<string, unknown>[])[0].fallback_search_url =
+      'http://ares.local/modules/updated-release'
+  }
   if (options.extraPhase) content.lessons[0].framework.push({ ...content.lessons[0].framework[0] })
   if (options.duration) content.lessons[0].duration = options.duration
   if (options.reflection) content.lessons[0].teacherReflection = options.reflection
@@ -428,4 +433,29 @@ test('explains when restoring an earlier ordinary draft cancels the newly select
   await expect(page.locator('.lp-combine')).toHaveCount(0)
   await expandLessons(page)
   await expect(page.locator('#field-lessons__0__overview')).toHaveValue('Earlier ordinary prose')
+})
+
+test('explains why administrator and resource changes cannot share a starting version', async ({
+  page,
+}) => {
+  const a = await version('A minimal generatable lesson.', { duration: '50 min' })
+  const b = await version('A minimal generatable lesson.', { resourceUpdate: true })
+  const before = await fx.payload.count({
+    collection: 'lesson-bundle-versions',
+    where: { lessonPlan: { equals: fx.plan.id } },
+  })
+  await loginAs(page, fx, 'editor')
+  await review(page, a.id, b.id)
+  await expect(page.getByRole('dialog')).toContainText(
+    'One version changes content only an administrator can edit, and the other changes the resource links. These changes cannot be combined automatically. Open one version and copy across the text you need from the other.',
+  )
+  await expect(page.getByRole('button', { name: 'Continue in editor', exact: true })).toHaveCount(0)
+  expect(
+    (
+      await fx.payload.count({
+        collection: 'lesson-bundle-versions',
+        where: { lessonPlan: { equals: fx.plan.id } },
+      })
+    ).totalDocs,
+  ).toBe(before.totalDocs)
 })

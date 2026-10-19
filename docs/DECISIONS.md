@@ -11,6 +11,100 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Release review fixes complete with approved refusal
+
+Migration down deliberately succeeds without erasing compatible predecessor links. Opposite-side
+administrator/resource requirements return `admin-resource` with the approved truthful message;
+true both-administrator changes retain their existing refusal. Unit and built wire tests pin both
+orders; browser coverage checks the exact message and that no version is created.
+
+After merging main including #409/#411: types/lint/format/build, 1,626 unit, 316 integration,
+402 wire (+4 existing SMTP skips; corrected fixture verified by the complete 18-case preview rerun),
+and 126 full browser tests without retries pass on lesson3-codex-probe:3103. The initial new wire
+fixture accidentally changed both titles relative to its ancestor; matching the ancestor title
+isolates the intended administrator-versus-resource case. Tracked test environment restored.
+Next is the separate advice-only wider hint with approved copy. No merge/deployment; full phase 4
+remains deferred and #412 closed.
+
+## 2026-10-19 — Approved copy; #409 and #411 merged after green CI
+
+#409 merged as 7169f84 and #411 as 815d35e, the latter after refreshed head 51ce703 passed every
+CI job. No deployment. Latest main is merged into #410, retaining both documentation histories.
+Operator approved both proposed messages: the separate administrator/resource refusal and the
+wider draft hint (“shares version history”). Implement them exactly as recorded in NEXT-SESSION.
+Finish #410's two fixes, then the advice-only common-ancestor hint as a separate ready PR.
+Do not merge #410/the hint or deploy. Full phase 4 remains rejected/deferred and #412 closed.
+
+## 2026-10-19 — Review decision: safe rollback and accurate refusal; Save → Combine retained
+
+Operator approved #409 and #411; #409 merged as 7169f84 after green CI, and #411 is authorized to
+merge after refreshed CI passes. #410 core is approved with two required fixes: down() leaves
+backfilled ancestry in place and succeeds, because throwing blocks later batch down/reset/refresh;
+and opposite-side administrator/resource requirements need their own truthful refusal, not
+admin-both. New wording is awaiting approval. Earlier code tolerates the added relationships.
+
+Full phase 4 is **not approved**: close #412 without merging, retain its scope and the earlier full
+design as deferred until teacher use justifies them. Keep Save → Combine; no frozen input, new
+transfer endpoints or reducer rewrite. The next small ready PR widens the hint to newer readable
+same-plan versions sharing an ancestor, preferring a newer ingested release. Preserve owner,
+ordinary/restorable draft and editing-access gates and exclude unfinished Combine. List wording
+first; prove teacher-1.0.1 versus next-release behavior in unit/int/browser tests. No merge/deploy
+for #410 or the widened hint. Nonblocking performance/test-isolation/regex cleanup is recorded in
+NEXT-SESSION; a system-written release marker must precede any manual version-bump control.
+
+No-op down and its preservation assertion pass all refreshed local checks after merging #409:
+types/lint/format/build, 1,620 unit, 316 integration, 401 wire (+4 SMTP skips), 123 full browser
+cases without retries on lesson3-codex-probe:3103. The separate refusal and wider hint await wording
+approval; proposed copy is recorded in NEXT-SESSION. No new UI wording was implemented.
+
+## 2026-10-19 — Approved release predecessor and audited metadata backfill
+
+The operator approved reusing `sourceVersion` for an ingested release's predecessor and auditing/
+backfilling unambiguous existing release chains. No separate previousRelease field. Trusted ingest
+alone creates whole majors; authorship alone cannot identify uploads because deleting a user nulls
+that relationship. Select the highest numeric whole-major, unauthored, single-parent release with
+matching sub-strand identity under the subject-grade and plan locks, never a teacher patch or
+Official. The lineage hook then supplies the common ancestor automatically.
+
+Backfill only absent links between consecutive surviving release majors with matching nonempty
+identity; preserve existing links and deleted-source closures, report gaps/ambiguity, skip cyclic
+plans before writing, and recompute bounded descendant closure while preserving deleted ids.
+Raw metadata SQL leaves content, version numbers, authors, timestamps and Official unchanged.
+The data repair is forward-only: undo through the database backup rather than erase ancestry that
+subsequent versions may already depend on. No new endpoint, UI wording, schema field or dependency.
+
+Completed proof: types/lint/format/build; 1,616 unit, 316 integration, 398 wire (+4 existing SMTP
+skips) and 122 browser cases without retries on lesson3-codex-probe:3103. Real re-ingest, real
+ancestor lookup and teacher/new-release result, production migration application, legacy repair
+without snapshot/timestamp changes, deleted-history preservation and rerun safety are covered.
+Tracked test configuration restored. Ready PR only; no merge or deployment.
+
+## 2026-10-19 — Prepare release-link Combine support; wait for release ancestry choices
+
+Latest operator order: update #409 from main and show the copy-text message for ordinary source
+404s too (pushed as `a0ff598`, all local checks including 123 browser cases pass); then a separate
+ARES-release Combine PR; then one Insert link tidy-up PR; then propose phase 4 scope before code.
+This supersedes the earlier “phase 4 first” sequencing below. No merge or deployment is authorized.
+
+The independent engine portion is prepared: with a usable ancestor, take the sole changed resource
+side; differing maps on both sides refuse, equal maps remain safe, and two-way differing maps still
+refuse. Compare administrator fields separately so identical administrator edits do not falsely
+conflict with a resource update. The starting parent must contain every selected protected field;
+opposite parent requirements refuse rather than granting teachers a protected-field overlay.
+
+Resource maps also served as lesson row identities. Preserve the original strict correspondence.
+Only with a usable ancestor may unchanged, unique `substrand`/`aresKeywords` keys in unchanged order
+support a resource update. Duplicate keys, reorders and ambiguous phase/section/summary rows still
+refuse. Stable identity is not being introduced. Unit cases pin these guards and the existing
+teacher-prose overlay. The pure engine portion passes types/lint/format and all 1,612 unit tests;
+full-stack proof and re-ingest tests wait until the data portion is complete.
+
+Proposal awaiting operator answer: reuse sourceVersion versus a separate previousRelease, and
+whether to audit/backfill existing re-ingested majors and descendant lineage. The recommendation is
+sourceVersion plus an audited, unambiguous backfill. **No data implementation or migration has been
+written.** The plan is `DESIGN-ares-release-combine-2026-10-19.md`. Do not interpret a preselected
+question option or silence as approval. §7 will be updated after that decision.
+
 ## 2026-10-19 — Operator review: merge #409/#411; defer full phase 4
 
 Operator approved #409, authorized its merge after green CI (merged as 7169f84), and authorized

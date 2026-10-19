@@ -38,6 +38,7 @@ import { bumpSemver, compareSemver, nextMajorForPlan } from '../lib/semver'
 import { comparableIngestContent } from './contentEquality'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
+import { latestRelease } from './releaseAncestry'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
 /** A minimal Local-API request carrier — also the shape `prewarmVersionArtifacts` accepts. */
@@ -412,6 +413,8 @@ async function writePrepared(
         p.existingPlanId ??
         (substrandId ? await findExistingPlan(payload, subjectGrade, substrandId, req) : null)
       if (existingPlanId != null) {
+        // Share the deletion/save lock before choosing a surviving predecessor.
+        await lockRows(req, 'lesson_plans', [existingPlanId])
         const latest = skipUnchanged
           ? await latestVersionForPlan(payload, existingPlanId, req)
           : null
@@ -425,12 +428,31 @@ async function writePrepared(
         // RE-INGEST (SPEC §7): attach as the next MAJOR version of the existing plan, arriving
         // Not Official. The Official pointer is NOT moved and the plan title is NOT refreshed — the
         // canonical (Official) content is unchanged until a Subject/Site Admin promotes this
-        // candidate via Make Official (deliberate review gate, decided 2026-07-05). No sourceVersion
-        // (this is an ingest, not a fork). nextMajorForPlan sees the plan's committed versions;
+        // candidate via Make Official. sourceVersion records the previous ingested release, never a
+        // teacher patch or Official pointer. nextMajorForPlan sees the plan's committed versions;
         // the unique (lessonPlan, semver) index is the backstop.
         const semver = latest
           ? bumpSemver(latest.semver, 'major')
           : await nextMajorForPlan(payload, existingPlanId, req)
+        const { docs: history } = await payload.find({
+          collection: 'lesson-bundle-versions',
+          where: { lessonPlan: { equals: existingPlanId } },
+          pagination: false,
+          depth: 0,
+          select: { semver: true, author: true, sourceVersion: true, mergedFrom: true, meta: true },
+          req,
+        })
+        const predecessor = latestRelease(
+          history.map((v) => ({
+            id: v.id,
+            semver: v.semver,
+            author: relId(v.author),
+            source: relId(v.sourceVersion),
+            second: relId(v.mergedFrom),
+            substrandId: v.meta?.substrand_id ?? null,
+          })),
+          substrandId,
+        )
         await payload.create({
           collection: LESSON_BUNDLE_VERSIONS,
           data: {
@@ -438,6 +460,7 @@ async function writePrepared(
             lessonPlan: existingPlanId,
             subjectGrade,
             semver,
+            sourceVersion: predecessor?.id ?? null,
           } as never,
           req,
         })

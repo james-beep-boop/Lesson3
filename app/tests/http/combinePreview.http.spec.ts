@@ -169,6 +169,61 @@ describe('H — the happy paths', () => {
     })
   })
 
+  it('starts from the next release when only its resource links changed, retaining teacher prose', async () => {
+    const release = await makeVersion('4.0.0', (c) => {
+      ;(c.lessons[0].resourceLinks as Record<string, unknown>[])[0].fallback_search_url =
+        'http://ares.local/modules/new-release'
+    })
+    const res = await preview(siblingA, release, 'editor')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      base: { id: fx.version.id },
+      plan: {
+        ok: true,
+        ancestry: 'three-way',
+        start: 'b',
+        conflicts: [],
+        overlay: {
+          [`lesson:${await lessonRowId(release)}`]: { overview: 'Overview edited by A.' },
+        },
+      },
+    })
+  })
+
+  it('explains opposite-side administrator and resource changes truthfully', async () => {
+    const base = await makeVersion('4.1.0')
+    const admin = await makeVersion(
+      '4.1.1',
+      (c) => {
+        c.lessons[0].duration = '50 min'
+      },
+      { sourceVersion: base },
+    )
+    const resources = await makeVersion(
+      '4.1.2',
+      (c) => {
+        ;(c.lessons[0].resourceLinks as Record<string, unknown>[])[0].fallback_search_url =
+          'http://ares.local/modules/updated-release'
+      },
+      { sourceVersion: base },
+    )
+    for (const [a, b] of [
+      [admin, resources],
+      [resources, admin],
+    ]) {
+      const response = await preview(a, b, 'editor')
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        plan: {
+          ok: false,
+          refusal: 'admin-resource',
+          message:
+            'One version changes content only an administrator can edit, and the other changes the resource links. These changes cannot be combined automatically. Open one version and copy across the text you need from the other.',
+        },
+      })
+    }
+  })
+
   it('H2 the same field edited differently is a conflict with all three texts', async () => {
     const a = await makeVersion('3.1.1', (c) => (c.lessons[0].overview = 'A says this.'))
     const b = await makeVersion('3.1.2', (c) => (c.lessons[0].overview = 'B says that.'))
