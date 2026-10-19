@@ -11,6 +11,52 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Ordinary source deletion uses the existing copy-text message; revised work order
+
+The operator requested refreshing #409 from latest main, preserving both sets of decisions and the
+current handoff. The client must handle `404` with `unavailable: 'source'` for every save, not only
+Combine. Keep the approved deletion/copy-text message and the existing draft cascade; do not retain
+or recreate drafts after the source disappears. Parse a cloned response so unknown ordinary 404s
+retain their original server message. Browser coverage deletes a real ordinary source before Save.
+
+The current order supersedes earlier sequencing: finish #409; a separate “ARES releases combine
+cleanly” PR for §8 of the modes/connectivity/network design (predecessor choice and backfill decision
+before migrations); one small Insert link tidy-up PR; then propose phase 4 scope before any code.
+The Standard/Advanced, connectivity, identity and school-network direction stays recorded, with
+building outside the explicitly requested items still awaiting its own plan and approval. Actual
+ARES hardware installation, local links, performance and backups remain an operations priority.
+
+## 2026-10-19 — Direction for Standard/Advanced mode, connectivity and a school network
+
+Operator discussion, recorded in full in `docs/DESIGN-modes-connectivity-network-2026-10-19.md`.
+**Direction only — no part is approved for building** except the two small Combine items below.
+
+- **Standard/Advanced mode:** Advanced adds a per-screen "More ▾" menu that Standard hides. Display
+  only (never authorization); administrator tools are never hidden; personal Manage sections follow
+  the mode. Set at site level (default Standard), overridable per subject-grade by its administrator
+  and per person; most specific wins; each level has "use the default"; no locks at first. On a
+  lesson, that lesson's subject-grade setting applies.
+- **Connectivity and exposure are separate settings.** Connectivity: Offline (default) / Occasional
+  (person-started sync) / Online (optional automatic sync, off by default). "Internet only at install"
+  is an installation procedure. Exposure is the existing public-posture setting. Offline-first; never
+  order by wall clock; app updates never auto-download over a phone connection.
+- **Network:** home access via a server-run tunnel soon where a school has internet (nothing on
+  phones); long term a hub run by the operator, one machine per school, phone hotspot as the usual
+  link. Network features stay hidden until a site administrator enrols the machine. Schools share
+  only what they choose; shared versions arrive Not Official, labelled by school. An "All schools"
+  forum with votes, featured posts and operator-appointed network moderators (a SPEC §8 addition to
+  make deliberately); cross-school messages person to person.
+- **Identity:** worldwide unique — content fingerprints for versions created from ARES files, UUIDs
+  for teachers' versions, ancestry by those ids; one account everywhere with email as the sign-in,
+  linked to the hub only after the hub verifies the email; roles per school.
+- **Privacy:** a policy and consent flow must be created before the hub carries personal data.
+
+**Sequencing:** the operator will complete Combine phase 4 first. Alongside it, do the two small
+items in §8 of the design note — record each ARES re-upload's predecessor, and let Combine take
+resource links from whichever side changed when a common ancestor exists — because the two-weekly
+ARES releases otherwise make "bring my edits onto the new release" refuse or turn every paragraph into
+a conflict.
+
 ## 2026-10-18 — Every save rechecks its source under the plan lock
 
 The operator approved fixing the remaining ordinary-save deletion race before more feature work.
