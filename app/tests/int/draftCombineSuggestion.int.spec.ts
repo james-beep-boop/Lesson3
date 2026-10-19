@@ -24,13 +24,14 @@ it('offers a related ARES release for teacher 1.0.1, preferring it to newer teac
       } as never,
     })
   const source = await make('1.0.1', fx.version.id)
-  await make('1.0.9', source.id)
+  const descendant = await make('1.0.9', source.id)
   const newestTeacher = await make('2.0.9', fx.version.id)
   const release = await make('2.0.0', fx.version.id, true)
   await make('3.0.0', null, true) // Unrelated upload history cannot supply advice.
   expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.editor)).toEqual({
     id: release.id,
     semver: '2.0.0',
+    kind: 'release',
   })
   expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.teacher)).toBeNull()
   await fx.payload.delete({
@@ -39,8 +40,15 @@ it('offers a related ARES release for teacher 1.0.1, preferring it to newer teac
     overrideAccess: true,
   })
   expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.editor)).toEqual({
-    id: newestTeacher.id,
-    semver: '2.0.9',
+    id: descendant.id,
+    semver: '1.0.9',
+    kind: 'descendant',
   })
+  await fx.payload.delete({
+    collection: 'lesson-bundle-versions',
+    id: descendant.id,
+    overrideAccess: true,
+  })
+  expect(await findDraftCombineSuggestion(fx.payload, source, fx.users.editor)).toBeNull()
   expect(await findDraftCombineSuggestion(fx.payload, newestTeacher, fx.users.editor)).toBeNull()
 })

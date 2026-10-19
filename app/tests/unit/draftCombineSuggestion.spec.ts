@@ -16,7 +16,11 @@ const suggest = (docs: unknown[], from = source) =>
   )
 
 it('offers a new ARES release sharing an ancestor with teacher 1.0.1, without claiming descent', async () => {
-  expect(await suggest([root, teacher, release])).toEqual({ id: 3, semver: '2.0.0' })
+  expect(await suggest([root, teacher, release])).toEqual({
+    id: 3,
+    semver: '2.0.0',
+    kind: 'release',
+  })
 })
 it('prefers the highest numeric newer release to an even newer teacher patch', async () => {
   expect(
@@ -28,9 +32,9 @@ it('prefers the highest numeric newer release to an even newer teacher patch', a
       { id: 5, semver: '9.0.0', lineage: [1] },
       { id: 6, semver: '10.0.9', lineage: [1], author: 1 },
     ]),
-  ).toEqual({ id: 4, semver: '10.0.0' })
+  ).toEqual({ id: 4, semver: '10.0.0', kind: 'release' })
 })
-it('otherwise offers the highest numeric related teacher version, including siblings', async () => {
+it('ignores a newer sibling teacher version and suggests only a source descendant', async () => {
   expect(
     await suggest([
       root,
@@ -38,7 +42,12 @@ it('otherwise offers the highest numeric related teacher version, including sibl
       { id: 3, semver: '1.0.9', lineage: [2, 1], author: 1 },
       { id: 4, semver: '1.0.10', lineage: [1], author: 1 },
     ]),
-  ).toEqual({ id: 4, semver: '1.0.10' })
+  ).toEqual({ id: 3, semver: '1.0.9', kind: 'descendant' })
+})
+it('does not suggest a sibling teacher version when no release or descendant exists', async () => {
+  expect(
+    await suggest([root, teacher, { id: 4, semver: '1.0.10', lineage: [1], author: 1 }]),
+  ).toBeNull()
 })
 it('does not mistake an authored or combined whole major for an ingested release', async () => {
   expect(
@@ -49,7 +58,7 @@ it('does not mistake an authored or combined whole major for an ingested release
       { id: 4, semver: '3.0.0', lineage: [1], mergedFrom: 2 },
       { id: 5, semver: '3.0.1', lineage: [1], author: 1 },
     ]),
-  ).toEqual({ id: 5, semver: '3.0.1' })
+  ).toBeNull()
 })
 it('ignores unrelated versions and history whose only shared ancestor is unavailable', async () => {
   expect(await suggest([teacher, release, { id: 4, semver: '9.0.0', lineage: [] }])).toBeNull()

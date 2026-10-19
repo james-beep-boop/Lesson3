@@ -21,7 +21,8 @@ after #405 merged. The 2026-10-19 approved widening below follows #410; the full
 
 - For a restorable ordinary draft, find a newer readable same-plan version sharing a surviving,
   readable common ancestor with its source. Prefer the highest numeric newer ingested release;
-  otherwise choose the highest numeric related version. Require current editing access. A higher
+  otherwise choose the highest numeric newer descendant of the draft's version; never a sibling
+  teacher version. Require current editing access. A higher
   version number alone is not ancestry. Keep the existing stale-source and schema-mismatch copy-only rules.
 - Add this restore-prompt notice: "Version {newer} shares version history with version {source}. To bring your changes
   together, save your draft as a version, then combine it with {newer}."

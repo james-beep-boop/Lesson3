@@ -134,6 +134,20 @@ test('offers ARES 2.0.0 for a draft on teacher 1.0.1, then saves before explicit
   ).toBeTruthy()
 })
 
+test('a newer sibling teacher version is not offered for an ordinary restored draft', async ({
+  page,
+}) => {
+  const source = await prepare(page)
+  await version(fx.version.id, '90.0.1')
+  await openEditor(page, source.id)
+  await expect(restorePrompt(page)).not.toContainText('To bring your changes')
+  await restorePrompt(page).getByRole('button', { name: 'Restore my draft', exact: true }).click()
+  await save(page).click()
+  await expect(page).not.toHaveURL(new RegExp(`/${source.id}(?:\\?|$)`))
+  expect(new URL(page.url()).searchParams.has('draftCombineWith')).toBe(false)
+  await expect(page.getByRole('button', { name: /^Combine with / })).toHaveCount(0)
+})
+
 test('a target deleted after Save cannot destroy the newly saved text', async ({ page }) => {
   const source = await prepare(page)
   const target = await version(source.id)

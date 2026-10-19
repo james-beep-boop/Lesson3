@@ -22,14 +22,24 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-19
 
-**Base:** merged fetched `origin/main` at `815d35e` (merged #408/#406 plus the modes/connectivity/network
+**Latest operator update:** #410 approved and merged as `e8f56db` after all CI passed. #413 is
+retargeted to main and refreshed with that merge. Its fallback is narrowed: shared readable common
+history is allowed for newer ingested ARES releases only; other suggestions must descend from the
+draft's version. Never suggest sibling teacher versions. Selection changes are complete; refreshed proof below.
+Two distinct messages (release and descendant) were listed for approval; that answer is pending.
+Refreshed local proof on lesson3-codex-probe:3103: types/lint/format/build, **1,635 unit,
+316 integration, 402 wire** (+4 existing SMTP skips), **127 full browser tests without retries**.
+Release → descendant → no suggestion is proved in integration; sibling-only browser restoration
+saves ordinary text without a hint or shortcut. Tracked test environment restored.
+Do not merge/deploy #413. Earlier state/proof below describes its preceding revision.
+
+**Base:** merged fetched `origin/main` at `e8f56db` (merged #408/#406 plus the modes/connectivity/network
 note). #409 was merged after operator approval and green CI as `7169f84`; it includes both
 documentation histories and the ordinary-save copy-text client fix at `a0ff598`. Its local proof passes: types/lint/format,
 build, 1,607 unit, 314 integration, 400 wire (+4 existing SMTP skips), 123 full browser cases without
 retries; all six focused save-browser cases also pass. #409 CI is green and the merge is complete.
 
-**Release branch:** `feat/ares-release-combine`, the separate §8 release work, complete and ready
-for review. The operator approved existing `sourceVersion` plus audited unambiguous backfill.
+**Release work:** `feat/ares-release-combine` (#410), merged after operator approval and green CI. The operator approved existing `sourceVersion` plus audited unambiguous backfill.
 Re-ingest selects the previous release under the plan lock; the metadata-only migration repairs
 consecutive unlinked majors and descendant lineage, reporting gaps/ambiguity and preserving
 snapshots, timestamps, Official and deleted ids. The engine selects the sole changed resource side
@@ -47,7 +57,7 @@ skips), 122 browser tests without retries**. The real migration and three-way re
 tracked test configuration is restored. See
 [`DESIGN-ares-release-combine-2026-10-19.md`](DESIGN-ares-release-combine-2026-10-19.md).
 Operator review approves the core but requires a documented no-op migration down and a distinct
-opposite-side administrator/resource refusal with wording approved first. Do not merge #410.
+opposite-side administrator/resource refusal; both fixes shipped before the approved #410 merge.
 #411 merged as `815d35e` after all refreshed CI jobs passed on head `51ce703`. Its original
 isolated proof includes 1,609 unit, 314 integration, 397 wire (+4 SMTP skips), 124 full browser
 cases and 14 focused Insert link cases. The main refresh passes 1,613 combined units and full CI.
@@ -57,9 +67,9 @@ small advice-only hint to common-ancestor versions, preferring a newer ingested 
 wording is approved. No frozen-input migration, transfer endpoints or reducer rewrite.
 The operator reports prior merges are being deployed; completion has not been confirmed.
 
-**Current branch:** `feat/draft-common-history-hint`, a separate ready-PR change stacked on #410.
-The approved hint now accepts newer readable same-plan versions with a surviving readable common
-ancestor, preferring a newer ingested release; teacher 1.0.1 versus release 2.0.0 sharing 1.0.0 is
+**Current branch:** `feat/draft-common-history-hint` (#413), refreshed and retargeted to main after #410 merged.
+The narrowed hint accepts a newer readable ingested release with a readable common ancestor;
+otherwise it suggests only a newer descendant of the draft's version, never a sibling teacher version; teacher 1.0.1 versus release 2.0.0 sharing 1.0.0 is
 covered. Owner/ordinary/restorable/editing-access guards remain, unfinished Combine excluded.
 No new storage, migration, endpoint or state-machine rewrite.
 Validation on lesson3-codex-probe:3103: types/lint/format/build, **1,634 unit, 316 integration,
@@ -124,7 +134,8 @@ Always fetch before comparing branches or commits.
 
 **Small draft-to-Combine hint:** an ordinary restorable draft can name the highest numeric readable
 newer readable same-plan version sharing a surviving readable ancestor, preferring a newer ingested
-release and otherwise the highest numeric related version. After restoring and saving as a
+release and otherwise the highest numeric newer descendant of the draft's version (never a sibling teacher
+version). After restoring and saving as a
 numbered version, **Combine with {newer}** opens the existing review through `?combineWith=`. It
 never starts Combine automatically. No migration, endpoint, frozen input or state-machine rewrite.
 The full design remains [deferred until teachers need it](DESIGN-update-draft-2026-10-19.md).
@@ -132,12 +143,11 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 ## Remaining work — latest operator order
 
 1. #409 is merged as 7169f84 and #411 as 815d35e after all CI passed. No deployment.
-2. #410's two review fixes are complete and pushed at 8aa912a: documented no-op down and the
-   approved distinct administrator/resource refusal. Ready for review; do not merge or deploy.
-3. The wider #406 hint is implemented on `feat/draft-common-history-hint`, stacked on #410.
-   It uses newer readable same-plan shared history and prefers newer ingested releases, retaining
-   all ordinary-draft guards. Approved wording and unit/integration/browser proof are complete.
-   Ready PR only, no merge/deploy; after #410 merges, refresh/retarget the hint to main.
+2. #410 is approved and merged at e8f56db, including no-op down and the approved distinct refusal.
+3. #413 now targets main. Shared-history suggestions are restricted to newer ingested releases;
+   fallback is only a newer descendant of the draft's version. All ordinary-draft guards remain.
+   Two separate messages are awaiting approval; previous shared-history copy remains for now.
+   Narrowed selection and its proof are complete; push for CI. Do not merge or deploy.
 4. Full phase 4 is not approved; #412 is closed. Keep both designs as deferred until teacher use
    justifies them. No new input storage, transfer operations or Combine state rewrite.
 5. Modes, connectivity, identity and school networking remain direction only; Plan A+, stable row
@@ -188,8 +198,7 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC §5/§6 → this file and recent DECISIONS.
-> #409 and #411 are merged after green CI (7169f84 and 815d35e). #410 review fixes are
-> pushed at 8aa912a. The approved wider advice-only common-history/release hint is complete on
-> feat/draft-common-history-hint, stacked on #410, with local proof above. Review before merging;
-> refresh/retarget the hint to main after #410 merges. Full phase 4 remains rejected/deferred,
-> #412 closed, both designs retained. Do not merge or deploy. Only lesson3-codex-probe:3103.
+> #409/#411/#410 are merged after green CI; latest #410 merge is e8f56db. #413 targets main.
+> Its fallback is narrowed to descendants only; shared-history siblings qualify only if they are
+> newer ingested ARES releases. Two proposed messages await approval. Do not merge/deploy #413.
+> Full phase 4 stays deferred, #412 closed, both designs retained. Only lesson3-codex-probe:3103.

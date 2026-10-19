@@ -64,5 +64,9 @@ it('queries a common-history suggestion with the caller access and same-plan fil
       user,
     }),
   )
-  expect(controls.props.draftCombineSuggestion).toEqual({ id: 2, semver: '1.0.2' })
+  expect(controls.props.draftCombineSuggestion).toEqual({
+    id: 2,
+    semver: '1.0.2',
+    kind: 'descendant',
+  })
 })

@@ -491,8 +491,9 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
 - **Bringing an ordinary draft together with newer work (2026-10-18):** a restorable ordinary
   draft's restore prompt may name a readable newer version in the same plan sharing a surviving,
   readable common ancestor, proved by recorded lineage. Prefer the highest numeric newer ingested
-  release when available; otherwise choose the highest numeric related version. Direct descent
-  from the draft's source is not required: a teacher's 1.0.1 and ARES 2.0.0 can share 1.0.0. Saving the restored draft creates an ordinary Not Official version;
+  release when available; otherwise choose only the highest numeric newer descendant of the draft's
+  version, as proved by its recorded lineage. Never suggest sibling teacher versions. The release
+  case alone permits shared ancestry without direct descent: teacher 1.0.1 and ARES 2.0.0 can share 1.0.0. Saving the restored draft creates an ordinary Not Official version;
   a **Combine with {newer}** action then opens the existing Combine review through `combineWith`.
   The save itself never opens or commits a combination. Suggestions are optional: failures do not
   block restoration or save. URL hints contain only a version id, are checked against the caller's

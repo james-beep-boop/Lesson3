@@ -6,9 +6,9 @@ import { relId } from '../relId'
 import { compareSemver } from '../semver'
 
 type Source = Pick<LessonBundleVersion, 'id' | 'lessonPlan' | 'subjectGrade' | 'semver'>
-export type DraftCombineSuggestion = { id: number; semver: string }
+export type DraftCombineSuggestion = { id: number; semver: string; kind: 'release' | 'descendant' }
 
-/** Optional advice: readable common history, preferring the next ingested release over teacher work. */
+/** Shared-history ingested releases take priority; other suggestions must descend from the source. */
 export async function findDraftCombineSuggestion(
   payload: Payload,
   source: Source,
@@ -48,12 +48,13 @@ export async function findDraftCombineSuggestion(
         author: relId(version.author),
         second: relId(version.mergedFrom),
       }) !== null
+    if (!isRelease && !version.lineage?.includes(source.id)) continue
     if (
       !best ||
       (isRelease && !bestIsRelease) ||
       (isRelease === bestIsRelease && compareSemver(version.semver, best.semver) > 0)
     ) {
-      best = { id: version.id, semver: version.semver }
+      best = { id: version.id, semver: version.semver, kind: isRelease ? 'release' : 'descendant' }
       bestIsRelease = isRelease
     }
   }
