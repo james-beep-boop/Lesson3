@@ -345,6 +345,59 @@ describe('Save endpoint — a Site Administrator', () => {
   }, 30_000)
 })
 
+describe('Save endpoint — Advanced tools (2026-10-20)', () => {
+  const advanced = async () => {
+    const doc = await fx.payload.findGlobal({
+      slug: 'system-settings',
+      depth: 0,
+      overrideAccess: true,
+    })
+    return {
+      enabled: doc.features?.advancedTools === true,
+      change: doc.flagChanges?.find((r) => r.flag === 'advancedTools'),
+    }
+  }
+
+  it('refuses everyone but a Site Administrator, and writes nothing', async () => {
+    await expectRefused(undefined, 401, { changes: { advancedTools: true } })
+    for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
+      await expectRefused(token[role], 403, { changes: { advancedTools: true } })
+    }
+    await expectRefused(token.siteAdmin, 401, {
+      changes: { advancedTools: true },
+      password: 'not-the-password',
+    })
+  })
+
+  it('a Site Administrator switches it, with provenance, leaving Discussions and its history untouched', async () => {
+    const before = await stored()
+    const was = await advanced()
+    const res = await save(token.siteAdmin, {
+      changes: { advancedTools: !was.enabled },
+      password: fx.password,
+      expectedUpdatedAt: before.updatedAt,
+    })
+    expect(res.status, messageOf(res)).toBe(200)
+    const now = await advanced()
+    expect(now.enabled).toBe(!was.enabled)
+    expect(now.change?.enabled).toBe(!was.enabled)
+    expect(now.change?.changedBy).toBe(fx.users.siteAdmin.id)
+    const after = await stored()
+    expect(after.forumEnabled).toBe(before.forumEnabled)
+    expect(after.forumChange).toEqual(before.forumChange)
+    // Put it back, through the same door.
+    expect(
+      (
+        await save(token.siteAdmin, {
+          changes: { advancedTools: was.enabled },
+          password: fx.password,
+          expectedUpdatedAt: after.updatedAt,
+        })
+      ).status,
+    ).toBe(200)
+  })
+})
+
 describe('Save endpoint — permissions changed while waiting', () => {
   for (const change of ['demoted', 'disabled', 'deleted'] as const) {
     it(`refuses an administrator ${change} while the Save waits, and writes nothing`, async () => {

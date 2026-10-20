@@ -135,7 +135,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     Choose <em>Share</em> for supporting documents, <em>Download all</em> as a Word
                     or PDF .zip, or <em>Email all</em> to send the generated documents to an email
-                    address.
+                    address. <em>Email all</em> and <em>Download as JSON</em> appear when Advanced
+                    tools is switched on, and Email all only when the site can send email.
                   </li>
                   <li>
                     Choose <em>Share → Message a colleague</em> to send another Lesson3 user a note
@@ -383,8 +384,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('editing.compare') && (
               <GuideAccordionPanel id="editing.compare" title="Compare two versions">
                 <p>
-                  To combine text, open a saved version and choose <em>Combine versions</em>. This
-                  appears when the plan has at least two versions and you have editing access.
+                  To combine text, open a saved version and choose <em>More → Combine versions</em>.
+                  This appears when the plan has at least two versions and you have editing access.
                   Choose another version and <em>Review combination</em>, then{' '}
                   <em>Continue in editor</em>. Lesson3 may switch versions to preserve the plan
                   details and answer keys. For each remaining field, choose{' '}
@@ -393,6 +394,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   on screen. <em>Save as new version</em> saves a Not Official result, keeps both
                   parents, and leaves Official unchanged. Nothing is saved as a numbered version
                   automatically.
+                </p>
+                <p>
+                  Combine versions and Show details appear when Advanced tools is switched on. Ask
+                  your Site Administrator if you need them. An unfinished combination can still be
+                  restored and saved when Advanced tools is off.
                 </p>
                 <p>
                   An unfinished combination is captured as a private draft. Restoring reruns the
@@ -751,6 +757,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   server with no internet cannot set its own clock, and can lose the time after a
                   power cut. Saved dates, draft expiry and sign-in timeouts depend on the server’s
                   clock, so ask the person who manages the server to check its date and time.
+                </p>
+                <p>
+                  Advanced tools is off by default. In <em>Manage → System → Features</em>, switch
+                  on <em>Advanced tools</em> and choose <em>Save</em> to show{' '}
+                  <em>Combine versions</em> and <em>Show details</em> in the editor, and{' '}
+                  <em>Download as JSON</em> and <em>Email all</em> in a lesson page’s <em>Share</em>{' '}
+                  menu. It does not change anyone’s permissions.
                 </p>
               </GuideAccordionPanel>
             )}

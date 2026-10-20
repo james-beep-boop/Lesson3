@@ -1191,6 +1191,10 @@ export interface SystemSetting {
      * The Discuss forum for signed-in users. Off hides every forum entry point and refuses every forum API, for everyone; forum data is kept.
      */
     forumEnabled?: boolean | null;
+    /**
+     * Shows additional editing and sharing tools. It does not change anyone’s permissions.
+     */
+    advancedTools?: boolean | null;
   };
   /**
    * System-written. The last change to each flag.
@@ -1236,6 +1240,7 @@ export interface SystemSettingsSelect<T extends boolean = true> {
     | {
         publicLibraryLive?: T;
         forumEnabled?: T;
+        advancedTools?: T;
       };
   flagChanges?:
     | T

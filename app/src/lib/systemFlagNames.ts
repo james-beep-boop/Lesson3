@@ -9,7 +9,7 @@
  */
 
 /** Every stored flag. Must match the global's `features` fields — `systemSettingsFlags.spec.ts` pins it. */
-export const SYSTEM_FLAGS = ['publicLibraryLive', 'forumEnabled'] as const
+export const SYSTEM_FLAGS = ['publicLibraryLive', 'forumEnabled', 'advancedTools'] as const
 export type SystemFlag = (typeof SYSTEM_FLAGS)[number]
 
 /**
@@ -20,5 +20,8 @@ export type SystemFlag = (typeof SYSTEM_FLAGS)[number]
  * for something absent" rule, applied to the API as well as the panel. It joins this list in the PR
  * that gives it an enforcement point, together with the acknowledgement its "goes public" warning needs.
  */
-export const SAVEABLE_FLAGS = ['forumEnabled'] as const satisfies readonly SystemFlag[]
+export const SAVEABLE_FLAGS = [
+  'forumEnabled',
+  'advancedTools',
+] as const satisfies readonly SystemFlag[]
 export type SaveableFlag = (typeof SAVEABLE_FLAGS)[number]

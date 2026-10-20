@@ -1,5 +1,10 @@
 import { test, expect, type Page, type Request } from '@playwright/test'
-import { setupRoleFixture, minimalBundleContent, type RoleFixture } from '../helpers/fixtures'
+import {
+  setAdvancedTools,
+  setupRoleFixture,
+  minimalBundleContent,
+  type RoleFixture,
+} from '../helpers/fixtures'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import {
   awaitCaptured,
@@ -14,10 +19,18 @@ let fx: RoleFixture
 let sequence = 0
 test.beforeAll(async () => {
   fx = await setupRoleFixture()
+  // Starting a Combine is an Advanced tool (2026-10-20); `advancedTools.e2e.spec.ts` covers Standard.
+  await setAdvancedTools(fx.payload, true)
 })
 test.afterAll(async () => {
+  if (fx) await setAdvancedTools(fx.payload, false)
   await fx?.teardown()
 })
+/** The More ▾ menu's Combine versions item — opening the menu first. */
+async function combineItem(page: Page) {
+  await page.getByRole('button', { name: 'More ▾', exact: true }).click()
+  return page.getByRole('button', { name: 'Combine versions', exact: true })
+}
 async function version(
   overview: string,
   options: {
@@ -52,7 +65,7 @@ async function version(
 }
 async function review(page: Page, a: number, b: number) {
   await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${a}`)
-  await page.getByRole('button', { name: 'Combine versions', exact: true }).click()
+  await (await combineItem(page)).click()
   await page.getByLabel('Choose another version').selectOption(String(b))
   await page.getByRole('button', { name: 'Review combination', exact: true }).click()
 }
@@ -68,10 +81,10 @@ const saveButton = (page: Page) =>
 test('Combine requires editing access and at least two versions', async ({ page }) => {
   await loginAs(page, fx, 'editor')
   await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}`)
-  await expect(page.getByRole('button', { name: 'Combine versions', exact: true })).toHaveCount(0)
+  await expect(await combineItem(page)).toHaveCount(0)
   await version('Second version')
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Combine versions', exact: true })).toBeVisible()
+  await expect(await combineItem(page)).toBeVisible()
   await page.setViewportSize({ width: 640, height: 900 })
   await page.getByRole('button', { name: 'Combine versions', exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText('wider screen')
@@ -80,6 +93,10 @@ test('Combine requires editing access and at least two versions', async ({ page 
 test('a Teacher without editing access has no Combine button', async ({ page }) => {
   await loginAs(page, fx, 'teacher')
   await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}`)
+  // A Teacher without editing access is sent to the library, never the editor — so there is no
+  // More ▾ to open, and Advanced tools reveal no Combine anywhere on what they do see.
+  await expect(page.getByRole('heading', { name: 'Lesson Plans', level: 1 })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'More ▾', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Combine versions', exact: true })).toHaveCount(0)
 })
 

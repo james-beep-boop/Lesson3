@@ -1,5 +1,6 @@
 import * as migration_20261019_120000_release_ancestry from './20261019_120000_release_ancestry'
 import * as migration_20261019_211325_worldwide_ids from './20261019_211325_worldwide_ids'
+import * as migration_20261020_092934_advanced_tools from './20261020_092934_advanced_tools'
 import * as migration_20261018_095242_combine_draft_context from './20261018_095242_combine_draft_context'
 import * as migration_20260608_024132_initial from './20260608_024132_initial'
 import * as migration_20260608_145602_lesson_entities from './20260608_145602_lesson_entities'
@@ -209,5 +210,10 @@ export const migrations = [
     up: migration_20261019_211325_worldwide_ids.up,
     down: migration_20261019_211325_worldwide_ids.down,
     name: '20261019_211325_worldwide_ids',
+  },
+  {
+    up: migration_20261020_092934_advanced_tools.up,
+    down: migration_20261020_092934_advanced_tools.down,
+    name: '20261020_092934_advanced_tools',
   },
 ]

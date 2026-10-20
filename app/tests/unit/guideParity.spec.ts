@@ -168,6 +168,22 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'teachers who sign up cannot sign in until you approve them',
   },
   {
+    what: 'Combine and Show details are Advanced tools (2026-10-20), so a teacher knows whom to ask',
+    claim: 'Combine versions and Show details appear when Advanced tools is switched on',
+  },
+  {
+    what: 'Standard never strands a Combine that was already under way',
+    claim: 'An unfinished combination can still be restored and saved when Advanced tools is off',
+  },
+  {
+    what: 'Email all needs both Advanced tools and a site that can send email',
+    claim: 'Email all only when the site can send email',
+  },
+  {
+    what: 'the switch is display only',
+    claim: 'Advanced tools is off by default',
+  },
+  {
     what: 'the backup status distinguishes successful transport from demonstrated recovery',
     claim: 'does not prove the backup can be restored',
   },

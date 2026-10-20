@@ -2180,6 +2180,45 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
+// The editor's More ▾ menu (2026-10-20, Advanced tools): a disclosure whose list drops below the
+// button and sits above the form. Plain buttons inside, styled as a quiet list.
+.lp-more {
+  position: relative;
+  display: inline-flex;
+}
+.lp-more__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: 4px 0;
+  background: var(--theme-elevation-0);
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+}
+.lp-more__item {
+  padding: 6px 12px;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--theme-elevation-800);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--theme-elevation-50);
+  }
+  &:disabled {
+    color: var(--theme-elevation-400);
+    cursor: default;
+  }
+}
+
 .lesson-controls {
   display: flex;
   flex-wrap: wrap;

@@ -51,7 +51,8 @@ _Compare_ button.
   _Email all — Word_, or a larger screen.
 - **Email:** choose _Share → Email all — Word_ or _Email all — PDF_ on a lesson page to send the
   generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
-  day.
+  day. _Email all_ and _Download as JSON_ appear when Advanced tools is switched on, and Email all only
+  when the site can send email.
 - **Want to edit?** use _Request editing access_ on a lesson page. Lesson3 notifies the administrators
   for that subject and grade. You can request access once a day for each subject and grade. The
   limit applies separately to each teacher.
@@ -125,7 +126,7 @@ Lesson3, not in a Word file.
 - To bring a draft together with a newer version, save the draft as a version, then use Combine
   versions.
 - **Combine versions:** when a plan has at least two versions and you have editing access, open
-  a saved version and choose *Combine versions*. Choose another version and *Review combination*.
+  a saved version and choose *More → Combine versions*. Choose another version and *Review combination*.
   Lesson3 lists automatic changes and fields needing your choice. *Continue in editor* may switch
   you to the version whose plan details and answer keys must be preserved. For each remaining field,
   choose a version’s text (for example, *Use 1.0.1’s text*) or *Write my own*. You can change your choices until saving.
@@ -134,6 +135,9 @@ Lesson3, not in a Word file.
   numbered version automatically. An unfinished combination is captured as a private draft; restoring
   it reruns the comparison and keeps your text. If the other version has gone, it becomes an ordinary
   draft. If the comparison cannot load for another reason, choose *Retry combination*.
+  Combine versions and Show details appear when Advanced tools is switched on. Ask your Site
+  Administrator if you need them. An unfinished combination can still be restored and saved when
+  Advanced tools is off.
   Deleting the version you were editing deletes its draft too. If that happens while the
   editor is open, copy your text before leaving the page.
 - **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and
@@ -207,6 +211,10 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
 - **Switch Discussions on or off:** in **Manage → System → Features**, change **Discussions enabled**
   and choose **Save**. Review the change and enter your password. The switch stays unchanged until
   Save succeeds. If someone else saved settings first, reload before saving.
+- **Show advanced tools:** Advanced tools is off by default. In **Manage → System → Features**, switch
+  on **Advanced tools** and choose **Save** to show *Combine versions* and *Show details* in the editor,
+  and *Download as JSON* and *Email all* in a lesson page's *Share* menu. It does not change anyone's
+  permissions.
 - **Moderate discussions:** on a thread, use **Pin** or **Unpin** to change its position. **Redact
   topic** lets you remove the title, opening post, or both; **Redact reply** removes one reply’s text.
   Redaction cannot be undone. Existing backups keep the text until they age out. **Delete thread**
