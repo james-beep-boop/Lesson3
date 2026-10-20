@@ -11,6 +11,45 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-20 — Proposed Manage drafts and library dropdowns
+
+The operator asked to preserve the B/C UI proposals and Codex's recommendations in the handoff and
+this record. **Planning only:** recording these does not approve implementation or settle the open
+product choices below. Insert link is unchanged; #419 and #420 are separate work. Order: B after
+#419 (now merged), then C, each in its own reviewed PR.
+
+**B — personal work in Manage → Lesson plans.** Proposed: move today's "Your Drafts" rows/actions
+into a `plans.drafts` panel, "My saved drafts"; personal saved versions then drafts are present even
+when empty for people who can edit. Administrators gain a separate list of their own versions before
+management operations; the existing cleanup panel stays. Codex recommends:
+
+- Give Subject Administrators the same personal sections, while retaining their existing scoped
+  management permissions. Own work can span all subject-grades where it remains accessible.
+- Keep personal panels everyday in Standard. Default-open Drafts and its parent when drafts exist,
+  but only in the absence of explicit URL open state; respect deep links and deliberate closing.
+  Show the count on the collapsed draft heading so expiring work stays noticeable.
+- Preserve `plans.versions` and existing URL meanings; administrators' new personal versions need a
+  separate panel id. Query own work separately from deletion candidates: the latter exclude Official
+  versions and encode delete authority, not ownership. Recommended inclusion of accessible authored
+  Official versions, with separately checked actions, needs operator confirmation.
+- Preserve private-owner boundaries, expiry information, restore guards and all existing actions.
+
+**C — library filters as two dropdowns.** Proposed: visibly labelled Subject and Grade controls,
+All subjects / All grades by default; signed-in options come from configured Subjects/SubjectGrades,
+including configured pairs with no lessons. Codex recommends narrowing grades to the selected
+subject's configured pairs, sorting grades numerically and resetting an incompatible grade only on
+an explicit user subject change. Keep bookmarked empty combinations, client-side filtering, search,
+URL parameters and Back/Forward behaviour.
+
+Recommended anonymous behaviour, pending confirmation: offer only subjects/grades represented by
+publicly visible Official lessons, without exposing private configured taxonomy or widening its
+collection read access. Distinguish no lessons in a curriculum selection from no search matches;
+"No Biology lesson plans for Grade 8 yet." and "No lesson plans match your search." are proposed
+wording, not approved strings. Confirm the Subject Administrator layout, default opening, Official
+inclusion, dependent-grade behaviour and anonymous options before implementation. Each PR needs
+unit/browser proof, role/privacy checks and matching Guide/USER_GUIDE updates; changed endpoints or
+access rules also need wire authorization tests. No new endpoints are planned.
+
 ## 2026-10-20 — Standard and Advanced tools: a site-wide switch, display only
 
 First step of the hiding-complexity plan (`docs/DESIGN-modes-connectivity-network-2026-10-19.md`). A

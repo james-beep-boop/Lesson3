@@ -20,7 +20,13 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# CURRENT STATE — 2026-10-19
+# CURRENT STATE — 2026-10-20
+
+**Planning update (2026-10-20):** #418 (Kolibri/localhost rules) and #419 (site-wide
+Standard/Advanced tools, including the More-item focus fix) are merged. #420 (Welcome dialog once
+per account) is still open as of this update. The operator asked to retain the two UI proposals below;
+recording them does not authorize implementation, further merges or deployment. Claude implements;
+Codex reviews. No further Insert link changes are part of these proposals.
 
 **Latest (2026-10-19, later):** `main` at `2c9bfa6` adds, since v0.98, offline sign-up approval
 (#415), worldwide identity foundations (#416 — **includes a migration**, `20261019_211325_worldwide_ids`)
@@ -177,10 +183,42 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 4. Full phase 4 remains unapproved/deferred; #412 is closed. Keep both designs until teacher use
    justifies direct updating. The approved Save → Combine flow is retained. Stable row identity is
    a separate deferred proposal with no assigned phase number.
-5. Modes, connectivity and school networking are direction only (identity foundations are built,
-   #416). Each needs a separate proposal and approval. **Next to build when the operator chooses:
-   Standard/Advanced mode, site-wide** — it needs the operator's marked-up inventory
-   (`docs/DESIGN-modes-connectivity-network-2026-10-19.md` §2). Ask ARES about ares.edu; Plan A+ and structural drafts remain deferred.
+5. Site-wide Standard/Advanced tools shipped in #419; subject-grade/personal overrides,
+   connectivity and school networking still need separate proposals and approval (identity foundations
+   shipped in #416). Ask ARES about ares.edu; Plan A+ and structural drafts remain deferred.
+
+### Proposed UI follow-ups — B, then C (recorded 2026-10-20)
+
+These are proposals and Codex recommendations retained at the operator's request, not implementation
+approval. See [the dated decision record](DECISIONS.md#2026-10-20--proposed-manage-drafts-and-library-dropdowns)
+for rationale and the choices to confirm before coding. B can now start from merged #419 once approved;
+C follows in its own PR. #420 is separate. No new endpoints are planned.
+
+- **B — personal work inside Manage → Lesson plans.** Move today's private draft rows/actions into
+  `plans.drafts`, titled "My saved drafts"; show personal saved versions then drafts, even when empty,
+  for people who can edit. Add personal versions for administrators before their management tools.
+  Recommended: Subject Administrators get the same personal sections as Site Administrators, with
+  only their existing administrative permissions. Personal panels remain everyday in Standard mode.
+- With drafts present, default-open both `plans` and `plans.drafts` only when no explicit URL open
+  state exists; respect deep links and deliberate closing. Show the draft count on the collapsed
+  heading. Preserve expiry dates and all existing restore/action checks.
+- Keep existing panel URLs: `plans.versions` remains the role-dependent versions/cleanup panel.
+  Administrators' new personal-version panel needs its own id. Do not derive personal versions from
+  deletable cleanup candidates; those exclude Official versions. Recommended, pending confirmation:
+  include accessible authored Official versions and check actions separately. Personal work spans
+  all subject-grades where it remains accessible; it never includes another user's drafts.
+- **C — two labelled library dropdowns**, All subjects / All grades, from configured Subjects and
+  SubjectGrades for signed-in users, including empty configured pairs. Recommended: narrow grades
+  to the selected subject's configured pairs; on a user-initiated subject change reset an incompatible
+  grade to All grades. Preserve explicit bookmarked filters, even when they yield no lessons.
+- Recommended public behaviour: anonymous options come only from publicly visible Official lessons;
+  do not expose the private configured taxonomy or widen its authenticated APIs. Grade order is numeric.
+- Keep client-side filtering, search and `?subject=&grade=` URLs, including Back/Forward. Distinguish
+  an empty curriculum selection (e.g. "No Biology lesson plans for Grade 8 yet.") from a search with
+  no matches ("No lesson plans match your search."). These are suggested strings to approve.
+- Each change needs unit/browser coverage of its new behaviour and existing role/privacy boundaries;
+  update the Guide and USER_GUIDE. Add wire authorization coverage if implementation changes an
+  endpoint or access rule. Keep each as a separate ready PR; no merge or deployment without approval.
 
 Nonblocking #410 follow-ups: filter plans with an unlinked whole major > 1; recompute only affected
 release descendants in id order and remove linear row lookups; consolidate re-ingest's history
