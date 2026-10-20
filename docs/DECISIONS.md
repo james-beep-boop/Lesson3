@@ -23,7 +23,10 @@ warn; and read the server's time **fresh** from a new Site-Admin-only `GET /api/
 tested 401/403/200, `no-store`) when the warning appears, rather than a timestamp rendered into the
 page — a Back navigation can restore Manage from Next.js's client cache with a reading hours old. It
 checks once per appearance and never re-compares while the page stays open; a failed check shows
-nothing. The device side is the request's midpoint, cancelling network delay.
+nothing. The device side is the request's midpoint, cancelling network delay — and (Codex's review)
+a reading whose round trip exceeded 30 seconds is discarded, because a device that sleeps while the
+request is in flight resumes hours later and the midpoint invents a discrepancy. The round trip is
+measured on the wall clock, which counts through suspension; a timer does not reliably fire across it.
 
 ## 2026-10-19 — Worldwide identity: foundations before offline schools hold their own data
 

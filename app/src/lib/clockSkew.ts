@@ -9,6 +9,21 @@
  */
 export const CLOCK_TOLERANCE_MS = 60 * 60 * 1000
 
+/**
+ * The longest round trip a reading may take and still be compared (#417 review). The device side is
+ * the request's midpoint, so its error is at most half the round trip. A device that sleeps while the
+ * request is in flight resumes with hours elapsed, and the midpoint then invents a discrepancy that
+ * neither clock has. Measured on the wall clock — which keeps counting through suspension — rather
+ * than with a timer, which does not reliably fire across it. 30 s keeps the error within 15 s.
+ */
+export const MAX_ROUND_TRIP_MS = 30_000
+
+/** Whether a reading sent at `sentMs` and handled at `receivedMs` is fresh enough to compare. */
+export function readingUsable(sentMs: number, receivedMs: number): boolean {
+  const roundTrip = receivedMs - sentMs
+  return Number.isFinite(roundTrip) && roundTrip >= 0 && roundTrip <= MAX_ROUND_TRIP_MS
+}
+
 export function clocksDisagree(
   serverMs: number,
   deviceMs: number,

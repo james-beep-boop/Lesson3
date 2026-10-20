@@ -1,7 +1,12 @@
 /** The wrong-clock comparison (2026-10-19, `lib/clockSkew.ts`). */
 import { describe, expect, it } from 'vitest'
 
-import { CLOCK_TOLERANCE_MS, clocksDisagree } from '../../src/lib/clockSkew'
+import {
+  CLOCK_TOLERANCE_MS,
+  MAX_ROUND_TRIP_MS,
+  clocksDisagree,
+  readingUsable,
+} from '../../src/lib/clockSkew'
 
 const at = (iso: string) => Date.parse(iso)
 
@@ -24,5 +29,16 @@ describe('clocksDisagree', () => {
   it('never flags on a reading it cannot interpret', () => {
     expect(clocksDisagree(Number.NaN, Date.now())).toBe(false)
     expect(clocksDisagree(Date.now(), Number.POSITIVE_INFINITY)).toBe(false)
+  })
+})
+
+describe('readingUsable', () => {
+  it('accepts a prompt reading and refuses one delayed past the round-trip limit', () => {
+    const sent = at('2026-10-19T12:00:00Z')
+    expect(readingUsable(sent, sent + 800)).toBe(true)
+    expect(readingUsable(sent, sent + MAX_ROUND_TRIP_MS)).toBe(true)
+    expect(readingUsable(sent, sent + MAX_ROUND_TRIP_MS + 1)).toBe(false)
+    expect(readingUsable(sent, sent + 3 * 60 * 60 * 1000)).toBe(false) // the device slept
+    expect(readingUsable(sent, sent - 1)).toBe(false) // the device clock stepped back mid-request
   })
 })

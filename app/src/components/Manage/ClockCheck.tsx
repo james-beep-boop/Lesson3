@@ -12,7 +12,7 @@ import React, { useEffect, useState } from 'react'
 import { useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
-import { clocksDisagree } from '../../lib/clockSkew'
+import { clocksDisagree, readingUsable } from '../../lib/clockSkew'
 
 const show = (ms: number) =>
   new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -34,7 +34,10 @@ export function ClockCheck() {
         })
         if (!response.ok) return
         const { now } = (await response.json()) as { now?: unknown }
-        const device = Math.round((sent + Date.now()) / 2)
+        const received = Date.now()
+        // A slow or suspended round trip makes the midpoint meaningless: say nothing (#417 review).
+        if (!readingUsable(sent, received)) return
+        const device = Math.round((sent + received) / 2)
         if (typeof now === 'number' && clocksDisagree(now, device))
           setMismatch({ server: now, device })
       } catch {

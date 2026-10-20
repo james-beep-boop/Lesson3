@@ -996,7 +996,8 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
   and the administrator's device differ by more than an hour. It compares instants (time zones alone
   never trigger it), reads the server's time fresh from Site-Admin-only `GET /api/server-time` once
   when the warning appears (never a timestamp cached in the page), never re-checks while the page
-  stays open, and shows nothing if the check fails.
+  stays open, and shows nothing if the check fails. A reading whose round trip took over 30 seconds is
+  discarded, so a device that slept mid-request cannot invent a discrepancy (#417 review).
 
 - **Error tracking / observability** (e.g. Sentry) — **required before PUBLIC exposure; optional on a
   trusted-LAN local installation** (amended 2026-09-01). The original wording said "required before real

@@ -47,6 +47,26 @@ describe('ClockCheck', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it('ignores a reading whose reply arrived after the device slept (#417 review)', async () => {
+    // Both clocks agree at the moment the server answers, but the device sleeps three hours before
+    // handling the reply. Without the round-trip limit the midpoint invents a 90-minute discrepancy.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const fetchMock = vi.fn(async (_input: string) => {
+        const answer = Date.now()
+        vi.setSystemTime(answer + 3 * 60 * 60 * 1000)
+        return Response.json({ now: answer })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      render(<ClockCheck />)
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(screen.queryByRole('alert')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('asks the server fresh, once, and never again while the page stays open', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
