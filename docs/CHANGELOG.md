@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- The Welcome dialog now appears once per account, instead of on every page until "Don't show this
+  again" was ticked. The checkbox is gone.
+
 - Standard and Advanced tools. Lesson3 now starts in **Standard**, which shows the everyday tools only.
   ⚑ **Existing installations also switch to Standard on update.** A Site Administrator can switch on
   **Advanced tools** in Manage → System → Features to bring back Combine versions and Show details

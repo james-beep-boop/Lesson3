@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Modal from '@/components/Modal'
 import { welcomeDismissedKey } from '@/lib/welcomeDismissal'
@@ -20,6 +20,13 @@ function getRole(user: WelcomeUser): UserRole {
   return 'teacher'
 }
 
+/**
+ * Shown ONCE per account on this browser (operator, 2026-10-20). It used to be remembered only when
+ * "Don't show this again" was ticked, so closing it normally brought it back on every page load —
+ * reported as popping up relentlessly. It is now recorded as seen the moment it appears, and
+ * following one of its links closes it too (a link moves within the same layout, which would
+ * otherwise carry the open dialog onto the next page).
+ */
 export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
   const [visible, setVisible] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -29,20 +36,18 @@ export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
       return true
     }
   })
-  const [dontShowAgain, setDontShowAgain] = useState(false)
   const role = getRole(user)
 
-  function dismiss() {
-    // Close first — storage failure must never leave the dialog open.
-    setVisible(false)
-    if (dontShowAgain) {
-      try {
-        localStorage.setItem(welcomeDismissedKey(user.id), '1')
-      } catch {
-        // Storage quota or policy failure; suppress the dialog for this session only.
-      }
+  useEffect(() => {
+    if (!visible) return
+    try {
+      localStorage.setItem(welcomeDismissedKey(user.id), '1')
+    } catch {
+      // Storage quota or policy failure: it may show again next time; nothing else to do.
     }
-  }
+  }, [visible, user.id])
+
+  const dismiss = () => setVisible(false)
 
   if (!visible) return null
 
@@ -51,17 +56,15 @@ export default function WelcomeDialog({ user }: { user: WelcomeUser }) {
       <button className="welcome-close" onClick={dismiss} aria-label="Dismiss">
         ×
       </button>
-      {role === 'teacher' && <TeacherContent />}
-      {role === 'subjectAdmin' && <SubjectAdminContent />}
-      {role === 'siteAdmin' && <SiteAdminContent />}
-      <label className="welcome-dont-show">
-        <input
-          type="checkbox"
-          checked={dontShowAgain}
-          onChange={(e) => setDontShowAgain(e.target.checked)}
-        />
-        {"Don't show this again"}
-      </label>
+      <div
+        onClick={(event) => {
+          if ((event.target as Element).closest('a')) dismiss()
+        }}
+      >
+        {role === 'teacher' && <TeacherContent />}
+        {role === 'subjectAdmin' && <SubjectAdminContent />}
+        {role === 'siteAdmin' && <SiteAdminContent />}
+      </div>
     </Modal>
   )
 }
