@@ -225,6 +225,20 @@ export const SystemSettings: GlobalConfig = {
               'The Discuss forum for signed-in users. Off hides every forum entry point and refuses every forum API, for everyone; forum data is kept.',
           },
         },
+        {
+          name: 'advancedTools',
+          type: 'checkbox',
+          // ⚑ DEFAULTS FALSE — Standard mode (operator decision 2026-10-20): less-used tools are hidden
+          // until a Site Administrator switches them on. Display only, never authorization: every
+          // hidden action keeps its existing permissions and API checks (`lib/advancedTools.ts`).
+          // Existing installations also start in Standard; the release notes say so.
+          defaultValue: false,
+          label: 'Advanced tools',
+          admin: {
+            description:
+              'Shows additional editing and sharing tools. It does not change anyone’s permissions.',
+          },
+        },
       ],
     },
     {

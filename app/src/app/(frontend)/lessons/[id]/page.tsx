@@ -24,6 +24,7 @@ import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
 import { systemFlagsForRender } from '@/lib/systemFlags'
+import { resolveMode } from '@/lib/advancedTools'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -51,7 +52,7 @@ export default async function LessonView({
   // rule lives in one place.
   // The forum switch rides along (the render's one reading, shared with the nav): it only decides
   // whether the Share menu offers "Discuss this version".
-  const [versions, { forumEnabled }] = await Promise.all([
+  const [versions, { forumEnabled, advancedTools }] = await Promise.all([
     findReadableVersions(payload, { planId: plan.id, user }),
     systemFlagsForRender(payload),
   ])
@@ -227,6 +228,7 @@ export default async function LessonView({
             deliverables={deliverables}
             canDiscuss={forumEnabled}
             smtpEnabled={!!process.env.SMTP_HOST?.trim()}
+            mode={resolveMode({ advancedTools })}
           />
         </div>
         {navItems.length > 0 && (

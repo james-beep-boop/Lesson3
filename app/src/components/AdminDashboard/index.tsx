@@ -19,6 +19,8 @@ import { startRenderTimings } from '../../lib/renderTimings'
 import { RolesAccessPanel } from '../Manage/RolesAccessPanel'
 import { SystemFactsPanel } from '../Manage/SystemFactsPanel'
 import { SystemFeaturesPanel } from '../Manage/SystemFeaturesPanel'
+import type { FeatureValues } from '../Manage/systemFeaturesState'
+import { SAVEABLE_FLAGS } from '../../lib/systemFlagNames'
 import { readFeaturesSettings } from '../Manage/readFeaturesSettings'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
 import { resolveServerPanelState, withAncestors, type PanelId } from '../Manage/panelState'
@@ -754,7 +756,15 @@ export default async function AdminDashboard({
                   <SystemFeaturesPanel
                     key={systemSettings.updatedAt}
                     initial={{
-                      enabled: systemSettings.features.forumEnabled,
+                      // Every saveable switch, read as stored; a missing value reads as off.
+                      features: Object.fromEntries(
+                        SAVEABLE_FLAGS.map((flag) => [
+                          flag,
+                          (systemSettings.features as Record<string, unknown> | null | undefined)?.[
+                            flag
+                          ] === true,
+                        ]),
+                      ) as FeatureValues,
                       updatedAt: systemSettings.updatedAt,
                     }}
                   />

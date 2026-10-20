@@ -21,9 +21,13 @@ const fakePayload = (findGlobal: () => Promise<unknown>) => {
 describe('readSystemFlags', () => {
   it('reads an explicit true as on and an explicit false as off', async () => {
     const { payload, error } = fakePayload(async () => ({
-      features: { forumEnabled: true, publicLibraryLive: false },
+      features: { forumEnabled: true, publicLibraryLive: false, advancedTools: false },
     }))
-    expect(await readSystemFlags(payload)).toEqual({ forumEnabled: true, publicLibraryLive: false })
+    expect(await readSystemFlags(payload)).toEqual({
+      forumEnabled: true,
+      publicLibraryLive: false,
+      advancedTools: false,
+    })
     expect(error).not.toHaveBeenCalled()
   })
 
@@ -47,9 +51,13 @@ describe('readSystemFlags', () => {
 
   it('reports only malformed flags and preserves the other stored values', async () => {
     const { payload, error } = fakePayload(async () => ({
-      features: { forumEnabled: true, publicLibraryLive: 'false' },
+      features: { forumEnabled: true, publicLibraryLive: 'false', advancedTools: true },
     }))
-    expect(await readSystemFlags(payload)).toEqual({ forumEnabled: true, publicLibraryLive: false })
+    expect(await readSystemFlags(payload)).toEqual({
+      forumEnabled: true,
+      publicLibraryLive: false,
+      advancedTools: true,
+    })
     expect(error).toHaveBeenCalledTimes(1)
     expect(error.mock.calls[0][0]).toEqual({
       event: 'system_settings_invalid_flags',
@@ -64,6 +72,7 @@ describe('readSystemFlags', () => {
     expect(await readSystemFlags(payload)).toEqual({
       forumEnabled: false,
       publicLibraryLive: false,
+      advancedTools: false,
     })
     expect(error).toHaveBeenCalledTimes(1)
     expect(error.mock.calls[0][0]).toMatchObject({ event: 'system_settings_read_failed' })

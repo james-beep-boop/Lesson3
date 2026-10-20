@@ -13,6 +13,12 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - The Welcome dialog now appears once per account, instead of on every page until "Don't show this
   again" was ticked. The checkbox is gone.
 
+- Standard and Advanced tools. Lesson3 now starts in **Standard**, which shows the everyday tools only.
+  ⚑ **Existing installations also switch to Standard on update.** A Site Administrator can switch on
+  **Advanced tools** in Manage → System → Features to bring back Combine versions and Show details
+  (in the editor's new **More** menu) and Download as JSON and Email all (in the lesson page's Share
+  menu). Nobody's permissions change, and Insert link is always shown.
+
 - Insert link: long Kolibri addresses are shortened automatically (their navigation part is removed),
   and an ARES address copied on the ARES machine itself (`localhost`) is stored as `ares.local`. The
   dialog and help now say to copy the address from the browser's address bar on the ARES page.

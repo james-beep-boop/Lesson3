@@ -1,13 +1,22 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupRoleFixture, minimalBundleContent, MARK, type RoleFixture } from '../helpers/fixtures'
+import {
+  setAdvancedTools,
+  setupRoleFixture,
+  minimalBundleContent,
+  MARK,
+  type RoleFixture,
+} from '../helpers/fixtures'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { openEditor, expandLessons, typeProse, restorePrompt } from '../helpers/editRecoveryUi'
 let fx: RoleFixture
 let sequence = 0
 test.beforeEach(async () => {
   fx = await setupRoleFixture()
+  // The save-then-combine shortcut is an Advanced tool (2026-10-20).
+  await setAdvancedTools(fx.payload, true)
 })
 test.afterEach(async () => {
+  if (fx) await setAdvancedTools(fx.payload, false)
   await fx?.teardown()
 })
 async function version(

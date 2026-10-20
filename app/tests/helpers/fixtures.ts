@@ -466,6 +466,24 @@ export const setForumEnabled = (payload: Payload, forumEnabled: boolean) =>
     overrideAccess: true,
   })
 
+/**
+ * Switch Advanced tools on or off through the trusted path (2026-10-20). Reads the stored features
+ * first so the other switches keep their values. Browser specs run one at a time (`workers: 1`), so a
+ * spec may set this in `beforeAll` and restore Standard in `afterAll`.
+ */
+export async function setAdvancedTools(payload: Payload, advancedTools: boolean): Promise<void> {
+  const current = await payload.findGlobal({
+    slug: 'system-settings',
+    depth: 0,
+    overrideAccess: true,
+  })
+  await payload.updateGlobal({
+    slug: 'system-settings',
+    data: { features: { ...(current.features ?? {}), advancedTools } } as never,
+    overrideAccess: true,
+  })
+}
+
 /** Run `fn` with the forum switched OFF, and switch it back ON afterwards, whatever `fn` does. */
 export async function withForumOff<T>(payload: Payload, fn: () => Promise<T>): Promise<T> {
   await setForumEnabled(payload, false)

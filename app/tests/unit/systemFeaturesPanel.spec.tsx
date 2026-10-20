@@ -30,9 +30,14 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function openSave() {
-  render(<SystemFeaturesPanel initial={{ enabled: true, updatedAt: '2026-10-11T01:00:00.000Z' }} />)
-  fireEvent.click(screen.getByLabelText('Discussions enabled'))
+const INITIAL = {
+  features: { forumEnabled: true, advancedTools: false },
+  updatedAt: '2026-10-11T01:00:00.000Z',
+}
+
+function openSave(label = 'Discussions enabled') {
+  render(<SystemFeaturesPanel initial={INITIAL} />)
+  fireEvent.click(screen.getByLabelText(label))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 }
 
@@ -49,7 +54,10 @@ describe('System Features Save', () => {
 
   it('sends only the pending change, password and original freshness token', async () => {
     const fetch = vi.fn(async () =>
-      Response.json({ updatedAt: '2026-10-11T02:00:00.000Z', features: { forumEnabled: false } }),
+      Response.json({
+        updatedAt: '2026-10-11T02:00:00.000Z',
+        features: { forumEnabled: false, advancedTools: false },
+      }),
     )
     vi.stubGlobal('fetch', fetch)
     openSave()
@@ -66,6 +74,24 @@ describe('System Features Save', () => {
       expectedUpdatedAt: '2026-10-11T01:00:00.000Z',
     })
     expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('switching Advanced tools sends only that change and leaves Discussions as it was', async () => {
+    const fetch = vi.fn(async () =>
+      Response.json({
+        updatedAt: '2026-10-11T02:00:00.000Z',
+        features: { forumEnabled: true, advancedTools: true },
+      }),
+    )
+    vi.stubGlobal('fetch', fetch)
+    openSave('Advanced tools')
+    expect(screen.getByText('Switch Advanced tools on.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Your password'), { target: { value: 'secret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => expect(screen.getByText('Advanced tools switched on.')).toBeTruthy())
+    const [, request] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+    expect(JSON.parse(request.body as string).changes).toEqual({ advancedTools: true })
+    expect((screen.getByLabelText('Discussions enabled') as HTMLInputElement).checked).toBe(true)
   })
 
   it.each([401, 429])(

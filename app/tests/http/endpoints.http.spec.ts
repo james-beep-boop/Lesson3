@@ -35,6 +35,7 @@ import {
   enqueuedKindsFor,
   minimalBundleContent,
   minimalResourceLinks,
+  setAdvancedTools,
   setupRoleFixture,
   type RoleFixture,
   type RoleKey,
@@ -594,6 +595,31 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
       id: cold.id,
       overrideAccess: true,
     })
+  })
+})
+
+describe('JSON export — GET /:id/ares-export (Download as JSON)', () => {
+  // ⚑ Advanced tools hides the Share menu's Download as JSON in Standard (2026-10-20). That is a
+  // display choice only: the endpoint keeps its own read gate in either mode, and this proves it.
+  const jsonUrl = (id: number | string) => `/api/lesson-bundle-versions/${id}/ares-export`
+
+  it('without auth → 401', async () => {
+    expect((await fetch(url(jsonUrl(fx.version.id)))).status).toBe(401)
+  })
+
+  it('an unknown version → 404', async () => {
+    const res = await fetch(url(jsonUrl(999_999_999)), { headers: auth('teacher') })
+    expect(res.status).toBe(404)
+  })
+
+  it('a Teacher still downloads it in Standard, where the menu hides it', async () => {
+    await setAdvancedTools(fx.payload, false)
+    const res = await fetch(url(jsonUrl(fx.version.id)), { headers: auth('teacher') })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename=".+\.json"$/)
+    const body = (await res.json()) as { schemaVersion?: string; LESSONS?: unknown[] }
+    expect(body.schemaVersion).toBe('1.0.0')
+    expect(body.LESSONS?.length).toBeGreaterThan(0)
   })
 })
 

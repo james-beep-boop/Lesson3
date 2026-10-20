@@ -31,6 +31,7 @@ import DocStrip from '@/components/DocStrip'
 import { secondaryDeliverables } from '@/generator/deliverables'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
 import EmailModal, { type EmailFormat } from './EmailModal'
+import { showsAction, type InterfaceMode } from '@/lib/advancedTools'
 
 export default function ShareMenu({
   planId,
@@ -39,6 +40,7 @@ export default function ShareMenu({
   deliverables = [],
   canDiscuss = false,
   smtpEnabled = false,
+  mode = 'standard',
 }: {
   planId: number
   versionId: number
@@ -50,6 +52,8 @@ export default function ShareMenu({
   canDiscuss?: boolean
   /** Hide email-a-doc when SMTP is not configured — mirrors the server-side gate in emailVersion.ts. */
   smtpEnabled?: boolean
+  /** Standard / Advanced tools (2026-10-20): Download as JSON and Email all are advanced. */
+  mode?: InterfaceMode
 }) {
   // ⚑ THE PRIMARY LESSON PLAN IS FILTERED OUT HERE (2026-08-30), and this is the SAME split the
   // catalogue row has always used (`DocStrip … condensed`): the lesson page's action bar now renders
@@ -161,9 +165,11 @@ export default function ShareMenu({
           <button type="button" disabled={exporting} onClick={() => onDownloadAll('pdf')}>
             Download all — PDF (.zip)
           </button>
-          <button type="button" disabled={jsonBusy} onClick={onDownloadJson}>
-            {jsonBusy ? 'Downloading…' : 'Download as JSON'}
-          </button>
+          {showsAction(mode, 'downloadJson') && (
+            <button type="button" disabled={jsonBusy} onClick={onDownloadJson}>
+              {jsonBusy ? 'Downloading…' : 'Download as JSON'}
+            </button>
+          )}
           {/* Per-document downloads (2026-07-17, replacing the page's Documents line; narrowed to
               the SUPPORTING documents 2026-08-30 — see `supporting` above): one row per document,
               PDF opens a tab / Word downloads. These keep the menu OPEN (no onClick close): their
@@ -177,7 +183,8 @@ export default function ShareMenu({
           {/* Email entries only when SMTP is configured. Hidden (not disabled) when absent: a button
               that immediately says "not available" is worse UX than no button. The server gate in
               emailVersion.ts enforces the same condition for direct API callers. */}
-          {smtpEnabled && (
+          {/* Advanced tools AND email set up: the mode never reveals what cannot work. */}
+          {smtpEnabled && showsAction(mode, 'emailDocuments') && (
             <>
               <button type="button" onClick={() => openEmail('docx')}>
                 Email all — Word (.zip)…
