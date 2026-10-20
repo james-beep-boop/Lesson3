@@ -24,8 +24,12 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 **Latest (2026-10-19, later):** `main` at `2c9bfa6` adds, since v0.98, offline sign-up approval
 (#415), worldwide identity foundations (#416 — **includes a migration**, `20261019_211325_worldwide_ids`)
-and the wrong-clock warning (#417), each green in CI and reviewed by Codex. **Not yet deployed or
-released.** A go-live rehearsal checklist for an offline school server is `docs/GO-LIVE-REHEARSAL.md`.
+and the wrong-clock warning (#417), each green in CI and reviewed by Codex. **Released as
+[v0.99](https://github.com/james-beep-boop/Lesson3/releases/tag/v0.99)** (tag on `4f29b78`, published
+2026-10-20 by the workflow): `releases/latest` resolves to it, the bundle checksum verifies, it pins the
+v0.99 app/migrate images by digest, and both images pull anonymously for linux/amd64 and linux/arm64.
+**Not yet deployed to the Rock**, and the procedure's clean-server install is still to do (step 1 of
+the rehearsal). A go-live rehearsal checklist for an offline school server is `docs/GO-LIVE-REHEARSAL.md`.
 Working arrangement from here: Claude implements; Codex reviews (findings only, compact briefs).
 
 **Earlier operator update:** #414 merged as `ca16830` after green CI. Annotated release
