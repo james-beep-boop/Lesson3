@@ -26,7 +26,7 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 Standard/Advanced tools, including the More-item focus fix) are merged. #420 (Welcome dialog once
 per account) is still open as of this update. The operator asked to retain the two UI proposals below;
 recording them does not authorize implementation, further merges or deployment. Claude implements;
-Codex reviews. No further Insert link changes are part of these proposals.
+Codex reviews. B/C leave Insert link unchanged; a separate phase-specific link proposal is recorded below.
 
 **Latest (2026-10-19, later):** `main` at `2c9bfa6` adds, since v0.98, offline sign-up approval
 (#415), worldwide identity foundations (#416 — **includes a migration**, `20261019_211325_worldwide_ids`)
@@ -219,6 +219,27 @@ C follows in its own PR. #420 is separate. No new endpoints are planned.
 - Each change needs unit/browser coverage of its new behaviour and existing role/privacy boundaries;
   update the Guide and USER_GUIDE. Add wire authorization coverage if implementation changes an
   endpoint or access rule. Keep each as a separate ready PR; no merge or deployment without approval.
+
+
+### Separate proposal — Insert link beside each framework phase (2026-10-20)
+
+The operator proposed an **Insert link** button beside Predict Phase, Observe Phase, Explain Phase,
+Driving Question Board (DQB) Creation and Model Building Phase in the editor. Teacher-chosen links
+would appear beneath the existing ARES resources in the corresponding Phase cell in Word/PDF,
+as illustrated by the operator's screenshot. Recording requested; design and implementation approval
+are still pending. This is separate from B/C; its place in the work order is not decided.
+
+The button would know its target phase directly, removing the need to focus a prose field first.
+Placement is straightforward; the full feature is a moderate data/export change because the existing
+ARES resource recommendations are system-only. Proposed approach: keep them protected and store
+teacher-added links separately. Define native storage, field-level permissions and the supported
+ARES generator integration before coding; no schema or rendering mechanism has been selected.
+
+The plan must cover versions, ordinary and Combine draft capture/restore, Combine conflict handling,
+and correct phase placement in DOCX/PDF. Reuse the approved address/label validation and ARES/Kolibri
+normalization. Agree the layout, link add/edit/remove behaviour and wording first; define migration
+needs and prove export fidelity and authorization, including wire tests for any changed endpoint or
+access rule. Do not change the current Insert link implementation as part of merely recording this idea.
 
 Nonblocking #410 follow-ups: filter plans with an unlinked whole major > 1; recompute only affected
 release descendants in id order and remove linear row lookups; consolidate re-ingest's history

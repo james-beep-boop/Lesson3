@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-20 — Proposed Insert link buttons beside framework phases
+
+After reviewing the Phase column in an exported lesson plan, the operator proposed **Insert link**
+buttons beside each framework phase in the editor: Predict, Observe, Explain, Driving Question Board
+(DQB) Creation and Model Building. A selected link would appear beneath the existing ARES resources
+in that phase's Word/PDF cell. The operator asked to preserve the idea in this record and NEXT-SESSION.
+**Proposal only:** no implementation is approved, and its order relative to the B/C UI proposals below
+is not decided. B/C themselves still leave Insert link unchanged.
+
+Codex's assessment: placement is straightforward, while the complete feature is a moderate data/export
+change. The current ARES recommendations are system-only; proposed teacher-added links should be
+stored separately so teachers can add their own resources while the ARES recommendations remain
+protected. A phase-specific button already knows the target, avoiding the current prose-field focus
+step. No native-field schema, migration or generator integration has been selected.
+
+Before coding, propose the editor layout, add/edit/remove behaviour and every new string; settle
+storage and field-level permissions, versions, ordinary/Combine draft capture and restoration,
+Combine conflict handling and the supported ARES generator integration. Reuse current address/label
+validation and ARES/Kolibri rules. Verify correct phase placement and DOCX/PDF fidelity, with appropriate
+unit/integration/browser proof and wire authorization tests for changed endpoints or access rules.
+The request to record this idea is not authorization to modify the current link UI or generator.
+
 ## 2026-10-20 — Proposed Manage drafts and library dropdowns
 
 The operator asked to preserve the B/C UI proposals and Codex's recommendations in the handoff and
