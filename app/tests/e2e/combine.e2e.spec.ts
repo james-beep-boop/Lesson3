@@ -93,8 +93,11 @@ test('Combine requires editing access and at least two versions', async ({ page 
 test('a Teacher without editing access has no Combine button', async ({ page }) => {
   await loginAs(page, fx, 'teacher')
   await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}`)
-  // Advanced tools never reveal what this person cannot use: the menu offers no Combine.
-  await expect(await combineItem(page)).toHaveCount(0)
+  // A Teacher without editing access is sent to the library, never the editor — so there is no
+  // More ▾ to open, and Advanced tools reveal no Combine anywhere on what they do see.
+  await expect(page.getByRole('heading', { name: 'Lesson Plans', level: 1 })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'More ▾', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Combine versions', exact: true })).toHaveCount(0)
 })
 
 test('choices can change until Save; the result is Not Official and neither parent is deleted', async ({
