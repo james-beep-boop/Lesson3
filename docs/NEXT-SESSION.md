@@ -20,7 +20,14 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# CURRENT STATE — 2026-10-20
+# CURRENT STATE — 2026-10-21
+
+**Latest (2026-10-21):** #421 merged as `0c3309c` after green CI (`main` is there). It carries the
+uncommitted 2026-10-14 work onto the Subjects and grades matrix: grades are **1–12**, enforced by the
+`SubjectGrade` validator; "+ Grade" is a dropdown of the missing 1–12 columns; and Accounts rows show
+name and email on one line (`PersonIdentity`, shared with Roles & Access). **No migration.** Grades
+outside 1–12 are now refused on create and edit; the 2026-10-14 check found only Grades 10 and 11
+deployed. Not yet released or deployed. See DECISIONS 2026-10-20 (grade range and compact accounts).
 
 **Planning update (2026-10-20):** #418 (Kolibri/localhost rules) and #419 (site-wide
 Standard/Advanced tools, including the More-item focus fix) are merged, and so is #420 (Welcome
