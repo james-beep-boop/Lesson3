@@ -43,19 +43,19 @@ const run = async () => {
       'subject-grades',
       await payload.create({
         collection: 'subject-grades',
-        data: { subject: subject.id, grade: 99 },
+        data: { subject: subject.id, grade: 12 },
       }),
     )
 
     // displayName auto-generated
-    check('subject-grade displayName computed', sg.displayName === `${P}Biology — Grade 99`)
+    check('subject-grade displayName computed', sg.displayName === `${P}Biology — Grade 12`)
 
     // M1: renaming the subject refreshes dependent SubjectGrade titles.
     await payload.update({ collection: 'subjects', id: subject.id, data: { name: `${P}Zoology` } })
     const sgRenamed = await payload.findByID({ collection: 'subject-grades', id: sg.id, depth: 0 })
     check(
       'subject rename refreshes SubjectGrade displayName',
-      sgRenamed.displayName === `${P}Zoology — Grade 99`,
+      sgRenamed.displayName === `${P}Zoology — Grade 12`,
     )
 
     // --- auto-demote: <=1 subject admin per subject-grade ---

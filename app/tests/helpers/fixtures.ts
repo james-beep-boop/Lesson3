@@ -168,7 +168,7 @@ export function minimalBundleContent() {
   return {
     meta: {
       subject: 'Biology',
-      grade: 99,
+      grade: 12,
       substrand_id: '99.1',
       substrand_name: `${MARK}Sub-strand`,
       titleDoc: `${MARK}Lesson Sequence`,
@@ -231,7 +231,7 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
   })
   const subjectGrade = await payload.create({
     collection: 'subject-grades',
-    data: { subject: subject.id, grade: 99 },
+    data: { subject: subject.id, grade: 12 },
     overrideAccess: true,
   })
 

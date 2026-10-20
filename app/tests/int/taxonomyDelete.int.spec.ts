@@ -58,7 +58,7 @@ describe('SubjectGrade delete guard', () => {
     // A fresh, content-free SubjectGrade with an editor assigned to it.
     const sg = await fx.payload.create({
       collection: 'subject-grades',
-      data: { subject: fx.subject.id, grade: 98 },
+      data: { subject: fx.subject.id, grade: 11 },
       overrideAccess: true,
     })
     const holder = await createUserVerified(fx.payload, {
@@ -94,7 +94,7 @@ describe('SubjectGrade delete guard', () => {
   it('counts assignments by role, mapping each role to its own field', async () => {
     const sg = await fx.payload.create({
       collection: 'subject-grades',
-      data: { subject: fx.subject.id, grade: 97 },
+      data: { subject: fx.subject.id, grade: 10 },
       overrideAccess: true,
     })
     for (const n of [1, 2]) {
@@ -194,25 +194,25 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     // free-grade update below is what actually earns the second half of the name.
     const sg = fx.subjectGrade
     const subjectId = fixtureSubjectId()
-    const base = sg.grade ?? 10
+    const base = sg.grade
     const row = await fx.payload.create({
       collection: 'subject-grades',
-      data: { subject: subjectId, grade: base + 41 },
+      data: { subject: subjectId, grade: base - 3 },
       overrideAccess: true,
     })
-    expect(row.displayName, 'displayName is maintained on create').toContain(`Grade ${base + 41}`)
+    expect(row.displayName, 'displayName is maintained on create').toContain(`Grade ${base - 3}`)
 
     // A legitimate move: another free grade on the same subject. Must SUCCEED, and must re-derive the
     // stored title — the beforeChange hook is the only thing keeping `displayName` true.
     const legit = await fx.payload.update({
       collection: 'subject-grades',
       id: row.id,
-      data: { grade: base + 42 },
+      data: { grade: base - 4 },
       overrideAccess: true,
     })
-    expect(legit.grade, 'a free grade must be accepted').toBe(base + 42)
+    expect(legit.grade, 'a free grade must be accepted').toBe(base - 4)
     expect(legit.displayName, 'displayName follows the new grade without losing its subject').toBe(
-      `${typeof fx.subjectGrade.subject === 'object' ? fx.subjectGrade.subject.name : fx.subject.name} — Grade ${base + 42}`,
+      `${typeof fx.subjectGrade.subject === 'object' ? fx.subjectGrade.subject.name : fx.subject.name} — Grade ${base - 4}`,
     )
 
     // The state the rejected update below must leave completely untouched.
@@ -262,17 +262,17 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     const resaved = await fx.payload.update({
       collection: 'subject-grades',
       id: row.id,
-      data: { grade: base + 42 },
+      data: { grade: base - 4 },
       overrideAccess: true,
     })
-    expect(resaved.grade, 'an unchanged re-save must be allowed').toBe(base + 42)
+    expect(resaved.grade, 'an unchanged re-save must be allowed').toBe(base - 4)
 
     await fx.payload.delete({ collection: 'subject-grades', id: row.id, overrideAccess: true })
   })
 
   it('merges the stored grade into a subject-only partial update and refreshes displayName', async () => {
     const subjectId = fixtureSubjectId()
-    const grade = (fx.subjectGrade.grade ?? 10) + 43
+    const grade = fx.subjectGrade.grade - 5
     const targetSubject = await fx.payload.create({
       collection: 'subjects',
       data: { name: `${MARK}Partial-update target` },
@@ -300,7 +300,7 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
   })
 
   it('lets the database serialize concurrent subject-only moves onto the same unique pair', async () => {
-    const grade = (fx.subjectGrade.grade ?? 10) + 44
+    const grade = fx.subjectGrade.grade - 6
     const [sourceA, sourceB, target] = await Promise.all(
       ['A', 'B', 'target'].map((suffix) =>
         fx.payload.create({

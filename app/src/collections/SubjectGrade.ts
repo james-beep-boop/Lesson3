@@ -2,6 +2,7 @@ import type { CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
 import { APIError } from 'payload'
 
 import { authenticated, canManageCurriculum, siteAdminOnly, toId } from '../access'
+import { isGradeLevel, MAX_GRADE, MIN_GRADE } from '../lib/gradeLevels'
 import type { User } from '../payload-types'
 
 /**
@@ -188,10 +189,11 @@ export const SubjectGrade: CollectionConfig = {
       name: 'grade',
       type: 'number',
       required: true,
-      min: 1,
-      admin: { step: 1, description: 'Enter a whole number, such as 10.' },
+      min: MIN_GRADE,
+      max: MAX_GRADE,
+      admin: { step: 1, description: 'Grades 1–12.' },
       validate: (value: number | null | undefined) =>
-        value == null || Number.isInteger(value) || 'Grade must be a whole number.',
+        isGradeLevel(value) || `Grade must be a whole number from ${MIN_GRADE} to ${MAX_GRADE}.`,
     },
     {
       // Stored "<Subject> — Grade N" title, kept current by the beforeChange hook.

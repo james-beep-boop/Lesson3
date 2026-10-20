@@ -240,7 +240,7 @@ describe('U3 — listUnsavedWork (the Manage rows)', () => {
     // early return answers first and the per-version filter is never reached.
     const otherGrade = await fx.payload.create({
       collection: 'subject-grades',
-      data: { subject: fx.subject.id, grade: 98 },
+      data: { subject: fx.subject.id, grade: 11 },
       overrideAccess: true,
     })
     const otherPlan = await fx.payload.create({

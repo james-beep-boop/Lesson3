@@ -23,6 +23,7 @@ import {
 import { wireErrorMessage } from '../../lib/wireError'
 import { usePanelJump, usePanelOpen } from './Accordion'
 import { subjectGradeAnchor } from './panelState'
+import { PersonIdentity } from './PersonIdentity'
 
 /**
  * How an unverified account is named, per site (2026-10-19). With email, the person confirms their
@@ -214,15 +215,12 @@ function UserRow({
     <li className="lp-users__row">
       <button
         type="button"
-        className="lp-users__summary"
+        className="lp-users__summary lp-users__summary--person"
         aria-expanded={open}
         aria-controls={detailId}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="lp-users__summary-main">
-          <span className="lp-users__name">{user.name}</span>
-          <span className="lp-users__email">{user.email}</span>
-        </span>
+        <PersonIdentity name={user.name} email={user.email} />
         <span className="lp-users__summary-meta">
           {user.type}
           {user.signInDisabled ? ' · Sign-in disabled' : ''}

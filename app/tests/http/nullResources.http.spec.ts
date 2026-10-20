@@ -61,7 +61,7 @@ function rawBundle(substrandId: string, resourceLinks: unknown): Record<string, 
     schemaVersion: '1.0.0',
     META: {
       subject: `${MARK}Biology`,
-      grade: 99, // the role fixture's SubjectGrade
+      grade: 12, // the role fixture's SubjectGrade
       substrand_id: substrandId,
       substrand_name: `${MARK}${substrandId} name`,
       titleDoc: `${MARK}Null resources ${substrandId}`,

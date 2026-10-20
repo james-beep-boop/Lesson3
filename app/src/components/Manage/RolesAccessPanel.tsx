@@ -30,6 +30,7 @@ import { wireErrorMessage } from '../../lib/wireError'
 import type { RolesAccess, RolesAccessGroup } from '../../lib/editorGroups'
 import { useJumpTarget } from './Accordion'
 import { subjectGradeAnchor } from './panelState'
+import { PersonIdentity } from './PersonIdentity'
 
 /**
  * ⚑ `subjectAdminControl` IS A PROP, not a field of `access`, and THE HYPOTHETICAL CAME TRUE. The
@@ -423,10 +424,7 @@ export function RolesAccessPanel({
                     {admins.length > 0 ? (
                       admins.map((a) => (
                         <li key={a.id} className="lp-manage__row lp-manage__row--tight">
-                          <span className="lp-manage__who">
-                            {a.name}
-                            {a.email && <span className="lp-manage__who-email">{a.email}</span>}
-                          </span>
+                          <PersonIdentity name={a.name} email={a.email} />
                           {mayVacate && (
                             <span className="lp-manage__row-actions">
                               <Button
@@ -519,10 +517,7 @@ export function RolesAccessPanel({
                     <ul className="lp-manage__list">
                       {editors.map((u) => (
                         <li key={u.id} className="lp-manage__row lp-manage__row--tight">
-                          <span className="lp-manage__who">
-                            {u.name}
-                            {u.email && <span className="lp-manage__who-email">{u.email}</span>}
-                          </span>
+                          <PersonIdentity name={u.name} email={u.email} />
                           <Button
                             className="lp-btn lp-btn--compact"
                             buttonStyle="error"

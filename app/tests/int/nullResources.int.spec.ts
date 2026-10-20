@@ -19,7 +19,7 @@ import { MARK, MARK_BASE, minimalResourceLinks, purgeMarked } from '../helpers/f
 import { relId } from '../../src/lib/relId.js'
 
 let payload: Payload
-const GRADE = 96 // owned by this suite (reingest uses 97; the shared fixture 99/98)
+const GRADE = 9 // owned by this suite (reingest uses 10; the shared fixture 12/11)
 
 function nullSlots() {
   const links = minimalResourceLinks() as Record<string, Record<string, unknown>>

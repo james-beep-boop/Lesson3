@@ -27,7 +27,7 @@ import {
 } from '../helpers/fixtures.js'
 import { drizzleOf, rowsOf } from '../helpers/db.js'
 
-const GRADE = 96 // owned by this suite
+const GRADE = 8 // owned by this suite
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 let payload: Payload
 let userId: number | undefined

@@ -180,8 +180,9 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   a Not Official revision for review. For plans with no Official version, use **Set an Official
   version** at the bottom of Lesson plans. You can also delete selected lesson plans (with all their versions) under **Delete a plan (all versions)**, or remove
   individual non-Official versions under **Delete individual versions**.
-- **Prepare subjects and grades before upload:** use *Manage → Subjects and grades* to create the
-  subject first, then its subject grade. The subject name and grade must match each lesson file;
+- **Prepare subjects and grades before upload:** use *Manage → Subjects and grades* to add the
+  subject first, then tick its grade. Use *+ Grade* to add a grade column from 1–12. The subject name
+  and grade must match each lesson file;
   uploads reject files whose subject or subject grade is missing.
 - **Approve accounts on a site without email:** teachers who sign up cannot sign in until you approve
   them. _Manage_ shows how many are waiting; choose _Review them in Accounts_, open each account and
