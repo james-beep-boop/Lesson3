@@ -39,6 +39,7 @@ import { comparableIngestContent } from './contentEquality'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 import { latestRelease } from './releaseAncestry'
+import { withReleaseFingerprint } from './releaseFingerprintContext'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
 /** A minimal Local-API request carrier — also the shape `prewarmVersionArtifacts` accepts. */
@@ -453,17 +454,19 @@ async function writePrepared(
           })),
           substrandId,
         )
-        await payload.create({
-          collection: LESSON_BUNDLE_VERSIONS,
-          data: {
-            ...data,
-            lessonPlan: existingPlanId,
-            subjectGrade,
-            semver,
-            sourceVersion: predecessor?.id ?? null,
-          } as never,
-          req,
-        })
+        await withReleaseFingerprint(req, data, () =>
+          payload.create({
+            collection: LESSON_BUNDLE_VERSIONS,
+            data: {
+              ...data,
+              lessonPlan: existingPlanId,
+              subjectGrade,
+              semver,
+              sourceVersion: predecessor?.id ?? null,
+            } as never,
+            req,
+          }),
+        )
         results.push({
           file: name,
           id: existingPlanId,
@@ -501,17 +504,19 @@ async function writePrepared(
         overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
         req,
       })
-      const version = await payload.create({
-        collection: LESSON_BUNDLE_VERSIONS,
-        data: {
-          ...data,
-          lessonPlan: plan.id,
-          subjectGrade,
-          semver: '1.0.0',
-        } as never,
-        overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
-        req,
-      })
+      const version = await withReleaseFingerprint(req, data, () =>
+        payload.create({
+          collection: LESSON_BUNDLE_VERSIONS,
+          data: {
+            ...data,
+            lessonPlan: plan.id,
+            subjectGrade,
+            semver: '1.0.0',
+          } as never,
+          overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
+          req,
+        }),
+      )
       await payload.update({
         collection: LESSON_PLANS,
         id: plan.id,

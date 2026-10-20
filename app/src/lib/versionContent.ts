@@ -13,6 +13,10 @@ import { stripIds } from './stripIds'
  *  `author` is stamped server-side from the authenticated caller — a submitted value is never trusted. */
 export const DROP_KEYS = new Set([
   'id',
+  // Worldwide identity (2026-10-19, `fields/identity.ts`): never content, never copied — a new
+  // version gets its own uid, and only ingest gives one a release fingerprint.
+  'uid',
+  'releaseFingerprint',
   'semver',
   'sourceVersion',
   'mergedFrom',

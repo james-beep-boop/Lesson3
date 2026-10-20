@@ -25,6 +25,35 @@ page — a Back navigation can restore Manage from Next.js's client cache with a
 checks once per appearance and never re-compares while the page stays open; a failed check shows
 nothing. The device side is the request's midpoint, cancelling network delay.
 
+## 2026-10-19 — Worldwide identity: foundations before offline schools hold their own data
+
+Offline schools go live within days, and once their data lives on machines nobody can reach, adding
+identity later means a migration on every one. Built now, additive and invisible (design discussed in
+`docs/DESIGN-modes-connectivity-network-2026-10-19.md` §5, tightened by Codex's review before building):
+
+- **`uid` (UUID) on lesson plans, versions and users**, generated in a field `beforeChange` hook — which
+  Payload runs after field access and before validation for every caller (read in installed source),
+  so not even an `overrideAccess` writer can choose or change it. NOT NULL + UNIQUE are enforced by the
+  migration in the database; the field is deliberately not `required` in Payload, whose generated
+  create types would otherwise demand it from every caller. A person's `uid` is read like their email.
+- **`releaseFingerprint` = `ares-content-v1:sha256:<hex>`**, a frozen, versioned format with its own
+  normalisation (a copy of the ingest comparison's rules, not a call into it) and test vectors. Set
+  only by ingest, through `req.context`, cleared after each create because Payload merges a create's
+  context into the shared request. The backfill marks only versions the audited release rule
+  (`releaseMajor`) recognises, and the integration test proves the upload-time and stored-copy
+  fingerprints agree.
+- **Installation id** on the settings singleton; restore keeps it, a copied prepared database must
+  reset it (`scripts/reset-installation-id.ts`, OPS "Preparing a machine for another school").
+- **Identity is not content:** `uid` and `releaseFingerprint` joined `DROP_KEYS`; a test proves a
+  teacher's save from a release gets a fresh uid and no fingerprint.
+- **Migration:** columns added nullable, filled `WHERE … IS NULL` (an id once issued never changes),
+  then constrained; idempotent; `down` drops them (ids issued before a down are lost).
+- **Not done:** ancestry still uses local ids, so cross-school Combine is not yet possible.
+
+Lesson from building it: a mutation check caught a test that passed for the wrong reason (the mutant
+also stopped ingest stamping, so there was no fingerprint to leak). Assert the precondition — that
+there is something to leak — before asserting it was refused.
+
 ## 2026-10-19 — Offline sign-up: administrator approval, said plainly
 
 Offline schools go live within days, and their servers have no email. The account model already
