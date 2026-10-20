@@ -22,7 +22,19 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-21
 
-**Latest (2026-10-21):** #421 merged as `0c3309c` after green CI (`main` is there). It carries the
+**Latest (2026-10-21, later):** two maintenance PRs from the 2026-10-20 dependency review are merged
+(`main` at `a9c1ec4`). #422 (`6bfd033`, green CI): React 19.2.9, `@sentry/node` 10.76.2, jsdom 28.1.0,
+`nodemailer` override 10.1.7, `brace-expansion` overrides, `undici` override dropped (Payload 3.91.0
+now pins 7.29.1). #423 (`a9c1ec4`): `src/middleware.ts` → `src/proxy.ts` (Next 16 convention; proxy
+is Node-only) with a stricter every-script-nonce CSP wire test. ⚑ #423 merged while its CI run
+(39503879660, head `fb58c11`) was still in progress — `gh pr merge --auto` merges at once because
+`main` has no required checks; its local gates passed on top of `6bfd033`. Confirm that run and the
+`main` run for `a9c1ec4` are green before releasing. Still open from the review: remove
+`turbopackMinify: false` once Payload's 3.x backport (payloadcms/payload#18775) ships; Node 24.22.0;
+React 19.3, Playwright 1.64 and the majors each as their own change; Payload 4 is beta only.
+Neither PR is released or deployed.
+
+**Earlier (2026-10-21):** #421 merged as `0c3309c` after green CI (`main` is there). It carries the
 uncommitted 2026-10-14 work onto the Subjects and grades matrix: grades are **1–12**, enforced by the
 `SubjectGrade` validator; "+ Grade" is a dropdown of the missing 1–12 columns; and Accounts rows show
 name and email on one line (`PersonIdentity`, shared with Roles & Access). **No migration.** Grades
