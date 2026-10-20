@@ -33,6 +33,7 @@ import { listUnsavedWork } from '../../lib/editRecovery/unsavedWork'
 import { captureKeptUntil } from '../../lib/editRecovery/ttl'
 import { formatDay } from '../../lib/formatDate'
 import { countAwaitingApproval } from '../../lib/awaitingApproval'
+import { readInstallationId } from '../../lib/identity/installationId'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
@@ -102,6 +103,7 @@ export default async function AdminDashboard({
     systemSettings,
     unsavedWork,
     awaitingApproval,
+    installationId,
   ] = await Promise.all([
     t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
     // ---- Saved versions (deletable candidates) ----
@@ -202,6 +204,8 @@ export default async function AdminDashboard({
     // A count, no identities. Only an email-less site needs it surfaced: elsewhere a new account
     // confirms its own emailed link, and nothing is waiting on an administrator.
     siteAdmin && !emailEnabled ? t.time('awaitingApproval', () => countAwaitingApproval(req)) : 0,
+    // ---- Installation id (Site-Admin only; never throws) ----
+    siteAdmin ? t.time('installationId', () => readInstallationId(payload)) : null,
   ])
   const versionDocs = versionsRes?.docs ?? []
   // Hoisted beside the other unwraps because `sgById` below reads it for a Site Admin — see wave 2.
@@ -775,6 +779,16 @@ export default async function AdminDashboard({
                 .
               </p>
               <SystemFactsPanel facts={systemFacts} />
+              {/* ⚑ NOT A FACT ROW. Every row above names the server setting that controls it, so an
+                  administrator knows where to fix it; this identity has no setting and nothing to fix
+                  (2026-10-19, `lib/identity/installationId.ts`). */}
+              {installationId && (
+                <p className="lp-manage__desc">
+                  Installation ID: <code>{installationId}</code> — this installation’s permanent
+                  identity, for joining a network of schools in the future. A restored backup keeps
+                  it; a database copied to set up another school needs a new one.
+                </p>
+              )}
             </AccordionPanel>
           </AccordionPanel>
         )}

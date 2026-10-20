@@ -62,10 +62,15 @@ describe('who can read a person’s worldwide id', () => {
       if (response.ok) expect(((await response.json()) as { uid?: string }).uid).toBeUndefined()
       else expect([403, 404]).toContain(response.status)
     }
+    // The directory: the caller may see only their OWN uid (read like email: self or Site Admin).
     const list = (await (await get('/api/users?limit=100', 'editor')).json()) as {
-      docs?: { uid?: string }[]
+      docs?: { id: number; uid?: string }[]
     }
-    for (const doc of list.docs ?? []) expect(doc.uid).toBeUndefined()
+    expect(list.docs?.length).toBeGreaterThan(1)
+    for (const doc of list.docs ?? []) {
+      if (doc.id === fx.users.editor.id) expect(doc.uid, 'own uid').toMatch(UUID)
+      else expect(doc.uid, `user ${doc.id} uid visible to another user`).toBeUndefined()
+    }
   })
 
   it('a version’s uid is readable by anyone who can read the version', async () => {
