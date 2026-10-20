@@ -233,7 +233,10 @@ the canonical ARES base; retain query and fragment. Choose the longest matching 
 winning an equal-prefix tie. Unknown origins, ports and unmatched prefixes receive no ARES rewrite.
 
 Known defaults are HTTP/HTTPS `ares.local` and `demo.aresedu.dev` site roots, `ares.local:8069`
-Kolibri roots and the demo's `/kolibri` prefix. Optional `ARES_SITE_URL` and `ARES_KOLIBRI_URL`
+Kolibri roots and the demo's `/kolibri` prefix, plus `localhost` and `localhost:8069` — an address
+copied on the ARES machine itself (Mark, ARES, 2026-10-20). **Kolibri navigation is dropped:** on a
+Kolibri address, `?prevName=` and everything after it is removed (Kolibri appends navigation state the
+link does not need). Kolibri addresses only, pending ARES confirming any wider scope. Optional `ARES_SITE_URL` and `ARES_KOLIBRI_URL`
 add exact installation bases, including their ports and path prefixes. Comma-separated
 `ARES_HOST_ALIASES` adds exact hostnames/IPs at the normal HTTP/HTTPS site ports and Kolibri port
 8069; it does not authorize every service port on those machines. For example, an unconfigured

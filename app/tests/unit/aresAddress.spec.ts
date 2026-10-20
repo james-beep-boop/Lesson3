@@ -149,3 +149,59 @@ describe('exact known base matching', () => {
     expect(normalize(outsidePrefix, { siteUrl: 'https://school.test/ares' })).toBe(outsidePrefix)
   })
 })
+
+/**
+ * Mark's two rules (ARES, 2026-10-20): Kolibri navigation state is dropped from a copied address
+ * (`?prevName=` and everything after it), and `localhost` — an address copied on the ARES machine
+ * itself — is stored as `ares.local`. Both before ARES confirms any wider scope.
+ */
+describe('Kolibri navigation and localhost', () => {
+  const KOLIBRI = 'http://ares.local:8069/en/learn/#/topics/c/47ee4f89db1259599783fe52e3c40f56'
+  const NAV =
+    '?prevName=TOPICS_TOPIC&prevQuery=%7B%22keywords%22%3A%22cells%22%7D&last=TOPICS_CHANNEL'
+
+  it.each([
+    [`${KOLIBRI}${NAV}`, KOLIBRI],
+    [
+      `https://demo.aresedu.dev/kolibri/en/learn/#/topics/c/abc${NAV}`,
+      'http://ares.local:8069/en/learn/#/topics/c/abc',
+    ],
+    [
+      `http://localhost:8069/en/learn/#/topics/c/abc${NAV}`,
+      'http://ares.local:8069/en/learn/#/topics/c/abc',
+    ],
+  ])('drops Kolibri navigation from %s', (input, expected) =>
+    expect(normalize(input)).toBe(expected),
+  )
+
+  it('leaves a Kolibri address without navigation exactly as it was', () => {
+    expect(normalize(KOLIBRI)).toBe(KOLIBRI)
+    expect(normalize(`${KOLIBRI}?other=1`)).toBe(`${KOLIBRI}?other=1`)
+  })
+
+  it('applies the navigation rule to Kolibri addresses only', () => {
+    // A module page or an outside site keeps whatever it carries.
+    expect(normalize('http://ares.local/modules/a.html?prevName=x')).toBe(
+      'http://ares.local/modules/a.html?prevName=x',
+    )
+    expect(normalize('https://example.org/a?prevName=x')).toBe('https://example.org/a?prevName=x')
+  })
+
+  it.each([
+    ['http://localhost/modules/PhET/a.html', 'http://ares.local/modules/PhET/a.html'],
+    [
+      'http://localhost:8069/en/learn/#/topics/c/abc',
+      'http://ares.local:8069/en/learn/#/topics/c/abc',
+    ],
+    [
+      'http://localhost/tracker/local_launch.html?module_id=x&target=%2Fmodules%2FPhET%2Fa.html',
+      'http://ares.local/modules/PhET/a.html',
+    ],
+  ])('stores the ARES machine’s own %s as ares.local', (input, expected) =>
+    expect(normalize(input)).toBe(expected),
+  )
+
+  it('leaves localhost on other ports alone (not ARES content)', () => {
+    expect(normalize('http://localhost:3000/lessons/1')).toBe('http://localhost:3000/lessons/1')
+  })
+})

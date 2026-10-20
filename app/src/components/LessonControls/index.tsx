@@ -1375,7 +1375,8 @@ export default function LessonControls({
               <dt>Insert a link</dt>
               <dd>
                 Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in the
-                toolbar. Paste an address from ARES or the web and add an optional label.
+                toolbar. Copy the address from your browser’s address bar on the ARES page (or any
+                web page), paste it, and add an optional label.
               </dd>
             </div>
             <div className="help-rows__row">
