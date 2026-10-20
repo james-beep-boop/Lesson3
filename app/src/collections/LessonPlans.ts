@@ -19,6 +19,7 @@ import {
 } from '../hooks/lessonPlan'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { requestEditingEndpoint } from '../endpoints/requestEditing'
+import { worldwideIdField } from '../fields/identity'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 
 export const LessonPlans: CollectionConfig = {
@@ -64,6 +65,7 @@ export const LessonPlans: CollectionConfig = {
     requestEditingEndpoint,
   ],
   fields: [
+    worldwideIdField(),
     {
       name: 'title',
       type: 'text',

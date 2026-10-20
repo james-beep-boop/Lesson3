@@ -1,6 +1,7 @@
 import type { GlobalConfig, GlobalBeforeChangeHook } from 'payload'
 
 import { siteAdminOnly } from '../access'
+import { installationIdField } from '../fields/identity'
 import { saveSystemSettingsEndpoint } from '../endpoints/systemSettingsSave'
 import { SYSTEM_FLAGS, type SystemFlag } from '../lib/systemFlagNames'
 import type { User } from '../payload-types'
@@ -179,6 +180,9 @@ export const SystemSettings: GlobalConfig = {
   // POST /api/globals/system-settings/save — the sole writer (see `access.update` above).
   endpoints: [saveSystemSettingsEndpoint],
   fields: [
+    // This installation's worldwide id (2026-10-19, `fields/identity.ts`). Read with the rest of the
+    // global (Site Administrators); never written by Save — only by the migration and the reset script.
+    installationIdField,
     {
       name: 'features',
       type: 'group',

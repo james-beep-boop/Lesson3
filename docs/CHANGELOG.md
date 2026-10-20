@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Groundwork for a future network of schools: every lesson plan, version and person gets a permanent
+  worldwide id, ARES uploads get a release fingerprint, and each installation an id, shown under
+  Manage → System. Nothing changes for teachers.
+
 - Update both PDF converter images to Gotenberg 8.38.0 / LibreOffice 26.8.1.1 with pinned
   multi-architecture digests. Arial remains installed in the custom image. Representative PDFs
   retain identical rendering, page geometry and links across the update.
