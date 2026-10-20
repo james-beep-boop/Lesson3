@@ -11,6 +11,48 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-21 — `src/middleware.ts` renamed to `src/proxy.ts`; the CSP nonce now runs on Node
+
+Next 16 deprecated the `middleware` file convention in favour of `proxy`, and `next build` printed
+the warning on every run (both builds in main's CI, run 39478627320). Payload 4.0 (beta) needs
+`next >=16.4`, so clearing Next 16 deprecations now reduces the risk of that migration. The file
+moved with `git mv` and the export was renamed `proxy`. The matcher and the CSP logic are unchanged
+byte for byte.
+
+**The runtime changed, and that was checked rather than assumed.** Middleware with no `runtime`
+declared was Edge. Proxy is **always** Node.js. In installed next@16.4.2, `runDependingOnPageType`
+(`build/entries.js`) sends a proxy file to `onServer()` only, and `get-page-static-info.js` fails
+the build on any `runtime` segment config in a proxy file. So **declare none**. The file relies on
+nothing that exists only on Edge: `crypto.getRandomValues`, `btoa` and `Headers` are all Node 24
+globals. The built app confirms it: `middleware-manifest.json` has no functions, and
+`functions-config-manifest.json` registers `/_middleware` with `"runtime": "nodejs"` and the same
+`missing`-header matcher.
+
+Two things follow:
+- **DESIGN-next-direction-2026-08-19 §B still stands, even though its premise is gone.** §B said
+  the middleware "is Edge and cannot reach Postgres". The proxy can reach Postgres now, but the
+  public-library flag is still resolved in the route handler, beside the 404 boundary, so the
+  conclusion does not depend on the runtime. The dated design doc is left as written. The proxy's
+  header comment says this so nobody reads the rename as an opening.
+- `instrumentation.ts`'s `onRequestError` already ignores non-Node runtimes. Proxy errors therefore
+  now reach the error tracker; middleware errors on Edge never did. The `NEXT_RUNTIME === 'nodejs'`
+  guards stay, because Next still compiles the instrumentation file for both runtimes.
+
+**The tests got stricter for the runtime move.** "The nonce appears somewhere in the body" would pass
+with one stamped script and every other script blocked, which is the blank-admin failure on a small
+scale. `tests/http` now requires every `<script>` tag on `/login` **and** on the authenticated
+`/admin` shell to carry exactly the header's nonce (12 tags on `/login`). It also pins both prefetch
+`missing` conditions and a real `/_next/static` chunk as getting no CSP. The `/api/*` and
+preview-endpoint (`default-src 'none'`) assertions are unchanged and still pass. Verified on the
+CI-shaped stack on top of `6bfd033` (#422's dependency versions): the build log has no deprecation
+line, `test:http` has 433 passed and 4 skipped, and Playwright has 132 passed with 1 flaky
+(`insertLink` › URL normalization: a 5 s wait for a textarea to become visible, passed on retry. A CSP
+break would blank every admin spec instead).
+
+References that describe the current file were updated: code comments, test names, OPS, the audit
+catalog and CODE-REVIEW-PLAN. Places that record what a reviewer read *at the time*
+(`` `middleware.ts` `` in the 2026-08-19 baseline-headers notes) and dated records keep the old name.
+
 ## 2026-10-21 — Patch releases inside current lines; brace-expansion overrides; undici override dropped
 
 Maintenance only: every move stays inside a line we already use. `react`/`react-dom` 19.2.8 → 19.2.9

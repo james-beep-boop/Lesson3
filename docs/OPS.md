@@ -656,7 +656,7 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
    variable is set.
 6. **Verify, over the public URL:**
    - `curl -sD- https://…/login` → `Content-Security-Policy` with a fresh `'nonce-…'` per
-     request ✓ (shipped: middleware CSP), `Set-Cookie` on login carries `Secure`.
+     request ✓ (shipped: `src/proxy.ts` CSP), `Set-Cookie` on login carries `Secure`.
    - Run `test:http`/`test:rock` only on an **isolated staging stack with a disposable database**.
      These suites create/delete fixtures and are not production health checks. Load
      `docker-compose.test.yml`: it supplies the mandatory PDF fixture and both public/private app

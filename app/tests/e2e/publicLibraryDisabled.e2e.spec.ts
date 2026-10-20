@@ -65,7 +65,7 @@ test.describe('Public discovery disabled (the default and offline deployment sha
     //
     // ⚑ Deliberately no assertion about the 404 page's body. One was written and removed: Next's
     // `_not-found` shell is prerendered at build time, carries no CSP nonce, and therefore renders
-    // unhydrated on a direct load (a known, accepted caveat — see `src/middleware.ts`). Asserting on
+    // unhydrated on a direct load (a known, accepted caveat — see `src/proxy.ts`). Asserting on
     // its markup couples this spec to Next's internals and to that quirk, and would go red on a
     // framework upgrade that changes neither the boundary nor anything a user experiences.
     expect(response?.status(), '/explore must 404 when public discovery is disabled').toBe(404)

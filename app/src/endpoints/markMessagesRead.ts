@@ -27,7 +27,7 @@ import type { User } from '../payload-types'
  * ⚑ The 500-id cap below bounds what is USED, not what is READ. Without this, `req.json()` buffers
  * whatever arrives before `parseIds` sees a single element — and Next's App Router route handlers
  * impose no default body limit (the 4 MB default is Pages API routes and Server Actions;
- * `experimental.serverActions.bodySizeLimit` does not reach REST routes, and `src/middleware.ts`
+ * `experimental.serverActions.bodySizeLimit` does not reach REST routes, and `src/proxy.ts`
  * only sets CSP).
  *
  * 64 KiB against a legitimate worst case of ~4 KB (500 ids at 8 characters each, plus framing) —
