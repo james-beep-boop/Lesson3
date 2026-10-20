@@ -22,7 +22,13 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-19
 
-**Latest operator update:** #414 merged as `ca16830` after green CI. Annotated release
+**Latest (2026-10-19, later):** `main` at `2c9bfa6` adds, since v0.98, offline sign-up approval
+(#415), worldwide identity foundations (#416 — **includes a migration**, `20261019_211325_worldwide_ids`)
+and the wrong-clock warning (#417), each green in CI and reviewed by Codex. **Not yet deployed or
+released.** A go-live rehearsal checklist for an offline school server is `docs/GO-LIVE-REHEARSAL.md`.
+Working arrangement from here: Claude implements; Codex reviews (findings only, compact briefs).
+
+**Earlier operator update:** #414 merged as `ca16830` after green CI. Annotated release
 [v0.98](https://github.com/james-beep-boop/Lesson3/releases/tag/v0.98) is published at that commit.
 The publisher passed; the documented latest bundle download, checksum and app/migrate image pins
 for AMD64 and ARM64 were verified. The bundle pins Gotenberg 8.38.0 LibreOffice-only; the source
@@ -167,8 +173,10 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
 4. Full phase 4 remains unapproved/deferred; #412 is closed. Keep both designs until teacher use
    justifies direct updating. The approved Save → Combine flow is retained. Stable row identity is
    a separate deferred proposal with no assigned phase number.
-5. Modes, connectivity, identity and school networking are direction only. Each needs a separate
-   proposal and approval. Ask ARES about ares.edu; Plan A+ and structural drafts remain deferred.
+5. Modes, connectivity and school networking are direction only (identity foundations are built,
+   #416). Each needs a separate proposal and approval. **Next to build when the operator chooses:
+   Standard/Advanced mode, site-wide** — it needs the operator's marked-up inventory
+   (`docs/DESIGN-modes-connectivity-network-2026-10-19.md` §2). Ask ARES about ares.edu; Plan A+ and structural drafts remain deferred.
 
 Nonblocking #410 follow-ups: filter plans with an unlinked whole major > 1; recompute only affected
 release descendants in id order and remove linear row lookups; consolidate re-ingest's history
