@@ -11,6 +11,46 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-21 — Patch releases inside current lines; brace-expansion overrides; undici override dropped
+
+Maintenance only: every move stays inside a line we already use. `react`/`react-dom` 19.2.8 → 19.2.9
+(the 2026-10-14 RSC transport release, the 19.2 twin of the GHSA-xqc2-xf4c-x3h3 fix; Next 16.4.2
+bundles its own patched copy, so this is hygiene rather than exposure). `@sentry/node` 10.63.0 →
+10.76.2, the last 10.x. `jsdom` 28.0.0 → 28.1.0, the last 28.x (server-side DOMPurify in
+`lib/domWindow.ts`). The `nodemailer` override 10.1.2 → 10.1.7 (address-parser hardening; Payload's
+`email-nodemailer` declares `^10.1.1`). Everything else the lockfile moved is a dependency of Sentry
+(OpenTelemetry, `import-in-the-middle`) or jsdom (`cssstyle`, `@csstools/*`); nothing outside those two
+trees changed version.
+
+**Overrides.** `brace-expansion` gets one fixed version per major lane: a top-level `1.1.21` for the
+`minimatch` 3 copy, and a nested `@typescript-eslint/typescript-estree` → `5.0.12` for the copy under
+its own `minimatch` 10. The nested rule wins inside its subtree; verified in the lockfile, not assumed.
+That clears GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7 and GHSA-6j4f-fj2g-mc7p, all dev-only. The
+`undici` override is removed: Payload 3.91.0 pins exactly 7.29.1, the removal condition recorded on
+2026-10-18. jsdom 28.1.0 also wants undici (`^7.21.0`), so a second copy was possible; the regenerated
+tree has a single `undici` 7.29.1 and the built app reports it.
+
+**Deliberately not moved:** `payload`/`@payloadcms/*` (3.91.0 is latest) and `next` (16.4.2 is latest);
+`drizzle-orm` (Payload pins 0.45.2 exactly); `docx` 9.6.1 (fidelity); `sass` 1.79.6 (see 2026-10-05,
+below); `@types/react`, `@types/react-dom`, `@types/jsdom`, because no types release corresponds to
+these patches (the newer `@types/react-dom` 19.2.6/19.2.7 are September type fixes, not tied to React
+19.2.9); React 19.3, Sentry 11, jsdom 30 and every other major. **`braces` 3.0.3 stays vulnerable**
+(GHSA-vfj7-8cjw-p6xm): it is the latest release, reached via `micromatch` → `fast-glob` →
+`@next/eslint-plugin-next` → `eslint-config-next`, dev-only, and the only "fix" npm offers is a
+downgrade to `eslint-config-next` 14.
+
+⚑ **The lockfile was regenerated with `npm install --package-lock-only` in `node:24.21.0-alpine`,
+not through `scripts/in-deps.sh`.** The wrapper's image stage runs `npm ci`, which refuses a
+`package.json` that no longer matches its lock, so it cannot build until the lock exists. Every gate
+after that ran through the wrapper on the image built from the new lock.
+
+Verified on an isolated `-p l3depspatch` stack: `audit:prod` passes (8 moderate, none fixable);
+`audit:all` goes from 14 (6 high) to 13 (5 high), and all five highs are the `braces` chain above.
+TypeScript, ESLint and Prettier pass; 1,692 unit, 322 integration, 432 wire (four SMTP skips) and 133
+browser tests pass; the built app reports `next` 16.4.2, `react`/`react-dom` 19.2.9, `jsdom` 28.1.0 and
+`undici` 7.29.1. The first unit run timed out four React tests at 5 s while two images were building
+in parallel; rerun on an idle machine, the slowest took 1.35 s and the full suite passed.
+
 ## 2026-10-20 — Grade 1–12 and compact accounts reconciled with the Subjects and grades matrix
 
 The two 2026-10-14 entries below (grade dropdown; compact account identities) were left uncommitted
