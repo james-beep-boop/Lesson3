@@ -15,10 +15,12 @@ import type { SubjectGrade, User } from '../payload-types'
 import { distinctIds } from '../lib/relId'
 import { rowsOf, txDb } from '../lib/txDb'
 import {
+  USER_SEARCH_STATUSES,
   USER_SEARCH_TYPES,
   type UserSearchDocument,
   type UserSearchGrant,
   type UserSearchResponse,
+  type UserSearchStatus,
   type UserSearchType,
 } from '../lib/userSearchContract'
 import { assertSiteAdmin, json } from './respond'
@@ -41,6 +43,16 @@ function typeFrom(raw: string | null): UserSearchType | null {
   if ((USER_SEARCH_TYPES as readonly string[]).includes(raw)) return raw as UserSearchType
   throw new APIError('type must be siteAdmin, subjectAdmin, or teacher.', 400)
 }
+
+function statusFrom(raw: string | null): UserSearchStatus | null {
+  if (raw === null || raw === '') return null
+  if ((USER_SEARCH_STATUSES as readonly string[]).includes(raw)) return raw as UserSearchStatus
+  throw new APIError('status must be awaiting.', 400)
+}
+
+/** `IS NOT TRUE`, not `= false`: Payload's verify rejects any FALSY `_verified`, NULL included. */
+const statusCondition = (status: UserSearchStatus | null) =>
+  status === 'awaiting' ? sql`AND u._verified IS NOT TRUE` : sql``
 
 function typeCondition(type: UserSearchType | null) {
   const siteAdmin = sql`EXISTS (
@@ -103,6 +115,7 @@ export const userSearchEndpoint: Endpoint = {
       throw new APIError(`q must be ${MAX_QUERY_LENGTH} characters or fewer.`, 400)
     }
     const type = typeFrom(params.get('type'))
+    const status = statusCondition(statusFrom(params.get('status')))
     const page = positiveInteger(params.get('page'), 1, 'page')
     const requestedLimit = positiveInteger(params.get('limit'), DEFAULT_LIMIT, 'limit')
     if (requestedLimit > MAX_LIMIT) {
@@ -118,7 +131,7 @@ export const userSearchEndpoint: Endpoint = {
         await db.execute(sql`
           SELECT COUNT(*)::int AS count
           FROM users u
-          WHERE ${condition} ${search}
+          WHERE ${condition} ${status} ${search}
         `),
       )[0]?.count ?? 0,
       'total count',
@@ -150,7 +163,7 @@ export const userSearchEndpoint: Endpoint = {
           JOIN lesson_plans plan ON plan.official_version_id = version.id
           WHERE version.author_id = u.id) AS official_versions
       FROM users u
-      WHERE ${condition} ${search}
+      WHERE ${condition} ${status} ${search}
       ORDER BY LOWER(u.name), u.id
       LIMIT ${requestedLimit} OFFSET ${offset}
     `)

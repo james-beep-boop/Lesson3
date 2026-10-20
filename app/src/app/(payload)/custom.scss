@@ -459,6 +459,17 @@ body {
     margin: 0;
   }
 
+  // Accounts awaiting approval (2026-10-19): the email-less site's queue, above the accordion and
+  // only when non-empty — the same placement and weight as "Your unsaved work".
+  &__awaiting {
+    margin: var(--app-space-3) 0 var(--app-space-4);
+  }
+
+  &__awaiting-title {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+
   .muted {
     color: var(--theme-elevation-600);
     font-size: 0.9rem;

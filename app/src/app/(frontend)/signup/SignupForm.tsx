@@ -6,12 +6,16 @@
  * verification on (auth.verify), the account can't sign in until the emailed link is used — so
  * success shows a check-your-email note instead of starting a session (a login attempt here
  * would just 403 UnverifiedEmail). Server-side signup caps surface as 429s.
+ *
+ * ⚑ WITHOUT EMAIL (no SMTP — an offline school server) no link is ever sent: the account waits for a
+ * Site Administrator to approve it (Manage → Users → Accounts). The form says that BEFORE the teacher
+ * signs up and again after, rather than promising an email that cannot arrive (2026-10-19).
  */
 import React, { useState } from 'react'
 
 import PasswordInput from '@/components/PasswordInput'
 
-export function SignupForm() {
+export function SignupForm({ emailEnabled = true }: { emailEnabled?: boolean }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -42,7 +46,8 @@ export function SignupForm() {
         )
         return
       }
-      // Account created — unverified until the emailed link is used, so no login attempt here.
+      // Account created — unverified until the emailed link is used (or, without email, until a Site
+      // Administrator approves it), so no login attempt here.
       setDone(true)
     } catch {
       setError('Sign-up failed — please try again.')
@@ -52,16 +57,29 @@ export function SignupForm() {
   }
 
   if (done) {
-    return (
+    return emailEnabled ? (
       <p className="login-note" role="status">
         Account created — we&apos;ve emailed a verification link to <strong>{email}</strong>. Follow
         it to activate your account, then sign in.
+      </p>
+    ) : (
+      <p className="login-note" role="status">
+        Account created for <strong>{email}</strong>. Before you can sign in, your school&apos;s
+        Site Administrator needs to approve it. Let them know you have signed up. Once they approve
+        it, sign in with this email address and your password.
       </p>
     )
   }
 
   return (
     <form className="login-form" onSubmit={onSubmit}>
+      {!emailEnabled && (
+        <p className="login-note">
+          This site does not send email. After you sign up, your school&apos;s Site Administrator
+          approves your account, then you can sign in. Your email address is your sign-in name, so
+          use one you will remember.
+        </p>
+      )}
       <label>
         Display name
         <input

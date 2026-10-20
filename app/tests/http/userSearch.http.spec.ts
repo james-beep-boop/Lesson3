@@ -19,6 +19,7 @@ let extraSubjectGradeId = 0
 let hybridId = 0
 let nameNeedleId = 0
 let emailNeedleId = 0
+let awaitingId = 0
 
 async function search(
   params: Record<string, string> = {},
@@ -64,10 +65,18 @@ beforeAll(async () => {
     password: fx.password,
   })
   emailNeedleId = emailNeedle.id
+  // An account nobody has verified yet: on an email-less site, one awaiting approval.
+  const awaiting = await createUserVerified(fx.payload, {
+    name: `${MARK}Awaiting Approval Needle`,
+    email: `${MARK.toLowerCase()}awaiting-needle@example.com`,
+    password: fx.password,
+    _verified: false,
+  })
+  awaitingId = awaiting.id
 }, 120_000)
 
 afterAll(async () => {
-  for (const id of [hybridId, nameNeedleId, emailNeedleId]) {
+  for (const id of [hybridId, nameNeedleId, emailNeedleId, awaitingId]) {
     if (id) {
       await fx?.payload
         .delete({ collection: 'users', id, overrideAccess: true })
@@ -143,6 +152,33 @@ describe('GET /api/users/search', () => {
     expect(teacher.body.docs.map((doc) => doc.id)).toContain(fx.users.editor.id)
     expect(subject.body.docs.map((doc) => doc.id)).toContain(hybridId)
     expect(teacher.body.docs.map((doc) => doc.id)).not.toContain(hybridId)
+  })
+
+  it('the awaiting-approval status filter returns only unverified accounts', async () => {
+    const awaiting = await search({ q: MARK, status: 'awaiting', limit: '50' }, 'siteAdmin')
+    expect(awaiting.status).toBe(200)
+    expect(awaiting.body.docs.map((doc) => doc.id)).toContain(awaitingId)
+    expect(awaiting.body.docs.every((doc) => doc.verified === false)).toBe(true)
+    expect(awaiting.body.totalDocs).toBe(awaiting.body.docs.length)
+
+    const all = await search({ q: MARK, limit: '50' }, 'siteAdmin')
+    expect(all.body.docs.map((doc) => doc.id)).toEqual(
+      expect.arrayContaining([awaitingId, nameNeedleId, emailNeedleId]),
+    )
+    // Combines with the type filter and the text search rather than replacing them.
+    const narrowed = await search(
+      { q: 'Awaiting Approval Needle', status: 'awaiting', type: 'teacher' },
+      'siteAdmin',
+    )
+    expect(narrowed.body.docs.map((doc) => doc.id)).toEqual([awaitingId])
+  })
+
+  it('refuses an unknown status, and keeps the filter behind Site Administrator access', async () => {
+    expect((await search({ status: 'pending' }, 'siteAdmin')).status).toBe(400)
+    expect((await search({ status: 'awaiting' })).status).toBe(401)
+    for (const role of ['subjectAdmin', 'editor', 'teacher'] as RoleKey[]) {
+      expect((await search({ status: 'awaiting' }, role)).status).toBe(403)
+    }
   })
 
   it('returns grant labels for the row disclosure jump target', async () => {
