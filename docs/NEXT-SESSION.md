@@ -23,8 +23,10 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 # CURRENT STATE — 2026-10-20
 
 **Planning update (2026-10-20):** #418 (Kolibri/localhost rules) and #419 (site-wide
-Standard/Advanced tools, including the More-item focus fix) are merged. #420 (Welcome dialog once
-per account) is still open as of this update. The operator asked to retain the two UI proposals below;
+Standard/Advanced tools, including the More-item focus fix) are merged, and so is #420 (Welcome
+dialog once per account; `main` at `cc1807f`). #419 **includes a migration**
+(`20261020_092934_advanced_tools`) and puts every installation in Standard: the next release notes
+must say so (CHANGELOG has the line). Not yet released or deployed. The operator asked to retain the two UI proposals below;
 recording them does not authorize implementation, further merges or deployment. Claude implements;
 Codex reviews. B/C leave Insert link unchanged; a separate phase-specific link proposal is recorded below.
 
