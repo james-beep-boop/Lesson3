@@ -65,8 +65,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     reset link.
                   </li>
                   <li>
-                    If this Lesson3 site cannot send email, ask a Site administrator to create and
-                    verify your account, or create a reset link and give it to you directly.
+                    If this Lesson3 site cannot send email (most school servers have no internet),
+                    the sign-up page says so. Sign up as usual, ask your school’s Site administrator
+                    to approve your account, then sign in. They can also create a reset link and
+                    give it to you directly.
                   </li>
                 </ol>
                 <p>
@@ -613,15 +615,23 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             )}
 
             {can('site-admins.accounts') && (
-              <GuideAccordionPanel id="site-admins.accounts" title="Create and verify an account">
+              <GuideAccordionPanel id="site-admins.accounts" title="Approve or create an account">
+                <p>
+                  On a site that cannot send email, teachers who sign up cannot sign in until you
+                  approve them. <em>Manage</em> shows how many are waiting.
+                </p>
                 <ol className="guide-steps">
                   <li>
-                    Open <em>Manage → Users → Accounts</em> and choose <em>Create user</em>.
+                    Choose <em>Review them in Accounts</em>, open each waiting account and choose{' '}
+                    <em>Approve</em>.
                   </li>
-                  <li>Enter the account details and save the new user.</li>
                   <li>
-                    Open the account and choose <em>Mark verified</em>. The person cannot sign in
-                    until that is done.
+                    To create an account yourself, open <em>Manage → Users → Accounts</em>, choose{' '}
+                    <em>Create user</em>, save it, then approve it.
+                  </li>
+                  <li>
+                    On a site that sends email, the same button reads <em>Mark verified</em>. You
+                    only need it when someone cannot use their emailed link.
                   </li>
                   <li>
                     Use <em>Make Site Administrator</em> only when the person needs to manage the

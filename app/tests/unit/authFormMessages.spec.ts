@@ -33,6 +33,16 @@ describe('login — all three outcomes', () => {
     expect(signInErrorMessage(undefined, 403)).toMatch(/verified/i)
   })
 
+  it('on a site WITHOUT email, an unverified account is sent to its administrator, not a mailbox', () => {
+    // No SMTP (an offline school server): no link was ever emailed, so naming one strands the user.
+    const msg = signInErrorMessage(undefined, 403, false)
+    expect(msg).toMatch(/waiting for approval/i)
+    expect(msg).toMatch(/Site Administrator/)
+    expect(msg).not.toMatch(/email/i)
+    // A disabled account is still named as disabled, whatever the site's email.
+    expect(signInErrorMessage(ACCOUNT_DISABLED_CODE, 403, false)).toMatch(/disabled/i)
+  })
+
   it('BAD CREDENTIALS still get the generic message', () => {
     // 401. Deliberately generic: it must not reveal whether the address is registered.
     const msg = signInErrorMessage(undefined, 401)

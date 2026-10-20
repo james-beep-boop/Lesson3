@@ -21,9 +21,10 @@ _Compare_ button.
 
 - **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
-  If your school's Lesson3 site cannot send email — some run with no internet — ask a Site
-  administrator to create and verify your account. They can also create a reset link and give it to
-  you directly. For security your session ends after a while and signs you out automatically — just
+  If your school's Lesson3 site cannot send email — most school servers run with no internet — the
+  sign-up page says so: sign up as usual, then ask your school's Site administrator to approve your
+  account, and sign in once they have. They can also create a reset link and give it to you
+  directly. For security your session ends after a while and signs you out automatically — just
   sign in again to continue.
 - **Browse lesson plans:** the home page groups lessons by subject and grade, then by strand and sub-strand in
   curriculum order.
@@ -178,8 +179,11 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
 - **Prepare subjects and grades before upload:** use *Manage → Subjects and grades* to create the
   subject first, then its subject grade. The subject name and grade must match each lesson file;
   uploads reject files whose subject or subject grade is missing.
-- **Create accounts without email:** use _Manage → Users → Accounts → Create user_, then open the new
-  account and choose _Mark verified_. The person cannot sign in until that is done. Use _Make Site
+- **Approve accounts on a site without email:** teachers who sign up cannot sign in until you approve
+  them. _Manage_ shows how many are waiting; choose _Review them in Accounts_, open each account and
+  choose _Approve_. You can also create an account yourself with _Manage → Users → Accounts → Create
+  user_, then approve it. (On a site that sends email, the same button reads _Mark verified_ and is
+  only needed when someone cannot use their emailed link.) Use _Make Site
   Administrator_ when the new account should be another Site administrator, and test it in a private
   browser window.
 - **Manage people:** make someone a Site administrator only if they need to manage the whole site.

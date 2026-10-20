@@ -1118,11 +1118,13 @@ test.describe('Manage page', () => {
       await expect(row.getByRole('button', { name: 'Disable sign-in', exact: true })).toBeVisible()
       await expect(row.locator('.lp-users__summary-meta')).not.toContainText('Sign-in disabled')
 
+      // The browser stack runs without SMTP — an email-less site, so an unverified account is one
+      // awaiting this administrator's approval (with SMTP the same action reads "Mark verified").
       row = await openUser(page, UNVERIFIED_USER_EMAIL)
-      await expect(row.locator('.lp-users__summary-meta')).toContainText('Unverified')
-      await row.getByRole('button', { name: 'Mark verified', exact: true }).click()
-      await expect(row.locator('.lp-users__summary-meta')).not.toContainText('Unverified')
-      await expect(row.getByRole('button', { name: 'Mark verified', exact: true })).toHaveCount(0)
+      await expect(row.locator('.lp-users__summary-meta')).toContainText('Awaiting approval')
+      await row.getByRole('button', { name: 'Approve', exact: true }).click()
+      await expect(row.locator('.lp-users__summary-meta')).not.toContainText('Awaiting approval')
+      await expect(row.getByRole('button', { name: 'Approve', exact: true })).toHaveCount(0)
 
       row = await openUser(page, DELETE_USER_EMAIL)
       const deletePrompt = await acceptConfirmation(page, () =>

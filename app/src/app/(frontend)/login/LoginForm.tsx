@@ -9,7 +9,11 @@ import { ACCOUNT_DISABLED_CODE, readErrorCode } from '@/errors/AccountDisabled'
  * Which failure the reader is looking at. A named function rather than a nested ternary inside
  * `setError`, so the three-way choice is readable and unit-testable without a DOM.
  */
-export function signInErrorMessage(code: string | undefined, status: number): string {
+export function signInErrorMessage(
+  code: string | undefined,
+  status: number,
+  emailEnabled = true,
+): string {
   if (code === ACCOUNT_DISABLED_CODE) return 'This account is disabled — contact an administrator.'
   // ⚑ 403 NO LONGER HAS ONE CAUSE, which is why the code is checked first. This branch used to read
   // "the login op's ONLY 403 is UnverifiedEmail (bad credentials and lockout are 401, the throttle
@@ -20,12 +24,16 @@ export function signInErrorMessage(code: string | undefined, status: number): st
   // Still never message TEXT: the copy is i18n and shifts with Payload upgrades, while `data.code`
   // is a contract this repo owns and pins (`tests/unit/accountDisabledContract.spec.ts`).
   if (status === 403) {
-    return 'This account isn’t verified yet — use the verification link we emailed you, then sign in.'
+    // Without email no link was ever sent: the account is waiting for a Site Administrator
+    // (Manage → Users → Accounts), so name that instead of a mailbox to search (2026-10-19).
+    return emailEnabled
+      ? 'This account isn’t verified yet — use the verification link we emailed you, then sign in.'
+      : 'This account is waiting for approval. Ask your school’s Site Administrator to approve it, then sign in.'
   }
   return 'Invalid email or password.'
 }
 
-export function LoginForm() {
+export function LoginForm({ emailEnabled = true }: { emailEnabled?: boolean }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -52,7 +60,7 @@ export function LoginForm() {
         // So: check the machine-readable code FIRST, then fall back to the old status rule. Still
         // never message text — the copy is i18n and shifts with Payload upgrades; `data.code` is a
         // contract this repo owns and pins (`tests/unit/accountDisabledContract.spec.ts`).
-        setError(signInErrorMessage(await readErrorCode(res), res.status))
+        setError(signInErrorMessage(await readErrorCode(res), res.status, emailEnabled))
         return
       }
       // ONE document navigation, not `router.replace('/')` + `router.refresh()` — that pair rendered
