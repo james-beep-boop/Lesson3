@@ -11,6 +11,15 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-20 — The Welcome dialog shows once
+
+Reported by the operator as top priority: the dialog "pops up relentlessly". Closing it only hid it
+on the current page; it was remembered only if "Don't show this again" was ticked, a choice nobody
+expects to have to make, and a browser test pinned that as deliberate. It is now recorded as seen the
+moment it appears (per account, in this browser), following one of its links closes it, and the
+checkbox is removed. Still browser storage, not the account: a new device shows it once more, which
+is acceptable for a welcome.
+
 ## 2026-10-20 — Insert link: Mark's Kolibri and localhost rules
 
 Mark (ARES) confirmed that addresses a teacher copies from ARES are already trackable, so Lesson3 needs

@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- The Welcome dialog now appears once per account, instead of on every page until "Don't show this
+  again" was ticked. The checkbox is gone.
+
 - Insert link: long Kolibri addresses are shortened automatically (their navigation part is removed),
   and an ARES address copied on the ARES machine itself (`localhost`) is stored as `ares.local`. The
   dialog and help now say to copy the address from the browser's address bar on the ARES page.

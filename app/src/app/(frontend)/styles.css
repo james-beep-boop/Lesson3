@@ -2305,15 +2305,3 @@ button.user-menu__item {
 .welcome-checklist__note {
   color: var(--muted);
 }
-/* "Don't show this again" checkbox row at the bottom of every variant. */
-.welcome-dont-show {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--line);
-  font-size: 0.85rem;
-  color: var(--muted);
-  cursor: pointer;
-}
