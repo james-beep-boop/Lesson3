@@ -7,7 +7,7 @@
  *
  * A disclosure, not an ARIA `menu`: a button that says whether it is open, and a short list of
  * ordinary buttons reached with Tab. Escape closes it and returns focus to the button; a click
- * outside closes it; choosing an item closes it.
+ * outside closes it; choosing an item closes it and returns focus to the button.
  */
 import React, { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@payloadcms/ui'
@@ -64,7 +64,11 @@ export function MoreMenu({ items }: { items: MoreMenuItem[] }) {
               className="lp-more__item"
               disabled={item.disabled}
               onClick={() => {
+                // Focus goes back to More ▾ BEFORE the action: closing removes the focused item,
+                // which would otherwise drop keyboard users on <body>. An action that opens a
+                // dialog still takes focus from here as usual.
                 setOpen(false)
+                trigger.current?.focus()
                 item.onSelect()
               }}
             >

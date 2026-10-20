@@ -48,6 +48,20 @@ describe('MoreMenu', () => {
     expect(screen.queryByRole('button', { name: 'Combine versions' })).toBeNull()
   })
 
+  it('choosing an item returns focus to the button before running it', () => {
+    let focusedDuringSelect: Element | null = null
+    const onSelect = vi.fn(() => {
+      focusedDuringSelect = document.activeElement
+    })
+    render(<MoreMenu items={[{ key: 'a', label: 'Show details', onSelect }]} />)
+    fireEvent.click(trigger())
+    const item = screen.getByRole('button', { name: 'Show details' })
+    item.focus()
+    fireEvent.click(item)
+    expect(focusedDuringSelect).toBe(trigger())
+    expect(document.activeElement).toBe(trigger())
+  })
+
   it('Escape closes it and returns focus to the button', () => {
     render(<MoreMenu items={[{ key: 'a', label: 'Show details', onSelect: vi.fn() }]} />)
     fireEvent.click(trigger())
