@@ -1,7 +1,13 @@
 # To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.ts file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM node:24.22.0-alpine AS base
+# Both Node stages (here and `e2e` below) pin the exact patch AND the multi-architecture INDEX digest
+# (amd64 for CI and USB installs, arm64 for the Rock/Macs), the way Postgres and Gotenberg already are,
+# so a rebuilt tag upstream cannot change the runtime under an unchanged Dockerfile. To re-pin:
+#   docker buildx imagetools inspect node:<version>-alpine     → the index "Digest:" line, not a platform's
+#   docker buildx imagetools inspect node:<version>-bookworm
+# Resolved 2026-10-21: Node 24.22.0 on Alpine 3.24 / Debian bookworm.
+FROM node:24.22.0-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -29,7 +35,7 @@ RUN \
 # the same legacy-peer-deps reason as `deps` above. npm ci AND the chromium download happen at
 # BUILD time so the test step doesn't redo them on every run, matching how `deps` front-loads
 # installs for the other test steps.
-FROM node:24.22.0-bookworm AS e2e
+FROM node:24.22.0-bookworm@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0 AS e2e
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc* ./
 RUN npm ci --include=dev
