@@ -159,6 +159,7 @@ export interface UserAuthOperations {
  */
 export interface LessonPlan {
   id: number;
+  uid?: string | null;
   title: string;
   subjectGrade: number | SubjectGrade;
   /**
@@ -210,6 +211,8 @@ export interface Subject {
  */
 export interface LessonBundleVersion {
   id: number;
+  uid?: string | null;
+  releaseFingerprint?: string | null;
   lessonPlan: number | LessonPlan;
   sourceVersion?: (number | null) | LessonBundleVersion;
   mergedFrom?: (number | null) | LessonBundleVersion;
@@ -373,6 +376,7 @@ export interface LessonBundleVersion {
  */
 export interface User {
   id: number;
+  uid?: string | null;
   /**
    * Shown next to versions you save.
    */
@@ -768,6 +772,7 @@ export interface PayloadMigration {
  * via the `definition` "lesson-plans_select".
  */
 export interface LessonPlansSelect<T extends boolean = true> {
+  uid?: T;
   title?: T;
   subjectGrade?: T;
   officialVersion?: T;
@@ -781,6 +786,8 @@ export interface LessonPlansSelect<T extends boolean = true> {
  * via the `definition` "lesson-bundle-versions_select".
  */
 export interface LessonBundleVersionsSelect<T extends boolean = true> {
+  uid?: T;
+  releaseFingerprint?: T;
   lessonPlan?: T;
   sourceVersion?: T;
   mergedFrom?: T;
@@ -964,6 +971,7 @@ export interface SubjectGradesSelect<T extends boolean = true> {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  uid?: T;
   name?: T;
   signInDisabled?: T;
   roles?: T;
@@ -1170,6 +1178,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface SystemSetting {
   id: number;
+  installationId?: string | null;
   /**
    * Runtime capabilities. Each one sits INSIDE a deploy-time env ceiling — a flag can never grant what the environment forbids.
    */
@@ -1221,6 +1230,7 @@ export interface PayloadJobsStat {
  * via the `definition` "system-settings_select".
  */
 export interface SystemSettingsSelect<T extends boolean = true> {
+  installationId?: T;
   features?:
     | T
     | {

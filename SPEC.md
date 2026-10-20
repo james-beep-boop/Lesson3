@@ -117,6 +117,22 @@ JSON.
   fields. Any supported development extraction path must still produce and validate the complete JSON
   contract; uploaded code is never executed.
 - **`summaryTablePrompt` (in `LESSONS`) and `SUMMARY_TABLE.lessons` are distinct content** serving different documents — not duplicates. Both are edited; label each by the document it feeds.
+- **Worldwide identity (added 2026-10-19; foundations only).** Local serial ids mean nothing on another
+  machine, so every lesson plan, version and user also carries a UUID `uid`, every version created from
+  an ARES upload a release fingerprint, and each installation an id (`fields/identity.ts`).
+  - `uid` is generated on create by a field hook — never accepted from a caller, trusted writers
+    included — and never changes; the database enforces NOT NULL and UNIQUE. A person's `uid` is read
+    like their email (themselves and Site Administrators); a plan's or version's by anyone who can read it.
+  - `releaseFingerprint` is `ares-content-v1:sha256:<hex>` over fixed, frozen normalisation rules
+    (`lib/identity/releaseFingerprint.ts`, pinned by test vectors), so two schools uploading the same
+    release agree it is the same version. Only ingest sets it (through the request context); a
+    teacher's save copies release content but never the fingerprint. A rule change is a new format.
+  - Both are identity, not content: `DROP_KEYS` keeps them out of copies and "no changes" comparisons.
+  - The installation id lives with the site settings, shows on Manage → System, survives a restore of
+    the school's own backup, and must be replaced (`scripts/reset-installation-id.ts`) when a prepared
+    database is copied to set up another school (OPS).
+  - ⚑ **Ancestry still uses local ids** (`sourceVersion`, `mergedFrom`, `lineage`). Cross-school
+    Combine is not possible yet; converting ancestry to these ids is later work.
 
 ### ARES resource links (mandatory lesson data; resolved upstream)
 

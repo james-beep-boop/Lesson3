@@ -324,6 +324,23 @@ the pinned Node 24 dependency container before merge (`scripts/in-deps.sh -- npm
 and the repository's migration workflow); the normal Rock deploy applies committed migrations through
 the `migrate` service. Do not improvise host-Node Payload code generation on the production box.
 
+### Preparing a machine for another school — give it its own installation id
+
+Every installation has a worldwide id (Manage → System → *Installation ID*), its identity if it later
+joins a network of schools. It lives in the database, so:
+
+- **Restoring a school's own backup** onto a replacement machine keeps the school's id. Do nothing.
+- **Copying a prepared database** (for example, one with the lesson plans already uploaded) to set up
+  **another school** would give two schools one identity. On the new machine, after the copy:
+
+```bash
+cd /srv/lesson3 && docker compose run --rm migrate npx payload run scripts/reset-installation-id.ts
+cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run scripts/reset-installation-id.ts
+```
+
+The first command is read-only and prints the current id; `APPLY=1` replaces it. Check Manage → System
+shows the new id. Never run it after restoring a school's own backup.
+
 ### Recover a Site Administrator without email
 
 Use this only when no Site Administrator can sign in and email delivery is unavailable. The command

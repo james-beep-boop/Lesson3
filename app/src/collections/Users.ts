@@ -49,6 +49,7 @@ import { cascadeDeleteUserFavorites } from './Favorites'
 import { cascadeDeleteUserRecovery } from './EditRecovery'
 import { cascadeDeleteUserMessages } from './Messages'
 import { cascadeDeleteUserParticipation } from './DiscussionParticipation'
+import { worldwideIdField } from '../fields/identity'
 
 /**
  * Users + roles (SPEC §8).
@@ -198,6 +199,9 @@ export const Users: CollectionConfig = {
     setSignInDisabledEndpoint,
   ],
   fields: [
+    // A person's permanent worldwide id is read like their email: themselves and Site Administrators
+    // only, so the Users API cannot be used to list everyone's durable identifiers (2026-10-19).
+    worldwideIdField(emailReadAccess),
     {
       name: 'name',
       type: 'text',

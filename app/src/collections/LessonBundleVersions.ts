@@ -36,6 +36,7 @@ import { recoveryEndpoints } from '../endpoints/recovery'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 import { MAX_LINEAGE, stampVersionLineage } from '../lib/combine/lineage'
 import { combinePreviewEndpoint } from '../endpoints/combinePreview'
+import { releaseFingerprintField, worldwideIdField } from '../fields/identity'
 import {
   collapseOnEntry,
   lessonEditableContentFields,
@@ -140,6 +141,10 @@ export const LessonBundleVersions: CollectionConfig = {
     aresExportEndpoint,
   ],
   fields: [
+    // Worldwide identity (2026-10-19, `fields/identity.ts`): not content — `DROP_KEYS` excludes both
+    // from copies and comparisons, so a teacher's save gets a fresh uid and no release fingerprint.
+    worldwideIdField(),
+    releaseFingerprintField,
     {
       // ⚑ IDENTITY, NOT CONTENT — and it was a control that could not do what it offered. Save
       // sets both this and `subjectGrade` FROM THE SOURCE version and discards whatever the form

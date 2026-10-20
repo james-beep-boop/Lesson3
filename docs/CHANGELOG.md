@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Groundwork for a future network of schools: every lesson plan, version and person gets a permanent
+  worldwide id, ARES uploads get a release fingerprint, and each installation an id, shown under
+  Manage → System. Nothing changes for teachers.
+
 - Sign-up on a site without email (offline school servers): the form explains that the school's Site
   Administrator approves new accounts, signing in early says the account is waiting for approval,
   and Manage shows administrators how many accounts are waiting, with a link to approve them.
