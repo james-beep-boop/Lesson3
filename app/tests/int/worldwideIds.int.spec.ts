@@ -8,13 +8,14 @@
  * with the audited rule, is idempotent, and leaves the columns NOT NULL.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { getPayload, type Payload } from 'payload'
+import { createLocalReq, getPayload, type Payload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
 import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
 import { releaseFingerprint } from '../../src/lib/identity/releaseFingerprint.js'
 import { stripIds } from '../../src/lib/stripIds.js'
+import { withReleaseFingerprint } from '../../src/ingest/releaseFingerprintContext.js'
 import { readInstallationId, resetInstallationId } from '../../src/lib/identity/installationId.js'
 import { up } from '../../src/migrations/20261019_211325_worldwide_ids.js'
 import {
@@ -141,6 +142,32 @@ describe('creation', () => {
     expect(copy.uid).toMatch(UUID)
     expect(copy.uid).not.toBe(source.uid)
     expect(copy.releaseFingerprint ?? null).toBeNull()
+  })
+
+  it('a later create sharing ingest’s request does not inherit the fingerprint (#416 review)', async () => {
+    const { planId, versionId } = await ingestRelease('96.4')
+    const release = await readVersion(versionId)
+    const data = (semver: string) =>
+      ({ ...(stripIds(release) as Record<string, unknown>), semver, lessonPlan: planId }) as never
+    // ONE request for both creates, as ingest's batch shares one — real Payload replaces
+    // `req.context` during each create, which is what left the key behind before the fix.
+    const req = await createLocalReq({}, payload)
+    const stamped = await withReleaseFingerprint(req, release, () =>
+      payload.create({
+        collection: 'lesson-bundle-versions',
+        data: data('1.0.7'),
+        overrideAccess: true,
+        req,
+      }),
+    )
+    expect(stamped.releaseFingerprint).toMatch(/^ares-content-v1:/)
+    const later = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: data('1.0.8'),
+      overrideAccess: true,
+      req,
+    })
+    expect(later.releaseFingerprint ?? null).toBeNull()
   })
 
   it('users get a uid, and no update — even a trusted one — changes any uid', async () => {

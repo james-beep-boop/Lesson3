@@ -39,8 +39,7 @@ import { comparableIngestContent } from './contentEquality'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 import { latestRelease } from './releaseAncestry'
-import { RELEASE_FINGERPRINT_CONTEXT } from '../fields/identity'
-import { releaseFingerprint } from '../lib/identity/releaseFingerprint'
+import { withReleaseFingerprint } from './releaseFingerprintContext'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
 /** A minimal Local-API request carrier — also the shape `prewarmVersionArtifacts` accepts. */
@@ -242,28 +241,6 @@ export type IngestReport = {
 }
 
 /** Fetch only the highest numeric semver's content, using the locked write transaction. */
-/**
- * Create one ARES release version carrying its `ares-content-v1` fingerprint (2026-10-19).
- *
- * The fingerprint reaches the field hook through `req.context`, the only channel it accepts — and
- * Payload MERGES a create's context into the shared `req` and keeps it there
- * (`utilities/createLocalReq.js`). So it is set immediately before this one create and removed in
- * `finally`, leaving nothing on the request for any later create to inherit.
- */
-async function withReleaseFingerprint<T>(
-  req: IngestReq,
-  bundle: unknown,
-  create: () => Promise<T>,
-): Promise<T> {
-  const context = (req.context ??= {}) as Record<string, unknown>
-  context[RELEASE_FINGERPRINT_CONTEXT] = releaseFingerprint(bundle as Record<string, unknown>)
-  try {
-    return await create()
-  } finally {
-    delete context[RELEASE_FINGERPRINT_CONTEXT]
-  }
-}
-
 async function latestVersionForPlan(payload: Payload, planId: number, req: IngestReq) {
   const { docs } = await payload.find({
     collection: 'lesson-bundle-versions',
