@@ -686,8 +686,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('site-admins.curriculum') && (
               <GuideAccordionPanel id="site-admins.curriculum" title="Set up subjects and grades">
                 <p>
-                  Open <em>Manage → Subjects and grades</em>. Add the subject first, then its
-                  subject grade. The subject name and grade must match the lesson file.
+                  Open <em>Manage → Subjects and grades</em>. Add the subject first, then tick its
+                  grade. Use <em>+ Grade</em> to add a grade column from 1–12. The subject name and
+                  grade must match the lesson file.
                 </p>
               </GuideAccordionPanel>
             )}

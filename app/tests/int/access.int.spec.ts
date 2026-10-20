@@ -322,17 +322,17 @@ describe('Server-side invariants (Bucket A)', () => {
   })
 
   it('#3a rejects a version whose subjectGrade differs from its plan', async () => {
-    // A second subject-grade under the same subject (grade 98 ≠ the fixture's 99).
+    // A second subject-grade under the same subject (grade 11 ≠ the fixture's 12).
     const otherSg = await fx.payload.create({
       collection: 'subject-grades',
-      data: { subject: fx.subject.id, grade: 98 } as never,
+      data: { subject: fx.subject.id, grade: 11 } as never,
       overrideAccess: true,
     })
     await expect(
       fx.payload.create({
         collection: 'lesson-bundle-versions',
         data: {
-          lessonPlan: fx.plan.id, // plan is grade 99
+          lessonPlan: fx.plan.id, // plan is grade 12
           subjectGrade: otherSg.id, // mismatch → reject
           semver: '9.1.0',
           title: `${MARK}inv3a`,

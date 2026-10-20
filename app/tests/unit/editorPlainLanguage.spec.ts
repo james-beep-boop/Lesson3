@@ -80,9 +80,7 @@ describe('the version editor uses teacher-facing language', () => {
       'Grant editing access, or Subject-grade administrator access, for each subject and grade.',
     )
     expect(byName(subjects, 'name').admin?.description).toBe('For example, Biology or Chemistry.')
-    expect(byName(subjectGrades, 'grade').admin?.description).toBe(
-      'Enter a whole number, such as 10.',
-    )
+    expect(byName(subjectGrades, 'grade').admin?.description).toBe('Grades 1–12.')
     expect(byName(plans, 'officialVersion').admin?.description).toBe(
       'The approved version shown first to teachers.',
     )

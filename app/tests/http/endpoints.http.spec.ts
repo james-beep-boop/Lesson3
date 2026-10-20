@@ -840,7 +840,7 @@ describe('Bucket-A server invariants over HTTP', () => {
   it('Site Administrator cannot move a lesson plan to another subject-grade', async () => {
     const otherSubjectGrade = await fx.payload.create({
       collection: 'subject-grades',
-      data: { subject: fx.subject.id, grade: 98 },
+      data: { subject: fx.subject.id, grade: 11 },
       overrideAccess: true,
     })
 
@@ -2284,7 +2284,7 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
       schemaVersion: '1.0.0',
       META: {
         subject: `${MARK}Biology`,
-        grade: 99,
+        grade: 12,
         substrand_id: substrandId,
         substrand_name: `${MARK}${substrandId}`,
         titleDoc: `${MARK}Upload ${substrandId}`,
@@ -2399,7 +2399,7 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
   it('422 on a well-formed-but-invalid bundle (pre-flight rejects, nothing written)', async () => {
     // Valid JSON, all five groups, but LESSONS empty → validateGeneratable fails in pre-flight.
     const bad = JSON.stringify({
-      META: { subject: `${MARK}Biology`, grade: 99, substrand_id: '90.5' },
+      META: { subject: `${MARK}Biology`, grade: 12, substrand_id: '90.5' },
       UNIT: null,
       LESSONS: [],
       FINAL_EXPLANATION: null,

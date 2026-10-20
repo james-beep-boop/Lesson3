@@ -185,7 +185,7 @@ export interface SubjectGrade {
   id: number;
   subject: number | Subject;
   /**
-   * Enter a whole number, such as 10.
+   * Grades 1–12.
    */
   grade: number;
   displayName?: string | null;

@@ -13,11 +13,15 @@
  *   - Pending: grade numbers added locally via the "+ Grade" form but not yet represented by any
  *     SubjectGrade. Pending grades clear on page refresh; they persist while the panel is mounted so
  *     the user can check boxes immediately after adding the column.
+ *
+ * "+ Grade" offers only the Grade 1–12 columns not already shown (SPEC §8, decided 2026-10-14); the
+ * collection enforces the same range on the server.
  */
 import React, { useMemo, useState } from 'react'
 import { Button } from '@payloadcms/ui'
 
 import { deleteConsequences, type AssignmentCounts } from '../../lib/assignmentCounts'
+import { GRADE_LEVELS } from '../../lib/gradeLevels'
 import { useTaxonomyActions, type TaxonomyActions } from './taxonomyActions'
 
 export type { AssignmentCounts }
@@ -167,13 +171,9 @@ export function SubjectsAndGradesPanel({
     return m
   }, [grades])
 
+  const addableGrades = GRADE_LEVELS.filter((grade) => !gradePool.includes(grade))
   const newGradeValue = Number(newGradeStr)
-  const canAddGrade =
-    !anyBusy &&
-    newGradeStr.trim() !== '' &&
-    Number.isInteger(newGradeValue) &&
-    newGradeValue >= 1 &&
-    !gradePool.includes(newGradeValue)
+  const canAddGrade = !anyBusy && addableGrades.includes(newGradeValue)
 
   const addGrade = (e: React.FormEvent) => {
     e.preventDefault()
@@ -221,16 +221,20 @@ export function SubjectsAndGradesPanel({
               ))}
               <th className="lp-sg__add-grade-th" scope="col">
                 <form className="lp-sg__add-grade" onSubmit={addGrade}>
-                  <input
-                    className="lp-users__input lp-sg__grade-input"
-                    type="number"
-                    min={1}
-                    step={1}
-                    placeholder="Grade"
+                  <select
+                    className="lp-manage__select"
+                    aria-label="Grade to add"
                     value={newGradeStr}
-                    disabled={anyBusy}
+                    disabled={anyBusy || addableGrades.length === 0}
                     onChange={(e) => setNewGradeStr(e.target.value)}
-                  />
+                  >
+                    <option value="">Grade…</option>
+                    {addableGrades.map((grade) => (
+                      <option key={grade} value={grade}>
+                        Grade {grade}
+                      </option>
+                    ))}
+                  </select>
                   <Button
                     className="lp-btn lp-btn--compact"
                     buttonStyle="secondary"

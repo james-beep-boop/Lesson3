@@ -812,6 +812,11 @@ version remains a later phase, alongside stable row identity and support for str
   *Subject-grade administrator* is used wherever the scope is not shown beside it (the grant is one
   subject-grade, not a whole subject).
 - **Subject** = academic discipline only. **SubjectGrade** = subject + **integer** grade; the assignable unit roles attach to. Display as "Grade N". "Math Grade 4" and "Math Grade 5" are independent.
+- **Grade range (decided 2026-10-14):** subject-grades use whole numbers **1–12**, enforced on the
+  server. Manage → Subjects and grades offers grades from a pre-populated dropdown (its "+ Grade"
+  control lists only the Grade 1–12 columns not already shown). Grade remains a numeric field, with no
+  separate Grade collection or administrator-managed grade list. Revisit this model only if grades need
+  additional attributes, such as alternate names or banding.
 - Per-subject-grade scoping is expressed inside Payload access functions.
 - Promoting a Subject Admin where one exists **auto-demotes** the prior holder to a Teacher with editing access for that subject-grade, in one transaction.
 - ⚑ **D6a — appointing and vacating a Subject Administrator. ASYMMETRIC as of 2026-08-19; read the
@@ -1124,6 +1129,10 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
 
 - Desktop is the primary interface for the current audience. Phone layout fixes must preserve
   desktop usability and be checked at desktop widths as well as on phones.
+
+- Manage account lists use the same compact name-and-email presentation as Roles & Access:
+  name and muted email sit on one line when space permits, with natural wrapping on narrow screens.
+  Account type/status and expandable account actions remain available.
 
 - Keep scope controlled; do not invent features not listed here.
 - One runtime: resist re-introducing a second language on the core path.

@@ -39,7 +39,7 @@ beforeAll(async () => {
 
   const extra = await fx.payload.create({
     collection: 'subject-grades',
-    data: { subject: fx.subject.id, grade: 98 },
+    data: { subject: fx.subject.id, grade: 11 },
     overrideAccess: true,
   })
   extraSubjectGradeId = extra.id

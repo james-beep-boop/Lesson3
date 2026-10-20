@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-20 — Grade 1–12 and compact accounts reconciled with the Subjects and grades matrix
+
+The two 2026-10-14 entries below (grade dropdown; compact account identities) were left uncommitted
+on `codex/compact-manage-accounts` while `main` moved on 89 commits. In that time `9ebc844` replaced
+the Subjects + Subject grades panels the dropdown was built into with one checkbox matrix whose
+"+ Grade" input accepted any whole number ≥1, and the collapsible Roles & Access rework (`497c5f0`)
+began reusing `.lp-users__summary`/`__summary-main`/`__name`/`__email` for its group headers. The
+matrix's author could not have seen the 1–12 decision, because it existed only in that uncommitted
+file. Nothing on `main` revisited it, so the operator decision stands.
+
+Ported onto `main` rather than rebased: the dropdown's panel no longer exists. Kept: `lib/gradeLevels`
+and the collection's full-range validator, the HTTP boundary tests, and the in-range test grades.
+"+ Grade" is now a select listing only the Grade 1–12 columns not already shown, which is the
+recorded "pre-populated dropdown" and also fixes the number box that clipped its own "Grade"
+placeholder. An out-of-range grade already stored would still appear as a column, but the select
+never offers one. The compact padding is a `__summary--person` modifier, not a change to
+`.lp-users__summary`, so the two-line Roles & Access headers keep their spacing and classes.
+
+⚑ **Moving synthetic grades into 1–12 makes them collide with real ones.** 96–99 were unique by
+accident. Every lookup must be scoped by the suite's marked subject: `reingest.int.spec.ts` found
+its subject-grade by `grade` alone, and at Grade 10 would have picked up any Grade 10 row in a
+shared database. When choosing test data inside a real domain range, do not rely on the value
+being unique.
+
+Verified on disposable stacks: Prettier, ESLint and TypeScript pass; 1,692 unit, 322 integration
+and 432 HTTP tests (4 skipped) pass, including 13 grade-boundary cases; all 133 Chromium tests pass,
+and the Manage file passes with retries off. Screenshots of the dropdown and the one-line account rows
+were reviewed. The first browser run caught two test defects: an unscoped "Grade 1" locator also
+matched Grade 12, and the 2026-10-14 long-address case exceeded user search's 120-character query
+limit, which landed after it was written. It passed only on a retry whose fixture id was shorter.
+
 ## 2026-10-20 — The Welcome dialog shows once
 
 Reported by the operator as top priority: the dialog "pops up relentlessly". Closing it only hid it
@@ -1116,6 +1147,56 @@ unused `React` default import removed, clearing the remaining ESLint errors.
 not reset when the target was consumed, so the second jump's `jumpTarget !== jumpTargetOpened`
 check was false and the open was suppressed. Reset `jumpTargetOpened` to `null` when
 `jumpTarget === null`.
+
+## 2026-10-14 — Use the Developer checkout and compact shared account identities
+
+The operator corrected the working checkout: use `~/Developer/Lesson3`, never the second clone under
+Documents. Verify the Git root before edits and run tools with that checkout as their explicit working
+directory. Fast-forwarded the clean Developer checkout and recovered the reviewed, uncommitted grade
+dropdown changes there; preserve the original copy as recovery evidence. No commit or push is authorised
+by pasted review text.
+
+Accounts forced names and email addresses into separate lines, making a large roster unnecessarily
+tall. Share `PersonIdentity` and its existing name/address CSS with both administrator and editing-access
+rows in Roles & Access. Reuse compact row padding, keep the email muted and the name's disclosure hover
+feedback, and wrap long text on narrow screens. Keep account type/status, disclosure controls and the
+existing role-scoped data projections.
+
+Verified in the Developer checkout: lint, formatting, TypeScript and production build pass, along
+with all 1,398 unit tests, 11 targeted integration tests, 13 grade API tests and ten Chromium account/
+taxonomy tests. Representative desktop account summaries measure 42px against 44px editing-access
+rows. Name/address placement, matching styles and padding, long-address wrapping, touch targets,
+disclosure state and account actions are covered at 1024/1280/1440 and 360/390px. Screenshots were
+reviewed; all fixture writes used a disposable database.
+
+## 2026-10-14 — Prefer a fixed grade dropdown over a managed Grade collection
+
+During discussion of the Subjects and grades form, Codex proposed a separate managed grade list.
+The operator preferred Claude's simpler proposal: a pre-populated Grade 1–12 dropdown. The existing
+decision already keeps `grade` a constrained integer and reserves a Grade collection for grades
+with additional attributes, such as non-numeric PP1/PP2 names. The form's visual inconsistency does
+not justify introducing a new entity or setup step; check targeted historical decisions before
+proposing an architectural change.
+
+The operator subsequently authorised implementation. Manage now uses the fixed dropdown for both
+subject-grade creation and editing, and the collection validates the same whole-number range on the
+server. Keep the required numeric field, compound unique index, derived titles, role scoping and
+upload matching. Payload's custom field validator replaces its default number validator, so checking
+the full range in the custom validator is necessary; `max: 12` alone would not enforce this boundary.
+
+The existing local database contains only Grade 10, and a read-only check of the deployed database
+found only Grades 10 and 11. Neither has out-of-range records; no deployed data was modified.
+Move synthetic test/verification grades 96–99 and the duplicate tests' arithmetic offsets into the
+permitted range; their marked subjects still provide isolation.
+The storage shape is unchanged, so no schema migration is needed. SPEC and both Guides state the new
+range, and the generated Payload types retain `grade: number`.
+
+Verification: lint, Prettier, TypeScript and the production build pass; 1,398 unit tests, 53 targeted
+integration tests, 32 HTTP tests and six Chromium taxonomy tests pass. The browser checks cover
+numeric create/edit saves, all twelve options, duplicate/delete messages, desktop widths
+1024/1280/1440 and phone widths 360/390. Review the screenshots as well as the geometry assertions.
+Run the local unit suite with two workers to avoid load-related timeouts when other container checks
+are running. All fixture-writing tests used a disposable database; the deployed check was read-only.
 
 ## 2026-10-14 — Keep public audit guidance separate from private operations
 

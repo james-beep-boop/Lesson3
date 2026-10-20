@@ -642,7 +642,7 @@ test.describe('Manage page', () => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
     await openDeletePanel(page)
-    const sgLabel = `${fx.subject.name} · Grade 99`
+    const sgLabel = `${fx.subject.name} · Grade 12`
 
     // Unfiltered: the curriculum tree, with a checkbox at each level. `exact` on the subject-grade
     // heading is required, not defensive: role-name matching is a SUBSTRING match by default, and every
@@ -650,7 +650,7 @@ test.describe('Manage page', () => {
     // disambiguator), so a loose match resolves to the whole group and trips strict mode.
     await expect(page.getByRole('heading', { name: sgLabel, exact: true })).toBeVisible()
     await expect(sgPick(page, sgLabel)).toBeVisible()
-    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)).toBeVisible()
+    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 12`)).toBeVisible()
     // A plan with no Official version has no coordinates, so it groups under "Other" and stays
     // deletable — the Repair case must not vanish from the one panel that can clear it.
     await expect(
@@ -665,7 +665,7 @@ test.describe('Manage page', () => {
     await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toBeVisible()
     await expect(page.getByLabel(`Select ${GROUP_PLAN_B}`)).toHaveCount(0)
     await expect(sgPick(page, sgLabel)).toHaveCount(0)
-    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)).toHaveCount(0)
+    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 12`)).toHaveCount(0)
     // …and the row carries its scope inline instead, since the headings are gone.
     await expect(page.locator('.lp-delete-plans .lp-manage__meta')).toContainText(sgLabel)
 
@@ -690,13 +690,13 @@ test.describe('Manage page', () => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
     await openDeletePanel(page)
-    const sgLabel = `${fx.subject.name} · Grade 99`
+    const sgLabel = `${fx.subject.name} · Grade 12`
 
     await sgPick(page, sgLabel).check()
 
     // Every descendant strand ticks, across BOTH strands — the strand-77 pair and the coordinate-less
     // plans that group under "Other".
-    const strandBox = strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)
+    const strandBox = strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 12`)
     await expect(strandBox).toBeChecked()
     expect(await strandBox.evaluate((el) => (el as HTMLInputElement).indeterminate)).toBe(false)
     await expect(strandPick(page, 'Other', sgLabel)).toBeChecked()
@@ -746,13 +746,13 @@ test.describe('Manage page', () => {
     await page.goto(`${BASE}/admin`)
     await openDeletePanel(page)
 
-    await strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`).check()
+    await strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 12`).check()
     await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toBeChecked()
     await expect(page.getByLabel(`Select ${GROUP_PLAN_B}`)).toBeChecked()
 
     // The subject-grade above it is now INDETERMINATE — its other strands are untouched. Read off the
     // DOM property: `indeterminate` has no attribute and no Playwright matcher.
-    const sgBox = sgPick(page, `${fx.subject.name} · Grade 99`)
+    const sgBox = sgPick(page, `${fx.subject.name} · Grade 12`)
     await expect(sgBox).not.toBeChecked()
     expect(await sgBox.evaluate((el) => (el as HTMLInputElement).indeterminate)).toBe(true)
 
@@ -772,7 +772,7 @@ test.describe('Manage page', () => {
     await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toHaveCount(0)
     await expect(page.getByLabel(`Select ${GROUP_PLAN_B}`)).toHaveCount(0)
     // The strand was derived from those plans, so its heading goes with them.
-    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)).toHaveCount(0)
+    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 12`)).toHaveCount(0)
   })
 
   /**
@@ -980,6 +980,116 @@ test.describe('Manage page', () => {
   })
 
   test.describe('Users panel', () => {
+    test('Accounts and Roles & Access share compact names and emails with safe narrow-screen wrapping', async ({
+      page,
+    }) => {
+      const original = fx.users.editor
+      const name = 'MaryMargaret Welch'
+      const email = `compact-${original.id}@example.test`
+      // Use a representative identity for geometry, then restore the marked fixture for teardown.
+      await fx.payload.update({
+        collection: 'users',
+        id: original.id,
+        data: { name, email },
+        overrideAccess: true,
+      })
+      // Accounts rows are scoped to `.lp-users`; Roles & Access reuses `lp-users__row` for its groups.
+      const accountRow = (address: string) =>
+        page.locator('.lp-users .lp-users__row').filter({ hasText: address })
+      const group = accessGroups(page).filter({ has: page.locator(`#sg-${fx.subjectGrade.id}`) })
+      const editingRow = (address: string) =>
+        group.locator('.lp-manage__row--tight').filter({
+          has: page.locator('.lp-manage__who-email').filter({ hasText: address }),
+        })
+      const openAt = async (width: number, address: string) => {
+        await page.setViewportSize({ width, height: 900 })
+        await page.goto(`${BASE}/admin?open=users.accounts,users.access`)
+        await page.getByLabel('Search users by name or email').fill(address)
+        const header = group.locator('.lp-users__summary')
+        if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click()
+        await expect(header).toHaveAttribute('aria-expanded', 'true')
+      }
+      try {
+        await loginAs(page, 'siteAdmin')
+        for (const width of [1024, 1280, 1440, 360, 390]) {
+          await openAt(width, email)
+          const summary = accountRow(email).locator('.lp-users__summary')
+          const editing = editingRow(email)
+          await expect(summary).toBeVisible()
+          await expect(editing).toBeVisible()
+          await expect(summary).toHaveAttribute('aria-expanded', 'false')
+          await expect(summary.locator('.lp-users__summary-meta')).toContainText('Teacher')
+
+          const styles = []
+          for (const row of [summary, editing]) {
+            const identity = row.locator('.lp-manage__who')
+            await expect(identity.locator('.lp-manage__who-name')).toHaveText(name)
+            await expect(identity.locator('.lp-manage__who-email')).toHaveText(email)
+            styles.push(
+              await identity.evaluate((el) => {
+                const style = getComputedStyle(el)
+                return [style.display, style.alignItems, style.gap, style.flexWrap]
+              }),
+            )
+            if (width > 640) {
+              const nameBounds = await identity.locator('.lp-manage__who-name').boundingBox()
+              const emailBounds = await identity.locator('.lp-manage__who-email').boundingBox()
+              expect(Math.abs(nameBounds!.y - emailBounds!.y)).toBeLessThanOrEqual(4)
+              expect(emailBounds!.x).toBeGreaterThan(nameBounds!.x + nameBounds!.width)
+            }
+          }
+          expect(styles[0]).toEqual(styles[1])
+          await expect(summary).toHaveCSS(
+            'padding-top',
+            await editing.evaluate((el) => getComputedStyle(el).paddingTop),
+          )
+          if (width > 640) {
+            // A single identity line plus compact padding; the former forced column was ~70px.
+            expect((await summary.boundingBox())!.height).toBeLessThanOrEqual(48)
+          } else {
+            expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+          }
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+          for (const [label, row] of [
+            ['accounts', summary],
+            ['editing-access', editing],
+          ] as const) {
+            await test.info().attach(`${label}-${width}`, {
+              body: await row.screenshot(),
+              contentType: 'image/png',
+            })
+          }
+        }
+
+        // Long enough to need wrapping at 360px, and inside user search's 120-character limit.
+        const longEmail = `compact-${original.id}-${'long-address'.repeat(6)}@example.test`
+        await fx.payload.update({
+          collection: 'users',
+          id: original.id,
+          data: { email: longEmail },
+          overrideAccess: true,
+        })
+        for (const width of [360, 390]) {
+          await openAt(width, longEmail)
+          for (const row of [accountRow(longEmail), editingRow(longEmail)]) {
+            const address = row.locator('.lp-manage__who-email')
+            await expect(address).toHaveText(longEmail)
+            const bounds = await address.boundingBox()
+            expect(bounds!.x).toBeGreaterThanOrEqual(0)
+            expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+          }
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+        }
+      } finally {
+        await fx.payload.update({
+          collection: 'users',
+          id: original.id,
+          data: { name: original.name, email: original.email },
+          overrideAccess: true,
+        })
+      }
+    })
+
     test('loads only when opened; disclosures preserve a draft and actions remain usable on mobile', async ({
       page,
     }) => {
@@ -1423,7 +1533,7 @@ test.describe('Manage page', () => {
           const rect = await input.boundingBox()
           expect(rect!.width).toBeLessThan(bounds!.width / 2)
         }
-        await expect(page.getByRole('checkbox', { name: `${MARK}Biology Grade 99` })).toBeVisible()
+        await expect(page.getByRole('checkbox', { name: `${MARK}Biology Grade 12` })).toBeVisible()
       }
     })
 
@@ -1478,7 +1588,7 @@ test.describe('Manage page', () => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin?open=curriculum`)
 
-      const cell = page.getByRole('checkbox', { name: `${MARK}Biology Grade 99` })
+      const cell = page.getByRole('checkbox', { name: `${MARK}Biology Grade 12` })
       await expect(cell).toBeChecked()
 
       // The fixture puts one editing-access holder and one Subject Administrator on this
@@ -1505,15 +1615,27 @@ test.describe('Manage page', () => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin?open=curriculum`)
 
-      // "+ Grade" refuses a column that already exists — the grid's answer to a duplicate.
-      const gradeInput = grid(page).getByPlaceholder('Grade')
+      // "+ Grade" offers only Grade 1–12 columns not already shown — the grid's answer to both a
+      // duplicate and an out-of-range grade. The fixture's Grade 12 column exists, so it is absent.
+      const gradeSelect = grid(page).getByRole('combobox', { name: 'Grade to add', exact: true })
       const addGrade = grid(page).getByRole('button', { name: '+ Grade' })
-      await gradeInput.fill('99')
+      await expect(gradeSelect).toHaveValue('')
       await expect(addGrade).toBeDisabled()
+      const options = gradeSelect.locator('option')
+      const offered = await options.allTextContents()
+      expect(offered[0]).toBe('Grade…')
+      expect(offered.length).toBeGreaterThan(1)
+      for (const label of offered.slice(1)) expect(label).toMatch(/^Grade ([1-9]|1[01])$/)
 
-      await gradeInput.fill('97')
+      const grade = (await options.nth(1).getAttribute('value'))!
+      await gradeSelect.selectOption(grade)
       await addGrade.click()
-      const cell = page.getByRole('checkbox', { name: `${MARK}Biology Grade 97` })
+      await expect(gradeSelect.locator(`option[value="${grade}"]`)).toHaveCount(0)
+      // `exact`: role names match by substring, so "Grade 1" would also find the fixture's Grade 12.
+      const cell = page.getByRole('checkbox', {
+        name: `${MARK}Biology Grade ${grade}`,
+        exact: true,
+      })
       await expect(cell).not.toBeChecked()
 
       await cell.click()

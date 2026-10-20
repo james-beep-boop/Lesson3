@@ -38,7 +38,7 @@ beforeAll(async () => {
   fx = await setupRoleFixture()
   const sg = await fx.payload.create({
     collection: 'subject-grades',
-    data: { subject: fx.subject.id, grade: 97 } as never,
+    data: { subject: fx.subject.id, grade: 10 } as never,
     overrideAccess: true,
   })
   otherSubjectGrade = Number(sg.id)

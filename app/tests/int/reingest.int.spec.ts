@@ -37,7 +37,8 @@ import type { PayloadRequest } from 'payload'
 import { relId } from '../../src/lib/relId.js'
 
 let payload: Payload
-const GRADE = 97 // a grade this suite owns, distinct from the shared fixture's 99/98
+let subjectId: number
+const GRADE = 10 // a grade this suite owns, distinct from the shared fixture's 12/11
 
 /**
  * A minimal RAW ARES bundle (UPPERCASE groups) for this suite's subject/grade that BOTH passes
@@ -96,6 +97,7 @@ beforeAll(async () => {
     data: { name: `${MARK}Biology` },
     overrideAccess: true,
   })
+  subjectId = subject.id
   await payload.create({
     collection: 'subject-grades',
     data: { subject: subject.id, grade: GRADE },
@@ -340,7 +342,8 @@ describe('re-ingest (SPEC §7)', () => {
     // Force the legacy-duplicate state directly: two plans, same (subjectGrade, substrand_id).
     const { docs: sgs } = await payload.find({
       collection: 'subject-grades',
-      where: { grade: { equals: GRADE } },
+      // Scoped to this suite's subject: an in-range grade is not unique in a shared database.
+      where: { and: [{ subject: { equals: subjectId } }, { grade: { equals: GRADE } }] },
       overrideAccess: true,
       limit: 1,
     })

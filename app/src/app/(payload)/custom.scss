@@ -439,6 +439,11 @@ body {
   // phones). The panels' own contents keep their existing responsive treatments.
 }
 
+// One-line people rows: Roles & Access's tight rows and the Accounts summaries share this padding.
+@mixin manage-compact-row {
+  padding: var(--app-space-1) 0.1rem;
+}
+
 .lp-manage {
   &__desc {
     font-size: var(--app-secondary-size);
@@ -528,7 +533,7 @@ body {
   // control, to display one name. The candidate row keeps the roomier padding; it carries a title
   // AND a metadata line, so its 81px is doing work this one's 71px was not.
   &__row--tight {
-    padding: var(--app-space-1) 0.1rem;
+    @include manage-compact-row;
   }
 
   // A deployment fact can carry several lines of explanation beside a status value. Align the value
@@ -552,6 +557,12 @@ body {
     color: var(--theme-elevation-600);
     font-size: var(--app-secondary-size);
     overflow-wrap: anywhere;
+  }
+
+  &__who-name {
+    font-size: var(--app-body-size);
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 
   // Manage → System → Deployment. The facts half reuses `__row`/`__who` for layout, so only the two
@@ -855,7 +866,9 @@ body {
     cursor: pointer;
 
     &:hover .lp-users__name,
-    &:focus-visible .lp-users__name {
+    &:focus-visible .lp-users__name,
+    &:hover .lp-manage__who-name,
+    &:focus-visible .lp-manage__who-name {
       text-decoration: underline;
     }
 
@@ -863,6 +876,12 @@ body {
       outline: var(--app-btn-focus-ring) solid var(--app-accent);
       outline-offset: var(--app-btn-focus-ring-offset);
     }
+  }
+
+  // An account summary is one identity line (`PersonIdentity`), so it takes the compact row padding.
+  // Roles & Access group headers share `__summary` but carry two lines, and keep the roomier default.
+  &__summary--person {
+    @include manage-compact-row;
   }
 
   &__summary-main {
@@ -1231,10 +1250,6 @@ body {
   }
 
   // Narrow number input — grade is one or two digits.
-  &__grade-input {
-    width: 4.5rem;
-  }
-
   // Add subject form below the table — reuses taxonomy create layout.
   &__add-subject {
     display: flex;
