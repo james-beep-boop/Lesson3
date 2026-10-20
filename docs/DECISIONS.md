@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-21 — Insert link: Mark's answers — keep the tracker, drop `?prev` everywhere, avoid localhost
+
+Mark (ARES) answered the questions left open on 2026-10-20, with three example addresses:
+
+1. **Keep a tracker address as copied; it is not tracked otherwise.** This reverses the operator's
+   2026-10-18 choice to unwrap `/tracker/…_launch.html?target=…` to the plain address. The unwrapping
+   code and its origin/depth checks (#404 review) are deleted, not switched off: with nothing resolved
+   there is nothing to verify. Only the base is replaced, as for every ARES link
+   (`demo.aresedu.dev/tracker/…` → `ares.local/tracker/…`). Mark's `kiwix_launch.html` form is covered
+   without naming it.
+2. and 3. **Delete anything from `?prev`, from any address** (most are `?prevName=`; Kolibri is the
+   main and possibly only source). Applied to every matched ARES base, not to other websites, where
+   `?preview=1` is a real parameter.
+4. **`ares.local` is a safe default** (all servers are moving to mDNS). **Avoid localhost**: Kolibri
+   works at both `ares.local/kolibri/…` and `ares.local:8069/…`, but nothing on `localhost` is
+   tracked, so a `localhost` address is changed to `ares.local` (what the code already did).
+   `127.0.0.1` is the same machine and gets the same treatment; that is our reading, not Mark's words.
+   `ares.edu` stays out.
+
+⚑ **His Kolibri example exposed a bug that was already shipped.** A school server serves Kolibri at
+`ares.local/kolibri/…` on the normal port, which matched the plain site base, not a Kolibri one, so
+the 2026-10-20 Kolibri-only rule never ran on the address teachers actually copy. The tests used
+`:8069` and the demo, and both passed. Test with the real address an ARES user copies, not one built from
+our base table. Both Kolibri forms are stored as copied (only the host changes).
+
+Not changed: the stored form of demo `/kolibri` addresses (`ares.local:8069`, which Mark says works);
+existing saved links. A link saved unwrapped before this change stays untracked, and nothing can tell
+it came from a tracker. Plan A's deployment was never confirmed, so there are likely few. A tracker
+under a configured `ARES_SITE_URL` *path prefix* keeps that prefix inside its target; no installation
+uses a prefix today.
+
 ## 2026-10-21 — `src/middleware.ts` renamed to `src/proxy.ts`; the CSP nonce now runs on Node
 
 Next 16 deprecated the `middleware` file convention in favour of `proxy`, and `next build` printed

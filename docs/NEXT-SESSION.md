@@ -22,6 +22,12 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-21
 
+**Newest (2026-10-21):** Mark (ARES) answered the open Insert link questions; the fix is on
+`fix/insert-link-mark-rules` (PR, not merged). Tracker addresses are kept as copied (unwrapping
+removed; otherwise not tracked), `?prev…` is dropped from every ARES address, and `localhost` and
+`127.0.0.1` are stored as `ares.local`. It also fixes a shipped bug: Kolibri at `ares.local/kolibri/…`
+was never shortened. See DECISIONS 2026-10-21 (Mark's answers).
+
 **Latest (2026-10-21, later):** two maintenance PRs from the 2026-10-20 dependency review are merged
 (`main` at `a9c1ec4`). #422 (`6bfd033`, green CI): React 19.2.9, `@sentry/node` 10.76.2, jsdom 28.1.0,
 `nodemailer` override 10.1.7, `brace-expansion` overrides, `undici` override dropped (Payload 3.91.0

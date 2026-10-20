@@ -91,7 +91,7 @@ test('inserts labelled HTTP ARES text at the cursor, restores focus and captures
     .toContain('Plant transport video (http://ares.local/modules/plant.pdf)')
 })
 
-test('unwraps a demo tracker into stored Kolibri form without a label', async ({ page }) => {
+test('keeps a demo tracker address as copied, on ares.local, without a label', async ({ page }) => {
   await edit(page)
   await column(page).fill('')
   await openLink(page)
@@ -101,7 +101,9 @@ test('unwraps a demo tracker into stored Kolibri form without a label', async ({
       'https://demo.aresedu.dev/tracker/local_launch.html?target=%2Fkolibri%2Fen%2Flearn%2F%23%2Ftopics%2Fc%2Fabc',
     )
   await page.getByRole('button', { name: 'Insert address', exact: true }).click()
-  await expect(column(page)).toHaveValue('(http://ares.local:8069/en/learn/#/topics/c/abc)')
+  await expect(column(page)).toHaveValue(
+    '(http://ares.local/tracker/local_launch.html?target=%2Fkolibri%2Fen%2Flearn%2F%23%2Ftopics%2Fc%2Fabc)',
+  )
 })
 
 test('invalid addresses and long labels keep the dialog open with actionable errors', async ({
