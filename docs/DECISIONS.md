@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-20 — Insert link: Mark's Kolibri and localhost rules
+
+Mark (ARES) confirmed that addresses a teacher copies from ARES are already trackable, so Lesson3 needs
+no link-building module, and gave two rules, built as written: drop `?prevName=` and everything after
+it from a Kolibri address (Kolibri's navigation state makes copied links very long), and store
+`localhost` (an address copied on the ARES machine itself) as `ares.local` — modules at the standard
+ports, Kolibri at 8069. The Insert link note and help now tell teachers to copy the address from the
+browser's address bar on the ARES page.
+
+Open with Mark, deliberately not changed yet: whether opening an UNWRAPPED menu address is still
+tracked (Lesson3 unwraps `/tracker/…_launch.html` to the plain address, the operator's 2026-10-18
+choice — a one-line switch either way); whether the navigation can begin with a parameter other than
+`?prevName=`; whether the rule applies beyond Kolibri; and other local names (`127.0.0.1`, the
+machine's IP, `ares.edu`).
+
 ## 2026-10-19 — Wrong-clock warning: compare a fresh server reading, once
 
 Offline servers have no NTP; a flat clock battery after a power cut can put them years off, breaking

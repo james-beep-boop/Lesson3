@@ -143,7 +143,8 @@ export default function LinkedTextarea(
       {open && (
         <Modal title="Insert link" className="prose-link-dialog" onClose={() => setOpen(false)}>
           <p className="modal__body">
-            <strong>New feature.</strong> Paste an address from ARES or the web. It is added to the
+            <strong>New feature.</strong> On the ARES page you want, copy the address from your
+            browser’s address bar, then paste it here. Web addresses work too. It is added to the
             text in brackets and becomes a clickable link in the Word and PDF documents. Tell your
             administrator if a link does not work.
           </p>

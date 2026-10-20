@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Insert link: long Kolibri addresses are shortened automatically (their navigation part is removed),
+  and an ARES address copied on the ARES machine itself (`localhost`) is stored as `ares.local`. The
+  dialog and help now say to copy the address from the browser's address bar on the ARES page.
+
 - Manage warns Site Administrators when the server's clock and their own device's differ by more than
   an hour, as can happen on an offline school server after a power cut.
 

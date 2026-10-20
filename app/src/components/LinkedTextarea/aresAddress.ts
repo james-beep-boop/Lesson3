@@ -5,6 +5,18 @@ export type AresAddresses = { siteUrl?: string; kolibriUrl?: string; aliases?: s
 
 type AresBase = { origin: string; prefix: string; kolibri: boolean }
 
+/**
+ * Kolibri appends its own navigation state to the address a teacher copies from the address bar
+ * (`…#/topics/c/<id>?prevName=…&prevQuery=…`), which Lesson3 does not need and which makes the link
+ * very long. Mark's rule (ARES, 2026-10-20): remove `?prevName=` and everything after it, leaving the
+ * rest intact. Kolibri addresses only, until ARES says it applies more widely.
+ */
+const KOLIBRI_NAVIGATION = '?prevName='
+export const withoutKolibriNavigation = (address: string): string => {
+  const at = address.indexOf(KOLIBRI_NAVIGATION)
+  return at === -1 ? address : address.slice(0, at)
+}
+
 /** Match an origin and a whole path prefix; a shared hostname alone grants no match. */
 export function normalizeAresAddress(value: string | URL, settings: AresAddresses = {}): string {
   const bases: AresBase[] = []
@@ -15,6 +27,10 @@ export function normalizeAresAddress(value: string | URL, settings: AresAddresse
   for (const protocol of ['http:', 'https:']) {
     add(`${protocol}//ares.local`, false)
     add(`${protocol}//ares.local:8069`, true)
+    // An address copied on the ARES machine itself (Mark, ARES, 2026-10-20): same content, but only
+    // reachable from that machine, so it is stored as `ares.local` like every other ARES link.
+    add(`${protocol}//localhost`, false)
+    add(`${protocol}//localhost:8069`, true)
     add(`${protocol}//demo.aresedu.dev`, false)
     add(`${protocol}//demo.aresedu.dev/kolibri`, true)
     for (const alias of settings.aliases ?? []) {
@@ -57,7 +73,8 @@ export function normalizeAresAddress(value: string | URL, settings: AresAddresse
       const external = parseExternalUrl(target)
       return external ? normalize(external, depth + 1) : address
     }
-    return `http://ares.local${base.kolibri ? ':8069' : ''}${relativePath}${url.search}${url.hash}`
+    const stored = `http://ares.local${base.kolibri ? ':8069' : ''}${relativePath}${url.search}${url.hash}`
+    return base.kolibri ? withoutKolibriNavigation(stored) : stored
   }
   return normalize(value, 0)
 }

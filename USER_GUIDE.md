@@ -245,8 +245,9 @@ These rules are also available from *Help* at the top of the editor.
 - Start a new line to make a new paragraph.
 - Start a line with `- ` to make a bullet.
 - While editing, place the cursor in Learner experience, Teacher moves, Sensemaking strategy or
-  Formative assessment, then choose Insert link in the toolbar. Paste an address from ARES or the web
-  and add an optional label. To link an ARES PDF, open it in ARES and copy its address. If PDFs on the
+  Formative assessment, then choose Insert link in the toolbar. Copy the address from your browser's
+  address bar on the ARES page (or any web page), paste it, and add an optional label. Long Kolibri
+  addresses are shortened automatically. To link an ARES PDF, open it in ARES and copy its address. If PDFs on the
   Rock is shown, you can choose a PDF there instead. The address is inserted in parentheses at the
   cursor, after your label if supplied. Links become clickable on screen and in Word and PDF documents,
   except inside table text. Web and PDF links open separately so your editing page stays open. Insert
