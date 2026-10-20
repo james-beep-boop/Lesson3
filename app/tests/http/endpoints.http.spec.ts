@@ -280,7 +280,19 @@ describe('read-only PDF resource library', () => {
   })
 })
 
-describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () => {
+describe('Document CSP (Phase 5 A3 — per-request nonce via src/proxy.ts)', () => {
+  const nonceOf = (res: Response) =>
+    /'nonce-([^']+)'/.exec(res.headers.get('content-security-policy') ?? '')?.[1]
+  /**
+   * Every `<script …>` open tag's `nonce` attribute, `null` where a tag has none. Raw HTML keeps the
+   * attribute (browsers hide it from the DOM only after parsing), so this sees what the CSP checks.
+   * Added 2026-10-21 with the middleware → proxy rename, which moved this path from Edge to Node:
+   * "the nonce appears somewhere in the body" would pass with a single stamped script and the rest
+   * blocked, which is the blank-admin failure in miniature.
+   */
+  const scriptNonces = (html: string) =>
+    [...html.matchAll(/<script\b[^>]*>/g)].map((m) => /\snonce="([^"]*)"/.exec(m[0])?.[1] ?? null)
+
   it('GET /login → strict nonce CSP; the nonce reaches the rendered scripts; fresh per request', async () => {
     const res = await fetch(url('/login'))
     expect(res.status).toBe(200)
@@ -293,8 +305,10 @@ describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () =>
     expect(nonce).toBeTruthy()
     // Next's renderer must pick the nonce up from the forwarded request header and stamp it onto
     // its inline/framework scripts — a CSP whose nonce never reaches the <script> tags would block
-    // hydration everywhere.
-    expect(await res.text()).toContain(nonce!)
+    // hydration everywhere. EVERY script tag, not merely one: a tag without it is blocked.
+    const nonces = scriptNonces(await res.text())
+    expect(nonces.length).toBeGreaterThan(0)
+    expect(new Set(nonces)).toEqual(new Set([nonce]))
 
     const res2 = await fetch(url('/login'))
     const nonce2 = /'nonce-([^']+)'/.exec(res2.headers.get('content-security-policy') ?? '')?.[1]
@@ -306,24 +320,48 @@ describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () =>
     const res = await fetch(url('/admin'), { redirect: 'manual', headers: auth('siteAdmin') })
     const csp = res.headers.get('content-security-policy') ?? ''
     expect(csp).toContain("'strict-dynamic'")
+    // …and Payload's rendered admin shell is stamped too — a mismatch here is a blank admin.
+    expect(res.status).toBe(200)
+    const nonces = scriptNonces(await res.text())
+    expect(nonces.length).toBeGreaterThan(0)
+    expect(new Set(nonces)).toEqual(new Set([nonceOf(res)]))
   })
 
   it('…and on the unauthenticated /admin response (redirect or shell — still a document)', async () => {
     const res = await fetch(url('/admin'), { redirect: 'manual' })
     // Whatever the shell answers without auth (redirect to login / unauthorized view), the
-    // middleware must have stamped the document policy on that response.
+    // proxy must have stamped the document policy on that response.
     const csp = res.headers.get('content-security-policy') ?? ''
     expect(csp).toContain("'strict-dynamic'")
   })
 
-  it('API routes carry no middleware CSP (documents only; preview keeps its own strict one)', async () => {
+  it('API routes carry no proxy CSP (documents only; preview keeps its own strict one)', async () => {
     const res = await fetch(url('/api/users/me'))
     expect(res.headers.get('content-security-policy')).toBeNull()
   })
 
+  it('the matcher skips prefetches and static assets (no document, no nonce)', async () => {
+    // The two `missing` header conditions in the proxy's matcher, one at a time.
+    const prefetches: Record<string, string>[] = [
+      { 'next-router-prefetch': '1' },
+      { purpose: 'prefetch' },
+    ]
+    for (const headers of prefetches) {
+      const res = await fetch(url('/login'), { headers })
+      expect(res.headers.get('content-security-policy'), JSON.stringify(headers)).toBeNull()
+    }
+    // A real build chunk, taken from a rendered document so the path is never stale.
+    const html = await (await fetch(url('/login'))).text()
+    const chunk = /\ssrc="(\/_next\/static\/[^"]+\.js)"/.exec(html)?.[1]
+    expect(chunk).toBeTruthy()
+    const asset = await fetch(url(chunk!))
+    expect(asset.status).toBe(200)
+    expect(asset.headers.get('content-security-policy')).toBeNull()
+  })
+
   /**
    * The BASELINE headers, which come from `next.config.ts`'s `headers()` rather than from the
-   * middleware — the CSP is separate only because it needs a per-request nonce.
+   * proxy — the CSP is separate only because it needs a per-request nonce.
    *
    * ⚑ WRITTEN BECAUSE AN EXTERNAL REVIEW REPORTED ALL FOUR AS MISSING (2026-08-19). They were not;
    * the reviewer read `middleware.ts` alone. But nothing in this suite asserted them either, so the

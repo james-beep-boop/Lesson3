@@ -3,7 +3,7 @@
  *
  * The next.config baseline CSP deliberately omitted `default-src`/`script-src` because Next.js
  * hydrates via inline scripts — a strict policy needs a per-request nonce, which static
- * `headers()` rules can't mint. This middleware closes that gap: it generates a nonce per
+ * `headers()` rules can't mint. This proxy closes that gap: it generates a nonce per
  * request, sets the full policy on the RESPONSE, and forwards the same policy as a REQUEST
  * header — Next's app renderer reads the nonce from the incoming `content-security-policy`
  * header (`getScriptNonceFromHeader`, verified in installed next@16 app-render.js) and stamps it
@@ -35,10 +35,18 @@
  * an unknown URL shows the (pure-text, zero-interactivity) 404 page unhydrated, with console
  * noise. Client-side navigation to an unknown route renders not-found in the already-hydrated
  * document and is unaffected. Not worth forcing those shells dynamic for.
+ *
+ * Runtime (2026-10-21): this file was `src/middleware.ts` until Next 16 deprecated that name. Unlike
+ * middleware, which defaulted to Edge, a proxy ALWAYS runs on Node.js and refuses a `runtime`
+ * segment config at build (verified in installed next@16.4.2 `get-page-static-info.js` and
+ * `entries.js`) — so declare none. Nothing here is Edge-only: `crypto.getRandomValues`, `btoa` and
+ * `Headers` are Node 24 globals. Reaching Postgres is now technically possible here; that does NOT
+ * reopen DESIGN-next-direction-2026-08-19 §B — the public-library flag is still resolved in the
+ * route handler, where the 404 boundary lives (DECISIONS 2026-10-21).
  */
 import { NextResponse, type NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest): NextResponse {
+export function proxy(request: NextRequest): NextResponse {
   const nonceBytes = new Uint8Array(16)
   crypto.getRandomValues(nonceBytes)
   const nonce = btoa(String.fromCharCode(...nonceBytes))

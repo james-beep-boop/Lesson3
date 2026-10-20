@@ -46,7 +46,7 @@ const nextConfig: NextConfig = {
   // to the frontend /login. The latter matters on an offline install: technicians familiar with
   // Payload otherwise bypass Lesson3's explicit setup entry point and may conclude email is still
   // required. A static config redirect fires before the /admin routes resolve, so it cannot 404 and
-  // needs no middleware. Everyone lands on The App home after signing in; admins use the "Admin"
+  // needs no proxy. Everyone lands on The App home after signing in; admins use the "Admin"
   // link in the header to enter /admin.
   //
   // Backward-compat aliases for the two nav LABELS ("Lessons", "Manage"). The canonical routes are
@@ -64,8 +64,8 @@ const nextConfig: NextConfig = {
     ]
   },
   // Baseline non-CSP security headers (hardening backlog #3) on every route. The CSP moved to
-  // src/middleware.ts (Phase 5 A3): a strict `default-src`/`script-src` policy needs a per-request
-  // nonce, which static headers() rules can't mint. Middleware covers document routes only and
+  // src/proxy.ts (Phase 5 A3): a strict `default-src`/`script-src` policy needs a per-request
+  // nonce, which static headers() rules can't mint. The proxy covers document routes only and
   // skips `/api/*`, so the preview endpoint's own strict `default-src 'none'` Response CSP still
   // reaches the client uncontested (the old negative-lookahead CSP rule here is superseded —
   // history: a next.config CSP OVERRIDES a route handler's Response CSP, verified 2026-06-28).

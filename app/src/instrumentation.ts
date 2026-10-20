@@ -8,8 +8,10 @@
  *     handlers, server actions and proxies; forwards to the tracker with route context only
  *     (the request HEADERS Next passes are deliberately dropped — they carry auth cookies).
  *
- * Both guard on NEXT_RUNTIME === 'nodejs' with dynamic imports so the edge-runtime bundle
- * (middleware) never pulls in `@sentry/node`.
+ * Both guard on NEXT_RUNTIME === 'nodejs' with dynamic imports so the edge-runtime bundle never
+ * pulls in `@sentry/node`. No app code runs on Edge since `src/proxy.ts` replaced the middleware
+ * (2026-10-21; proxy is Node-only), but Next still compiles this file for both runtimes
+ * (`runDependingOnPageType` in installed next@16.4.2 `build/entries.js`), so the guard stays.
  */
 import type { Instrumentation } from 'next'
 

@@ -105,7 +105,7 @@ export default buildConfig({
   admin: {
     user: Users.slug,
     // Payload's account avatar defaults to GRAVATAR — an external image fetch that both violates
-    // the strict CSP (img-src 'self', middleware.ts) and leaks a hash of every admin's email to a
+    // the strict CSP (img-src 'self', proxy.ts) and leaks a hash of every admin's email to a
     // third party. 'default' renders Payload's built-in initials avatar instead; the app's own nav
     // avatar (AppNav) was always initials-based. Surfaced by the Phase 5 A3 browser check.
     avatar: 'default',

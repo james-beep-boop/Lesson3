@@ -4,7 +4,7 @@
  * WHY THE CEILING EXISTS. `parseIds` caps the ids at 500, which bounds what the endpoint USES — it
  * does nothing about what it READS. Before the guard, `req.json()` buffered whatever arrived before
  * a single element was inspected, and nothing else bounded it: Next's App Router route handlers
- * impose no default body limit, `src/middleware.ts` only sets CSP, and this endpoint declares no
+ * impose no default body limit, `src/proxy.ts` only sets CSP, and this endpoint declares no
  * rate bucket, so the request was repeatable without limit.
  *
  * ⚑ THE LOAD-BEARING ASSERTION IS THAT THE BODY IS NEVER READ. A 413 returned after `req.json()`
