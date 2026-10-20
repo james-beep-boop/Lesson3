@@ -8,22 +8,37 @@ import { Button, useConfig } from '@payloadcms/ui'
 import { apiBaseFrom } from '../../lib/apiBase'
 import { wireErrorMessage } from '../../lib/wireError'
 import Modal from '../Modal'
-import { featuresReducer, pendingChanges } from './systemFeaturesState'
+import { SAVEABLE_FLAGS, type SaveableFlag } from '../../lib/systemFlagNames'
+import { featuresReducer, pendingChanges, type FeatureValues } from './systemFeaturesState'
 
 export interface FeaturesSnapshot {
-  enabled: boolean
+  features: FeatureValues
   updatedAt: string
 }
 
-/** Only the saveable forum flag is offered. Other stored flags have no enforcement yet. */
+/** What each saveable switch is called, in sentences ("switch Discussions off") and on its checkbox. */
+const SWITCHES: Record<SaveableFlag, { name: string; label: string; description?: string }> = {
+  forumEnabled: { name: 'Discussions', label: 'Discussions enabled' },
+  advancedTools: {
+    name: 'Advanced tools',
+    label: 'Advanced tools',
+    description:
+      'Shows additional editing and sharing tools. It does not change anyone’s permissions.',
+  },
+}
+const change = (flag: SaveableFlag, enabled: boolean) =>
+  `switch ${SWITCHES[flag].name} ${enabled ? 'on' : 'off'}`
+const sentence = (text: string) => `${text[0].toUpperCase()}${text.slice(1)}.`
+
+/** The saveable switches only. Other stored flags have no enforcement yet. */
 export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) {
   const { config } = useConfig()
   const router = useRouter()
   const passwordId = useId()
   const inFlight = useRef(false)
   const [state, dispatch] = useReducer(featuresReducer, {
-    saved: initial.enabled,
-    pending: initial.enabled,
+    saved: initial.features,
+    pending: initial.features,
     updatedAt: initial.updatedAt,
   })
   const [open, setOpen] = useState(false)
@@ -69,15 +84,21 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
       const result = await response.json()
       if (
         typeof result.updatedAt !== 'string' ||
-        typeof result.features?.forumEnabled !== 'boolean'
+        SAVEABLE_FLAGS.some((flag) => typeof result.features?.[flag] !== 'boolean')
       )
         throw new Error('Unconfirmed Save response')
-      dispatch({
-        type: 'saved',
-        enabled: result.features.forumEnabled,
-        updatedAt: result.updatedAt,
-      })
-      setMessage(`Discussions switched ${result.features.forumEnabled ? 'on' : 'off'}.`)
+      const saved = Object.fromEntries(
+        SAVEABLE_FLAGS.map((flag) => [flag, result.features[flag] as boolean]),
+      ) as FeatureValues
+      dispatch({ type: 'saved', features: saved, updatedAt: result.updatedAt })
+      setMessage(
+        Object.keys(changes)
+          .map(
+            (flag) =>
+              `${SWITCHES[flag as SaveableFlag].name} switched ${saved[flag as SaveableFlag] ? 'on' : 'off'}.`,
+          )
+          .join(' '),
+      )
       setOpen(false)
       router.refresh()
     } catch {
@@ -99,23 +120,30 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
         Changes take effect only when you save. Switching Discussions off hides the forum and its
         entry points; existing discussions are kept.
       </p>
-      <div className="lp-manage__row lp-manage__row--tight">
-        <label>
-          <input
-            type="checkbox"
-            checked={state.pending}
-            disabled={busy || needsReload}
-            onChange={(event) => {
-              dispatch({ type: 'toggle', enabled: event.target.checked })
-              setMessage(null)
-            }}
-          />{' '}
-          Discussions enabled
-        </label>
-        <Link href="/discuss" className="lp-manage__link">
-          Moderate discussions
-        </Link>
-      </div>
+      {SAVEABLE_FLAGS.map((flag) => (
+        <div key={flag} className="lp-manage__row lp-manage__row--tight">
+          <label>
+            <input
+              type="checkbox"
+              checked={state.pending[flag]}
+              disabled={busy || needsReload}
+              onChange={(event) => {
+                dispatch({ type: 'toggle', flag, enabled: event.target.checked })
+                setMessage(null)
+              }}
+            />{' '}
+            {SWITCHES[flag].label}
+          </label>
+          {flag === 'forumEnabled' && (
+            <Link href="/discuss" className="lp-manage__link">
+              Moderate discussions
+            </Link>
+          )}
+          {SWITCHES[flag].description && (
+            <span className="lp-manage__fact-description">{SWITCHES[flag].description}</span>
+          )}
+        </div>
+      ))}
       <Button
         className="lp-btn lp-btn--compact"
         buttonStyle="primary"
@@ -131,7 +159,11 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
       </Button>
       {changes && (
         <p className="lp-manage__desc" role="status">
-          Unsaved change: switch Discussions {state.pending ? 'on' : 'off'}.
+          {Object.keys(changes).length === 1 ? 'Unsaved change: ' : 'Unsaved changes: '}
+          {Object.entries(changes)
+            .map(([flag, enabled]) => change(flag as SaveableFlag, enabled as boolean))
+            .join('; ')}
+          .
         </p>
       )}
       {message && <p role="status">{message}</p>}
@@ -154,7 +186,10 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
               void save()
             }}
           >
-            <p>Switch Discussions {state.pending ? 'on' : 'off'}.</p>
+            {changes &&
+              Object.entries(changes).map(([flag, enabled]) => (
+                <p key={flag}>{sentence(change(flag as SaveableFlag, enabled as boolean))}</p>
+              ))}
             <label className="modal__field" htmlFor={passwordId}>
               Your password
               <input

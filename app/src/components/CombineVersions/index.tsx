@@ -57,6 +57,7 @@ export default function CombineVersions({
   valueFor,
   onMessage,
   onNarrow,
+  startSignal = 0,
 }: {
   id: number
   versions: VersionChoice[]
@@ -72,6 +73,12 @@ export default function CombineVersions({
   valueFor: (conflict: CombineConflict) => string
   onMessage: (message: string) => void
   onNarrow: () => void
+  /**
+   * Incremented by the editor's More ▾ → Combine versions (2026-10-20) to open the picker. The start
+   * control lives in that menu, shown only with Advanced tools; everything that CONTINUES a Combine —
+   * the `combineWith` hand-off below and the conflict panel — works in any mode.
+   */
+  startSignal?: number
 }) {
   const [open, setOpen] = useState(false)
   const [other, setOther] = useState('')
@@ -124,24 +131,21 @@ export default function CombineVersions({
       }
     }
   }
+  useEffect(() => {
+    if (!startSignal || !available || editing || versions.length < 2) return
+    if (!editingAvailableAtWidth(window.innerWidth)) {
+      onNarrow()
+      return
+    }
+    // Opening on an explicit request from the More menu, not derived from props.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(true)
+    // Only a new request opens it; the other values are read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSignal])
   const plan = comparison?.plan
   return (
     <>
-      {available && !editing && versions.length >= 2 && (
-        <Button
-          size="small"
-          buttonStyle="secondary"
-          onClick={() => {
-            if (!editingAvailableAtWidth(window.innerWidth)) {
-              onNarrow()
-              return
-            }
-            setOpen(true)
-          }}
-        >
-          Combine versions
-        </Button>
-      )}
       {open && (
         <Modal title="Combine versions" onClose={close} className="modal--combine">
           {error && <p role="alert">{error}</p>}

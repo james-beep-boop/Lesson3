@@ -69,6 +69,8 @@ import CombineVersions, {
   type VersionChoice,
 } from '../CombineVersions'
 import { combineFieldUpdates } from '../CombineVersions/applyOverlay'
+import { resolveMode, showsAction } from '../../lib/advancedTools'
+import { MoreMenu } from './MoreMenu'
 import {
   ComparisonError,
   DRAFT_COMPARISON_FAILED,
@@ -235,6 +237,12 @@ export default function LessonControls({
   // The class marks SHOWN, not hidden: hiding is the CSS default, so the sidebar never paints and
   // then disappears on load the way a state-only default would (the effect runs after first paint).
   const [detailsShown, setDetailsShown] = useState(false)
+  // Standard / Advanced tools (2026-10-20, `lib/advancedTools.ts`): display only. Standard hides the
+  // ways to START a Combine and the details toggle; nothing that CONTINUES a Combine is gated.
+  const mode = resolveMode(flags)
+  const offerCombine = showsAction(mode, 'combineVersions')
+  const offerDetails = showsAction(mode, 'showDetails')
+  const [combineSignal, setCombineSignal] = useState(0)
   useEffect(() => {
     document.body.classList.toggle('lp-details-shown', detailsShown)
     return () => document.body.classList.remove('lp-details-shown')
@@ -995,7 +1003,7 @@ export default function LessonControls({
 
   return (
     <div className={wrapClass}>
-      {canEdit && !editing && savedDraftSuggestion?.semver && (
+      {offerCombine && canEdit && !editing && savedDraftSuggestion?.semver && (
         <Button
           size="small"
           buttonStyle="secondary"
@@ -1047,6 +1055,7 @@ export default function LessonControls({
         }}
         onMessage={setMsg}
         onNarrow={() => setTooNarrow(true)}
+        startSignal={combineSignal}
       />
       {combineFailure && (
         <Button
@@ -1231,14 +1240,35 @@ export default function LessonControls({
               something a long scroll away and read as a dead button (reported 2026-08-23). Bringing it
               into view is the fix; hiding the button below some width would just remove the three
               provenance fields from the people most likely to be on a small screen. */}
-          <Button buttonStyle="secondary" size="small" onClick={onToggleDetails}>
-            {detailsShown ? 'Hide details' : 'Show details'}
-          </Button>
           {canEdit && (
             <Button buttonStyle="secondary" size="small" onClick={() => setHelpOpen(true)}>
               Help
             </Button>
           )}
+          {/* Advanced tools only. Each item keeps its own conditions — the menu never offers what
+              this person could not otherwise use. */}
+          <MoreMenu
+            items={[
+              ...(offerCombine && canEdit && !editing && versions.length >= 2
+                ? [
+                    {
+                      key: 'combine',
+                      label: 'Combine versions',
+                      onSelect: () => setCombineSignal((n) => n + 1),
+                    },
+                  ]
+                : []),
+              ...(offerDetails
+                ? [
+                    {
+                      key: 'details',
+                      label: detailsShown ? 'Hide details' : 'Show details',
+                      onSelect: onToggleDetails,
+                    },
+                  ]
+                : []),
+            ]}
+          />
           {/* "Post about these changes" (discussions §16.1, the after-save entry point): Save lands
               here, on the new version's page, so this is the clean saved-version surface. View mode
               only, and only for the version's own author — it is about THEIR changes. A full
@@ -1312,7 +1342,7 @@ export default function LessonControls({
           readOnly={recovery.entry.readOnly}
           busy={restoring}
           newerVersion={
-            draftCombineSuggestion?.semver && semver
+            offerCombine && draftCombineSuggestion?.semver && semver
               ? {
                   source: semver,
                   newer: draftCombineSuggestion.semver,

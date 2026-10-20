@@ -553,6 +553,26 @@ other failure (an exhausted budget, a timeout) offers *Retry combination* and ke
 permanently dropped the second parent). Authentication, source authorization and capture fencing are unchanged. Deleting the editing
 source still cascades its draft away; no draft is retained after source deletion.
 
+### Standard and Advanced tools (operator decision 2026-10-20)
+
+A site-wide **Advanced tools** switch (Manage → System → Features, the same password-confirmed Save
+and provenance as Discussions) decides whether the less-used tools are shown. **Default off
+(Standard)** — existing installations also start in Standard. The switch is **display only**: it
+changes no permission, no endpoint and no stored content, and every hidden action keeps its own
+server-side authorization. One list (`lib/advancedTools.ts`) names the advanced actions and one
+resolver (`resolveMode`, today the site switch alone) decides the mode.
+
+- **Advanced adds** the editor's **More ▾** menu, holding **Combine versions** and **Show details**,
+  and, in the lesson page's **Share ▾**, **Download as JSON** and **Email all**.
+- **Insert link is everyday**, never advanced.
+- **Advanced never reveals what the person cannot use:** no Email all without email set up, no
+  Combine without editing access and two versions. More ▾ is absent when it would be empty.
+- **Standard hides only the ways to START a Combine** — the More item, the "Combine with {version}"
+  shortcut after a save, and the restore prompt's suggestion to combine with a newer version. A
+  Combine already under way (its draft, conflict choices, Retry, Save, Discard) carries on in either
+  mode, and switching mode never changes anyone's drafts.
+- First increment: the editor and the lesson page only. Manage is unchanged.
+
 ## 6. Versioning
 
 - The versioned unit is the **whole sub-strand bundle**. Each save is an **immutable snapshot**.

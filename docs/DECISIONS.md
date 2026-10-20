@@ -11,6 +11,33 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-20 — Standard and Advanced tools: a site-wide switch, display only
+
+First step of the hiding-complexity plan (`docs/DESIGN-modes-connectivity-network-2026-10-19.md`). A
+Site Administrator switches **Advanced tools** on in Manage → System → Features; off (Standard) is the
+default, and existing installations also start in Standard — the release notes must say so. Advanced
+adds the editor's **More ▾** (Combine versions, Show details) and, in the lesson page's Share menu,
+Download as JSON and Email all. The rules are SPEC §5 "Standard and Advanced tools".
+
+Decisions, with reasons:
+
+- **Insert link stays everyday** (operator, after discussion): teachers add ARES links in ordinary
+  editing; hiding it would hide the one tool Mark's link work is for.
+- **Download as JSON and Email all stay in Share**, shown only in Advanced (operator, agreeing with
+  Codex), rather than moving to More: Share is where a teacher already looks for them.
+- **Standard hides only the ways to START a Combine** (Codex). Hiding the conflict panel, Retry or
+  Save would strand a teacher whose administrator switched modes mid-combination, so an unfinished
+  Combine carries on in either mode; a browser test switches mode between saving and restoring one.
+- **Display only.** Every hidden action keeps its own server authorization, and Advanced never shows
+  what the person cannot use (no Email without email set up; no Combine without editing access). The
+  JSON download endpoint had no wire tests at all; they were added (401, 404, a Teacher's 200 in
+  Standard).
+- **One list and one resolver** (`lib/advancedTools.ts`). `resolveMode` reads only the site switch
+  for now; subject-grade and personal overrides (the operator's eventual plan) will extend the
+  resolver, not the call sites.
+- **More ▾ is a disclosure, not an ARIA menu**: a button with `aria-expanded` and a list of ordinary
+  buttons, Escape returning focus — fewer keyboard rules to get wrong for two items.
+
 ## 2026-10-20 — Insert link: Mark's Kolibri and localhost rules
 
 Mark (ARES) confirmed that addresses a teacher copies from ARES are already trackable, so Lesson3 needs
