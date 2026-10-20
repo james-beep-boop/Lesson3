@@ -28,8 +28,12 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 now pins 7.29.1). #423 (`a9c1ec4`): `src/middleware.ts` → `src/proxy.ts` (Next 16 convention; proxy
 is Node-only) with a stricter every-script-nonce CSP wire test. ⚑ #423 merged while its CI run
 (39503879660, head `fb58c11`) was still in progress — `gh pr merge --auto` merges at once because
-`main` has no required checks; its local gates passed on top of `6bfd033`. Confirm that run and the
-`main` run for `a9c1ec4` are green before releasing. Still open from the review: remove
+`main` has no required checks; its local gates passed on top of `6bfd033`. Both turned out green: the
+PR run passed, and the `main` run for `b196d39` (which includes both merges) passed; the `6bfd033`
+and `a9c1ec4` `main` runs were cancelled by the next push, as usual. The stale branches
+`docs/defer-direct-draft-update`, `docs/phase4-scope-proposal` and `codex/backup-recovery-guidance`
+were deleted after checking their content had landed (#405/#406, the DECISIONS phase 4 record, #396).
+Still open from the review: remove
 `turbopackMinify: false` once Payload's 3.x backport (payloadcms/payload#18775) ships; Node 24.22.0;
 React 19.3, Playwright 1.64 and the majors each as their own change; Payload 4 is beta only.
 Neither PR is released or deployed.
