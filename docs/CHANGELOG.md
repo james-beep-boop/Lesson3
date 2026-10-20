@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Manage warns Site Administrators when the server's clock and their own device's differ by more than
+  an hour, as can happen on an offline school server after a power cut.
+
 - Groundwork for a future network of schools: every lesson plan, version and person gets a permanent
   worldwide id, ARES uploads get a release fingerprint, and each installation an id, shown under
   Manage → System. Nothing changes for teachers.

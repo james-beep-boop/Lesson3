@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-19 — Wrong-clock warning: compare a fresh server reading, once
+
+Offline servers have no NTP; a flat clock battery after a power cut can put them years off, breaking
+draft expiry, dates and sign-in timeouts. Manage now warns Site Administrators when the server and
+their device differ by more than an hour, in Codex's wording ("The server and this device show
+different times…"), since either clock could be the wrong one.
+
+Two design points from review: compare **instants** (epoch milliseconds), so time zones alone never
+warn; and read the server's time **fresh** from a new Site-Admin-only `GET /api/server-time` (wire
+tested 401/403/200, `no-store`) when the warning appears, rather than a timestamp rendered into the
+page — a Back navigation can restore Manage from Next.js's client cache with a reading hours old. It
+checks once per appearance and never re-compares while the page stays open; a failed check shows
+nothing. The device side is the request's midpoint, cancelling network delay — and (Codex's review)
+a reading whose round trip exceeded 30 seconds is discarded, because a device that sleeps while the
+request is in flight resumes hours later and the midpoint invents a discrepancy. The round trip is
+measured on the wall clock, which counts through suspension; a timer does not reliably fire across it.
+
 ## 2026-10-19 — Worldwide identity: foundations before offline schools hold their own data
 
 Offline schools go live within days, and once their data lives on machines nobody can reach, adding
