@@ -29,6 +29,7 @@ import {
 } from '../Manage/SubjectsAndGradesPanel'
 import { UsersPanel } from '../Manage/UsersPanel'
 import { UnsavedWorkList, type UnsavedWorkItem } from '../Manage/UnsavedWorkList'
+import { ClockCheck } from '../Manage/ClockCheck'
 import { listUnsavedWork } from '../../lib/editRecovery/unsavedWork'
 import { captureKeptUntil } from '../../lib/editRecovery/ttl'
 import { formatDay } from '../../lib/formatDate'
@@ -573,6 +574,8 @@ export default async function AdminDashboard({
           fixed count this comment has carried has gone stale, most recently by forgetting System. */}
       {/* Above the accordion, and only when non-empty — see the ⚑ in UnsavedWorkList for why this is
           not a panel. */}
+      {/* Site Administrators only: an offline server's clock can drift years after a power cut. */}
+      {siteAdmin && <ClockCheck />}
       <UnsavedWorkList rows={unsavedRows} />
       {awaitingApproval > 0 && (
         <section className="lp-manage__awaiting" aria-labelledby="lp-awaiting-heading">

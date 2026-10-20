@@ -745,6 +745,12 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   only; it cannot start a backup or restore data. Ask the person who manages the
                   server to change its settings.
                 </p>
+                <p>
+                  If <em>Manage</em> says the server and this device show different times: a school
+                  server with no internet cannot set its own clock, and can lose the time after a
+                  power cut. Saved dates, draft expiry and sign-in timeouts depend on the server’s
+                  clock, so ask the person who manages the server to check its date and time.
+                </p>
               </GuideAccordionPanel>
             )}
 

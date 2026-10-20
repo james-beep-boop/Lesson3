@@ -32,6 +32,7 @@ import {
   resourceLibraryFileEndpoint,
   resourceLibraryListEndpoint,
 } from './endpoints/resourceLibrary'
+import { serverTimeEndpoint } from './endpoints/serverTime'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -84,7 +85,8 @@ export default buildConfig({
   // Read-only proof-of-concept library: authenticated users may list/serve PDFs from the one
   // PDF_LIBRARY_DIR mount. The endpoint itself owns the filesystem boundary; no collection or
   // database row is created, and the app has no upload/delete surface.
-  endpoints: [resourceLibraryListEndpoint, resourceLibraryFileEndpoint],
+  // Plus the Manage page's wrong-clock check (Site-Admin-only; `endpoints/serverTime.ts`).
+  endpoints: [resourceLibraryListEndpoint, resourceLibraryFileEndpoint, serverTimeEndpoint],
   // Absolute base URL. Setting it makes Payload add it to the CSRF allowlist, which then
   // requires cookie-auth requests to carry a matching Origin OR a `Sec-Fetch-Site` header
   // — browsers that send neither on same-origin GETs (e.g. older Safari) get bounced back

@@ -200,6 +200,10 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   successful backup means an encrypted copy was sent; it does not prove the backup can be restored.
   *Manage → System → Installation status* reports status only; it cannot start a backup or restore
   data. Ask the person who manages the server to change its settings.
+- **If Manage says the server and this device show different times:** a school server with no
+  internet cannot set its own clock, and can lose the time after a power cut. Saved dates, draft
+  expiry and sign-in timeouts depend on the server's clock, so ask the person who manages the server
+  to check its date and time.
 - **Switch Discussions on or off:** in **Manage → System → Features**, change **Discussions enabled**
   and choose **Save**. Review the change and enter your password. The switch stays unchanged until
   Save succeeds. If someone else saved settings first, reload before saving.
