@@ -56,49 +56,34 @@ describe('ARES stored addresses', () => {
         'https://learn.test/content/tracker/local_launch.html?target=%2Fcontent%2Fen%2F%23x',
         settings,
       ),
-    ).toBe('http://ares.local:8069/en/#x')
+    ).toBe('http://ares.local:8069/tracker/local_launch.html?target=%2Fcontent%2Fen%2F%23x')
   })
 
-  it('unwraps both trusted tracker forms with exactly one query decoding step', () => {
-    expect(
-      normalize(
-        'https://demo.aresedu.dev/tracker/local_launch.html?target=%2Fkolibri%2Fen%2Flearn%2F%23%2Ftopics%2Fc%2Fa',
-      ),
-    ).toBe('http://ares.local:8069/en/learn/#/topics/c/a')
-    expect(
-      normalize('http://ares.local/tracker/local_launch.html?target=%2Fmodules%2Fa%2520b.pdf'),
-    ).toBe('http://ares.local/modules/a%20b.pdf')
-    expect(
-      normalize(
-        'https://demo.aresedu.dev/tracker/external_launch.html?target=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Dabc',
-      ),
-    ).toBe('https://www.youtube.com/watch?v=abc')
-    expect(
-      normalize(
-        'https://demo.aresedu.dev/tracker/external_launch.html?target=https%3A%2F%2Fdemo.aresedu.dev%2Fmodules%2Fa.pdf',
-      ),
-    ).toBe('http://ares.local/modules/a.pdf')
-  })
-
+  /** Mark (ARES, 2026-10-21): a visit is counted only through the tracker, so keep it as copied. */
   it.each([
-    '',
-    '?target=bad',
-    '?target=%2F%2Fevil.test%2Fa',
-    '?target=%5Cevil',
-    '?target=%0A',
-    '?target=%2F%09%2Fevil.test%2Fa',
-    '?target=%2F%2F%5B',
-    '?target=%2F%2Fevil.test%3Abadport%2Fa',
-  ])('leaves malformed local wrappers untouched: %s', (query) => {
-    const input = `http://ares.local/tracker/local_launch.html${query}`
+    [
+      'http://ares.local/tracker/kiwix_launch.html?target=/kiwix/wiki_history/wikipedia_en_history_maxi_2023-10/A/index',
+      'http://ares.local/tracker/kiwix_launch.html?target=/kiwix/wiki_history/wikipedia_en_history_maxi_2023-10/A/index',
+    ],
+    [
+      'https://demo.aresedu.dev/tracker/local_launch.html?target=%2Fkolibri%2Fen%2Flearn%2F%23%2Ftopics%2Fc%2Fa',
+      'http://ares.local/tracker/local_launch.html?target=%2Fkolibri%2Fen%2Flearn%2F%23%2Ftopics%2Fc%2Fa',
+    ],
+    [
+      'https://demo.aresedu.dev/tracker/external_launch.html?target=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Dabc',
+      'http://ares.local/tracker/external_launch.html?target=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Dabc',
+    ],
+    [
+      'http://localhost/tracker/local_launch.html?module_id=x&target=%2Fmodules%2FPhET%2Fa.html',
+      'http://ares.local/tracker/local_launch.html?module_id=x&target=%2Fmodules%2FPhET%2Fa.html',
+    ],
+  ])('keeps the tracker in %s, replacing only the base', (input, expected) =>
+    expect(normalize(input)).toBe(expected),
+  )
+
+  it('leaves a tracker address on an unknown website untouched', () => {
+    const input = 'https://evil.test/tracker/local_launch.html?target=%2Fmodules%2Fa'
     expect(normalize(input)).toBe(input)
-  })
-  it('does not unwrap arbitrary websites or unsafe external targets', () => {
-    for (const input of [
-      'https://evil.test/tracker/local_launch.html?target=%2Fmodules%2Fa',
-      'http://ares.local/tracker/external_launch.html?target=javascript%3Aalert(1)',
-    ])
-      expect(normalize(input)).toBe(input)
   })
 })
 
@@ -141,26 +126,25 @@ describe('exact known base matching', () => {
       'http://ares.local:8069/en/#x',
     )
   })
-
-  it('never unwraps a local target onto a different origin, including a decoded TAB', () => {
-    const input = 'http://ares.local/tracker/local_launch.html?target=%2F%09%2Fevil.test%2Fa'
-    expect(normalize(input)).toBe(input)
-    const outsidePrefix = 'https://school.test/ares/tracker/local_launch.html?target=%2Fother%2Fa'
-    expect(normalize(outsidePrefix, { siteUrl: 'https://school.test/ares' })).toBe(outsidePrefix)
-  })
 })
 
 /**
- * Mark's two rules (ARES, 2026-10-20): Kolibri navigation state is dropped from a copied address
- * (`?prevName=` and everything after it), and `localhost` — an address copied on the ARES machine
- * itself — is stored as `ares.local`. Both before ARES confirms any wider scope.
+ * Mark's rules (ARES, 2026-10-20, widened 2026-10-21): `?prev` and everything after it is dropped from
+ * any copied ARES address (Kolibri navigation state is the main source), and an address copied on the
+ * ARES machine itself (`localhost`, `127.0.0.1`), which is never tracked, is stored as `ares.local`.
  */
-describe('Kolibri navigation and localhost', () => {
+describe('ARES navigation and the ARES machine’s own addresses', () => {
   const KOLIBRI = 'http://ares.local:8069/en/learn/#/topics/c/47ee4f89db1259599783fe52e3c40f56'
   const NAV =
     '?prevName=TOPICS_TOPIC&prevQuery=%7B%22keywords%22%3A%22cells%22%7D&last=TOPICS_CHANNEL'
+  // Mark's own example, as copied from a school server's address bar.
+  const MARK_KOLIBRI =
+    'http://ares.local/kolibri/en/learn/#/topics/c/a5102004fdaa5f2bb1357a9540820373'
+  const MARK_NAV =
+    '?prevName=TOPICS_TOPIC&prevParams=%257B%2522id%2522%3A%252251ee00c42e725815bd6021e2b0472505%2522%257D'
 
   it.each([
+    [`${MARK_KOLIBRI}${MARK_NAV}`, MARK_KOLIBRI],
     [`${KOLIBRI}${NAV}`, KOLIBRI],
     [
       `https://demo.aresedu.dev/kolibri/en/learn/#/topics/c/abc${NAV}`,
@@ -170,32 +154,36 @@ describe('Kolibri navigation and localhost', () => {
       `http://localhost:8069/en/learn/#/topics/c/abc${NAV}`,
       'http://ares.local:8069/en/learn/#/topics/c/abc',
     ],
-  ])('drops Kolibri navigation from %s', (input, expected) =>
-    expect(normalize(input)).toBe(expected),
-  )
+    [`${KOLIBRI}?prevParams=x`, KOLIBRI],
+    ['http://ares.local/modules/a.html?prevName=x', 'http://ares.local/modules/a.html'],
+  ])('drops navigation from %s', (input, expected) => expect(normalize(input)).toBe(expected))
 
-  it('leaves a Kolibri address without navigation exactly as it was', () => {
-    expect(normalize(KOLIBRI)).toBe(KOLIBRI)
-    expect(normalize(`${KOLIBRI}?other=1`)).toBe(`${KOLIBRI}?other=1`)
-  })
+  it.each([
+    KOLIBRI,
+    MARK_KOLIBRI,
+    `${KOLIBRI}?other=1`,
+    'http://ares.local/modules/en-ck12/Geometry.pdf',
+  ])('leaves %s exactly as it was', (address) => expect(normalize(address)).toBe(address))
 
-  it('applies the navigation rule to Kolibri addresses only', () => {
-    // A module page or an outside site keeps whatever it carries.
-    expect(normalize('http://ares.local/modules/a.html?prevName=x')).toBe(
-      'http://ares.local/modules/a.html?prevName=x',
-    )
+  it('drops navigation from ARES addresses only, never from other websites', () => {
     expect(normalize('https://example.org/a?prevName=x')).toBe('https://example.org/a?prevName=x')
+    expect(normalize('https://example.org/a?preview=1')).toBe('https://example.org/a?preview=1')
   })
 
   it.each([
     ['http://localhost/modules/PhET/a.html', 'http://ares.local/modules/PhET/a.html'],
+    ['http://127.0.0.1/modules/PhET/a.html', 'http://ares.local/modules/PhET/a.html'],
     [
       'http://localhost:8069/en/learn/#/topics/c/abc',
       'http://ares.local:8069/en/learn/#/topics/c/abc',
     ],
     [
-      'http://localhost/tracker/local_launch.html?module_id=x&target=%2Fmodules%2FPhET%2Fa.html',
-      'http://ares.local/modules/PhET/a.html',
+      'http://127.0.0.1:8069/en/learn/#/topics/c/abc',
+      'http://ares.local:8069/en/learn/#/topics/c/abc',
+    ],
+    [
+      `http://localhost/kolibri/en/learn/#/topics/c/abc${NAV}`,
+      'http://ares.local/kolibri/en/learn/#/topics/c/abc',
     ],
   ])('stores the ARES machine’s own %s as ares.local', (input, expected) =>
     expect(normalize(input)).toBe(expected),
@@ -203,5 +191,6 @@ describe('Kolibri navigation and localhost', () => {
 
   it('leaves localhost on other ports alone (not ARES content)', () => {
     expect(normalize('http://localhost:3000/lessons/1')).toBe('http://localhost:3000/lessons/1')
+    expect(normalize('http://127.0.0.1:3000/lessons/1')).toBe('http://127.0.0.1:3000/lessons/1')
   })
 })

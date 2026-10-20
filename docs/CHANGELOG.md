@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Insert link keeps ARES tracker addresses as copied, so visits through them are counted again
+  (previously the tracker part was removed). Navigation state starting `?prev` is now removed from
+  any ARES address, which fixes Kolibri links copied as `ares.local/kolibri/…`, and `127.0.0.1` is
+  stored as `ares.local` like `localhost`.
+
 - The Welcome dialog now appears once per account, instead of on every page until "Don't show this
   again" was ticked. The checkbox is gone.
 
