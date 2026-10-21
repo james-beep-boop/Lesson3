@@ -1,8 +1,38 @@
 # Phase B — recoverability: implementation plan (proposal)
 
-**Status: PLAN FOR APPROVAL, 2026-10-22. No code yet.** It implements the Phase B section of
-`docs/DESIGN-backup-recovery-2026-10-21.md`. It is owned by the operator (James), with a target of
-**2026-11-30**. Phase A is complete: A1 in v1.01 (#426), A2–A6 in v1.02 (#430).
+**Status: PAUSED, 2026-10-22 (revised the same day).** It implements the Phase B section of
+`docs/DESIGN-backup-recovery-2026-10-21.md` and is owned by the operator (James). Phase A is complete:
+A1 in v1.01 (#426), A2–A6 in v1.02 (#430).
+
+## ⚑ Revision: paused until there are machines to test on
+
+The operator reports that **no machines meeting the minimum will be available for weeks**. The
+2026-11-30 target therefore cannot be met; a new one is set when two test machines are in hand.
+
+**Nothing in B1–B5 is built in the meantime, deliberately.** A kit builder and `recover.sh` written now
+would be shaped by guesses: which Docker packages, how big the images are, how a technician reads the
+sheet. They would carry the pins of whichever release was current when written, and they could not be
+run end to end. Code that exists but has never run is the "untested backup" this design was written to
+refuse, and it would invite exactly the claim Phase B exists to earn. The work below is sized and
+ordered, so starting it later costs little.
+
+**What is worth doing now needs no code:**
+
+1. **When the Rock is back: deploy v1.02**, and set `BACKUP_RECOVERY_CONTACT` and `BACKUP_KEY_HELD_BY`
+   in its `.env`.
+2. **Then run a restore drill on a workstation**, as `docs/OPS.md` describes. Bring the newest Drive
+   backup to the machine with the key and restore it into a throwaway database. This shows the key in
+   the password manager still opens current backups (check `age-keygen -y` against the Rock's
+   `BACKUP_AGE_RECIPIENT`) and the backups are good. It is the cheapest real evidence available until
+   Phase B, and it last ran on 2026-08-22.
+3. **Answer the decisions below as they come up**, so the plan is ready when the machines arrive.
+
+**Not started, and not needed now:** the fresh-`PAYLOAD_SECRET` test (B2's) is cheap but changes
+nothing until `recover.sh` exists, so it stays with B2. Printing the release's ⚑ operator notes in
+`update.sh` (B5) only matters for bundle installs, and none exists yet.
+
+**When machines arrive:** confirm the decisions, set a new target, and start at B1. The schedule below is
+relative: about four weeks of work, then the runs.
 
 ## The goal, unchanged
 
@@ -135,15 +165,15 @@ start over. **Tests:** stubbed branch cover in CI, and the real run is B6.
 - **Done means** all three receipts pass. Then the page may say what the receipts say, and DECISIONS
   records the evidence.
 
-## Proposed schedule to 2026-11-30
+## Schedule, counted from when the machines arrive
 
-| Week of | Work |
+| Week | Work |
 |---|---|
-| 2026-10-26 | B1 kit builder and B2 manifest + fresh-secret test |
-| 2026-11-02 | B3 `recover.sh` |
-| 2026-11-09 | B4 receipt and page line; B5 sheets and docs |
-| 2026-11-16 | B6 first runs (offline amd64, offline arm64); fix what they find |
-| 2026-11-23 | B6 online run and repeats; record the evidence |
+| 1 | B1 kit builder and B2 manifest + fresh-secret test |
+| 2 | B3 `recover.sh` |
+| 3 | B4 receipt and page line; B5 sheets and docs |
+| 4 | B6 first runs (offline amd64, offline arm64); fix what they find |
+| 5 | B6 online run and repeats; record the evidence |
 
 ## Decisions needed before B1 starts
 

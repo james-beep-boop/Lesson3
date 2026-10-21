@@ -176,7 +176,8 @@ proves it with the acceptance test. It may share work with the USB installer but
 it**. The main issues and the proposed answers:
 
 1. **Owner and completion date — DECIDED 2026-10-21: the operator (James) owns Phase B; target
-   2026-11-30.** Completion means the acceptance test has passed: once for an online install, and once
+   2026-11-30.** ⚑ **Paused 2026-10-22:** no test machines for weeks, so the target is off until they
+   arrive (DECISIONS 2026-10-22; the plan is `docs/PLAN-phase-b-recovery-2026-10-22.md`). Completion means the acceptance test has passed: once for an online install, and once
    offline on a clean machine meeting the minimum below, **on both amd64 and arm64** (decided
    2026-10-21: each architecture has its own kit, and an untested kit is an untested backup), run by a
    technician rather than a developer.

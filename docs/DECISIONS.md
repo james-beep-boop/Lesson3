@@ -54,6 +54,25 @@ inside the same `act` scope as the restart, `ready` goes false and back to true 
 between, and the test reports a stall that a browser does not have. Fake network timing that is
 faster than real network timing can hide or invent effect re-runs.
 
+## 2026-10-22 — Phase B paused until there are machines to test on
+
+The Phase B plan (`docs/PLAN-phase-b-recovery-2026-10-22.md`) was written today and paused the same day.
+The operator reports no machines meeting the minimum for weeks, so the **2026-11-30 target is off**. A new
+one is set when two test machines (one amd64, one arm64) are available.
+
+**Decision: build nothing in B1–B5 until then.** A kit builder and `recover.sh` written without a
+machine to run them on would be shaped by guesses and pinned to whichever release was current. They
+could not be tested end to end: untested recovery code, the very thing this design refuses to count as
+a recovery. The plan is sized so starting later costs little.
+
+Until then, no-code steps only:
+
+- deploy v1.02 to the Rock (offline today) and set its two contact settings;
+- run a workstation restore drill of the newest Drive backup, the cheapest real evidence available (the
+  last drill was 2026-08-22).
+
+The "Full recovery: Not yet tested" line on the page stays exactly as it is.
+
 ## 2026-10-21 — A2–A6 built: per-stream backup records and the Backups statements
 
 PR 2 of Phase A (`docs/DESIGN-backup-recovery-2026-10-21.md`), plus the pending-restore statement added
