@@ -1,196 +1,260 @@
 # Backup and recovery — revised design (proposal)
 
-**Status: PROPOSAL, not approved (2026-10-21).** Nothing here is authorized for implementation until the
-operator approves Phase A. Phase B is a plan to be designed together with the on-hold USB installer
-work. This replaces Claude's first 13-item proposal (chat, 2026-10-21), after a Codex review that
-reframed it around one question.
+**Status: PROPOSAL, not approved. Revision 2, 2026-10-21.** Nothing here is authorized for implementation
+until the operator approves it. Revision 1 (`cc14977`) followed Codex's first review. This revision folds
+in Codex's second review (five amendments plus the schedule point) and opens Phase B for decision now,
+instead of leaving it to wait on the paused USB installer.
+
+**What Phase A is, said plainly:** interim risk reduction. It makes restore safe and makes the page
+truthful. It does **not** establish that a school can recover its working system. Only a demonstrated
+Phase B recovery may be described that way, on the page or anywhere else.
 
 ## The question this design answers
 
 **If the server dies, can the school get its working system back — and does the Manage page tell the
 truth about that?**
 
-The acceptance test for the whole design (Phase B's gate) is concrete: *with the original server
-unavailable, the designated person recovers using only the retained materials, signs in, opens a known
-lesson, and exports DOCX and PDF.* For an offline school the test runs with no internet and no ARES
-help. Each run records how much work was lost (time between the backup and the failure) and how long
-recovery took.
+**Acceptance test (Phase B's completion condition):** with the original server unavailable, the
+designated person recovers using only the retained materials, signs in, opens a known lesson and exports
+DOCX and PDF. For an offline school the test runs with no internet and no ARES help, and includes
+obtaining a usable operating system, Docker, the recovery utilities, compatible images, the
+configuration and the private key from those materials. Each run records the work lost (the time between
+the backup's data and the failure) and the time to recover.
 
 ## What exists today (verified against `main`, 2026-10-21)
 
-- `scripts/backup-db.sh`: `pg_dump -Fc` inside the Postgres container → `age` to one or two
-  recipients (ARES, optional school; SPEC §11) → `rclone` to Google Drive or a mounted removable drive.
-  A removable destination must be a different device from `/` and carry a `.lesson3-backup-volume`
-  sentinel, so a missing drive fails instead of filling the boot disk. GFS retention: 7 daily, 4 weekly,
-  12 monthly by count; `premigrate/` by age.
-- Pre-update snapshots are automatic: `scripts/deploy.sh` and `deploy/online/update.sh` take a
-  `premigrate` backup and abort the update if it fails. Nightly/weekly/monthly backups depend on cron
-  lines the operator adds by hand (`docs/OPS.md` step 5); the installer does not add them.
-- After a successful upload the script atomically writes `out/ops/backup-status.json` (version 1:
-  `completedAt`, `stream`, `destination`, `filename`, `encryptedBytes`). It holds **only the latest
-  success**, so a `premigrate` snapshot hides an earlier nightly one, and failures leave no trace.
-- *Manage → System* shows three backup rows: destination, school recovery key, most recent successful
-  backup. The last is `ok` at **any age**. Values are ISO UTC timestamps and raw settings
-  (`drive:lesson3-backups`, `BACKUP_RCLONE_REMOTE`). It answers configuration questions, not "am I
-  protected?".
-- `scripts/restore-db.sh` defaults to a throwaway `lesson3_restore_check` database and verifies by
-  counting every table (users must be non-zero). With `--force-prod` it **drops the live `lesson3`
-  database first** (line 95) and then runs `pg_restore`; verification runs afterwards. A truncated or
-  incompatible backup therefore destroys the live data before anything checks it. Nothing checks that
-  the backup's schema (migrations) matches the installed software.
-- The database is the whole corpus: no collection stores uploaded files on disk; DOCX/PDF are
-  regenerated. But a backup does **not** contain `.env` (`PAYLOAD_SECRET`, `POSTGRES_PASSWORD`, the
-  backup settings), the deployment files, or the container images. Images come from `ghcr.io` by
-  digest, which an offline school cannot pull.
+- `scripts/backup-db.sh` runs `pg_dump -Fc` inside the Postgres container, encrypts with `age` to one or
+  two recipients (ARES, optional school; SPEC §11), and sends the file with `rclone` to Google Drive or a
+  mounted removable drive. A removable destination must be a different device from `/` and carry a
+  `.lesson3-backup-volume` sentinel. GFS retention: 7 daily, 4 weekly and 12 monthly by count;
+  `premigrate/` by age.
+- Pre-update snapshots are automatic (`scripts/deploy.sh`, `deploy/online/update.sh`). Routine
+  backups depend on cron lines added by hand (`docs/OPS.md` step 5). The server cannot see whether they
+  are installed.
+- `out/ops/backup-status.json` (version 1) holds **only the latest success**. A `premigrate` snapshot
+  overwrites the evidence of an earlier routine backup, and failures leave no record.
+- *Manage → System* shows destination, school recovery key and most recent backup. The last is `ok` at
+  **any age**, in ISO UTC, beside raw settings.
+- `scripts/restore-db.sh --force-prod` **drops the live database first** (line 95) and runs
+  `pg_restore` afterwards; it verifies only after that. Nothing checks the schema against the installed
+  software, and nothing stops writers beyond `DROP` failing while connections are open.
+- The database is the whole corpus (no collection stores files on disk; DOCX/PDF regenerate). A backup
+  does not contain `.env`, the deployment files, the container images (pulled from `ghcr.io` by digest),
+  or the `rclone` credentials needed to reach the backup storage.
 
-Unchanged decisions this design keeps (DECISIONS 2026-10-04, SPEC §11): *Manage → System* stays
-read-only and never starts a backup or a restore; the private recovery keys never live on the server;
-Site Administrator is an application role, not proof of server access or key custody.
+Kept unchanged (DECISIONS 2026-10-04, SPEC §11): *Manage → System* is read-only and never starts a
+backup or restore; private recovery keys never live on the server; Site Administrator is an application
+role, not proof of server access or key custody.
 
-## Phase A — make it honest and make restore safe (small; proposed for approval)
+## Phase A — interim risk reduction (two PRs; proposed for approval)
 
-### A1. Restore never destroys the live database before the replacement is proven
+### A1 (PR 1). Restore never destroys the live database before the replacement is proven
 
-`restore-db.sh --force-prod` becomes a staged swap:
+`restore-db.sh --force-prod` becomes a staged, journaled replacement. Every step is idempotent and
+recorded in `out/ops/restore-journal.json`, so a re-run after an interruption either completes or
+reverses the operation, and never guesses.
 
-1. Restore into a new database `lesson3_incoming_<UTC>`; never touch `lesson3` yet.
-2. Verify it there: the existing all-table count check, **plus** a schema check. The backup's
-   `payload_migrations` set must match what the installed software expects (equal, or a strict prefix
-   that `migrate` can bring forward). A backup taken on newer software is refused with a plain message.
-3. Refuse unless there is disk space for both databases (checked before step 1).
-4. Require the app to be stopped (it already is in practice, since `DROP` fails with live connections).
-   Print exactly what will happen and require a typed confirmation, e.g. the backup's date.
-5. Swap by renaming: `lesson3` → `lesson3_before_restore_<UTC>`, then `lesson3_incoming_<UTC>` →
-   `lesson3`. Start the app; run the health check (`/` → 307).
-6. Keep `lesson3_before_restore_<UTC>` until someone deliberately removes it
-   (`restore-db.sh --discard-previous <name>`). `restore-db.sh --undo` reverses the rename.
+1. **Preflight, before touching anything:** a backup file is named; the private key decrypts it; there is
+   disk space for both databases plus the decrypted dump; the installed software's version is known.
+2. **Stage:** restore into `lesson3_incoming_<UTC>`. Verify there: the existing all-table count check, then
+   the schema check. The backup's `payload_migrations` must be equal to, or a strict prefix of, the
+   installed software's migrations. A backup from newer software is refused. Then run the installed
+   `migrate` image against the **incoming** database, so nothing unmigrated ever goes live.
+3. **In-server check on the incoming database:** read a known lesson plan through Payload's Local API
+   and render its DOCX and PDF (through the running Gotenberg), using a check that needs no password.
+4. **Stop every writer:** print exactly what will happen and require a typed confirmation (the backup's
+   date). `docker compose stop app`, which also stops background jobs. Then
+   `ALTER DATABASE lesson3 ALLOW_CONNECTIONS false`, terminate any remaining backends, and confirm none
+   remain.
+5. **Swap atomically:**
+   `BEGIN; ALTER DATABASE lesson3 RENAME TO lesson3_before_restore_<UTC>; ALTER DATABASE lesson3_incoming_<UTC> RENAME TO lesson3; COMMIT;`
+   Verified on the pinned Postgres 16.15 on 2026-10-21: both renames commit together, so a half-renamed
+   state cannot occur. Re-allow connections on the new `lesson3`.
+6. **Start and confirm:** start the app and repeat the in-server check against the live system. The
+   replacement is then **provisional**. The operator signs in, opens a known lesson, exports it, and runs
+   `restore-db.sh --confirm`. Automation cannot sign in without someone's password, which is why this
+   step is a person.
+7. **Undo** (`restore-db.sh --undo`, allowed until `--discard-previous`): it says plainly that **work saved
+   after the restored database went live will be lost by undoing**. Before reversing, it takes a
+   `prerestore-undo` backup of the current database, so that work is not lost silently. It then stops
+   writers again, swaps back in one transaction and restarts.
+8. **Startup failure:** if step 6's automatic check fails, the script offers `--undo` and does nothing on
+   its own.
 
-This is Codex's correction in concrete form: preserve the current database, validate the incoming one in
-isolation, and make replacement an explicit, reversible step. It does not make every mistake reversible.
-Restoring a backup that is valid but too old still loses that work; `--undo` covers it only until the
-previous database is discarded.
+**A1 tests** (isolated probe stack): refusals (no space, wrong key, newer schema); migration applied to the
+incoming database only; writers blocked (a held connection is terminated, a new connection is refused);
+interruption at each journal step, then a re-run completes or reverses; atomic swap; startup-failure
+path; undo with post-swap work captured in the undo backup; `--discard-previous`.
 
-### A2. Record each backup stream separately, failures too, and the moment the backup covers
+### A2 (PR 2). Backup records: one per stream, locked, judged by what the data covers
 
-`backup-status.json` version 2 keeps, **per stream** (`daily`, `weekly`, `monthly`, `premigrate`), the
-last success and the last failed attempt. Each success records:
+- **One record file per stream** (`out/ops/backup/{daily,weekly,monthly,premigrate}.json`), each
+  written atomically, so no process rewrites another stream's record. `backup-db.sh` holds an `flock`
+  for the whole run, which also stops two backups running at once.
+- Each success records `coversUntil` (when `pg_dump` began, the moment whose data the backup holds),
+  `completedAt`, `filename`, `encryptedBytes` and `destination`. Each stream also keeps its
+  **last failed attempt**: time, stage (dump / encrypt / upload / drive missing) and one line of reason,
+  written by an exit trap.
+- A small **observed history** (the last 31 `coversUntil` values for each routine stream) lets the page
+  report what actually happened, not what a schedule intends.
+- **Freshness is judged by `coversUntil`**, never by upload time, since a new upload can carry old data.
+- **Transition:** the app reads version 1 until per-stream records exist. In between, and whenever history
+  is shorter than the period being described, the page says **"Unknown — history incomplete"**, never
+  "only pre-update snapshots".
 
-- `coversUntil`: when `pg_dump` started. That is the moment whose data the backup holds, which is what
-  "work up to Tuesday 8 pm is protected" means.
-- `completedAt`, `filename`, `encryptedBytes` and `destination`, as today.
+### A3 (PR 2). The school's agreement, not a default
 
-A failure records time, stage (dump / encrypt / upload / drive missing) and one line of reason, and is
-written by an exit trap, so a failed run is visible instead of silent. The app keeps reading version 1
-until the script writes version 2 (forward-compatible reader). A malformed file is still `Unknown`,
-never "no backups".
+Two settings record an explicit agreement with the school. They are not picked by Lesson3:
 
-### A3. Overdue is measured against an agreed schedule, not inferred
+- `BACKUP_MAX_DATA_LOSS` (for example `1d`): how much lost work is acceptable. A routine backup whose
+  `coversUntil` is older than this makes the backup **overdue**. A weekly figure means accepting the loss
+  of a week's work, and the Guide says so.
+- `RECOVERY_TARGET_TIME` (for example `2d`): how quickly service must return. Phase A only displays
+  it. Phase B's acceptance test measures against it.
 
-New setting `BACKUP_EXPECTED_EVERY` (for example `1d` or `7d`) is the agreed tolerance for losing work.
-Internet connectivity does not decide it. "Overdue" means no successful **scheduled** backup
-(`daily`/`weekly`/`monthly`; `premigrate` does not count) within that interval plus a grace period.
-When the setting is unset the page says the schedule has not been agreed, and does not pick a number for
-the school.
+Unset means **"Not agreed"**, shown as a problem to resolve, with no number filled in for the school.
 
-### A4. A recovery contact, shown as recorded rather than verified
+### A4 (PR 2). Who recovers, recorded and not verified
 
-New settings `BACKUP_RECOVERY_CONTACT` (who recovers this system and how to reach them) and
-`BACKUP_KEY_HELD_BY` (where the school's private key is kept, for example "Head teacher's safe").
-The page shows them as "Recorded as …", because the server cannot check either. They are server
-settings like every other row's, so the read-only rule holds. If unset, the page says so as a problem:
-"Nobody is recorded as responsible for recovery."
+`BACKUP_RECOVERY_CONTACT` (who, and how to reach them) and `BACKUP_KEY_HELD_BY` (where the school's
+private key is kept) are server settings, shown as "Recorded as …". If unset, the page says so as a
+problem.
 
-### A5. The page answers four questions, and hides the technical details behind a fold
+### A5 (PR 2). The page: factual statements only, no overall "Protected"
 
-One **Backups** section replaces the three rows. Status badge: **Protected / Needs attention / Not
-protected**, always with a one-line reason.
+The page states separate facts. Each statement has its own state: up to date / attention / unknown.
 
 ```
-Backups                                              ● Protected
+Backups
 ──────────────────────────────────────────────────────────────────
-Is anything wrong?   No. Last scheduled backup finished 6 hours ago.
-What is protected?   Work saved before today, 2:00 AM (your time).
-What must I do?      Nothing today. Backups run every night to Google Drive.
-Who can recover?     Recorded as: Jane Mwangi, IT office, 0712 …
-                     School key recorded as: Head teacher's safe
+Backup up to date        Work saved before today, 2:00 AM (your time) is in a backup.
+                         Agreed limit: no more than 1 day of work lost.
+Routine backups          Recorded on 7 of the last 7 days.
+Last attempt             Succeeded.
+Full recovery            Not yet tested.  ⚠
+Who recovers             Recorded as: <name, how to reach them>
+School recovery key      Recorded as kept in: <place>
 
 If you ever need to restore
-  ⚠ Restoring replaces this server's data with the backup's. Work saved after
-    the backup is lost. The current data is kept aside until someone removes it.
-  Recovery is done by the person above, on the server, with the private key —
+  ⚠ Restoring replaces this server's data with the backup's. Work saved after the
+    backup is lost. The current data is kept aside until someone removes it.
+  Recovery is done on the server by the person above, with the private key —
   never from this page. Instructions: Guide → Backups and recovery.
 
 ▸ Technical details (for the server operator)
-    Destination, setting names, per-stream last success and last failure,
-    filename and size, recipients (ARES / school) with short fingerprints.
+    Destination and setting names; each stream's last success (coversUntil,
+    completedAt, file, size) and last failure; recipients with short fingerprints.
 ```
 
-Example lines for the other states: "Backup overdue — last scheduled backup finished 9 days ago (agreed:
-every 7 days)"; "Last backup attempt failed at 2:00 AM: the backup drive is not connected"; "Only
-pre-update snapshots in the last 30 days — scheduled backups may not be set up". That last one is
-reworded from the first proposal: with per-stream records it is now a fact, not a guess. Removable
-destination, normal case: "What must I do? Connect the school's backup drive and run the backup. Then
-take the drive away from the server."
+Other wording, chosen so that each line claims only what the records show:
 
-Times are shown in the viewer's local time with a relative age; UTC appears only under Technical
-details.
+- "Backup overdue — the newest backup holds work up to 9 days ago (agreed: 1 day)"
+- "Last attempt failed at 2:00 AM: the backup drive is not connected"
+- "No recent routine backup recorded"
+- "Unknown — history incomplete"
+- "Backup limit not agreed"
 
-**Dropped from the first proposal, as Codex argued:** "last proven restorable" (today's check proves
-the database restores, not that a replacement system works; Phase B replaces it with a real recovery
-receipt); fingerprints and drive rotation as headline facts (technician evidence only; a different
-drive id does not prove a drive left the building); free-space and "how far back" rows (technical
-details at most).
+For a removable destination, the action line reads: "Connect the school's backup drive and run the
+backup. Then take the drive away from the server." There is no "Backups run every night" anywhere: the
+server cannot see the schedule, only its results. Times are local with a relative age; UTC appears
+only under Technical details. **"Full recovery" shows "Not yet tested" until Phase B produces a recovery
+receipt that met the acceptance test.**
 
 ### A6. Words stay in step
 
-`USER_GUIDE.md` and `/guide` change in the same PR (the Guide parity tests enforce it), and so do
-`docs/OPS.md` and SPEC §11.
+The Guide, `USER_GUIDE.md`, `docs/OPS.md` and SPEC §11 change in the same PR as the behaviour they
+describe; the Guide parity tests enforce it.
 
-**Phase A gates:** unit tests for the status reader (v1 and v2, malformed, overdue arithmetic, each
-badge state); a script test for A1 covering refuse-without-space, refuse-newer-schema, swap, health
-check and `--undo`, against the isolated probe stack; the existing backup and restore script tests; the
-full gate. No new endpoint: the panel is server-rendered from facts. If one is added, it ships with
-401/403/404 wire tests (CLAUDE.md).
+**PR 2 gates:** status-reader unit tests (v1, v2, malformed, history shorter than the window, overdue
+by `coversUntil`, every statement's states); concurrency test (two backup runs at once: the second waits
+on the lock, and both records survive); exit-trap failure records; the full gate.
 
-## Phase B — a recovery package and a demonstrated recovery (plan; design with the installer)
+## Phase B — recoverability (open now; decisions below)
 
-A database dump cannot rebuild a dead server. Phase B makes the retained materials sufficient:
+Phase B makes the retained materials sufficient to rebuild the working system on a clean machine, and
+proves it with the acceptance test. It may share work with the USB installer but **does not wait for
+it**. The main issues and the proposed answers:
 
-- **Recovery package**, produced with each backup or each release:
-  - the database dump (exists);
-  - `.env`, encrypted to the same recipients;
-  - a manifest: Lesson3 version, image digests, migration head, `coversUntil`;
-  - **per release, not nightly:** the matching release bundle and `docker save`d images, so an
-    offline school can reinstall the same software. This is the same artifact the on-hold USB installer
-    needs (memory: waiting on Mark's install script). Build it once for both purposes.
-- **A guided recovery procedure** (`scripts/recover.sh`, plus a printed one-page sheet kept with the
-  key). It covers a fresh machine: install from the package, restore through A1's staged path, start,
-  and check. The sheet exists because the instructions must be available when the server is not.
-- **A recovery receipt.** The drill runs off-box, where the key is, so the server cannot see it. The
-  drill writes a small receipt to the backup destination. The next backup run reads it into the status
-  file, and the page can then show "Last full recovery test: 3 Oct, by Jane — 40 minutes, 1 day of work
-  at risk". The headline only says "recovery tested" for a drill that met the acceptance test above.
-- **The acceptance test**, run on a clean machine (offline for an offline school), with lost-work and
-  recovery-time recorded in DECISIONS. Repeat on a schedule the operator sets (for example once a term).
+1. **Owner and completion date.** Someone at ARES owns it. Completion means the acceptance test has
+   passed: once for an online install, and once offline on a clean amd64 machine, run by a technician
+   rather than a developer. *Operator decides owner and date.*
+2. **The recovery kit = the release stick.** Restores migrate forward, so the kit needs software **at
+   least as new as** the backup, not an exact match. One kit per release, written when that release is
+   installed, therefore covers every backup taken on it. The kit holds:
+   - the release bundle;
+   - `docker save`d images for app, migrate, Gotenberg and Postgres, checked against the compose digest
+     pins;
+   - the Docker engine packages for the agreed Ubuntu version;
+   - static `age` and `rclone` binaries;
+   - `recover.sh` and the printed sheet.
+   
+   The update stick the installer design already proposes is the same artifact. Build it once.
+3. **Operating system.** Ubuntu install media (one per kit, or a separately kept stick), plus a stated
+   minimum amd64 machine. *Operator: confirm the Ubuntu version (also open in the installer plan), and
+   say whether a teacher laptop may serve as a stopgap host.*
+4. **Configuration: regenerate, do not copy.** Most of `.env` is either generated (`PAYLOAD_SECRET`,
+   `POSTGRES_PASSWORD`) or a default. The installation id and all content live in the database. The kit
+   records only the school-specific values (server address, SMTP, backup destination and recipients) in
+   a small manifest, encrypted to the same recipients, and `recover.sh` generates fresh secrets. This
+   avoids keeping a copy of live secrets. *To verify before relying on it:* that nothing stored needs
+   the old `PAYLOAD_SECRET` (password hashes are salted PBKDF2 and do not; sessions and reset links
+   become invalid, which is acceptable).
+5. **Access to the backup storage.** Online, the `rclone` Google Drive credentials die with the server.
+   A second, read-only credential must be kept with the key holder. Offline, the rotated drive is the
+   storage, so "access" means physically having the off-site drive. *Operator: who holds the Drive
+   credential for each online install.*
+6. **The private key in an emergency.** The `age` identity is one line of text, so it can be printed
+   (with a QR code) and kept in a sealed envelope in the school safe, plus ARES's copy. A passphrase
+   protects against theft but risks a forgotten passphrase, which means total loss. *Proposal: no
+   passphrase; use physical custody and the two recipients.* The kit and the key are never stored
+   together. Each recovery test also checks the key: `age-keygen -y` must match the recorded fingerprint.
+7. **Finding the new server.** Teachers reach the server by its LAN address or name (and ARES links use
+   `ares.local`). A replacement machine must take over that address or name, or every bookmark breaks.
+   `recover.sh` sets the hostname and the sheet covers the router reservation. *Easy to forget; it must
+   be part of the acceptance test.*
+8. **Who actually does it.** The technicians have modest skills (installer discussion, 2026-10-12). Hence
+   one command, a printed one-page sheet, and plain progress messages, with the acceptance test run by
+   such a technician.
+9. **Proof that is visible.** After a test, `recover.sh` writes a recovery receipt (date, who, versions,
+   work lost, time taken, pass/fail per acceptance step) to the backup destination. The next backup run
+   reads it into the records, and only then does the page's "Full recovery" line change from
+   "Not yet tested". The test repeats on the schedule in the school agreement (for example, once a term).
+
+### Interim stopgap, until Phase B is complete (proposed to start now)
+
+For each installation, the person responsible keeps the following **in two places away from the
+server**, with the key never stored beside the kit:
+
+- the school's private key, printed;
+- for online installs, a read-only Drive credential;
+- for offline installs, one current backup drive;
+- the release bundle and saved images for the installed version, on a USB stick (written at each update);
+- the school-specific configuration values, on paper.
+
+This is manual and untested. The page still says "Full recovery: Not yet tested".
 
 ## Decisions needed from the operator
 
-1. Approve Phase A as scoped (A1–A6)?
-2. The default for `BACKUP_EXPECTED_EVERY`, online and offline. Proposed: online `1d`, offline `7d`;
-   the school can tighten it.
-3. Should `.env` go into the backup now (Phase A) as an encrypted second file, or wait for the Phase B
-   package? Proposed: wait. On its own it does not make recovery possible, and it widens what a leaked
-   key exposes.
-4. Who is the recovery contact for the demo server (the Rock)?
-5. Phase B timing: start with the USB installer when Mark's script arrives, or design it separately now?
+1. Approve Phase A as two PRs (A1 first, then A2–A6)?
+2. For each school: the agreed maximum data loss and recovery time, or record them as "Not agreed".
+3. Phase B owner and completion date.
+4. The Ubuntu version, and the minimum replacement hardware.
+5. Who holds the read-only Drive credential for online installs.
+6. Key protection: physical custody without a passphrase (proposed), or a passphrase?
+7. Start the interim stopgap now?
+8. The demo server (the Rock): who is the recovery contact, and where is its key kept?
 
 ## Not in scope
 
 No restore or "back up now" button (DECISIONS 2026-10-04 stands). No automatic restore. No change to
 encryption, recipients or retention. No off-box monitoring service.
 
-## Review note
+## Review notes
 
-Codex's 2026-10-21 review read an older checkout (`~/Documents/GitHub/Lesson3`, at #394, 2026-10-14).
-Its findings were re-checked against current `main` and hold. Future reviews should be pointed at the
-current checkout.
+- Codex review 1 (2026-10-21) read an older checkout (`~/Documents/GitHub/Lesson3`, at #394); its findings
+  were re-checked against current `main` and hold.
+- Codex review 2 read this file at `cc14977` from GitHub. Accepted: no "Protected" in Phase A; a fuller
+  restore contract (writers blocked, migrate incoming, real checks, interruption, undo semantics);
+  statements limited to what the records show, including an unknown state; per-stream records with
+  locking and `coversUntil` freshness; a Phase B owner and completion condition; an explicit school
+  agreement instead of default schedules.
