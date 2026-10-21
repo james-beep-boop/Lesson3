@@ -26,7 +26,29 @@ on either name.
 **The rule:** a test hostname must not be a public TLD (`app`, `dev`, `page` and others are HSTS-preloaded).
 If a browser cannot reach a service that `curl` reaches, check the HSTS preload list before blaming the app.
 
----
+## 2026-10-21 — Drafts: the autosave debounce re-arms when the entry check clears
+
+A Codex review of v1.00 found that work typed while a draft check was unresolved could sit
+unsaved. While the entry lookup is `resolving`, `unchecked` or `offer`, `captureAndReport` refuses
+on purpose so it cannot overwrite a draft the teacher has not seen. A debounce tick that lands then is
+refused and used up. When the phase later settles to `clear`, none of the debounce effect's
+dependencies changed, so nothing was scheduled. The text waited for another keystroke, a blur or a
+hidden tab, and a browser crash in that idle time lost it.
+
+Three routes hit this: a failed lookup whose retry finds nothing, a slow first lookup (its 10 s
+bound is longer than the 8 s debounce), and **Keep** on an offered draft. **Discard** did not: its
+restart sets `ready` false and then true, and the effect already depends on `ready`.
+
+**Decision:** add `entry.phase` to the debounce effect's dependencies. The effect's existing guard
+(`active`, `modified`, `ready`) still decides whether to schedule. The gate stays in
+`captureAndReport`, so `entryUnresolved` still has one owner and `isSafe` still stops a resend of
+content the server already has. Backoff keeps its own `retryTimer`. A tick that arrives while the
+phase is unresolved is still refused, as before.
+
+**Lesson for tests:** the discard regression test holds the DELETE open. If the DELETE resolves
+inside the same `act` scope as the restart, `ready` goes false and back to true with no render in
+between, and the test reports a stall that a browser does not have. Fake network timing that is
+faster than real network timing can hide or invent effect re-runs.
 
 ## 2026-10-21 — A1 built: restore never destroys the live database before the replacement is proven
 

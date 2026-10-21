@@ -14,6 +14,22 @@ Concise record of delivered product changes, newest first. Detailed implementati
   reach the app by its container name, because the new Chromium forces the bare hostname `app` onto
   HTTPS. Nothing changes for users or operators.
 
+## v1.01 (2026-10-21)
+
+- ⚑ **Restoring over the live database is now staged and reversible (operators).** The same command,
+  `scripts/restore-db.sh --from … --into lesson3 --force-prod`, now restores into a separate database
+  first, checks it (row counts, schema compatibility with the installed software, a lesson rendered to
+  DOCX and PDF), asks for a typed confirmation, stops the app and swaps the databases in one step. The
+  previous database is kept aside, never dropped. The restore stays **provisional** until the operator
+  signs in, opens and exports a lesson and runs `--confirm`; `--undo` puts the previous database back
+  (after first backing up any work saved since), and `--discard-previous` removes it. `--status` says
+  what to do next, and `--resume` completes or reverses an interrupted run. Before, the live database
+  was dropped before anything was checked. See docs/OPS.md (#426).
+
+- Drafts: text typed while the editor was still checking for an earlier draft is now saved about
+  8 seconds after the check finishes. Before, it waited for the next keystroke or for the window to
+  lose focus.
+
 - Dependency patch updates: fast-uri 3.1.9, which fixes four URI-parsing advisories that Lesson3's
   code does not reach, plus Vitest 4.1.12, PostCSS 8.5.31 and ESLint 9.39.5. Nothing changes for users
   or operators.
