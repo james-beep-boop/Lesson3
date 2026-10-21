@@ -11,6 +11,40 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-21 — Backup and recovery: Phase B owned and scoped; Phase A proposed as interim risk reduction
+
+The design is `docs/DESIGN-backup-recovery-2026-10-21.md` (revision 2, after two Codex reviews).
+Its question: if the server dies, can the school get its working system back, and does
+*Manage → System* tell the truth about that? Two findings drove it. First, `restore-db.sh --force-prod`
+drops the live database before restoring or checking anything. Second, the page reports a backup of
+any age as `ok`, and its single record lets an update snapshot hide earlier routine backups.
+
+**Operator decisions:**
+
+- The operator (James) owns Phase B, with a target of **2026-11-30**. Phase B is done when the
+  acceptance test passes: with the original server unavailable, a technician recovers from the retained
+  materials only, signs in, opens a known lesson and exports DOCX and PDF. It must pass once online
+  and once offline, the offline run with no internet and no ARES help, recording the work lost and
+  the time taken.
+- Ubuntu **24.04 LTS**; 26.04 LTS later, moved to deliberately, with new kits.
+- Minimum replacement machine: **amd64 or arm64, 8 GB RAM, 512 GB drive**. Images are already
+  published for both architectures.
+- **No passphrase** on the private recovery key. Rely on physical custody and the two recipients, and
+  never store the key beside the recovery kit.
+
+**Still to decide:**
+
+- approval of Phase A (two PRs: the staged restore first, then records, page and Guide);
+- each school's agreed maximum data loss and recovery time (no defaults; "Not agreed" until set);
+- who holds the read-only Drive credential;
+- whether to start the interim stopgap;
+- the Rock's recovery contact and key location;
+- teacher laptops as stopgap hosts.
+
+**Rule carried forward:** until Phase B's acceptance test has passed, nothing (page, Guide, release
+notes) may say an installation is protected or recoverable. Phase A is described as interim risk
+reduction. A backup existing is not a recovery proven.
+
 ## 2026-10-21 — Node 24.22.0 under index-digest pins; `@types/node`, vite and js-yaml ride the same rebuild
 
 The release tag was held about half a day for this so that the runtime update and the small items

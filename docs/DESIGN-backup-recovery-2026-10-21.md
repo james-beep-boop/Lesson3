@@ -175,23 +175,28 @@ Phase B makes the retained materials sufficient to rebuild the working system on
 proves it with the acceptance test. It may share work with the USB installer but **does not wait for
 it**. The main issues and the proposed answers:
 
-1. **Owner and completion date.** Someone at ARES owns it. Completion means the acceptance test has
-   passed: once for an online install, and once offline on a clean amd64 machine, run by a technician
-   rather than a developer. *Operator decides owner and date.*
+1. **Owner and completion date — DECIDED 2026-10-21: the operator (James) owns Phase B; target
+   2026-11-30.** Completion means the acceptance test has passed: once for an online install, and once
+   offline on a clean machine meeting the minimum below, run by a technician rather than a developer.
 2. **The recovery kit = the release stick.** Restores migrate forward, so the kit needs software **at
    least as new as** the backup, not an exact match. One kit per release, written when that release is
    installed, therefore covers every backup taken on it. The kit holds:
    - the release bundle;
-   - `docker save`d images for app, migrate, Gotenberg and Postgres, checked against the compose digest
+   - `docker save`d images for app, migrate, Gotenberg and Postgres, **for the server's architecture**
+     (amd64 or arm64; every image is already published for both), checked against the compose digest
      pins;
    - the Docker engine packages for the agreed Ubuntu version;
    - static `age` and `rclone` binaries;
    - `recover.sh` and the printed sheet.
    
    The update stick the installer design already proposes is the same artifact. Build it once.
-3. **Operating system.** Ubuntu install media (one per kit, or a separately kept stick), plus a stated
-   minimum amd64 machine. *Operator: confirm the Ubuntu version (also open in the installer plan), and
-   say whether a teacher laptop may serve as a stopgap host.*
+3. **Operating system and hardware — DECIDED 2026-10-21.** Ubuntu **24.04 LTS** today; a later move to
+   26.04 LTS is possible, made deliberately. Each kit records its Ubuntu version and carries the Docker
+   packages for that version, so moving to 26.04 means new kits as well as new servers. Minimum
+   replacement machine: **Intel/AMD (amd64) or ARM (arm64), 8 GB RAM, 512 GB drive.** Ubuntu install
+   media for the matching architecture comes with each kit (or as a separately kept stick). *Still
+   open:* whether a teacher laptop may serve as a stopgap host, which matters only if it meets the
+   minimum.
 4. **Configuration: regenerate, do not copy.** Most of `.env` is either generated (`PAYLOAD_SECRET`,
    `POSTGRES_PASSWORD`) or a default. The installation id and all content live in the database. The kit
    records only the school-specific values (server address, SMTP, backup destination and recipients) in
@@ -205,9 +210,9 @@ it**. The main issues and the proposed answers:
    credential for each online install.*
 6. **The private key in an emergency.** The `age` identity is one line of text, so it can be printed
    (with a QR code) and kept in a sealed envelope in the school safe, plus ARES's copy. A passphrase
-   protects against theft but risks a forgotten passphrase, which means total loss. *Proposal: no
-   passphrase; use physical custody and the two recipients.* The kit and the key are never stored
-   together. Each recovery test also checks the key: `age-keygen -y` must match the recorded fingerprint.
+   protects against theft but risks a forgotten passphrase, which means total loss. **DECIDED
+   2026-10-21: no passphrase**; rely on physical custody and the two recipients. The kit and the key
+   are never stored together. Each recovery test also checks the key: `age-keygen -y` must match the recorded fingerprint.
 7. **Finding the new server.** Teachers reach the server by its LAN address or name (and ARES links use
    `ares.local`). A replacement machine must take over that address or name, or every bookmark breaks.
    `recover.sh` sets the hostname and the sheet covers the router reservation. *Easy to forget; it must
@@ -233,16 +238,20 @@ server**, with the key never stored beside the kit:
 
 This is manual and untested. The page still says "Full recovery: Not yet tested".
 
-## Decisions needed from the operator
+## Decisions
+
+**Decided 2026-10-21 (operator):** Phase B owner is the operator (James), target 2026-11-30; Ubuntu 24.04
+LTS (26.04 possible later); minimum replacement machine amd64 or arm64, 8 GB RAM, 512 GB drive; no
+passphrase on the private key.
+
+**Still needed:**
 
 1. Approve Phase A as two PRs (A1 first, then A2–A6)?
 2. For each school: the agreed maximum data loss and recovery time, or record them as "Not agreed".
-3. Phase B owner and completion date.
-4. The Ubuntu version, and the minimum replacement hardware.
-5. Who holds the read-only Drive credential for online installs.
-6. Key protection: physical custody without a passphrase (proposed), or a passphrase?
-7. Start the interim stopgap now?
-8. The demo server (the Rock): who is the recovery contact, and where is its key kept?
+3. Who holds the read-only Drive credential for online installs.
+4. Start the interim stopgap now?
+5. The demo server (the Rock): who is the recovery contact, and where is its key kept?
+6. May a teacher laptop that meets the minimum serve as a stopgap host?
 
 ## Not in scope
 
