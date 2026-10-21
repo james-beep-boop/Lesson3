@@ -14,6 +14,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
   8 seconds after the check finishes. Before, it waited for the next keystroke or for the window to
   lose focus.
 
+- Dependency patch updates: fast-uri 3.1.9, which fixes four URI-parsing advisories that Lesson3's
+  code does not reach, plus Vitest 4.1.12, PostCSS 8.5.31 and ESLint 9.39.5. Nothing changes for users
+  or operators.
+
 ## v1.00 (2026-10-21)
 
 - Node 24 LTS moves from 24.21.0 to 24.22.0, and both Node images are now pinned by multi-architecture

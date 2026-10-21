@@ -55,12 +55,12 @@
     "baseline-browser-mapping": "2.11.0",
     "browserslist": "4.28.7",
     "postcss": {
-      ".": "8.5.30",
+      ".": "8.5.31",
       "nanoid": "3.3.18"
     },
     "nodemailer": "10.1.7",
     "js-yaml": "5.5.0",
-    "fast-uri": "3.1.8",
+    "fast-uri": "3.1.9",
     "source-map-js": "1.2.2",
     "sass": "1.79.6",
     "immutable": "4.3.9",
@@ -83,15 +83,15 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "4.5.2",
-    "eslint": "9.39.4",
+    "eslint": "9.39.5",
     "eslint-config-next": "16.4.2",
-    "postcss": "8.5.30",
+    "postcss": "8.5.31",
     "prettier": "3.9.10",
     "sass": "1.79.6",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vite-tsconfig-paths": "6.1.1",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=24.22.0 <25"
