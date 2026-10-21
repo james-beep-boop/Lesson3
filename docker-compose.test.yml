@@ -10,6 +10,14 @@ services:
     depends_on:
       pdf-private:
         condition: service_healthy
+    # The browser tests' hostname (CI test:e2e). Chromium 156 treats the bare service name `app` as the
+    # HSTS-preloaded `.app` TLD and forces HTTPS against this HTTP-only server. ⚑ This alias must stay
+    # on `app` alone: `pdf-private` extends the base file's `app`, so it does not inherit it, and a
+    # shared alias would split browser traffic between the two servers.
+    networks:
+      default:
+        aliases:
+          - lesson3-e2e
 
   # Same production build and fixture, but simulate an upgrade whose old env only sets the folder.
   # Internal only: no host port, no separate production config and no workflow edits required.

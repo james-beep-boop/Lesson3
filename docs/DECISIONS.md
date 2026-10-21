@@ -11,6 +11,25 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-21 — Playwright 1.64: the browser tests reach the app as `lesson3-e2e`, not `app`
+
+Playwright 1.58.2 → 1.64.1 (only `@playwright/test`, `playwright`, `playwright-core` move). A dependency
+lab on the Spark (snapshot `bc21c68`) ran the full Chromium suite on 1.64.1: 133 passed, 0 failed, 0 flaky.
+The lab also found a trap. **Chromium 156 treats the single-label host `app` as the HSTS-preloaded
+`.app` TLD** and upgrades `http://app:3000` to HTTPS against our HTTP-only service, so every navigation
+fails. A connection probe and the network log confirmed it. The CI `test:e2e` step therefore uses
+`lesson3-e2e`, a network alias on `app` declared only in `docker-compose.test.yml`. No browser security
+is disabled, and the production service name is unchanged. The first version of this PR used the
+container name `lesson3-app-1`. Codex suggested the alias instead: it states its purpose, applies only
+in tests, and does not depend on Compose's container naming. `pdf-private` extends the base file's
+`app`, so it must not inherit the alias, or Docker DNS would split browser traffic between the two
+servers. `docker compose config` with both files shows the alias on `app` only. `test:http` keeps
+`app:3000`, because Node's fetch has no HSTS list. CI's `SERVER_URL` is empty, so no CSRF origin
+depends on either name.
+
+**The rule:** a test hostname must not be a public TLD (`app`, `dev`, `page` and others are HSTS-preloaded).
+If a browser cannot reach a service that `curl` reaches, check the HSTS preload list before blaming the app.
+
 ## 2026-10-21 — Drafts: the autosave debounce re-arms when the entry check clears
 
 A Codex review of v1.00 found that work typed while a draft check was unresolved could sit

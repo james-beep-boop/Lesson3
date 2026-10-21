@@ -28,6 +28,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
   `RECOVERY_TARGET_TIME`, `BACKUP_RECOVERY_CONTACT`, `BACKUP_KEY_HELD_BY`. Each school's limits read
   "Not agreed" until they are set. See docs/OPS.md.
 
+- The browser test runner moves from Playwright 1.58.2 to 1.64.1 (Chromium 156). CI's browser tests now
+  reach the app by a test-only hostname, because the new Chromium forces the bare hostname `app` onto
+  HTTPS. Nothing changes for users or operators.
+
 ## v1.01 (2026-10-21)
 
 - ⚑ **Restoring over the live database is now staged and reversible (operators).** The same command,
