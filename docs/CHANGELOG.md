@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Drafts: text typed while the editor was still checking for an earlier draft is now saved about
+  8 seconds after the check finishes. Before, it waited for the next keystroke or for the window to
+  lose focus.
+
 ## v1.00 (2026-10-21)
 
 - Node 24 LTS moves from 24.21.0 to 24.22.0, and both Node images are now pinned by multi-architecture

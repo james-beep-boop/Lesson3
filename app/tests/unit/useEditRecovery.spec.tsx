@@ -863,6 +863,155 @@ describe('the entry state machine', () => {
       await flush()
       expect(captureCalls()).toHaveLength(1)
     })
+
+    /**
+     * ⚑ Work typed while `unchecked` is captured once the retry clears, with NO further edit
+     * (Codex review of v1.00, 2026-10-21). The debounce fired into the entry gate and was spent; the
+     * phase change alone did not re-arm it, so that text waited for another keystroke or a blur — and
+     * a browser crash in the idle window lost it.
+     */
+    it('captures what was typed while unchecked once the retry clears, with no further edit', async () => {
+      failingThen(() => jsonResponse(200, { capture: null }))
+      const h = harness()
+      await flush()
+      expect(h.ref.current!.entry.phase).toBe('unchecked')
+
+      await act(async () => {
+        h.bumpChange()
+      })
+      await act(async () => {
+        vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+      })
+      await flush()
+      expect(captureCalls(), 'the gate refuses while unchecked').toHaveLength(0)
+
+      await act(async () => {
+        vi.advanceTimersByTime(ENTRY_RETRY_MS - CAPTURE_DEBOUNCE_MS)
+      })
+      await flush()
+      expect(h.ref.current!.entry.phase).toBe('clear')
+
+      await act(async () => {
+        vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+      })
+      await flush()
+      expect(captureCalls(), 'clearing the gate must re-arm the debounce').toHaveLength(1)
+    })
+  })
+
+  /**
+   * ⚑ The same stall on the SLOW first lookup: its 10 s bound outlasts the 8 s debounce, so a tick
+   * can land in `resolving` and be refused, and the answer arriving afterwards changed nothing the
+   * debounce effect watched.
+   */
+  it('captures what was typed during a slow lookup once it clears, with no further edit', async () => {
+    let releaseGet: (r: Response) => void = () => {}
+    handler = async (url, init) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      if ((init?.method ?? 'GET') === 'GET') {
+        return new Promise<Response>((resolve) => {
+          releaseGet = resolve
+        })
+      }
+      return jsonResponse(200, { token: token(2) })
+    }
+    const h = harness()
+    await flush()
+    expect(h.ref.current!.entry.phase).toBe('resolving')
+
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls(), 'the gate refuses while resolving').toHaveLength(0)
+
+    await act(async () => {
+      releaseGet(jsonResponse(200, { capture: null }))
+    })
+    await flush()
+    expect(h.ref.current!.entry.phase).toBe('clear')
+
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls(), 'clearing the gate must re-arm the debounce').toHaveLength(1)
+  })
+
+  /** And on KEEP: fields are not read-only under the prompt, so text typed there is real work. */
+  it('captures what was typed under the offer once it is kept, with no further edit', async () => {
+    offering({ capture: storedCapture() })
+    const h = harness()
+    await flush()
+    expect(h.ref.current!.entry.phase).toBe('offer')
+
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls(), 'the gate refuses while the offer is open').toHaveLength(0)
+
+    await act(async () => {
+      h.ref.current!.keepOffer()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls(), 'keeping the offer must re-arm the debounce').toHaveLength(1)
+  })
+
+  /**
+   * DISCARD did not share the stall — its restart flips `ready`, which the debounce already watches —
+   * but it is pinned here beside the others so that stays true.
+   *
+   * ⚑ The DELETE is held open, as a real network round trip holds it. Answered in the same `act`
+   * scope as the restart, `ready` goes false and back to true without a render between them, and the
+   * test would report a stall the browser does not have.
+   */
+  it('captures what was typed under the offer once it is discarded, with no further edit', async () => {
+    offering({ capture: storedCapture() })
+    const priorHandler = handler
+    let releaseDelete: (r: Response) => void = () => {}
+    handler = async (url, init) =>
+      init?.method === 'DELETE'
+        ? new Promise<Response>((resolve) => {
+            releaseDelete = resolve
+          })
+        : priorHandler(url, init)
+    const h = harness()
+    await flush()
+
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls()).toHaveLength(0)
+
+    let discarding: Promise<void> = Promise.resolve()
+    await act(async () => {
+      discarding = h.ref.current!.discardOffer()
+    })
+    await flush()
+    await act(async () => {
+      releaseDelete(jsonResponse(200, {}))
+      await discarding
+    })
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls(), 'discarding the offer must re-arm the debounce').toHaveLength(1)
   })
 
   it('keeping the offer unlocks and leaves the capture alone', async () => {
