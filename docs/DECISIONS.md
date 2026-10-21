@@ -11,6 +11,106 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-21 — Node 24.22.0 under index-digest pins; `@types/node`, vite and js-yaml ride the same rebuild
+
+The release tag was held about half a day for this so that the runtime update and the small items
+sharing its image rebuild ship together. One PR, one commit per item, so any one can be dropped alone:
+
+1. **Node 24.21.0 → 24.22.0** (LTS "Krypton", 2026-10-14; not a security release). The Dockerfile
+   `base` and `e2e` stages, both `.nvmrc` files and the `engines`/`devEngines` floors (`>=24.22.0 <25`)
+   move together. AGENTS.md, the audit catalog and the `dev-server.sh`/`in-deps.sh` comments state the
+   current version, so they moved too. Dated records (CHANGELOG history, older entries here,
+   DEPENDENCY-REVIEW-2026-09-19, the discussions spike) keep 24.21. Node 24.22 bundles npm 11.19.1.
+   `npm install --package-lock-only` under it **did not rewrite the lockfile format**; the only lock
+   change is the root `engines` floor.
+2. **Both Node images pinned by multi-architecture index digest**, the way Postgres and Gotenberg are:
+   `node:24.22.0-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f`
+   and `node:24.22.0-bookworm@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0`.
+   These are INDEX digests from `docker buildx imagetools inspect`, not a platform's. Each index lists
+   linux/amd64 and linux/arm64/v8 (Alpine also has s390x). The OS bases did not move from 24.21.0:
+   Alpine 3.24 and `buildpack-deps:bookworm`. The re-pin recipe is in a comment above `FROM … AS base`.
+3. **`@types/node` 24.13.6 → 24.19.2**, the latest 24.x, kept on the runtime's major. `tsc` is clean
+   with no code change. Its `undici-types` range moves the hoisted copy 7.18.2 → 7.24.6, which also
+   dedupes the copy nested under `docx`.
+4. **vite 7.3.5 → 7.3.7 through an `overrides` pin.** It clears the dev-only `launch-editor` advisories
+   GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw and GHSA-587h-7wmj-h5pm (vite 7.0.0–7.3.6). ⚑ **A
+   lockfile-only `npm update vite` is not the safe-looking option it seems:** vitest admits `^8`, so npm
+   resolved **vite 8.3.4** and swapped rollup for rolldown, a major and a bundler change. The override
+   keeps every consumer on one 7.x copy; the lock diff is the vite entry alone, and esbuild stays
+   0.27.7. Remove the override when Vitest moves to vite 8 on purpose.
+5. **js-yaml 4.3.2 → 5.5.0** (latest 5.x), both the direct dependency and the override. This aligns
+   with upstream ARES, which locks 5.4.2. 5.4.3 and 5.5.0 are parser fixes, plus argparse 3 for the CLI.
+   The runtime use is the vendored `lib/attribution.js` (`require('js-yaml')` + `load()` on
+   `config/attribution.yaml`); its parsed object is byte-identical under 4.3.2 and 5.5.0. The override
+   moves three transitive consumers too, so each was checked rather than assumed:
+   - `@eslint/eslintrc` uses require + `load`, and only for legacy YAML configs, which we do not have.
+     Lint passes.
+   - `@apidevtools/json-schema-ref-parser` and `json-schema-to-typescript` call
+     `__importDefault(require('js-yaml')).default.load`. 5.x's CJS build sets no `__esModule`, so that
+     still resolves to `load`.
+
+   The one semantic change in reach is that `load('')` now **throws** on empty input, and none of these
+   paths parses an empty document. mammoth keeps its nested argparse 1.0.10.
+
+**Deliberately not moved:** Playwright stays 1.58.2, so a browser-test failure points at Node, not at
+new Chromium. Payload 3.91.1 is unreleased and gets its own change. Also unchanged: `docx` (fidelity),
+`drizzle-orm` (Payload pins it), `sass` (2026-10-05), React 19.3 and every major. vite's nested
+**esbuild 0.27.7** keeps its moderate dev-server advisory (GHSA-67mh-4wv8-2f99/GHSA-g7r4-m6w7-qqqr);
+0.28.2 would clear that copy, but it is not on this list, and the drizzle-kit chain keeps the
+advisory either way.
+
+**Node 24.22 behaviour changes, checked against our code rather than the headline:**
+- `http`: "don't destroy socket after request completes" (nodejs/node#65952) only skips
+  `ClientRequest.destroy()`'s socket destroy when the request has finished sending AND the
+  keep-alive response is complete. That is the case that used to crash on an unhandled socket
+  `'error'`. Our PDF path (`docxToPdf`) and every server-side probe use global `fetch` (undici), not
+  `http.ClientRequest`. Node 24.21 and 24.22 bundle the **same undici 7.29.1 and OpenSSL 3.5.8**,
+  so the client that talks to Gotenberg is unchanged.
+- crypto: #65704 adds byte-length validation for HKDF `info` and the PBKDF2 limits. Payload 3.91's
+  local strategy uses `crypto.pbkdf2` with SHA-256 at 600,000 iterations for new hashes (`pbkdf2-sha256-v1:`)
+  and 25,000 for legacy ones, both well inside the limits. #65550 (JWK usages before `key_ops`) does
+  not apply: Payload signs HS256 JWTs through `jose` from a `TextEncoder` key, with no JWK import. The
+  sign-in, password-reset and account wire tests pass on the built runner.
+- `fs`: `cpSync` with `errorOnExist` now throws on an existing directory and copies directory
+  mode/timestamps (#64124, #65488, #65540). Globs no longer descend into symlinks for `**` (#65435).
+  Nothing in `src`, `scripts` or `tests` calls `fs.cp`/`cpSync` or `fs.glob`.
+- `AbortSignal.any()` propagation fix (#66014): we only use `AbortSignal.timeout()`.
+
+**Fidelity method and result.** The gate fixtures are the generator's pinned commit `f83db61`, fetched
+sparse into a scratch directory (the operator's local clone is a fork without that commit). Before
+any change, all four deliverables of Physics 4.1, Essential Mathematics Indices and Mathematics
+Trigonometry I were generated through the adapter path and unzipped. Two baseline runs showed two
+kinds of run-to-run noise: `docx`'s random hyperlink `rId`s and the `core.xml` timestamps. Those two
+were normalised and nothing else. After all five commits, **216 parts across 12 documents are
+byte-identical** to the baseline, so the js-yaml commit stays. `fidelity-spike.ts` passes 5/5 and
+`adapter-fidelity.ts` 7/7 on each fixture. The same 12 DOCX were converted through the app's own
+`docxToPdf` on Node 24.22 to the stack's Gotenberg (LibreOffice 26.8.1.1). The page counts match
+2026-10-19 exactly: Physics 50/7/4/4, Indices 56/7/4/4, Trigonometry 69/7/4/4.
+
+⚑ **Bisect a timeout before blaming the runtime.** The first two `test:unit` runs on the tip timed out
+11 and then 5 React tests at 5 s, with the suite taking 124 s and 81 s against `main`'s ~55 s. That
+looked like a Node regression. It was not. Under the same conditions, `main` (24.21) ran 51 s and 59 s
+with one timeout each, and Node 24.22 alone (`eac8e32`) ran 51 s and 50 s with one timeout then none.
+The vite commit ran 42 s twice, clean. The tip rerun took 50 s, failing only `usersPanelPaging`, which
+also fails on `main` and passes alone. The host's load average was ~10 during the slow runs. The rule:
+compare a timeout-shaped failure against `main` on the same machine before writing it up as a runtime
+effect.
+
+**Gate evidence** (isolated `-p l3node2422` stack; the built runner reports `node -v` = **v24.22.0**):
+- Production build, plus migrations applied to an empty database through
+  `20261020_092934_advanced_tools`.
+- TypeScript, ESLint and Prettier pass; contract 16/16.
+- `test:unit` 1,693/1,694: the known `usersPanelPaging` timeout, which passes alone.
+- `test:int` 322/322.
+- `test:http` 433 passed with the four SMTP skips, against the production runner with
+  `NODE_ENV=production`, including the real Gotenberg PDF exports.
+- Playwright (1.58.2, the e2e image rebuilt from the new bookworm digest, `node -v` v24.22.0): **133 passed, none retried**.
+- Deploy-sidecar 15/15, backup-status 53/53, restore 12/12, and the local release bundle, release
+  manifest merge, online updater and release publishing checks all PASS.
+- `audit:prod` passes: 8 moderate, none fixable.
+- `audit:all` drops from 14 (6 high) on `main` to 13 (5 high); all five highs are the known `braces`
+  chain.
+
 ## 2026-10-21 — Insert link: Mark's answers — keep the tracker, drop `?prev` everywhere, avoid localhost
 
 Mark (ARES) answered the questions left open on 2026-10-20, with three example addresses:

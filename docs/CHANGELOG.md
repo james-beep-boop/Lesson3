@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Node 24 LTS moves from 24.21.0 to 24.22.0, and both Node images are now pinned by multi-architecture
+  digest like Postgres and Gotenberg. The generator's YAML reader moves to js-yaml 5.5.0, matching the
+  ARES generator's 5.x line. Generated DOCX for three ARES sub-strands is unchanged, and their PDFs keep
+  the same page counts.
+
 - Insert link keeps ARES tracker addresses as copied, so visits through them are counted again
   (previously the tracker part was removed). Navigation state starting `?prev` is now removed from
   any ARES address, which fixes Kolibri links copied as `ares.local/kolibri/…`, and `127.0.0.1` is
