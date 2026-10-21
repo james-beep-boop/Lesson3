@@ -417,6 +417,7 @@ test.describe('Manage page', () => {
     await expect(page.locator(`[id="${systemId}"] > .lp-accordion > h3 button`)).toHaveText([
       'Features',
       'Installation status',
+      'Backups',
     ])
     await expect(page.locator('.lp-accordion .lp-accordion .lp-accordion')).toHaveCount(0)
     await test.info().attach('manage-headings', {
@@ -1408,37 +1409,6 @@ test.describe('Manage page', () => {
       await expect(page.locator('.lp-manage__fact-env').first()).toBeVisible()
 
       /**
-       * The backup row crosses the host/app boundary. A clean CI host reports Unknown; a developer
-       * whose host script has run reports that success. Either way the row and state must be honest.
-       *
-       * ⚑ READ IN ONE `page.evaluate`, for the reason spelled out immediately below — this used a
-       * per-element `locator(...).evaluate()`, which is the mechanism that comment exists to forbid.
-       * It was safe here only because a `toHaveCount(1)` ran first; the panel is server-rendered, so
-       * there is nothing to wait for and no reason to keep a second way of reading the same DOM.
-       */
-      const backupValue = await page.evaluate(() => {
-        const row = [...document.querySelectorAll('li.lp-manage__row')].find((li) =>
-          li.textContent?.includes('Most recent successful backup'),
-        )
-        const value = row?.querySelector('.lp-manage__fact-value')
-        return value
-          ? { status: (value as HTMLElement).dataset.status, value: value.textContent }
-          : null
-      })
-      expect(backupValue, 'the backup row did not render at all').not.toBeNull()
-      if (backupValue!.status === 'unknown') {
-        expect(backupValue).toEqual({
-          status: 'unknown',
-          value: 'No successful backup recorded',
-        })
-      } else {
-        expect(backupValue).toEqual({
-          status: 'ok',
-          value: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC$/),
-        })
-      }
-
-      /**
        * ⚑ ONE `page.evaluate`, NO PER-ELEMENT LOCATORS. The first version of this test read colours
        * through `locator(...).evaluate().catch(() => null)` so it could "skip rather than assert
        * something vacuous" — but a locator for an element that does not exist waits out its FULL
@@ -1446,7 +1416,9 @@ test.describe('Manage page', () => {
        * "Target page has been closed". Reading the whole set in one pass cannot wait for anything.
        */
       const rows = await page.evaluate(() =>
-        [...document.querySelectorAll('.lp-manage__fact-value')].map((el) => ({
+        // `[data-status]`: the facts only. The Backups box's statements share the value class but carry
+        // `data-state`, and they are in the DOM even while their box is closed.
+        [...document.querySelectorAll('.lp-manage__fact-value[data-status]')].map((el) => ({
           status: (el as HTMLElement).dataset.status ?? '',
           color: getComputedStyle(el).color,
         })),
@@ -1479,6 +1451,43 @@ test.describe('Manage page', () => {
         return d ? getComputedStyle(d).flexBasis : null
       })
       expect(flexBasis, 'no fact description rendered at all').toBe('100%')
+    })
+
+    /**
+     * Design A5. A clean CI host has no backup records, a developer's may — so this pins what is true
+     * on every host: each statement has one of the three states, distinct states look distinct, "Full
+     * recovery" reads "Not yet tested" until Phase B, and the operator details start collapsed.
+     */
+    test('a Site Administrator sees the backup statements, each with its own state', async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=system.backups`)
+
+      const statements = await page.evaluate(() =>
+        [...document.querySelectorAll('li[data-statement]')].map((li) => {
+          const value = li.querySelector('.lp-manage__fact-value') as HTMLElement | null
+          return {
+            key: (li as HTMLElement).dataset.statement,
+            state: value?.dataset.state ?? '',
+            value: value?.textContent ?? '',
+            color: value ? getComputedStyle(value).color : '',
+          }
+        }),
+      )
+      expect(statements.map((s) => s.key)).toEqual(
+        expect.arrayContaining(['freshness', 'routine', 'lastAttempt', 'fullRecovery', 'contact']),
+      )
+      for (const s of statements) expect(['ok', 'attention', 'unknown']).toContain(s.state)
+      expect(statements.find((s) => s.key === 'fullRecovery')).toMatchObject({
+        state: 'attention',
+        value: 'Not yet tested',
+      })
+      const colourByState = new Map(statements.map((s) => [s.state, s.color]))
+      expect(new Set(colourByState.values()).size).toBe(colourByState.size)
+
+      await expect(page.locator('details.lp-manage__technical')).not.toHaveAttribute('open')
+      await expect(page.getByText('If you ever need to restore')).toBeVisible()
     })
 
     test('a Subject Administrator has no System box, and the deep link is scrubbed', async ({

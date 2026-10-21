@@ -54,6 +54,131 @@ inside the same `act` scope as the restart, `ready` goes false and back to true 
 between, and the test reports a stall that a browser does not have. Fake network timing that is
 faster than real network timing can hide or invent effect re-runs.
 
+## 2026-10-21 — A2–A6 built: per-stream backup records and the Backups statements
+
+PR 2 of Phase A (`docs/DESIGN-backup-recovery-2026-10-21.md`), plus the pending-restore statement added
+to its scope in NEXT-SESSION. `docs/OPS.md` describes the records and the page; SPEC §11 has the rule.
+
+**Decisions made while building it:**
+
+- **One line per field group in each record** (`lastSuccess`, `lastFailure`, `history` each on its own
+  line). Bash has no JSON parser on a server, and re-escaping a value read back from JSON is where a
+  hand-rolled writer goes wrong. Instead a run carries the OTHER group forward as the exact line a
+  previous run wrote. A success keeps the last failure, and the reader compares times.
+- **The label is mapped to its stream before anything else,** so a missing `age`, a refused drive or a
+  held lock is recorded against that stream. An unknown `--label` names no stream and records nothing.
+  Failures after the success record is written (pruning, the heartbeat) are not recorded as failures:
+  the backup succeeded.
+- **The lock waits up to `BACKUP_LOCK_WAIT_SECONDS` (default 3600), then fails without writing a
+  record.** A weekly cron line and a deploy's premigrate snapshot can start together. A run that never
+  got the lock must not replace a record the holder may be writing at that moment. It is a kernel
+  `flock`, so a killed run cannot leave it held.
+- **The Backups statements are their own panel** (`system.backups`, after *Installation status*). The
+  three backup rows left the facts list. The page's states are `ok` / `attention` / `unknown` under a
+  separate `data-state` attribute, so they cannot be confused with the facts' `data-status`. "Recovery
+  needs ARES" is `attention`; the two key states the Guide branches on keep their exact words.
+- **The app does not read `BACKUP_AGE_RECIPIENT`.** The design's *Technical details* lists recipient
+  fingerprints. But declaring ARES's key in `.env.example` would give new installs an empty
+  `BACKUP_AGE_RECIPIENT=`, which `scripts/deploy.sh`'s `grep -q '^BACKUP_AGE_RECIPIENT='` reads as
+  "backups configured". Only the school key's fingerprint is shown.
+- **Local times on a server-rendered page** use the two-pass pattern from `VersionTimestamps` (DECISIONS
+  2026-07-05): explicit UTC until hydration, then the viewer's zone.
+- **`update.sh` keeps the pre-update backup's record** as `premigrate-backup.json`, and still keeps
+  `backup-status.json` when an older installed `backup-db.sh` wrote that instead (the backup taken
+  during an update runs the installed script, not the new one).
+
+**Review on `450231d` (four findings, all fixed in this PR):**
+
+1. **The restore lock admitted two processes (P1).** Between one run's `mkdir` of the lock directory
+   and its writing the PID, a second run saw an empty lock, judged it stale, removed it and entered.
+   `restore-db.sh` now holds a kernel `flock` on `out/ops/.restore.lock`, a file that is never removed.
+   This supersedes the 2026-10-21 A1 lesson about PID reuse: there is no PID to judge any more.
+2. **Early backup failures bypassed the lock.** A validation failure wrote its record before
+   `backup-db.sh` held the lock, and could replace a newer success (a history of two became one). The
+   lock is now taken as soon as the stream is known, and the exit trap writes only if this run holds
+   it.
+3. **"No recent routine backup" was claimed without the history to support it,** for example when the
+   first new-format record was an update's snapshot and routine backups were still described only by
+   the older file. The page now says "Unknown — history incomplete" in that case, and while records
+   are younger than the window being judged. The "only before updates" wording, which the design
+   forbids, is gone.
+4. **Whole-second ties hid failures.** Every success and failure now carries `seq`, from one counter
+   advanced under the lock. The reader orders by it, and a tie between old records without it reads
+   as the failure.
+
+Re-run after these fixes (local, 2026-10-22):
+
+- **`test-restore-db.sh`:** 88/88 on macOS, and 95/95 in the probe tools image with the real lock. The
+  real-lock cases cover:
+  - a second runner refused while the first holds the lock;
+  - a killed holder leaving nothing to clear;
+  - a confirm started during a slow resume refused by the lock itself.
+- **`test-backup-status.sh`:** 84/84 on macOS, and 94/94 in the tools image. This includes a run that
+  fails while another succeeds: under the real lock the success and its history are kept, and the
+  failure is attempt 2.
+- **`backupStatus.spec`:** 44 cases. The reader tests and path parity pass 49/49.
+- **`test-restore-db-stack.sh`:** 104/104.
+- **lint and tsc** are clean.
+- **Mutation runs:** with each fix undone, its new cases fail. With the backup ordering reverted, the
+  concurrent success is lost outright.
+
+**Second review on `b90efbb` (two reporting gaps, fixed):**
+
+- **Retention checks ran before the lock**, so a bad `BACKUP_*_KEEP` or retention-days setting failed the
+  run without a record. They now run right after `LOCKED=1`, and the failure is recorded as `setup`.
+- **The older file suppressed "No recent routine backup recorded" forever.** It stays on disk after the
+  switch, so its presence alone cannot mean "history incomplete". It now counts only while new-format
+  records are younger than the window (the agreed limit, or 7 days).
+
+Re-run:
+
+- `test-backup-status.sh`: 88/88 on macOS, and 98/98 in the tools image.
+- `backupStatus.spec`: 45 cases. The reader tests and path parity pass 50/50.
+- lint, tsc and format are clean.
+- Both new cases fail against `b90efbb`.
+
+**Lesson:** a lock built from separate steps (create, then mark as owned) has a window between them,
+and every repair of the marker kept that window. Use the kernel's lock, and test it with two real
+processes: the stubbed lock proved only that the script asks for one.
+
+**Gate evidence:** (local, arm64 Mac, 2026-10-21; see the review fixes below for the re-run)
+
+- **`scripts/test-backup-status.sh`: 77/77 on the Mac's bash 3.2, 83/83 in the probe tools image.**
+  The tools image (bash 5, util-linux) is where the real-`flock` case runs. The checks cover:
+  - the v2 record fields;
+  - a failure record for each stage;
+  - a later success keeping the failure line byte for byte, and vice versa;
+  - the history capped at 31;
+  - no record for an unknown label or for a run that never got the lock;
+  - two runs at once: the later one waited, both succeeded, no dump overlapped, and both records
+    survived.
+
+  Disabling the lock makes the wait and no-overlap checks fail, so the test can fail.
+- **`backupStatus.spec.ts` (new): 39/39.** It covers every statement's states and the v1→v2
+  transition. It covers a history shorter than the week, freshness judged by `coversUntil` (an old
+  dump uploaded an hour ago is overdue), and every restore-journal state. It checks that "protected"
+  and "recoverable" never appear, and covers the bounded readers (a wedged mount, malformed and
+  oversized files, a file naming another stream).
+- **Other updated tests:** path parity (now also the restore journal), Guide parity (four new claims),
+  `systemFacts.spec`, the update test (`premigrate-backup.json`) and the e2e Manage spec (the new
+  panel).
+- **`scripts/test-restore-db-stack.sh`: 104/104** with the locked `backup-db.sh`; its undo backup
+  takes the lock.
+- **Other script tests:** `test-online-update`, `test-local-deploy-bundle`, `test-restore-db` (87/87),
+  `test-deploy-sidecar` and `test-merge-release-images` pass.
+- **lint, tsc and format:check** are clean.
+- **test:unit:** 1,732/1,735 on the full run; all three failures were checked:
+  - `classNameStyles` caught a class with no rule, now fixed (it gives the restore note spacing);
+  - `guideAccess` and the known `usersPanelPaging` were load timeouts, and pass alone.
+- **test:int (isolated probe):** 322/322.
+- **Browser check:** the Backups panel was checked on the local dev stack with fixture records:
+  - every state, local times after hydration, and the collapsed *Technical details*;
+  - no horizontal scroll at 375 px, and no console errors apart from the dev server's hot-reload
+    socket.
+
+  `scripts/dev-server.sh` now mounts `out/ops` read-only, so local dev shows what production shows.
+- **Left to CI:** test:http and e2e.
+
 ## 2026-10-21 — Backup and recovery: agreements "Not agreed", credential custody, the Rock's contact
 
 Operator decisions on the design's open questions (`docs/DESIGN-backup-recovery-2026-10-21.md`):

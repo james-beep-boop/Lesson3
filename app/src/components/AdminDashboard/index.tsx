@@ -7,6 +7,7 @@ import { isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
 import { assignmentCountsBySubjectGrade, NO_ASSIGNMENTS } from '../../lib/assignmentCounts'
+import { collectBackupStatus } from '../../lib/backupStatus'
 import { collectSystemFacts } from '../../lib/systemFacts'
 import { relId, distinctIds } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
@@ -17,6 +18,7 @@ import { DeletePlansPanel, type PlanRow } from './DeletePlansPanel'
 import { buildRolesAccess } from '../../lib/editorGroups'
 import { startRenderTimings } from '../../lib/renderTimings'
 import { RolesAccessPanel } from '../Manage/RolesAccessPanel'
+import { BackupStatusPanel } from '../Manage/BackupStatusPanel'
 import { SystemFactsPanel } from '../Manage/SystemFactsPanel'
 import { SystemFeaturesPanel } from '../Manage/SystemFeaturesPanel'
 import type { FeatureValues } from '../Manage/systemFeaturesState'
@@ -103,6 +105,7 @@ export default async function AdminDashboard({
     taxonomyGradesRes,
     assignmentCounts,
     systemFacts,
+    backupStatus,
     systemSettings,
     unsavedWork,
     awaitingApproval,
@@ -197,6 +200,9 @@ export default async function AdminDashboard({
     // the network and stats the artifact cache, which nobody but a Site Admin can see the result of.
     // `collectSystemFacts` never throws; a failed probe reports `unknown`.
     siteAdmin ? t.time('systemFacts', () => collectSystemFacts()) : null,
+    // Host-written records and the restore journal, read through the read-only `out/ops` mount, plus
+    // the agreement settings. Never throws: an unreadable record is simply absent (design A5).
+    siteAdmin ? t.time('backupStatus', () => collectBackupStatus()) : null,
     // Never throws: a failed read renders Features as "unavailable" (`readFeaturesSettings`).
     siteAdmin ? t.time('systemSettings', () => readFeaturesSettings(payload, { user, req })) : null,
     // ---- Your Drafts (every role that can edit; empty for everyone else) ----
@@ -527,6 +533,7 @@ export default async function AdminDashboard({
         // `systemFacts &&`, the same clause the JSX uses — the ⚑ above asks for one spelling so the
         // list can be diffed against the render by eye. It is non-null exactly when `siteAdmin` is.
         !!systemFacts && 'system.deployment',
+        !!backupStatus && 'system.backups',
         siteAdmin && 'system.features',
       ] satisfies (PanelId | false)[]
     ).filter((id) => id !== false),
@@ -781,15 +788,9 @@ export default async function AdminDashboard({
                 This page shows how this installation of ARES Lesson Plans is set up, and whether
                 the services it depends on are working. It is for information only — changes are
                 made on the server, and most of these take effect only when it restarts. The last
-                three rows are different: they report what actually happened, or what is working
-                right now. The smaller technical names are included for whoever maintains the
-                server. This page reports status only; it cannot start a backup or restore data.
-                Site Administrator access does not grant access to the server command line or the
-                private recovery key. See the{' '}
-                <Link href="/guide?open=site-admins&at=site-admins.backups">
-                  backup and recovery instructions
-                </Link>
-                .
+                two rows are different: they report what is working right now. The smaller technical
+                names are included for whoever maintains the server. Backups have their own box
+                below.
               </p>
               <SystemFactsPanel facts={systemFacts} />
               {/* ⚑ NOT A FACT ROW. Every row above names the server setting that controls it, so an
@@ -803,6 +804,21 @@ export default async function AdminDashboard({
                 </p>
               )}
             </AccordionPanel>
+            {backupStatus && (
+              <AccordionPanel id="system.backups" title="Backups">
+                <p className="lp-manage__desc">
+                  What the backup records on this server show, one statement at a time. This page
+                  reports status only; it cannot start a backup or restore data. Site Administrator
+                  access does not grant access to the server command line or the private recovery
+                  key. See the{' '}
+                  <Link href="/guide?open=site-admins&at=site-admins.backups">
+                    backup and recovery instructions
+                  </Link>
+                  .
+                </p>
+                <BackupStatusPanel status={backupStatus} />
+              </AccordionPanel>
+            )}
           </AccordionPanel>
         )}
       </AccordionProvider>

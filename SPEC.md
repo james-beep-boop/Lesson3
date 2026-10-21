@@ -1056,14 +1056,19 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     carry a regular, non-symlink sentinel before any dump is written; its mount identity must remain
     stable through upload.
   - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local
-    answer — surfaced in the **Manage → System** panel as last-success time and destination. (Renamed
-    from "Installation" 2026-08-21; the panel's design is `docs/DESIGN-system-panel-2026-08-21.md`.)
-    **Built 2026-08-21:** `scripts/backup-db.sh` atomically replaces `out/ops/backup-status.json` only after
-    `rclone copyto` succeeds; the app receives `out/` read-only and reports the UTC time, stream/type,
-    actual destination, filename and encrypted size. A failed upload cannot advance the record, and a
-    missing/malformed record is `Unknown`, never evidence that no remote backup exists. This is the row
-    that proves the rule the rest of that half follows — facts are **read-only**, not necessarily
-    *computed*; recorded operational state is allowed, but never operator-authored on this screen.
+    answer — surfaced on **Manage → System → Backups**. (Built 2026-08-21 as one "most recent backup"
+    row; replaced 2026-10-21 by design A2–A5, `docs/DESIGN-backup-recovery-2026-10-21.md`.)
+    `scripts/backup-db.sh` writes one record per stream, `out/ops/backup/<stream>.json`, atomically and
+    under an `flock`: the last success with `coversUntil` (when `pg_dump` began), the last failure with
+    its stage and reason (written by an exit trap), and the last 31 `coversUntil` values. The page
+    states separate facts, each up to date / attention / unknown, with **no overall "Protected"**:
+    freshness judged by `coversUntil` against the school's `BACKUP_MAX_DATA_LOSS`, routine backups over
+    the last 7 days, the last attempt, the agreed `RECOVERY_TARGET_TIME`, who recovers
+    (`BACKUP_RECOVERY_CONTACT`), where the key is kept (`BACKUP_KEY_HELD_BY`), an open restore, and
+    **"Full recovery: Not yet tested"** until Phase B's acceptance test passes. Unset agreements read
+    "Not agreed"; Lesson3 picks no defaults. A missing or malformed record is never evidence that no
+    backup exists. Facts are **read-only**: recorded operational state is allowed, but never
+    operator-authored on this screen.
   - ⚑ **DECIDED 2026-08-22 — TWO RECIPIENTS. Key custody had made an OFFLINE school unable to restore
     its own backups.** The rule below is deliberate and works for an internet-connected deployment: the
     ciphertext can travel to wherever the identity is held, which is exactly how the 2026-08-22 drill

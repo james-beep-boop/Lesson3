@@ -42,6 +42,7 @@ prepare_case() {
 #!/usr/bin/env bash
 args="$*"
 printf '%s\n' "$args" >>"$CALLS"
+[[ "${SLOW:-}" == 1 ]] && sleep 0.3
 case "$args" in
   *"FROM pg_database WHERE datname = '"*)
     name="${args#*datname = \'}"; name="${name%%\'*}"
@@ -84,7 +85,14 @@ EOF
 #!/usr/bin/env bash
 printf 'Filesystem 1024-blocks Used Available Capacity Mounted\n/dev/y 1 1 %s 1%% /tmp\n' "${TMP_FREE_KB:-99999999}"
 EOF
-  chmod +x "$SANDBOX/home/bin/docker" "$SANDBOX/home/bin/age" "$SANDBOX/home/bin/df"
+  # The restore lock. The real one is exercised at the end, where the host has it.
+  cat >"$SANDBOX/home/bin/flock" <<'EOF'
+#!/usr/bin/env bash
+echo "flock $*" >>"$CALLS"
+[[ "${LOCK_HELD:-0}" == "1" ]] && exit 1
+exit 0
+EOF
+  chmod +x "$SANDBOX/home/bin/docker" "$SANDBOX/home/bin/age" "$SANDBOX/home/bin/df" "$SANDBOX/home/bin/flock"
 }
 
 # run <stdin-answer> <args…>: run the real script against the stubs. Fixture env vars pass through.
@@ -97,6 +105,7 @@ run() {
     BACKUP_MIGRATIONS="${BACKUP_MIGRATIONS:-$INSTALLED}" INSTALLED_FIXTURE="$INSTALLED" DBS="${DBS:-lesson3}" \
     TMP_FREE_KB="${TMP_FREE_KB:-99999999}" VOLUME_FREE_KB="${VOLUME_FREE_KB:-99999999}" \
     LIVE_BYTES="${LIVE_BYTES:-1000}" CHECK_FAILS="${CHECK_FAILS:-0}" RESTORE_APP_WAIT_SECONDS=5 \
+    LOCK_HELD="${LOCK_HELD:-0}" \
     bash "$RESTORE" "$@" <"$SANDBOX/answer" >"$SANDBOX/output" 2>&1
   EXIT=$?
   OUTPUT="$(cat "$SANDBOX/output")"
@@ -318,14 +327,60 @@ check "resume of an undo re-allows connections to the previous database" called 
 check "resume of an undo ends undone" state_is undone
 
 prepare_case
-mkdir "$SANDBOX/repo/out/ops/.restore-lock"; echo "$$" >"$SANDBOX/repo/out/ops/.restore-lock/pid"
 journal provisional
+LOCK_HELD=1 run "" --confirm
+check "a held lock refuses a second runner" has "another restore-db.sh is running"
+check "a refused runner changes nothing" state_is provisional
 run "" --confirm
-check "a live lock refuses a second runner" has "is running"
-echo 999999 >"$SANDBOX/repo/out/ops/.restore-lock/pid"
-run "" --confirm
-check "a stale lock is taken over with a note" has 'removing a stale lock'
-check "and the command proceeds" state_is accepted
+check "every journal command takes the lock" called 'flock -n 9'
+check "and the command proceeds once it is free" state_is accepted
+
+# ── The REAL lock (design review 2026-10-21) ─────────────────────────────────────────────────────────
+#
+# ⚑ THE STUB ABOVE PROVES THE SCRIPT ASKS; ONLY THE KERNEL'S LOCK PROVES TWO RUNS CANNOT BOTH ENTER. The
+# directory-with-a-PID lock this replaced let a second run remove a just-created, still-empty lock as
+# "stale" and enter alongside the first (reproduced in review). macOS has no `flock`; CI's Ubuntu runner
+# and the probe tools image do.
+REAL_FLOCK="$(PATH=/usr/bin:/bin:/usr/sbin:/sbin command -v flock || true)"
+if [[ -z "$REAL_FLOCK" ]]; then
+  echo "SKIP the real restore lock — this host has no flock (CI runs it; on a Mac run this in the probe tools image)"
+else
+  prepare_case
+  rm -f "$SANDBOX/home/bin/flock"; ln -s "$REAL_FLOCK" "$SANDBOX/home/bin/flock"
+  journal provisional
+  LOCKFILE="$SANDBOX/repo/out/ops/.restore.lock"
+  # One process holds it (the lock command's own fork would otherwise keep it after the kill below).
+  ( exec 9>"$LOCKFILE"; "$REAL_FLOCK" 9; exec sleep 30 ) & HOLDER=$!
+  sleep 0.5
+  run "" --confirm
+  check "real lock: a second runner is refused while the first holds it" has "another restore-db.sh is running"
+  check "real lock: the refused runner changed nothing" state_is provisional
+  kill -KILL "$HOLDER" 2>/dev/null; wait "$HOLDER" 2>/dev/null
+  check "real lock: the lock file outlives its holder" test -e "$LOCKFILE"
+  run "" --confirm
+  check "real lock: a killed holder leaves nothing to clear" state_is accepted
+  # A slow resume holds the lock while a confirm starts: the confirm must be refused BY THE LOCK. (Without
+  # a lock it would also fail — the state is not provisional — but with a different message, which is
+  # why the check is on the message.)
+  prepare_case
+  rm -f "$SANDBOX/home/bin/flock"; ln -s "$REAL_FLOCK" "$SANDBOX/home/bin/flock"
+  journal writers-stopped
+  printf '\n' >"$SANDBOX/answer"
+  slow_run() { # output-file args…
+    local out="$1"; shift
+    env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" PATH="/usr/bin:/bin" CALLS="$SANDBOX/calls" \
+      DBS="lesson3 lesson3_incoming_20261021T000000Z" RESTORE_APP_WAIT_SECONDS=5 SLOW=1 \
+      bash "$RESTORE" "$@" <"$SANDBOX/answer" >"$out" 2>&1
+  }
+  slow_run "$SANDBOX/o1" --resume & A=$!
+  sleep 1
+  slow_run "$SANDBOX/o2" --confirm; EB=$?
+  wait "$A"; EA=$?
+  OUTPUT="$(cat "$SANDBOX/o2")"
+  check "real lock: the first run completes" test "$EA" -eq 0
+  check "real lock: a run started meanwhile is refused" test "$EB" -ne 0
+  check "real lock: the other is told why" has "another restore-db.sh is running"
+fi
 
 echo "restore-db: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

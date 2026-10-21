@@ -10,6 +10,24 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- ⚑ **Manage → System → Backups (Site Administrators; operators).** A new box states what the backup
+  records show, one fact at a time, each up to date, needing attention, or unknown. There is no
+  overall "Protected":
+  - whether the newest routine backup is within the school's agreed limit, judged by when its data
+    was taken, not when it was uploaded;
+  - how many of the last 7 days had one;
+  - whether the last attempt succeeded, and if not, why (for example, "the backup drive is not
+    connected");
+  - the agreed recovery time, who recovers, and where the private key is kept;
+  - a restore that is still provisional;
+  - **"Full recovery: Not yet tested"**, until a recovery onto another machine has been shown to work.
+
+  The three backup rows left *Installation status*. `scripts/backup-db.sh` now keeps one record per
+  stream, `out/ops/backup/<stream>.json`, including the last failure and a short history, and never
+  runs two backups at once. ⚑ **New, optional server settings:** `BACKUP_MAX_DATA_LOSS`,
+  `RECOVERY_TARGET_TIME`, `BACKUP_RECOVERY_CONTACT`, `BACKUP_KEY_HELD_BY`. Each school's limits read
+  "Not agreed" until they are set. See docs/OPS.md.
+
 - The browser test runner moves from Playwright 1.58.2 to 1.64.1 (Chromium 156). CI's browser tests now
   reach the app by a test-only hostname, because the new Chromium forces the bare hostname `app` onto
   HTTPS. Nothing changes for users or operators.

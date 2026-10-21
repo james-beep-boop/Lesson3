@@ -63,8 +63,11 @@ function extract(source: string, pattern: RegExp, what: string, path: string): s
   return match[1]
 }
 
-describe('the backup status file: one path, three files, no drift', () => {
-  const factsSrc = read(join(APP_DIR, 'src', 'lib', 'systemFacts.ts'), 'It is the app-side reader.')
+describe('the backup records: one path, three files, no drift', () => {
+  const factsSrc = read(
+    join(APP_DIR, 'src', 'lib', 'backupStatus.ts'),
+    'It is the app-side reader.',
+  )
   const scriptSrc = read(
     join(REPO_DIR, 'scripts', 'backup-db.sh'),
     'It is the host-side sole writer.',
@@ -74,16 +77,18 @@ describe('the backup status file: one path, three files, no drift', () => {
     'It is the only thing joining the writer to the reader.',
   )
 
-  const appPath = extract(
+  // Version 2 (design A2): a DIRECTORY of per-stream records under the operations mount.
+  const opsDir = extract(factsSrc, /const OPS_DIR = '([^']+)'/, 'OPS_DIR', 'lib/backupStatus.ts')
+  const appPath = `${opsDir}/${extract(
     factsSrc,
-    /const BACKUP_STATUS_FILE = '([^']+)'/,
-    'BACKUP_STATUS_FILE',
-    'lib/systemFacts.ts',
-  )
+    /const BACKUP_RECORD_DIR = join\(OPS_DIR, '([^']+)'\)/,
+    'BACKUP_RECORD_DIR',
+    'lib/backupStatus.ts',
+  )}`
   const scriptRelPath = extract(
     scriptSrc,
-    /^BACKUP_STATUS_FILE="\$REPO_DIR\/([^"]+)"/m,
-    'BACKUP_STATUS_FILE',
+    /^BACKUP_RECORD_DIR="\$REPO_DIR\/([^"]+)"/m,
+    'BACKUP_RECORD_DIR',
     'scripts/backup-db.sh',
   )
   const mount = extract(
@@ -112,8 +117,37 @@ describe('the backup status file: one path, three files, no drift', () => {
     ).toBe(dirname(appPath))
   })
 
-  it('agrees on the filename itself, not just the directory', () => {
+  it('agrees on the record directory itself, not just its parent', () => {
     expect(appPath.split('/').pop()).toBe(scriptRelPath.split('/').pop())
+  })
+
+  /**
+   * The restore journal crosses the same boundary: `restore-db.sh` writes it, the Backups panel shows
+   * a provisional restore from it. Same silent-pass failure if the two drift apart.
+   */
+  it('reads the restore journal where restore-db.sh writes it', () => {
+    const restoreSrc = read(join(REPO_DIR, 'scripts', 'restore-db.sh'), 'It writes the journal.')
+    const scriptOps = extract(
+      restoreSrc,
+      /^OPS_DIR="\$REPO_DIR\/([^"]+)"/m,
+      'OPS_DIR',
+      'restore-db.sh',
+    )
+    const scriptJournal = extract(
+      restoreSrc,
+      /^JOURNAL="\$OPS_DIR\/([^"]+)"/m,
+      'JOURNAL',
+      'restore-db.sh',
+    )
+    const appJournal = extract(
+      factsSrc,
+      /const RESTORE_JOURNAL_FILE = join\(OPS_DIR, '([^']+)'\)/,
+      'RESTORE_JOURNAL_FILE',
+      'lib/backupStatus.ts',
+    )
+    expect(scriptOps, 'restore-db.sh writes outside the mounted operations directory').toBe(mount)
+    expect(appJournal).toBe(scriptJournal)
+    expect(opsDir).toBe(mountTarget)
   })
 
   it('keeps the app OUT of the writer role by mounting read-only', () => {

@@ -110,11 +110,11 @@ if [ ! -f .env.example ]; then
   echo "  It is tracked, so this means the checkout is incomplete or the root was resolved wrong." >&2
   exit 1
 fi
-for f in docker-compose.yml scripts/backup-db.sh; do
+for f in docker-compose.yml scripts/backup-db.sh scripts/restore-db.sh; do
   if [ ! -f "$f" ]; then
     echo "error: no $f at the repo root ($PWD)." >&2
     echo "       tests/unit/backupStatusPathParity.spec.ts reads it to prove the app looks for the" >&2
-    echo "       backup status file exactly where the script writes it and compose mounts it." >&2
+    echo "       backup records and restore journal exactly where the scripts write and compose mounts them." >&2
     exit 1
   fi
 done
@@ -145,6 +145,8 @@ fi
 #     path, and compose is the only thing joining them; rename any one and the System row reports
 #     "Unknown" forever, silently. That is the `ARTIFACT_CACHE_DIR` failure class the env-template
 #     guard already exists for.
+#   - `scripts/restore-db.sh` (2026-10-21) — the same spec: Manage → System → Backups reads the restore
+#     journal that script writes, across the same mount.
 # If a spec needs another, add another `:ro` line — one file, never the workspace.
 dev_deps_mounts
 exec docker run --rm \
@@ -153,6 +155,7 @@ exec docker run --rm \
   -v "$PWD/USER_GUIDE.md:/repo/USER_GUIDE.md:ro" \
   -v "$PWD/docker-compose.yml:/repo/docker-compose.yml:ro" \
   -v "$PWD/scripts/backup-db.sh:/repo/scripts/backup-db.sh:ro" \
+  -v "$PWD/scripts/restore-db.sh:/repo/scripts/restore-db.sh:ro" \
   -e LESSON3_REPO_ROOT=/repo \
   ${docker_args[@]+"${docker_args[@]}"} \
   lesson3-deps "${cmd[@]}"
