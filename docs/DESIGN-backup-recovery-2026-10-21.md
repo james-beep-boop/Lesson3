@@ -247,13 +247,21 @@ This is manual and untested. The page still says "Full recovery: Not yet tested"
 LTS (no 26.04 for quite some time); minimum replacement machine amd64 or arm64, 8 GB RAM, 512 GB drive; no
 passphrase on the private key.
 
+**Decided 2026-10-21, later (operator):**
+
+1. Every school's maximum data loss and recovery time are **"Not agreed"** for now. No values are set,
+   and the page shows "Not agreed" for each.
+2. For online installs, **the Site Administrator holds the read-only backup-storage credential**. This
+   assigns custody to whoever is the Site Administrator. The app does not grant or check it: Site
+   Administrator remains an application role, not proof of server access (DECISIONS 2026-10-04).
+3. The Rock's recovery contact is **the operator (James)**. Its private key is kept in **the operator's
+   password manager**.
+
 **Still needed:**
 
-1. For each school: the agreed maximum data loss and recovery time, or record them as "Not agreed".
-2. Who holds the read-only Drive credential for online installs.
-3. Start the interim stopgap now?
-4. The demo server (the Rock): who is the recovery contact, and where is its key kept?
-5. May a teacher laptop that meets the minimum serve as a stopgap host?
+1. Start the interim stopgap now?
+2. May a teacher laptop that meets the minimum serve as a stopgap host?
+3. The Rock: how the recovery contact is reached, for `BACKUP_RECOVERY_CONTACT`.
 
 ## Not in scope
 

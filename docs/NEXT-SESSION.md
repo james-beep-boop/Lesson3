@@ -39,9 +39,9 @@ once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 2
 
 **In progress:**
 - Backup and recovery, `docs/DESIGN-backup-recovery-2026-10-21.md`: Phase A is approved. A1 (the staged,
-  reversible restore) is being built in its own session; no PR yet. A2–A6 (records, page, Guide) come as
-  PR 2. Phase B (recovery kit and a clean-machine acceptance test on amd64 and arm64) is owned by the
-  operator, with a target of 2026-11-30.
+  reversible restore) is merged (#426) and released in v1.01. A2–A6 (records, page, Guide) are PR 2,
+  in progress on `claude/a2-backup-records`. Phase B (recovery kit and a clean-machine acceptance test
+  on amd64 and arm64) is owned by the operator, with a target of 2026-11-30.
 - Open from the dependency review: drop `turbopackMinify: false` once a Payload 3.x release ships
   payloadcms/payload#18775, which is merged on 3.x but unreleased (do it as its own change after the
   Payload bump); React 19.3, Playwright 1.64 and the majors each as their own change.

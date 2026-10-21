@@ -35,6 +35,21 @@ inside the same `act` scope as the restart, `ready` goes false and back to true 
 between, and the test reports a stall that a browser does not have. Fake network timing that is
 faster than real network timing can hide or invent effect re-runs.
 
+## 2026-10-21 — Backup and recovery: agreements "Not agreed", credential custody, the Rock's contact
+
+Operator decisions on the design's open questions (`docs/DESIGN-backup-recovery-2026-10-21.md`):
+
+- **Each school's maximum data loss and recovery time are "Not agreed".** PR 2 ships no defaults, and
+  the page reports "Not agreed" until a school's values are set (A3).
+- **Online installs: the Site Administrator holds the read-only backup-storage credential.** This is a
+  custody assignment to the person in that role. It is not an application capability: Site
+  Administrator still does not imply server access or key custody (2026-10-04 stands).
+- **The Rock:** the recovery contact is the operator (James), and its private key is kept in his password
+  manager.
+
+Still open: the interim stopgap, a teacher laptop as a stopgap host, and how the Rock's contact is
+reached.
+
 ## 2026-10-21 — A1 built: restore never destroys the live database before the replacement is proven
 
 Phase A, item A1 of `docs/DESIGN-backup-recovery-2026-10-21.md` (approved today). `restore-db.sh
