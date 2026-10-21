@@ -11,7 +11,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 ## Unreleased
 
 - The browser test runner moves from Playwright 1.58.2 to 1.64.1 (Chromium 156). CI's browser tests now
-  reach the app by its container name, because the new Chromium forces the bare hostname `app` onto
+  reach the app by a test-only hostname, because the new Chromium forces the bare hostname `app` onto
   HTTPS. Nothing changes for users or operators.
 
 ## v1.01 (2026-10-21)

@@ -259,18 +259,18 @@ jobs:
         # its MARK-tagged, self-cleaning role fixture through the Local API, and postgres is
         # deliberately not published to the host.
         #
-        # ⚑ The browser reaches the app by its CONTAINER name `lesson3-app-1`, not the service name
-        # `app`. From Chromium 156 (Playwright 1.64) the single-label host `app` matches the
-        # HSTS-preloaded `.app` TLD, so the browser upgrades `http://app:3000` to HTTPS against an
-        # HTTP-only service and every navigation fails. Do not "tidy" this back to `app`. test:http
-        # above keeps `app:3000`: Node's fetch has no HSTS list. CI sets SERVER_URL empty, so no CSRF
-        # origin is tied to either name.
+        # ⚑ The browser reaches the app as `lesson3-e2e`, a test-only network alias on `app` in
+        # docker-compose.test.yml, not as the service name `app`. From Chromium 156 (Playwright 1.64)
+        # the single-label host `app` matches the HSTS-preloaded `.app` TLD, so the browser upgrades
+        # `http://app:3000` to HTTPS against an HTTP-only service and every navigation fails. Do not
+        # "tidy" this back to `app`. test:http above keeps `app:3000`: Node's fetch has no HSTS list.
+        # CI sets SERVER_URL empty, so no CSRF origin is tied to either name.
         #
         # `npm run test:e2e` (NOT bare `npx playwright test`): the script sets `--import=tsx/esm`,
         # without which the config's JSON import fails with "needs an import attribute of type: json".
         run: |
           docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
-            --env-file .env -e E2E_BASE_URL=http://lesson3-app-1:3000 -e CI=true \
+            --env-file .env -e E2E_BASE_URL=http://lesson3-e2e:3000 -e CI=true \
             lesson3-e2e npm run test:e2e -- --reporter=line
 
       - name: audit:prod
