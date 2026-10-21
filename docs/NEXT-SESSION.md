@@ -36,7 +36,8 @@ recovers, where the key is kept, and an open restore. It adds four optional serv
 - records are written only by the run that holds the backup lock;
 - "history incomplete" now expires.
 
-Also in v1.02: Playwright 1.64.1 (#429, test-only). **None of v1.00–v1.02 is deployed yet.** When the
+Also in v1.02: Playwright 1.64.1 (#429, test-only). **Deployed:** v1.00's code (build `9b6aac5`, which differs from the tag only in docs) went to the Rock
+(test.kenyalessons.org) on 2026-10-21 and was checked there. v1.01 and v1.02 are not deployed yet. When the
 Rock is updated, set `BACKUP_RECOVERY_CONTACT` (the operator, and how to reach him; he has yet to
 give the contact line) and `BACKUP_KEY_HELD_BY` (the operator's password manager) in its `.env`.
 
