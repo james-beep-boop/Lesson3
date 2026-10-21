@@ -137,7 +137,7 @@ publish_line="$(awk '/run: bash scripts\/publish-release-bundle.sh/ {print NR; e
 # Exercise the actual required gate commands, including cancellation after both parents completed.
 ci_workflow="$repo_dir/.github/workflows/ci.yml"
 gate_job="$(awk '/^  gate:$/ {inside=1; next} inside && /^  [a-z_]+:$/ {exit} inside {print}' "$ci_workflow")"
-grep -Fq 'needs: [native_arm, checks]' <<<"$gate_job" || fail 'CI gate ignores a required job'
+grep -Fq 'needs: [native_arm, checks, restore_stack]' <<<"$gate_job" || fail 'CI gate ignores a required job'
 [[ "$(grep -Fc 'if: ${{ always() }}' <<<"$gate_job")" == 2 ]] \
   || fail 'failed or cancelled CI can skip the gate or its status check'
 grep -Fq 'if: ${{ cancelled() }}' <<<"$gate_job" || fail 'gate ignores workflow cancellation'
@@ -145,10 +145,11 @@ gate_script="$(awk '/^        run: \|$/ {inside=1; next} inside && /^      - / {
 cancel_script="$(awk '/if: \$\{\{ cancelled\(\) \}\}/ {inside=1; next} inside && /^        run:/ {sub(/^        run: /, ""); print; exit}' <<<"$gate_job")"
 [[ -n "$gate_script" && -n "$cancel_script" ]] || fail 'required gate has no status or cancellation commands'
 gate_cases=0
-while read -r native_result checks_result cancelled expected; do
+while read -r native_result checks_result restore_result cancelled expected; do
   [[ "$native_result" != missing ]] || native_result=''
+  [[ "$restore_result" != missing ]] || restore_result=''
   result=0
-  NATIVE_ARM_RESULT="$native_result" CHECKS_RESULT="$checks_result" \
+  NATIVE_ARM_RESULT="$native_result" CHECKS_RESULT="$checks_result" RESTORE_STACK_RESULT="$restore_result" \
     bash -eo pipefail -c "$gate_script" >"$work_dir/output" 2>&1 || result=$?
   if [[ "$result" == 0 && "$cancelled" == true ]]; then
     bash -eo pipefail -c "$cancel_script" >>"$work_dir/output" 2>&1 || result=$?
@@ -156,21 +157,25 @@ while read -r native_result checks_result cancelled expected; do
   if [[ "$expected" == pass ]]; then
     [[ "$result" == 0 ]] || fail 'successful CI did not pass the gate'
   else
-    [[ "$result" != 0 ]] || fail "$native_result/$checks_result/cancelled=$cancelled passed the gate"
+    [[ "$result" != 0 ]] || fail "$native_result/$checks_result/$restore_result/cancelled=$cancelled passed the gate"
   fi
   gate_cases=$((gate_cases + 1))
 done <<'CASES'
-success success false pass
-failure success false fail
-skipped success false fail
-cancelled success true fail
-cancelled success false fail
-success failure false fail
-success skipped false fail
-success cancelled true fail
-success cancelled false fail
-success success true fail
-missing success false fail
+success success success false pass
+failure success success false fail
+skipped success success false fail
+cancelled success success true fail
+cancelled success success false fail
+success failure success false fail
+success skipped success false fail
+success cancelled success true fail
+success cancelled success false fail
+success success success true fail
+missing success success false fail
+success success failure false fail
+success success skipped false fail
+success success cancelled false fail
+success success missing false fail
 CASES
 echo "  ok: $gate_cases required-gate outcomes include failure, skip and cancellation"
 echo 'test-merge-release-images: PASS'

@@ -52,8 +52,28 @@ jobs:
           test "$(uname -m)" = aarch64
           docker build --platform linux/arm64 --target runner -t lesson3-native-arm ./app
 
+  # The live-replacement restore (design A1) against a real, isolated stack: renames, terminated and
+  # refused connections, migrate on the staged copy only, every interruption point, startup failure,
+  # undo and --discard-previous. Its own job so it adds no wall-clock to `checks`; it builds the two
+  # images it needs one after the other. scripts/test-restore-db-stack.sh explains the isolation.
+  restore_stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build the migrate and app images
+        run: |
+          docker build --target builder -t lesson3-restore-probe-migrate ./app
+          docker build --target runner -t lesson3-restore-probe-app ./app
+      - name: Live restore against an isolated stack
+        run: ./scripts/test-restore-db-stack.sh
+
   gate:
-    needs: [native_arm, checks]
+    needs: [native_arm, checks, restore_stack]
     # Skipped checks can satisfy branch protection. Always report an explicit result, including
     # cancellation, using a short job that does no checkout, networking or build work.
     if: ${{ always() }}
@@ -66,9 +86,11 @@ jobs:
         env:
           NATIVE_ARM_RESULT: ${{ needs.native_arm.result }}
           CHECKS_RESULT: ${{ needs.checks.result }}
+          RESTORE_STACK_RESULT: ${{ needs.restore_stack.result }}
         run: |
           test "$NATIVE_ARM_RESULT" = success
           test "$CHECKS_RESULT" = success
+          test "$RESTORE_STACK_RESULT" = success
       - name: Refuse a cancelled run
         if: ${{ cancelled() }}
         run: exit 1

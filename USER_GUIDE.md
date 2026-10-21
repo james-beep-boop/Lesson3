@@ -241,8 +241,10 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   - **Recovery needs ARES** — the school does not hold a private recovery key. Contact ARES for
     assistance; do not attempt a restore without the matching key.
 
-  A live restore replaces all data and requires the application to be stopped first. Recovery is
-  deliberately not a browser button; the full runbook is `docs/OPS.md`.
+  A live restore replaces all data. It checks the backup in a separate database first, stops the
+  application itself, and keeps the previous database until you discard it, so the restore can be
+  undone until then. Work saved after the restore is lost if you undo it. Recovery is deliberately not
+  a browser button; the full runbook is `docs/OPS.md`.
 - **Set up subjects and grades:** add subjects and grades before uploading lesson plans.
 - **Manage all lesson plans:** open, edit, download, mark Official, or delete plans across all
   subjects and grades.
