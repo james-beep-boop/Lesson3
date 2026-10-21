@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-21 — Playwright 1.64: the browser tests reach the app as `lesson3-app-1`, not `app`
+
+Playwright 1.58.2 → 1.64.1 (only `@playwright/test`, `playwright`, `playwright-core` move). A dependency
+lab on the Spark (snapshot `bc21c68`) ran the full Chromium suite on 1.64.1: 133 passed, 0 failed, 0 flaky.
+The lab also found a trap. **Chromium 156 treats the single-label host `app` as the HSTS-preloaded
+`.app` TLD** and upgrades `http://app:3000` to HTTPS against our HTTP-only service, so every navigation
+fails. A connection probe and the network log confirmed it. The CI `test:e2e` step therefore uses the
+container name `lesson3-app-1` (Docker DNS resolves it on `lesson3_default`; `docker-compose.yml`
+documents the name), with no browser security disabled and no compose change. `test:http` keeps
+`app:3000`, because Node's fetch has no HSTS list. CI's `SERVER_URL` is empty, so no CSRF origin depends
+on either name.
+
+**The rule:** a test hostname must not be a public TLD (`app`, `dev`, `page` and others are HSTS-preloaded).
+If a browser cannot reach a service that `curl` reaches, check the HSTS preload list before blaming the app.
+
+---
+
 ## 2026-10-21 — A1 built: restore never destroys the live database before the replacement is proven
 
 Phase A, item A1 of `docs/DESIGN-backup-recovery-2026-10-21.md` (approved today). `restore-db.sh

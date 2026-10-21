@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- The browser test runner moves from Playwright 1.58.2 to 1.64.1 (Chromium 156). CI's browser tests now
+  reach the app by its container name, because the new Chromium forces the bare hostname `app` onto
+  HTTPS. Nothing changes for users or operators.
+
 - Dependency patch updates: fast-uri 3.1.9, which fixes four URI-parsing advisories that Lesson3's
   code does not reach, plus Vitest 4.1.12, PostCSS 8.5.31 and ESLint 9.39.5. Nothing changes for users
   or operators.
