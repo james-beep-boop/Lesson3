@@ -807,9 +807,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ul>
                 <p>
-                  A live restore replaces all data and requires the application to be stopped first.
-                  Recovery is deliberately not a browser button; the full runbook is{' '}
-                  <code>docs/OPS.md</code>.
+                  A live restore replaces all data. It checks the backup in a separate database
+                  first, stops the application itself, and keeps the previous database until you
+                  discard it, so the restore can be undone until then. Work saved after the restore
+                  is lost if you undo it. Recovery is deliberately not a browser button; the full
+                  runbook is <code>docs/OPS.md</code>.
                 </p>
               </GuideAccordionPanel>
             )}

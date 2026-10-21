@@ -35,6 +35,92 @@ inside the same `act` scope as the restart, `ready` goes false and back to true 
 between, and the test reports a stall that a browser does not have. Fake network timing that is
 faster than real network timing can hide or invent effect re-runs.
 
+## 2026-10-21 — A1 built: restore never destroys the live database before the replacement is proven
+
+Phase A, item A1 of `docs/DESIGN-backup-recovery-2026-10-21.md` (approved today). `restore-db.sh
+--force-prod` used to `DROP DATABASE lesson3` and only then run `pg_restore`, checking afterwards. It is
+now a staged, journaled replacement: preflight (dated name, tmp space, `age -d`, `pg_restore -l`, volume
+space, installed version and migration list) → restore into `lesson3_incoming_<UTC>` → all-table counts →
+schema check (the backup's migrations must be the installed software's first N; newer is refused) →
+`migrate` against the incoming copy only → in-server check (`app/scripts/restore-check.ts` in the migrate
+image: Local API read, `generateFromVersionSnapshot`, `docxToPdf` through Gotenberg) → typed backup date
+→ stop writers, `ALLOW_CONNECTIONS false`, terminate, confirm none → two renames in one transaction →
+start, repeat the check → **provisional** until `--confirm`. `--undo` (until `--discard-previous`),
+`--resume`, `--status`. The drill path is unchanged. `docs/OPS.md` is the procedure; SPEC §11 has the rule.
+
+**Decisions made while building it (each a deviation or addition to the approved text):**
+
+- **The export cache is emptied at every swap.** Not in the design, and needed for correctness: the cache
+  key is `render:<generator>:version:<id>`, and after a swap the restored database's sequences hand out
+  ids whose cached DOCX/PDF came from the other database, so an export could serve another plan's
+  document. Emptied while the app is stopped; it refills on demand.
+- **Undo stops the app before its backup**, not after. The design lists "take a backup, then stop
+  writers"; a backup taken while the app runs misses whatever is saved before the stop — the very work
+  it exists to keep. If the backup fails, nothing is undone and the app is started again.
+- **The undo backup is `backup-db.sh --label premigrate-prerestore-undo-<UTC>`**, so `backup-db.sh` is
+  unchanged (A2 owns streams and records). It lands in `premigrate/` (age-pruned, 90 days by default)
+  and, like any premigrate snapshot today, replaces `backup-status.json` until A2.
+- **"Writers" = every running service except `postgres` and `gotenberg`**, recorded in the journal, not
+  `app` alone. In an installation that is `app`; the CI stack also runs a private-PDF app container that
+  `stop app` would have missed.
+- **Interruption rule:** before the typed confirmation, `--resume` reverses (drops the incoming copy;
+  nothing live had changed); after it, `--resume` completes. A staged copy that fails any check is
+  reversed on the spot. Whether a swap committed is read from `pg_database`, never inferred from the
+  journal alone. `--discard-previous` requires `--confirm` first and the database name typed.
+- **The check forces `NODE_ENV=production`.** The Postgres adapter pushes the development schema on
+  connect otherwise, which would silently reshape the database under check; CI's synthetic `.env`
+  omits `NODE_ENV`. It also never passes `cron` to `getPayload`, so a restored database's queued
+  emails are not sent by checking it (verified in Payload 3.91 source).
+- **Only the prompts read stdin.** `docker compose exec`/`run` forward stdin, so any docker call before a
+  prompt could swallow a typed-ahead or piped answer; every command now gets `/dev/null`.
+- **Space estimate:** the larger of the live database and 8 × the dump, plus 10 % and 256 MB. The
+  multiple is an estimate (a one-plan dev database is 12 MB for a 146 KB dump — fixed schema cost, which
+  the headroom covers); `RESTORE_DUMP_EXPANSION` overrides it.
+
+**Lesson (found by the stack test):** a lock file's PID does not prove its owner is alive. A resumed run
+in a fresh container got the killed run's PID and refused to start because of *itself*; after a reboot a
+server can do the same. A lock is live only if the PID is not ours and the process is still
+`restore-db.sh`.
+
+**Gate evidence:** (local, arm64 Mac, 2026-10-21)
+
+- `scripts/test-restore-db-stack.sh` (new; real Postgres 16.15, migrate/app images rebuilt from this
+  tree, Gotenberg, bundle layout, project `lesson3-restore-probe`, no host ports): **104/104 in 430 s**.
+  It re-verifies the transactional rename (a failed second rename rolls back the first). It also covers:
+  - refusals: wrong key, tmp space, volume space, newer schema;
+  - migrate applied to the incoming copy only (live deliberately left one migration behind and
+    unchanged);
+  - a held connection terminated and a new one refused;
+  - the swap, with the previous database kept and refusing connections;
+  - interruption by SIGKILL after every journal state, each resumed (reverse before the confirmation,
+    complete after);
+  - declining the confirmation;
+  - startup failure (reported, `--undo` offered, nothing done);
+  - undo with post-swap work found in the undo backup;
+  - `--confirm` and `--discard-previous`;
+  - the export cache emptied;
+  - the drill unchanged.
+
+  The script is now its own CI job, `restore_stack`, required by `gate`. `restore-check.ts` was
+  Prettier-formatted after the images were built (whitespace only).
+- `scripts/test-restore-db.sh` (stubbed, CI): 87/87. That includes the original 12 drill cases and the
+  resume decision table. The stub now logs stdin as well as arguments, so "never renames" assertions
+  can see SQL that arrives on stdin.
+- `test-local-deploy-bundle`, `test-deploy-sidecar` (15/15), `test-online-update`, `test-backup-status`
+  (53/53) and `test-publish-release-bundle` all pass. `test-merge-release-images` passes after it was
+  taught the third required gate job (15 gate outcomes).
+- lint and `tsc` are clean. `format:check` is clean after formatting only the two touched files.
+- `test:unit` is 1,694/1,695. The one failure is the known `usersPanelPaging` load timeout, which passes
+  alone, as do `guideAccess` and `guideParity` (66/66). Guide parity includes the new restore claim.
+- `test:int` (isolated `lesson3-ci-probe`): 320 passed and 1 failed on the full run, with five files
+  failing at a `beforeAll` hook timeout; the single failure was also a timeout. Those six files rerun alone
+  pass 79/79. Nothing in the int suite's scope changed.
+- The image builds ran `next build`. test:http and e2e are left to CI; nothing in their scope changed
+  beyond one paragraph of Guide text.
+
+**Wording rule kept:** nothing added says an installation is protected or recoverable; OPS and SPEC say
+plainly that a passing restore is not Phase B's evidence.
+
 ## 2026-10-21 — Backup and recovery: Phase B owned and scoped; Phase A proposed as interim risk reduction
 
 The design is `docs/DESIGN-backup-recovery-2026-10-21.md` (revision 2, after two Codex reviews).

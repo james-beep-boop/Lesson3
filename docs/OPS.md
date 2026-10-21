@@ -247,8 +247,82 @@ verification still exited 0.
 exists, it puts the one irreplaceable secret on the box custody is designed to keep it off, and `shred`
 cannot reliably promise erasure on the SSD it would land on.
 
-Real disaster recovery into live: `--into lesson3 --force-prod`, app down first. That is also the only
-situation where bringing the identity to the server is justified — a genuine restore, not a rehearsal.
+### Restore into the live database (staged; design A1, 2026-10-21)
+
+A genuine restore, not a rehearsal, is the only situation where bringing the identity to the server is
+justified. Run it on the server, from the installation directory, with the app **left running** — the
+script stops it at the right moment:
+
+```bash
+AGE_IDENTITY=/path/to/lesson3-backup.key \
+  scripts/restore-db.sh --from daily/lesson3-<TS>.dump.age --into lesson3 --force-prod
+# (or --local-file /path/to/lesson3-<TS>.dump.age; keep backup-db.sh's file name — the date in it is
+#  what you will type to confirm. Optional: --check-plan <lesson plan id> picks the plan it renders.)
+```
+
+⚑ **The live database is never dropped by a restore.** Until 2026-10-21 `--force-prod` ran
+`DROP DATABASE lesson3` before `pg_restore` and checked only afterwards, so a truncated or incompatible
+backup destroyed the live data before anything had looked at it. Now:
+
+1. **Preflight, touching nothing:** the backup is named and carries its date; there is room in the
+   temporary directory for the decrypted dump; the key decrypts it (authenticated, so a truncated file
+   fails here); `pg_restore` accepts it; the database volume has room for a second copy (the larger of
+   the live database and 8 × the dump, plus 10 % and 256 MB — an estimate, not a measurement on a large
+   corpus; `RESTORE_DUMP_EXPANSION` changes the multiple); the installed version and its
+   migration list are known.
+2. **Stage** into `lesson3_incoming_<UTC>`: the drill's all-table count check; then the schema check —
+   the backup's `payload_migrations` must be the installed software's first N migrations. A backup from
+   **newer** software is refused. Then the installed `migrate` image runs against the **incoming**
+   database only.
+3. **In-server check** on the incoming database: `app/scripts/restore-check.ts`, run in the `migrate`
+   image, reads a lesson plan through Payload's Local API and renders its DOCX and PDF (through
+   Gotenberg). No password; nothing is written. A backup with no lesson plans says rendering was not
+   exercised.
+4. **Typed confirmation** — the backup's date. The script prints exactly what it will do first.
+5. **Stop writers:** stops every running service except `postgres` and `gotenberg` (the app, and with it
+   the job queue), sets `ALLOW_CONNECTIONS false` on `lesson3`, ends remaining connections, and checks
+   none remain.
+6. **Swap in one transaction:** `lesson3` → `lesson3_before_restore_<UTC>`, the incoming copy → `lesson3`.
+   Both renames commit together or neither does. The old database keeps refusing connections.
+7. **Empty the export cache** (it is keyed by version id, and the restored database will reuse ids whose
+   cached files came from the old one), **start the app**, and repeat the check against the live system.
+
+Any refusal or failure in steps 1–4 leaves the live database exactly as it was and drops the incoming copy.
+
+**The result is provisional.** Sign in, open a known lesson, export it as DOCX and PDF, then:
+
+```bash
+scripts/restore-db.sh --confirm            # records that a person checked it
+scripts/restore-db.sh --discard-previous   # later: drops lesson3_before_restore_<UTC> (type its name)
+```
+
+**Undo** — until `--discard-previous`, `scripts/restore-db.sh --undo` puts the previous database back.
+⚑ **Work saved after the restored database went live is lost by undoing.** So the undo stops the app,
+then takes a backup of the current database with `backup-db.sh --label premigrate-prerestore-undo-<UTC>`
+(stopping first, so the backup holds every write), and only then swaps back in one transaction and
+restarts. The restored database is kept as `lesson3_undone_<UTC>` until `--discard-previous`. If that
+backup fails, nothing is undone and the app is started again.
+
+**If the automatic check after the swap fails**, the script says so, offers `--undo` (or `--resume` to
+repeat the start and check), and does nothing else on its own.
+
+**Interrupted?** Every step is recorded in `out/ops/restore-journal.json` before the next begins, with a
+timeline in `out/ops/restore.log`. Run `scripts/restore-db.sh --status` to see it and
+`scripts/restore-db.sh --resume` to finish. Before the typed confirmation, resume **reverses** (drops the
+incoming copy; nothing live had changed). After it, resume **completes** what was confirmed — whether
+the swap committed is read from Postgres's catalog, not inferred. An undo resumes the same way. A lock
+left by a killed run is taken over once its process is gone. A closed journal is kept under
+`out/ops/restore-history/`. Only one restore can be open at a time.
+
+Branch cover: `scripts/test-restore-db.sh` (stubbed, CI). The real thing, against an isolated stack
+laid out like a release-bundle installation — swap, terminated and refused connections, migrate on the
+incoming copy only, every interruption point, startup failure, undo with post-swap work in the undo
+backup, `--discard-previous`: `scripts/test-restore-db-stack.sh`.
+
+⚑ **What this does not establish.** A passing restore shows that this backup, on this server, came
+back and rendered one lesson. It is not evidence that the installation could be rebuilt on another
+machine — that is Phase B's acceptance test (`docs/DESIGN-backup-recovery-2026-10-21.md`), and until it
+has passed nothing may describe an installation as recoverable.
 
 ### ⚑ Last drill: 2026-08-22 — PASSED, and what that does and does not establish
 

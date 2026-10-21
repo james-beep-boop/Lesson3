@@ -1094,6 +1094,16 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
   - **Key custody: schools hold only the `age` PUBLIC key; ARES retains the private identity.** A
     school has nowhere durable to keep a private key, and losing it makes every backup unrecoverable.
     This also keeps a stolen school box from yielding readable backups.
+  - **Restore into the live database is staged, never destructive (design A1, 2026-10-21).**
+    `scripts/restore-db.sh --force-prod` restores into a separate `lesson3_incoming_<UTC>`, checks it
+    there (every table counted; the backup's migrations must be a prefix of the installed software's,
+    so a backup from newer software is refused; the installed migrations applied to that copy only; a
+    lesson plan read through the Local API and rendered as DOCX and PDF), and only after a typed
+    confirmation stops writers and swaps it in with two renames in one transaction. The previous
+    database is kept until `--discard-previous`; `--undo` puts it back, taking a backup first because
+    undoing loses work saved since. Every step is journaled so an interrupted run is completed or
+    reversed, never guessed. A restore that passes shows that backup came back on that server; it is
+    not evidence that an installation can be rebuilt elsewhere. `docs/OPS.md` is canonical.
 - **CI/CD** so build/deploy is not bound to one machine.
 - **Rate limiting** on expensive endpoints (generation, auth). Generation: per-user export/preview buckets + per-user/per-recipient/site-global email caps. Auth (added 2026-07-04): `login` per target identifier + global, and `forgot-password` per requested address + global (unauthenticated outbound mail — same egress class as email-a-doc), enforced in a Users `beforeOperation` hook (`app/src/hooks/authRateLimit.ts`); budgets keyed on the *requested* identifier so the limiter is not an account-existence oracle.
 - **Retention (decided 2026-07-04; prune cron is tracked Phase-3 work — see `docs/DECISIONS.md`):** completed export job rows 14 days; email + message-ping job rows 180 days (they are the data-egress audit trail); failed job rows 90 days; `rate_limit_counters` rows 7 days. Nightly `scripts/prune-db.sh` alongside the backup crons.
