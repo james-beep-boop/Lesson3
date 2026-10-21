@@ -74,6 +74,7 @@ bad_exit() { [[ "$EXIT" -ne 0 ]]; }
 eq() { [[ "$1" == "$2" ]] || { echo "     expected '$2', got '$1'"; return 1; }; }
 state() { sed -n 's/^  "state": "\(.*\)",$/\1/p' "$SANDBOX/out/ops/restore-journal.json" 2>/dev/null; }
 jkey() { sed -n "s/^  \"$1\": \"\\(.*\\)\",\\{0,1\\}\$/\\1/p" "$SANDBOX/out/ops/restore-journal.json" 2>/dev/null; }
+bad_lock_message() { [[ "$OUTPUT" != *"another restore-db.sh is running"* ]]; }
 no_journal() { [[ ! -f "$SANDBOX/out/ops/restore-journal.json" ]]; }
 count_blocked() { # db sql — read a database that refuses connections, then refuse them again
   sql postgres "ALTER DATABASE \"$1\" ALLOW_CONNECTIONS true;" >/dev/null
@@ -244,9 +245,9 @@ check "[checked] incoming got the migration" eq "$(sql "$INCOMING" "SELECT count
 check "[checked] incoming got its column" eq "$(sql "$INCOMING" "SELECT count(*) FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'features_advanced_tools';")" 1
 check "[checked] live did NOT get the migration" eq "$(sql lesson3 "SELECT count(*) FROM payload_migrations WHERE name = '20261020_092934_advanced_tools';")" 0
 check "[checked] live did NOT get the column" eq "$(sql lesson3 "SELECT count(*) FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'features_advanced_tools';")" 0
-check "[checked] a stale lock was left by the kill" test -d "$SANDBOX/out/ops/.restore-lock"
+check "[checked] the lock file survives the kill" test -f "$SANDBOX/out/ops/.restore.lock"
 restore "" --resume
-check "[checked] resume takes over the stale lock" has "removing a stale lock"
+check "[checked] the kill left no lock to clear" bad_lock_message
 check "[checked] resume reverses it" eq "$(dbs)" "$BEFORE_DBS"
 dc run --rm --no-deps -T migrate >/dev/null 2>&1 || die "re-migrating live failed"
 

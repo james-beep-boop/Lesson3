@@ -83,8 +83,7 @@ LIVE_DB="lesson3"
 OPS_DIR="$REPO_DIR/out/ops"
 JOURNAL="$OPS_DIR/restore-journal.json"
 RESTORE_LOG="$OPS_DIR/restore.log"
-LOCK="$OPS_DIR/.restore-lock"
-LOCK_HELD=0
+LOCK="$OPS_DIR/.restore.lock"
 TMP=""
 J_KEYS="id state backup backupDate backupTime incoming previous undone installed checkPlan checkVersion services undoFrom startedAt updatedAt"
 
@@ -92,27 +91,22 @@ now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
 cleanup() {
   [[ -z "$TMP" ]] || rm -rf "$TMP"
-  [[ "$LOCK_HELD" -ne 1 ]] || rm -rf "$LOCK"
 }
 trap cleanup EXIT
 
-# One restore at a time. The lock holds the owner's PID: a lock whose process is gone (SIGKILL, power
-# cut) is stale and is taken over with a note, because the journal — not the lock — carries the state.
-# ⚑ A PID ALONE DOES NOT PROVE THE OWNER IS ALIVE. After a reboot, or in a fresh container, the number
-# is handed out again — often to this very run (found by the stack test: the resumed script had the
-# killed one's PID and refused to start because of itself). Live means: not us, and still restore-db.sh.
+# One restore at a time: a kernel `flock` on a file that is never removed. The kernel releases it when
+# the holder exits for any reason (SIGKILL, power cut), so there is no stale state to judge — the
+# journal, not the lock, carries where an interrupted restore was.
+#
+# ⚑ NOT A DIRECTORY WITH A PID IN IT, which is what this was until review on 2026-10-21. Between one
+# run's `mkdir` and its writing the PID, another run saw an empty lock, judged it stale, removed it and
+# took its own — two restores then ran at once and collided over the journal (reproduced). Every
+# repair of that shape (PID liveness, then "not us and still restore-db.sh") left the same window.
 take_lock() {
+  need flock
   mkdir -p "$OPS_DIR"
-  if ! mkdir "$LOCK" 2>/dev/null; then
-    local pid; pid="$(cat "$LOCK/pid" 2>/dev/null || true)"
-    if [[ -n "$pid" && "$pid" != "$$" ]] && ps -p "$pid" -o args= 2>/dev/null | grep -q 'restore-db\.sh'; then
-      die "another restore-db.sh (pid $pid) is running; wait for it to finish"
-    fi
-    echo "restore-db: note: removing a stale lock left by pid ${pid:-unknown}, which is no longer running"
-    rm -rf "$LOCK"; mkdir "$LOCK" || die "cannot take the restore lock at $LOCK"
-  fi
-  LOCK_HELD=1
-  echo "$$" >"$LOCK/pid"
+  exec 9>"$LOCK" || die "cannot open the restore lock at $LOCK"
+  flock -n 9 || die "another restore-db.sh is running (it holds $LOCK); wait for it to finish"
 }
 
 # Journal values are identifiers, timestamps, version strings and validated file names only, so this

@@ -74,7 +74,7 @@ EOF
 
 run_case() {
   env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
-    BACKUP_AGE_RECIPIENT="age1testrecipient" BACKUP_RCLONE_REMOTE="$1" \
+    BACKUP_AGE_RECIPIENT="${RECIPIENT-age1testrecipient}" BACKUP_RCLONE_REMOTE="$1" \
     FAIL_COPY="${2:-0}" BACKUP_DB_NAME="${3:-}" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
     FAIL_DUMP="${FAIL_DUMP:-0}" FAIL_AGE="${FAIL_AGE:-0}" LOCK_HELD="${LOCK_HELD:-0}" \
     bash "$BACKUP" --label "${4:-premigrate-test}" >"$SANDBOX/output" 2>&1
@@ -354,6 +354,29 @@ check "a run without the lock writes no record" "the holder owns the record" "$(
 check "a held lock waits before giving up" "flock -w must run" "$([[ "$CALLS" == *"flock -w"* ]] && echo 0 || echo 1)"
 check "a held lock dumps nothing" "docker must not run" "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
 
+# 6e. A setup failure is recorded — but only once the lock is held, never before (review 2026-10-21).
+prepare_case
+RECIPIENT="" run_case "drive:lesson3-backups"
+check "a missing recipient fails the run" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+check "a missing recipient is recorded as setup" "lastFailure stage must be setup" "$(ok failed_at setup)"
+check "it is recorded only after the lock was taken" "flock must come before the record" \
+  "$([[ "$CALLS" == *"flock -n 8"* ]] && echo 0 || echo 1)"
+prepare_case
+LOCK_HELD=1 RECIPIENT="" run_case "drive:lesson3-backups"
+check "a failure without the lock writes nothing" "no record may appear" "$([[ ! -e "$STATUS" ]] && echo 0 || echo 1)"
+
+# 6f. Attempts are ordered by a number, not a time: whole seconds can tie (review 2026-10-21).
+prepare_case
+run_case "drive:lesson3-backups"
+run_case "drive:lesson3-backups" 1
+check "a success carries its attempt number" "seq 1 on the first success" \
+  "$(group lastSuccess | grep -Fq '"seq": 1,' && echo 0 || echo 1)"
+check "the next attempt's number is higher" "seq 2 on the failure that followed" \
+  "$(group lastFailure | grep -Fq '"seq": 2,' && echo 0 || echo 1)"
+run_case "drive:lesson3-backups" 0 "" "weekly"
+check "one counter serves every stream" "the weekly success is attempt 3" \
+  "$(grep -Fq '"seq": 3,' "$SANDBOX/repo/out/ops/backup/weekly.json" && echo 0 || echo 1)"
+
 # ── Two recipients (SPEC §11: an offline school must be able to recover without ARES) ──────────────
 #
 # ⚑ THE POINT IS WHAT REACHES `age`. The stub logs its argv, so these assert the actual recipient flags
@@ -462,6 +485,36 @@ EOF
     "$([[ "$(grep -c '^docker compose exec' <<<"$CALLS")" == 3 ]] && echo 0 || echo 1)"
   check "two at once: the dumps never overlapped" "no dump may start while another runs" \
     "$([[ "$CALLS" != *OVERLAP* ]] && echo 0 || echo 1)"
+
+  # A run that FAILS while another is succeeding must not undo that success (review 2026-10-21: an
+  # early validation failure wrote its record before taking the lock, and a history of two became one).
+  prepare_case
+  rm -f "$SANDBOX/home/bin/flock"; ln -s "$REAL_FLOCK" "$SANDBOX/home/bin/flock"
+  cat >"$SANDBOX/home/bin/docker" <<EOF
+#!/usr/bin/env bash
+echo "docker \$*" >>"$SANDBOX/calls"
+if [[ "\$1 \$2" == "compose exec" ]]; then sleep 2; printf 'postgres custom-format bytes'; fi
+EOF
+  chmod +x "$SANDBOX/home/bin/docker"
+  mkdir -p "$SANDBOX/repo/out/ops/backup"
+  printf '{\n  "version": 2,\n  "stream": "premigrate",\n  "recordingSince": "2026-10-01T02:00:00Z",\n  "lastSuccess": null,\n  "lastFailure": null,\n  "history": ["2026-10-20T02:00:00Z"]\n}\n' \
+    >"$SANDBOX/repo/out/ops/backup/premigrate.json"
+  concurrent premigrate-succeeds "$SANDBOX/out1" & P1=$!
+  sleep 0.5
+  env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="" \
+    BACKUP_RCLONE_REMOTE="drive:lesson3-backups" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+    bash "$BACKUP" --label premigrate-fails >"$SANDBOX/out2" 2>&1; E2=$?
+  wait "$P1"; E1=$?
+  OUTPUT="$(cat "$SANDBOX/out1" "$SANDBOX/out2")"; CALLS="$(cat "$SANDBOX/calls")"; EXIT="$E1/$E2"
+  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
+  check "fail during success: the success succeeds and the failure fails" "expected 0/1" \
+    "$([[ "$EXIT" == 0/1 ]] && echo 0 || echo 1)"
+  check "fail during success: the history keeps both entries" "two entries expected" \
+    "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 2 ]] && echo 0 || echo 1)"
+  check "fail during success: the success is kept" "lastSuccess must be set" \
+    "$(group lastSuccess | grep -q '"seq": 1,' && echo 0 || echo 1)"
+  check "fail during success: the failure is recorded after it" "the failure must be attempt 2" \
+    "$(group lastFailure | grep -q '"seq": 2,' && echo 0 || echo 1)"
 fi
 
 echo

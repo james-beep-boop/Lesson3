@@ -157,6 +157,8 @@ windows it applied); counts before/after via
   `out/ops/backup/<stream>.json` (`daily`, `weekly`, `monthly`, `premigrate`), replaced atomically:
   - **`lastSuccess`**, with `coversUntil` (the moment `pg_dump` began, so the newest work the backup is
     sure to hold), `completedAt`, file, size and destination;
+  - **`seq`** on every success and failure: one counter for all streams, advanced under the lock, so
+    the page knows which attempt came last even when two share a second;
   - **`lastFailure`**: time, stage (`setup`, `destination`, `dump`, `encrypt`, `upload`, `record`) and
     one line of reason, written by an exit trap — so a backup that fails every night under cron no
     longer looks the same as one never set up. (A run that gives up waiting for the lock writes
@@ -334,8 +336,9 @@ repeat the start and check), and does nothing else on its own.
 timeline in `out/ops/restore.log`. Run `scripts/restore-db.sh --status` to see it and
 `scripts/restore-db.sh --resume` to finish. Before the typed confirmation, resume **reverses** (drops the
 incoming copy; nothing live had changed). After it, resume **completes** what was confirmed — whether
-the swap committed is read from Postgres's catalog, not inferred. An undo resumes the same way. A lock
-left by a killed run is taken over once its process is gone. A closed journal is kept under
+the swap committed is read from Postgres's catalog, not inferred. An undo resumes the same way. One
+run at a time holds a kernel `flock` on `out/ops/.restore.lock`; the kernel releases it however the
+run ends, so a killed run leaves nothing to clear. A closed journal is kept under
 `out/ops/restore-history/`. Only one restore can be open at a time.
 
 Branch cover: `scripts/test-restore-db.sh` (stubbed, CI). The real thing, against an isolated stack

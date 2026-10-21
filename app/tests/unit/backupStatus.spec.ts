@@ -95,12 +95,54 @@ describe('Backup up to date', () => {
   })
 
   it('does not count a pre-update snapshot as a routine backup', () => {
+    // Records have run for 30 days and none was routine: that is a finding, not missing history.
     const s = statement(
       { records: [record('premigrate', { lastSuccess: success(hoursAgo(1)) })] },
       'freshness',
     )
     expect(s).toMatchObject({ state: 'attention', value: ['No recent routine backup recorded'] })
-    expect(flat(s)).toContain('taken before updates')
+    // ⚑ The design forbids "only pre-update snapshots" as a reading; the line says what to check.
+    expect(flat(s)).not.toMatch(/before updates/)
+  })
+
+  /**
+   * ⚑ REVIEW 2026-10-21. The first new-format record after an update is often the update's own
+   * snapshot, while routine backups are still described only by the older file. The panel said routine
+   * backups needed setting up — a claim the records could not support.
+   */
+  it('keeps "history incomplete" when the first new record is a pre-update snapshot', () => {
+    const legacyDaily = {
+      version: 1 as const,
+      completedAt: hoursAgo(20),
+      stream: 'daily' as const,
+      destination: 'drive:x',
+      filename: 'f',
+      encryptedBytes: 1,
+    }
+    const s = statement(
+      {
+        records: [
+          record('premigrate', { recordingSince: hoursAgo(1), lastSuccess: success(hoursAgo(1)) }),
+        ],
+        legacy: legacyDaily,
+      },
+      'freshness',
+    )
+    expect(s).toMatchObject({ state: 'unknown', value: ['Unknown — history incomplete'] })
+  })
+
+  it('keeps "history incomplete" while records are younger than the period judged', () => {
+    const young = { recordingSince: hoursAgo(5), lastSuccess: success(hoursAgo(5)) }
+    expect(statement({ records: [record('premigrate', young)] }, 'freshness').value).toEqual([
+      'Unknown — history incomplete',
+    ])
+    // With an agreed limit of 2 hours, five hours of records with no routine backup is a finding.
+    expect(
+      statement(
+        { records: [record('premigrate', young)], settings: { maxDataLoss: '2h' } },
+        'freshness',
+      ).value,
+    ).toEqual(['No recent routine backup recorded'])
   })
 
   it('says the limit is not agreed when it is unset, and still says what the backup holds', () => {
@@ -239,6 +281,49 @@ describe('Last attempt', () => {
     )
     expect(flat(s)).toContain('the backup could not be sent')
     expect(flat(s)).not.toContain('drive away')
+  })
+
+  /**
+   * ⚑ REVIEW 2026-10-21: whole-second times tie. A success and a later failure in the same second read
+   * as "Succeeded"; the attempt number now orders them, and a tie without one goes to the failure.
+   */
+  it('orders a same-second success and failure by attempt number', () => {
+    const at = hoursAgo(1)
+    const both = (successSeq?: number, failureSeq?: number) =>
+      statement(
+        {
+          records: [
+            record('daily', {
+              lastSuccess: { ...success(at), ...(successSeq ? { seq: successSeq } : {}) },
+              lastFailure: {
+                at,
+                stage: 'upload',
+                reason: 'x',
+                ...(failureSeq ? { seq: failureSeq } : {}),
+              },
+            }),
+          ],
+        },
+        'lastAttempt',
+      ).state
+    expect(both(4, 5), 'the failure was the later attempt').toBe('attention')
+    expect(both(5, 4), 'the success was the later attempt').toBe('ok')
+    expect(both(), 'an old tie with no attempt numbers is read as the failure').toBe('attention')
+  })
+
+  it('lets the attempt number override clock order across streams', () => {
+    const s = statement(
+      {
+        records: [
+          record('daily', { lastSuccess: { ...success(hoursAgo(1)), seq: 7 } }),
+          record('weekly', {
+            lastFailure: { at: hoursAgo(2), seq: 8, stage: 'dump', reason: 'x' },
+          }),
+        ],
+      },
+      'lastAttempt',
+    )
+    expect(s.state).toBe('attention')
   })
 
   it('looks across every stream, pre-update snapshots included', () => {
@@ -456,6 +541,15 @@ describe('reading the records', () => {
     const s = await keyed()
     expect(s.lastAttempt.state).toBe('ok')
     expect(s.restore.state).toBe('attention')
+  })
+
+  it('refuses an attempt number that is not a positive integer', async () => {
+    serve({
+      [`${dir}/backup/daily.json`]: record('daily', {
+        lastSuccess: { ...success(hoursAgo(1)), seq: 0 },
+      }),
+    })
+    expect((await keyed()).lastAttempt.value).toEqual(['No backup attempt recorded'])
   })
 
   it('ignores a record that names a different stream from its file', async () => {

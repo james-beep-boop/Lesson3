@@ -75,7 +75,7 @@ LABEL=""
 # ⚑ A FAILURE IS RECORDED, NOT JUST PRINTED. Cron mails stderr to nobody on most servers, so a backup
 # that fails every night looks, on the page, exactly like one that was never set up. `die` keeps the
 # reason and the EXIT trap writes it to this stream's record with the stage it reached.
-STREAM=""; STAGE="setup"; FAIL_REASON=""
+STREAM=""; STAGE="setup"; FAIL_REASON=""; LOCKED=0
 die() { FAIL_REASON="$*"; echo "backup-db: ERROR: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH ($PATH) — see docs/OPS.md setup"; }
 # Reject a retention typo (0 / negative / non-numeric). A bad value would otherwise mean "delete the
@@ -162,8 +162,15 @@ previous_group() { # key — the previous record's JSON value for that group, or
 }
 
 write_record() { # success|failure
-  local now since history success failure tmp_dir
+  local now since history success failure tmp_dir seq
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  # ⚑ ATTEMPT ORDER IS A NUMBER, NOT A TIME. Times are whole seconds, so a success and a failure can
+  # share one, and the page must still know which came last (review 2026-10-21: a tie read as
+  # "Succeeded" after a later failure). One counter for every stream, advanced only under the lock.
+  seq="$(cat "$BACKUP_RECORD_DIR/.seq" 2>/dev/null || true)"
+  [[ "$seq" =~ ^[0-9]{1,15}$ ]] || seq=0
+  seq=$((seq + 1))
+  printf '%s\n' "$seq" >"$BACKUP_RECORD_DIR/.seq.tmp" && mv -f "$BACKUP_RECORD_DIR/.seq.tmp" "$BACKUP_RECORD_DIR/.seq"
   since="$(grep -m1 -oE "\"recordingSince\": \"$ISO_RE\"" "$BACKUP_RECORD_DIR/$STREAM.json" 2>/dev/null \
     | grep -oE "$ISO_RE" || true)"
   since="${since:-$now}"
@@ -172,11 +179,11 @@ write_record() { # success|failure
   failure="$(previous_group lastFailure)"
   if [[ "$1" == success ]]; then
     history="$(printf '%s\n%s\n' "$history" "$COVERS_UNTIL" | { grep -E "^$ISO_RE\$" || true; } | tail -n 31)"
-    success="$(printf '{"coversUntil": "%s", "completedAt": "%s", "filename": "%s", "encryptedBytes": %s, "destination": "%s"}' \
-      "$COVERS_UNTIL" "$now" "$(json_escape "$NAME" "backup filename")" "$SIZE" \
+    success="$(printf '{"seq": %s, "coversUntil": "%s", "completedAt": "%s", "filename": "%s", "encryptedBytes": %s, "destination": "%s"}' \
+      "$seq" "$COVERS_UNTIL" "$now" "$(json_escape "$NAME" "backup filename")" "$SIZE" \
       "$(json_escape "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE")")"
   else
-    failure="$(printf '{"at": "%s", "stage": "%s", "reason": "%s"}' "$now" "$STAGE" \
+    failure="$(printf '{"seq": %s, "at": "%s", "stage": "%s", "reason": "%s"}' "$seq" "$now" "$STAGE" \
       "$(json_escape "$(printf '%s' "$2" | tr '\n\r\t' '   ' | cut -c1-300)" "failure reason")")"
   fi
   history="$(printf '%s\n' "$history" | { grep -E "^$ISO_RE\$" || true; } | sed 's/.*/"&"/' | paste -sd, - | sed 's/,/, /g')"
@@ -196,9 +203,10 @@ on_exit() {
   [[ -z "${TMP:-}" ]] || rm -rf "$TMP"
   [[ -z "$RECORD_TMP" ]] || rm -f "$RECORD_TMP"
   # Not after `done`: the upload and its record already succeeded, and pruning is best-effort.
-  # Not at `lock` either: a run that never got the lock must not write a record the holder may be
-  # writing at that moment — its replace could undo the holder's success.
-  if [[ "$status" -ne 0 && -n "$STREAM" && "$STAGE" != done && "$STAGE" != lock ]]; then
+  # ⚑ AND ONLY BY A RUN THAT HOLDS THE LOCK. A record is read, changed and replaced; a run without the
+  # lock could replace it with a copy taken before the holder's success, losing that success and its
+  # history (review 2026-10-21 reproduced exactly that from an early validation failure).
+  if [[ "$status" -ne 0 && -n "$STREAM" && "$STAGE" != done && "$LOCKED" -eq 1 ]]; then
     write_record failure "${FAIL_REASON:-stopped with exit status $status during $STAGE}" 2>/dev/null \
       && echo "backup-db: recorded the failure in $BACKUP_RECORD_DIR/$STREAM.json" >&2 || true
   fi
@@ -229,12 +237,11 @@ esac
 if [[ -n "$KEEP_COUNT" ]]; then positive_int "keep-count for '$STREAM'" "$KEEP_COUNT"; fi
 if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KEEP_DAYS"; fi
 
-need docker; need age; need rclone; need flock
-[[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
-
-# ⚑ ONE BACKUP AT A TIME, FOR THE WHOLE RUN. A weekly cron line and a deploy's premigrate snapshot can
-# start together; two runs would race to prune the same remote and to replace records. The second waits
-# (the kernel releases the lock if the first dies, so a crash cannot leave it held).
+# ⚑ ONE BACKUP AT A TIME, FOR THE WHOLE RUN, AND TAKEN BEFORE ANYTHING CAN FAIL INTO A RECORD. A weekly
+# cron line and a deploy's premigrate snapshot can start together; two runs would race to prune the
+# same remote and to replace records. The second waits (the kernel releases the lock if the first
+# dies, so a crash cannot leave it held). Everything that can fail after this point is recorded.
+need flock
 STAGE="lock"
 positive_int "BACKUP_LOCK_WAIT_SECONDS" "$LOCK_WAIT"
 mkdir -p "$BACKUP_RECORD_DIR"
@@ -243,7 +250,12 @@ if ! flock -n 8; then
   echo "backup-db: another backup is running; waiting up to ${LOCK_WAIT}s for it to finish"
   flock -w "$LOCK_WAIT" 8 || die "another backup was still running after ${LOCK_WAIT}s"
 fi
+LOCKED=1
 STAGE="setup"
+
+need docker; need age; need rclone
+[[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
+
 
 # ⚑ TWO RECIPIENTS, SO AN OFFLINE SCHOOL CAN RECOVER WITHOUT ARES (operator decision 2026-08-22,
 # SPEC §11). `age` encrypts to any number of recipients and EITHER identity decrypts independently, so

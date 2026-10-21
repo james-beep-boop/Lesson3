@@ -87,7 +87,46 @@ to its scope in NEXT-SESSION. `docs/OPS.md` describes the records and the page; 
   `backup-status.json` when an older installed `backup-db.sh` wrote that instead (the backup taken
   during an update runs the installed script, not the new one).
 
-**Gate evidence:** (local, arm64 Mac, 2026-10-21)
+**Review on `450231d` (four findings, all fixed in this PR):**
+
+1. **The restore lock admitted two processes (P1).** Between one run's `mkdir` of the lock directory
+   and its writing the PID, a second run saw an empty lock, judged it stale, removed it and entered.
+   `restore-db.sh` now holds a kernel `flock` on `out/ops/.restore.lock`, a file that is never removed.
+   This supersedes the 2026-10-21 A1 lesson about PID reuse: there is no PID to judge any more.
+2. **Early backup failures bypassed the lock.** A validation failure wrote its record before
+   `backup-db.sh` held the lock, and could replace a newer success (a history of two became one). The
+   lock is now taken as soon as the stream is known, and the exit trap writes only if this run holds
+   it.
+3. **"No recent routine backup" was claimed without the history to support it,** for example when the
+   first new-format record was an update's snapshot and routine backups were still described only by
+   the older file. The page now says "Unknown — history incomplete" in that case, and while records
+   are younger than the window being judged. The "only before updates" wording, which the design
+   forbids, is gone.
+4. **Whole-second ties hid failures.** Every success and failure now carries `seq`, from one counter
+   advanced under the lock. The reader orders by it, and a tie between old records without it reads
+   as the failure.
+
+Re-run after these fixes (local, 2026-10-22):
+
+- **`test-restore-db.sh`:** 88/88 on macOS, and 95/95 in the probe tools image with the real lock. The
+  real-lock cases cover:
+  - a second runner refused while the first holds the lock;
+  - a killed holder leaving nothing to clear;
+  - a confirm started during a slow resume refused by the lock itself.
+- **`test-backup-status.sh`:** 84/84 on macOS, and 94/94 in the tools image. This includes a run that
+  fails while another succeeds: under the real lock the success and its history are kept, and the
+  failure is attempt 2.
+- **`backupStatus.spec`:** 44 cases. The reader tests and path parity pass 49/49.
+- **`test-restore-db-stack.sh`:** 104/104.
+- **lint and tsc** are clean.
+- **Mutation runs:** with each fix undone, its new cases fail. With the backup ordering reverted, the
+  concurrent success is lost outright.
+
+**Lesson:** a lock built from separate steps (create, then mark as owned) has a window between them,
+and every repair of the marker kept that window. Use the kernel's lock, and test it with two real
+processes: the stubbed lock proved only that the script asks for one.
+
+**Gate evidence:** (local, arm64 Mac, 2026-10-21; see the review fixes below for the re-run)
 
 - **`scripts/test-backup-status.sh`: 77/77 on the Mac's bash 3.2, 83/83 in the probe tools image.**
   The tools image (bash 5, util-linux) is where the real-`flock` case runs. The checks cover:

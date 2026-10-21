@@ -76,7 +76,12 @@ const FAILURE_STAGES = [
 ] as const
 type FailureStage = (typeof FAILURE_STAGES)[number]
 
+/**
+ * `seq` orders attempts across every stream: `backup-db.sh` advances one counter under its lock, because
+ * whole-second times can tie (review 2026-10-21). Records written before it existed have none.
+ */
 export interface BackupSuccess {
+  seq?: number
   coversUntil: string
   completedAt: string
   filename: string
@@ -85,6 +90,7 @@ export interface BackupSuccess {
 }
 
 export interface BackupFailure {
+  seq?: number
   at: string
   stage: FailureStage
   reason: string
@@ -135,8 +141,12 @@ export const isIsoUtcSeconds = (value: unknown): value is string => {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const isSeq = (value: unknown): boolean =>
+  value === undefined || (Number.isSafeInteger(value) && (value as number) > 0)
+
 const isSuccess = (value: unknown): value is BackupSuccess =>
   isObject(value) &&
+  isSeq(value.seq) &&
   isIsoUtcSeconds(value.coversUntil) &&
   isIsoUtcSeconds(value.completedAt) &&
   isBounded(value.filename, 512) &&
@@ -146,6 +156,7 @@ const isSuccess = (value: unknown): value is BackupSuccess =>
 
 const isFailure = (value: unknown): value is BackupFailure =>
   isObject(value) &&
+  isSeq(value.seq) &&
   isIsoUtcSeconds(value.at) &&
   FAILURE_STAGES.includes(value.stage as FailureStage) &&
   typeof value.reason === 'string' &&
@@ -333,17 +344,31 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
         : freshness('unknown', ['No backup recorded on this server yet']),
     )
   } else if (!newestCovers) {
-    statements.push(
-      freshness(
-        'attention',
-        ['No recent routine backup recorded'],
-        [
-          records.some((r) => r.stream === 'premigrate' && r.lastSuccess)
-            ? 'The only backups recorded were taken before updates. Routine backups need to be set up.'
-            : 'Routine backups need to be set up.',
-        ],
-      ),
-    )
+    // ⚑ NO ROUTINE RECORD YET IS NOT "NO ROUTINE BACKUPS". After an update the first new-format record
+    // is often a pre-update snapshot, while routine backups are still described only by the older file
+    // — or have simply not run since records began. Until the records cover the period being judged,
+    // the honest answer is "Unknown — history incomplete" (design A2; review 2026-10-21).
+    const begun = earliest(records.map((r) => r.recordingSince))
+    const window = limit.kind === 'set' ? limit.ms : 7 * DAY_MS
+    if (legacy || (begun && now.getTime() - new Date(begun).getTime() < window)) {
+      statements.push(
+        freshness(
+          'unknown',
+          ['Unknown — history incomplete'],
+          begun
+            ? ['Records began ', { at: begun }, '; no routine backup has been recorded since.']
+            : [],
+        ),
+      )
+    } else {
+      statements.push(
+        freshness(
+          'attention',
+          ['No recent routine backup recorded'],
+          ['Routine backups need to be set up, or they are failing: see Last attempt.'],
+        ),
+      )
+    }
   } else {
     const covered: Text = ['Work saved before ', { at: newestCovers }, ' is in a backup.']
     if (limit.kind === 'unset') {
@@ -419,11 +444,15 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
   }
 
   // ── Last attempt: the newest event of any stream. ──
-  const events = records.flatMap((r) => [
-    ...(r.lastSuccess ? [{ at: r.lastSuccess.completedAt, failure: null }] : []),
-    ...(r.lastFailure ? [{ at: r.lastFailure.at, failure: r.lastFailure }] : []),
+  const events: Attempt[] = records.flatMap((r) => [
+    ...(r.lastSuccess
+      ? [{ at: r.lastSuccess.completedAt, seq: r.lastSuccess.seq, failure: null }]
+      : []),
+    ...(r.lastFailure
+      ? [{ at: r.lastFailure.at, seq: r.lastFailure.seq, failure: r.lastFailure }]
+      : []),
   ])
-  const last = events.length ? events.reduce((a, b) => (a.at >= b.at ? a : b)) : null
+  const last = events.length ? events.reduce((a, b) => (isLater(b, a) ? b : a)) : null
   if (last?.failure) {
     statements.push({
       key: 'lastAttempt',
@@ -529,6 +558,23 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
   )
 
   return { statements, removable, technical: technicalDetails(input) }
+}
+
+interface Attempt {
+  at: string
+  seq?: number
+  failure: BackupFailure | null
+}
+
+/**
+ * Is `a` a later attempt than `b`? The attempt number decides when both have one. Otherwise time does,
+ * and a TIE goes to the failure: whole seconds cannot say which came last, and "Succeeded" is the
+ * reading that could hide a problem (review 2026-10-21).
+ */
+export function isLater(a: Attempt, b: Attempt): boolean {
+  if (a.seq !== undefined && b.seq !== undefined) return a.seq > b.seq
+  if (a.at !== b.at) return a.at > b.at
+  return a.failure !== null && b.failure === null
 }
 
 function earliest(values: string[]): string | null {
