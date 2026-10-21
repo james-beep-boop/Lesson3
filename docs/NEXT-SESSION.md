@@ -20,14 +20,30 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# CURRENT STATE — 2026-10-21
+# CURRENT STATE — 2026-10-22
 
-**Newest (2026-10-21): v1.01** is tagged from the tip of `main`, so a deploy shows "Version 1.01".
+**Newest (2026-10-22): v1.02, and Phase A of backup and recovery is complete.** Tagged from the tip of
+`main`. It carries A2–A6 (#430): per-stream backup records in `out/ops/backup/<stream>.json` (last
+success with `coversUntil`, last failure with its stage, a 31-entry history, an attempt number), one
+backup at a time under an `flock`, and **Manage → System → Backups**. That box is a set of factual
+statements with no overall "Protected": freshness against the school's agreed limit, routine backups
+over 7 days, the last attempt, the agreed recovery time, "Full recovery: Not yet tested", who
+recovers, where the key is kept, and an open restore. It adds four optional server settings
+(`BACKUP_MAX_DATA_LOSS`, `RECOVERY_TARGET_TIME`, `BACKUP_RECOVERY_CONTACT`, `BACKUP_KEY_HELD_BY`), each
+"Not agreed" until set, per the operator's decision. Two review rounds fixed three things:
+- the restore lock is now a kernel `flock` (the PID-directory lock it replaces could admit two
+  restores);
+- records are written only by the run that holds the backup lock;
+- "history incomplete" now expires.
+
+Also in v1.02: Playwright 1.64.1 (#429, test-only). **None of v1.00–v1.02 is deployed yet.** When the
+Rock is updated, set `BACKUP_RECOVERY_CONTACT` (the operator, and how to reach him; he has yet to
+give the contact line) and `BACKUP_KEY_HELD_BY` (the operator's password manager) in its `.env`.
+
+**Earlier (2026-10-21): v1.01** is tagged from the tip of `main`, so a deploy shows "Version 1.01".
 It carries A1, the staged, reversible restore (#426; operators now finish a live restore with
 `--confirm` or `--undo`), the drafts autosave re-arm fix from Codex's v1.00 review (#427), and the
-dependency patches (#428). Phase A's second PR (records, page, Guide) is next. Add to its scope: show
-a pending (provisional) restore on Manage → System from `out/ops/restore-journal.json`. Phase B:
-have the updater print the release's ⚑ operator notes. #429 (Playwright 1.64.1, test-only) is open.
+dependency patches (#428).
 
 **Earlier (2026-10-21): v1.00 is released**: tag `v1.00` on `e179411`, published 05:23 UTC by
 `publish-containers.yml` run 39548789541. Every job passed and the bundle and checksum are attached.
@@ -38,10 +54,16 @@ once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 2
 **Not yet deployed** to the Rock or any school.
 
 **In progress:**
-- Backup and recovery, `docs/DESIGN-backup-recovery-2026-10-21.md`: Phase A is approved. A1 (the staged,
-  reversible restore) is merged (#426) and released in v1.01. A2–A6 (records, page, Guide) are PR 2,
-  in progress on `claude/a2-backup-records`. Phase B (recovery kit and a clean-machine acceptance test
-  on amd64 and arm64) is owned by the operator, with a target of 2026-11-30.
+- Backup and recovery, `docs/DESIGN-backup-recovery-2026-10-21.md`: **Phase A is complete** (A1 #426 in
+  v1.01, A2–A6 #430 in v1.02). **Phase B is next and not started**: the recovery kit (one per release and
+  architecture), `recover.sh` (install from the kit, fresh secrets, restore through A1's staged path,
+  write a recovery receipt the page reads), and the clean-machine acceptance test on amd64 and arm64.
+  It is owned by the operator, with a target of 2026-11-30. Open before it starts:
+  - the interim stopgap (proposed: none for now; do it per school at install);
+  - teacher laptops as stopgap hosts (proposed: no for now);
+  - checking that nothing stored depends on the old `PAYLOAD_SECRET`.
+
+  From v1.01's notes: have the updater print the release's ⚑ operator notes.
 - Open from the dependency review: drop `turbopackMinify: false` once a Payload 3.x release ships
   payloadcms/payload#18775, which is merged on 3.x but unreleased (do it as its own change after the
   Payload bump); React 19.3, Playwright 1.64 and the majors each as their own change.

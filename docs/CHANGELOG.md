@@ -10,6 +10,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+## v1.02 (2026-10-22)
+
 - ⚑ **Manage → System → Backups (Site Administrators; operators).** A new box states what the backup
   records show, one fact at a time, each up to date, needing attention, or unknown. There is no
   overall "Protected":
