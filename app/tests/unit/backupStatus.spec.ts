@@ -131,6 +131,28 @@ describe('Backup up to date', () => {
     expect(s).toMatchObject({ state: 'unknown', value: ['Unknown — history incomplete'] })
   })
 
+  it('stops letting the older file hide a missing routine backup once the window has passed', () => {
+    const legacyDaily = {
+      version: 1 as const,
+      completedAt: daysAgo(31),
+      stream: 'daily' as const,
+      destination: 'drive:x',
+      filename: 'f',
+      encryptedBytes: 1,
+    }
+    const s = statement(
+      {
+        records: [
+          record('premigrate', { recordingSince: daysAgo(30), lastSuccess: success(daysAgo(30)) }),
+        ],
+        legacy: legacyDaily,
+        settings: { maxDataLoss: '1d' },
+      },
+      'freshness',
+    )
+    expect(s).toMatchObject({ state: 'attention', value: ['No recent routine backup recorded'] })
+  })
+
   it('keeps "history incomplete" while records are younger than the period judged', () => {
     const young = { recordingSince: hoursAgo(5), lastSuccess: success(hoursAgo(5)) }
     expect(statement({ records: [record('premigrate', young)] }, 'freshness').value).toEqual([

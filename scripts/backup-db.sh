@@ -232,11 +232,6 @@ case "$LABEL" in
   *)           die "unknown --label '$LABEL'. Valid: no --label at all (daily), weekly, monthly, or premigrate with an optional suffix (e.g. premigrate-\$SHA)" ;;
 esac
 
-# Validate the retention value actually selected for this run — BEFORE the dump/upload/prune. if/then
-# (not `[[ ]] && cmd`) so a false test can't trip `set -e` on the premigrate path (where KEEP_COUNT="").
-if [[ -n "$KEEP_COUNT" ]]; then positive_int "keep-count for '$STREAM'" "$KEEP_COUNT"; fi
-if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KEEP_DAYS"; fi
-
 # ⚑ ONE BACKUP AT A TIME, FOR THE WHOLE RUN, AND TAKEN BEFORE ANYTHING CAN FAIL INTO A RECORD. A weekly
 # cron line and a deploy's premigrate snapshot can start together; two runs would race to prune the
 # same remote and to replace records. The second waits (the kernel releases the lock if the first
@@ -252,6 +247,13 @@ if ! flock -n 8; then
 fi
 LOCKED=1
 STAGE="setup"
+
+# Validate the retention value actually selected for this run — BEFORE the dump/upload/prune, and
+# AFTER the lock, so a bad setting is recorded as a failure rather than only printed (review
+# 2026-10-22). if/then (not `[[ ]] && cmd`) so a false test can't trip `set -e` on the premigrate path
+# (where KEEP_COUNT="").
+if [[ -n "$KEEP_COUNT" ]]; then positive_int "keep-count for '$STREAM'" "$KEEP_COUNT"; fi
+if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KEEP_DAYS"; fi
 
 need docker; need age; need rclone
 [[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"

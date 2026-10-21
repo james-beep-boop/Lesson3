@@ -122,6 +122,21 @@ Re-run after these fixes (local, 2026-10-22):
 - **Mutation runs:** with each fix undone, its new cases fail. With the backup ordering reverted, the
   concurrent success is lost outright.
 
+**Second review on `b90efbb` (two reporting gaps, fixed):**
+
+- **Retention checks ran before the lock**, so a bad `BACKUP_*_KEEP` or retention-days setting failed the
+  run without a record. They now run right after `LOCKED=1`, and the failure is recorded as `setup`.
+- **The older file suppressed "No recent routine backup recorded" forever.** It stays on disk after the
+  switch, so its presence alone cannot mean "history incomplete". It now counts only while new-format
+  records are younger than the window (the agreed limit, or 7 days).
+
+Re-run:
+
+- `test-backup-status.sh`: 88/88 on macOS, and 98/98 in the tools image.
+- `backupStatus.spec`: 45 cases. The reader tests and path parity pass 50/50.
+- lint, tsc and format are clean.
+- Both new cases fail against `b90efbb`.
+
 **Lesson:** a lock built from separate steps (create, then mark as owned) has a window between them,
 and every repair of the marker kept that window. Use the kernel's lock, and test it with two real
 processes: the stubbed lock proved only that the script asks for one.

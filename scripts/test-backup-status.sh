@@ -365,6 +365,19 @@ prepare_case
 LOCK_HELD=1 RECIPIENT="" run_case "drive:lesson3-backups"
 check "a failure without the lock writes nothing" "no record may appear" "$([[ ! -e "$STATUS" ]] && echo 0 || echo 1)"
 
+# 6e'. A bad retention setting is recorded too: the check runs after the lock (review 2026-10-22).
+prepare_case
+env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="age1testrecipient" \
+  BACKUP_RCLONE_REMOTE="drive:lesson3-backups" BACKUP_WEEKLY_KEEP=0 PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+  bash "$BACKUP" --label weekly >"$SANDBOX/output" 2>&1
+EXIT=$?; CALLS="$(cat "$SANDBOX/calls")"; OUTPUT="$(cat "$SANDBOX/output")"
+STATUS="$SANDBOX/repo/out/ops/backup/weekly.json"
+check "a bad retention setting fails the run" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+check "a bad retention setting is recorded as setup" "lastFailure stage must be setup" "$(ok failed_at setup)"
+check "the record names the setting" "reason must mention keep-count" \
+  "$(group lastFailure | grep -q 'keep-count' && echo 0 || echo 1)"
+check "a bad retention setting dumps nothing" "docker must not run" "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+
 # 6f. Attempts are ordered by a number, not a time: whole seconds can tie (review 2026-10-21).
 prepare_case
 run_case "drive:lesson3-backups"

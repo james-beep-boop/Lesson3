@@ -350,7 +350,10 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
     // the honest answer is "Unknown — history incomplete" (design A2; review 2026-10-21).
     const begun = earliest(records.map((r) => r.recordingSince))
     const window = limit.kind === 'set' ? limit.ms : 7 * DAY_MS
-    if (legacy || (begun && now.getTime() - new Date(begun).getTime() < window)) {
+    // ⚑ The older file suppresses the finding only during that window, not forever: it stays on disk
+    // after the switch, so treating its presence alone as "history incomplete" would hide a month with
+    // no routine backup (review 2026-10-22).
+    if (begun && now.getTime() - new Date(begun).getTime() < window) {
       statements.push(
         freshness(
           'unknown',
