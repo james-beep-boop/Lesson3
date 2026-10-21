@@ -124,7 +124,7 @@ for _ in $(seq 1 60); do
     echo "install:"
     echo "install:   4. Choose a backup destination (cloud or USB) and complete setup in OPS.md."
     echo "install:"
-    echo "install: Manage -> System shows backup status once the nightly schedule runs."
+    echo "install: Manage -> System -> Backups shows what the backup records say once backups run."
     exit 0
   fi
   sleep 5

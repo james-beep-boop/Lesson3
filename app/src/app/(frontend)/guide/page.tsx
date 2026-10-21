@@ -787,9 +787,23 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <code>cd /srv/lesson3 &amp;&amp; scripts/restore-db.sh --list</code>.
                 </p>
                 <p>
-                  Before attempting recovery, check what{' '}
-                  <em>Manage → System → Installation status</em> shows under{' '}
-                  <strong>School recovery key</strong>:
+                  <em>Manage → System → Backups</em> reports what the backup records on the server
+                  show, one statement at a time. <strong>Backup up to date</strong> is judged by the
+                  moment a backup’s data was taken, not by when it was uploaded. The page also shows
+                  how many of the last 7 days had a routine backup, whether the last attempt
+                  succeeded, the agreed recovery time, who recovers, and where the private key is
+                  kept. <strong>Full recovery</strong> reads “Not yet tested” until rebuilding the
+                  installation on another machine from its backups has been shown to work. The
+                  limits are the school’s agreement, recorded on the server as{' '}
+                  <code>BACKUP_MAX_DATA_LOSS</code> and <code>RECOVERY_TARGET_TIME</code> (for
+                  example <code>1d</code>); until they are set the page says “Not agreed”. A limit
+                  of one week means accepting the loss of up to a week’s work. If the page says the
+                  backup drive is not connected, connect the school’s backup drive and run the
+                  backup, then take the drive away from the server.
+                </p>
+                <p>
+                  Before attempting recovery, check what <em>Manage → System → Backups</em> shows
+                  under <strong>School recovery key</strong>:
                 </p>
                 <ul>
                   <li>

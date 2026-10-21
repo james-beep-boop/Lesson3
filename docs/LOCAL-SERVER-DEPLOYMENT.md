@@ -250,7 +250,8 @@ their prematurely advanced `VERSION`; a legacy `releases/<installed-version>/` s
 fresh transaction because it may belong to an unfinished update.
 
 After health succeeds, the transaction moves to `releases/<old-version>-to-<new-version>/`, preserving
-`previous/`, `bundle/`, `backup.log`, and (when available) `backup-status.json`. Existing recovery records
+`previous/`, `bundle/`, `backup.log`, and the pre-update backup's record when available
+(`premigrate-backup.json`, or `backup-status.json` from an older backup script). Existing recovery records
 are never overwritten. The installation's `.env` is always left in place.
 
 If startup or health fails, **no automatic rollback is attempted**: migrations may already have run.

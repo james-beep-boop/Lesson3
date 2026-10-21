@@ -231,7 +231,18 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   directory if it differs). To list available encrypted backups, run
   `cd /srv/lesson3 && scripts/restore-db.sh --list`.
 
-  Before attempting recovery, check what *Manage → System → Installation status* shows under
+  *Manage → System → Backups* reports what the backup records on the server show, one statement at a
+  time. **Backup up to date** is judged by the moment a backup’s data was taken, not by when it was
+  uploaded. The page also shows how many of the last 7 days had a routine backup, whether the last
+  attempt succeeded, the agreed recovery time, who recovers, and where the private key is kept.
+  **Full recovery** reads “Not yet tested” until rebuilding the installation on another machine from
+  its backups has been shown to work. The limits are the school’s agreement, recorded on the server as
+  `BACKUP_MAX_DATA_LOSS` and `RECOVERY_TARGET_TIME` (for example `1d`); until they are set the page
+  says “Not agreed”. A limit of one week means accepting the loss of up to a week’s work. If the page
+  says the backup drive is not connected, connect the school’s backup drive and run the backup, then
+  take the drive away from the server.
+
+  Before attempting recovery, check what *Manage → System → Backups* shows under
   **School recovery key**:
 
   - **School recovery key configured** — the school holds the private key for these backups. Recovery

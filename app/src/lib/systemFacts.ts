@@ -1,4 +1,4 @@
-import { open, readdir, stat } from 'fs/promises'
+import { readdir, stat } from 'fs/promises'
 import { join } from 'path'
 
 import {
@@ -6,7 +6,6 @@ import {
   artifactCacheMaxBytes,
   isArtifactCacheEntry,
 } from '../generator/artifactCache'
-import { decodeCachedJson } from '../generator/cacheCodecs'
 import { gotenbergUrl } from '../generator/docxToPdf'
 import { errorTrackingEnabled } from './errorTracking'
 import { isPublicLibraryEnabled } from './publicLibrary'
@@ -14,10 +13,10 @@ import { isPublicLibraryEnabled } from './publicLibrary'
 /**
  * The read-only half of Manage → System: what this installation IS, as opposed to what is switched on.
  *
- * ⚑ REPORTED PER REQUEST, NEVER OPERATOR-AUTHORED HERE. Most rows are computed from the environment or
- * a live probe. Backup success is different: it is recorded operational state written atomically by
- * the host backup script, because no current-environment probe can reconstruct a past upload. Design:
- * `docs/DESIGN-system-panel-2026-08-21.md`.
+ * ⚑ REPORTED PER REQUEST, NEVER OPERATOR-AUTHORED HERE. Every row is computed from the environment or
+ * a live probe. Design: `docs/DESIGN-system-panel-2026-08-21.md`. The backup rows that used to live
+ * here moved to their own panel, Manage → System → Backups (`lib/backupStatus.ts`, design A5), when
+ * one "most recent backup" row became several statements.
  *
  * ⚑ AND EVERY FACT NAMES ITS ENV VAR, because these are the settings that CANNOT be runtime-switched
  * and the panel must look like it. D1 is blunt about this: "A toggle that silently does nothing until
@@ -25,14 +24,6 @@ import { isPublicLibraryEnabled } from './publicLibrary'
  * like it." `SERVER_URL` drives the CSRF allowlist and Secure cookies at boot; SMTP, error tracking and
  * the PDF engine are wired at startup. Naming the variable is what turns "email: off" from a mystery
  * into an instruction.
- *
- * ⚑ WITH ONE HONEST EXCEPTION: the backup row. `BACKUP_RCLONE_REMOTE` names where backups GO, but it
- * does not decide whether that row reads `ok` or `unknown` — cron, `rclone`, the mount and the script
- * do. So for that row the variable is *where the destination is configured*, not the lever that fixes
- * the row, and the detail line has to carry the actual next step. Stated here because `envVar`'s own
- * doc used to promise "the variable that decides it" for every row, and the exception had been
- * softened two levels downstream (in the panel's JSDoc and a test message) while the definition still
- * made the stronger claim.
  *
  * Nothing in here throws. A probe that fails reports `unknown` — an operator reading "PDF engine:
  * unknown" learns something true, where a 500 on the Manage page teaches them nothing.
@@ -49,11 +40,7 @@ export interface SystemFact {
   label: string
   value: string
   status: FactStatus
-  /**
-   * The environment variable that decides it, named so the operator knows where to go — or, for a
-   * recorded-state row, where its destination is configured. See the exception in the module
-   * docblock: naming a variable that cannot change the row is a dead end unless `detail` says so.
-   */
+  /** The environment variable that decides it, named so the operator knows where to go. */
   envVar?: string
   /**
    * ⚑ PLAIN ENGLISH, ALWAYS SHOWN, AND IT EXISTS BECAUSE THE ROWS WERE UNREADABLE. The labels and
@@ -69,8 +56,7 @@ export interface SystemFact {
    * ⚑ AND IT REPLACED THE TECHNICAL NOTES RATHER THAN JOINING THEM (operator, 2026-08-21). Those notes
    * said things like "http://gotenberg:3000 — a local sidecar; PDF conversion needs no internet" and
    * "relaxed CSRF and non-Secure cookies" — accurate, and meaningless to the person reading this
-   * screen. `detail` now survives on exactly one row, the backup, where the *specifics* are the point:
-   * which kind of backup, how big, and where it went.
+   * screen. `detail` now carries only state-specific consequences.
    */
   description?: string
   detail?: string
@@ -87,237 +73,6 @@ export interface SystemFact {
  * user-visible detail below, so it moves with this constant.
  */
 const PROBE_TIMEOUT_MS = 1_000
-const BACKUP_STATUS_FILE = '/var/run/lesson3-ops/backup-status.json'
-const MAX_BACKUP_STATUS_BYTES = 4_096
-
-const BACKUP_STREAMS = ['daily', 'weekly', 'monthly', 'premigrate'] as const
-type BackupStream = (typeof BACKUP_STREAMS)[number]
-
-interface BackupStatusV1 {
-  version: 1
-  completedAt: string
-  stream: BackupStream
-  destination: string
-  filename: string
-  encryptedBytes: number
-}
-
-const isNonEmptyBounded = (value: unknown, max: number): value is string =>
-  typeof value === 'string' && value.length > 0 && value.length <= max
-
-/**
- * ⚑ THREE TIMESTAMP CHECKS, THREE DIFFERENT CLASSES — do not "simplify" this to one. Measured:
- *   - `2026-08-21T10:00:00.500Z` / `…+00:00` — the REGEX is the only thing that rejects a shape the
- *     writer never emits (`date -u +%Y-%m-%dT%H:%M:%SZ`), and shape drift is how a contract rots.
- *   - `2026-02-30T10:00:00Z` — parses fine and is NOT NaN; JavaScript rolls it to March 2. Only the
- *     round-trip comparison notices, and "a backup completed on Feb 30" is exactly the kind of false
- *     record this whole file exists to refuse.
- *   - `2026-13-45T99:99:99Z` — passes the regex, IS NaN, and makes `toISOString()` throw `RangeError`.
- *     The NaN guard is what keeps that a `false` here instead of an exception thrown from inside a type
- *     predicate for `decodeCachedJson`'s `catch` to swallow. Correct either way, but a guard whose
- *     safety depends on a foreign try/catch is a trap for whoever edits either side.
- */
-const isBackupStatusV1 = (value: unknown): value is BackupStatusV1 => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const record = value as Partial<BackupStatusV1>
-  if (record.version !== 1) return false
-  if (!isNonEmptyBounded(record.completedAt, 64)) return false
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(record.completedAt)) return false
-  const completedAt = new Date(record.completedAt)
-  if (Number.isNaN(completedAt.getTime())) return false
-  if (completedAt.toISOString() !== record.completedAt.replace('Z', '.000Z')) return false
-  return (
-    BACKUP_STREAMS.includes(record.stream as BackupStream) &&
-    isNonEmptyBounded(record.destination, 1_024) &&
-    isNonEmptyBounded(record.filename, 512) &&
-    Number.isSafeInteger(record.encryptedBytes) &&
-    (record.encryptedBytes ?? 0) > 0
-  )
-}
-
-const backupStreamLabel = (stream: BackupStream): string =>
-  ({ daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', premigrate: 'Premigration' })[stream]
-
-/**
- * Where backups GO, as opposed to whether one has happened — and they are genuinely different questions.
- *
- * ⚑ THIS ROW EXISTS BECAUSE THE DESTINATION USED TO APPEAR ONLY AFTER A SUCCESS (operator, 2026-08-22).
- * Until then the panel said "No successful backup recorded" and nothing about where a backup *would*
- * land, which is precisely what an offline school needs while setting a USB drive up. That is a setup
- * question; "did one happen?" is an operations question.
- *
- * ⚑ AND IT IS REPORTED, NOT CHOSEN. A dropdown offering cloud/removable would be a switch that lies:
- * selecting a drive cannot work until somebody has physically mounted it at that path and put the
- * sentinel file on it, and the app can neither do that nor write `.env`. It would look live and produce
- * refusing backups — the exact failure D1 forbids.
- *
- * ⚑ THERE IS NO "SAME DISK" OPTION, DELIBERATELY. `backup-db.sh` refuses a destination backed by the
- * root filesystem ("not a separate volume"), because backing up to the disk you are protecting against
- * is not a backup. So the honest choice is two-way, not three.
- */
-function backupDestinationFact(): SystemFact {
-  const destination = process.env.BACKUP_RCLONE_REMOTE?.trim()
-  const base: Omit<SystemFact, 'value' | 'status'> = {
-    key: 'backupDestination',
-    label: 'Backup destination',
-    envVar: 'BACKUP_RCLONE_REMOTE',
-    description:
-      'Where encrypted copies of the database are sent — a cloud location, or a removable drive for ' +
-      'an installation with no internet. It has to be a separate drive: sending backups to the ' +
-      "server's own disk is refused, because that is not a backup.",
-  }
-  if (!destination) {
-    return {
-      ...base,
-      value: 'Not set',
-      // `off` rather than `unknown`: we asked and we know. The detail carries the consequence, since
-      // "not configured" is a legitimate state for most rows here and emphatically is not for this one.
-      status: 'off',
-      detail: 'No backups can run until this is set. Nothing is being copied off this machine.',
-    }
-  }
-  return {
-    ...base,
-    // ⚑ THE PREDICATE, NOT A STRING COMPARISON AGAINST `destinationLabel`'s PROSE. This read
-    // `destinationLabel(destination) === 'a removable backup drive'`, which coupled a branch to display
-    // copy: reword that sentence — exactly the kind of edit this file keeps getting — and every
-    // removable drive would silently report as a cloud location, with no type error to catch it.
-    value: isRemovableDestination(destination) ? 'A removable drive' : 'A cloud location',
-    status: 'ok',
-    detail: destination,
-  }
-}
-
-/**
- * Is a school-held recovery recipient configured for new backups, or does recovery need ARES?
- *
- * ⚑ THE MOST CONSEQUENTIAL FACT ON THE PANEL FOR AN OFFLINE SCHOOL, and until now it was invisible.
- * Backups are encrypted to a public key whose private identity ARES holds; a school with no internet
- * could therefore back up perfectly and still be unable to restore — server dies, USB drive full of
- * correct encrypted dumps, and the only thing that can read them is somewhere else. `age` encrypts to
- * any number of recipients and either identity decrypts independently, so adding the school's own key
- * closes that with no key sharing (operator decision 2026-08-22, SPEC §11).
- *
- * ⚑ AND THE ROW MUST NOT OVERSTATE IT. Configuring the second key changes only backups written FROM
- * THEN ON — `age` cannot retro-encrypt what is already uploaded. A school that adds its key today still
- * has yesterday's dumps readable only by ARES, so the detail says so rather than implying the whole
- * history became self-recoverable.
- */
-function backupRecoveryFact(): SystemFact {
-  const schoolKey = process.env.BACKUP_AGE_RECIPIENT_SCHOOL?.trim()
-  const base: Omit<SystemFact, 'value' | 'status'> = {
-    key: 'backupRecovery',
-    label: 'School recovery key',
-    envVar: 'BACKUP_AGE_RECIPIENT_SCHOOL',
-    description:
-      'Whether new backups are encrypted for a recovery key held by this school, or only for ARES. ' +
-      'This is reported status, not a restore control; the private key is kept off the server.',
-  }
-  return schoolKey
-    ? {
-        ...base,
-        value: 'School recovery key configured',
-        status: 'ok',
-        detail:
-          "Backups are encrypted to this school's key as well as ARES's, so either can restore them. " +
-          'Backups written BEFORE this key was configured can still only be opened by ARES.',
-      }
-    : {
-        ...base,
-        value: 'Recovery needs ARES',
-        status: 'off',
-        detail:
-          'Backups can be made but not reopened here — only ARES holds a key. For an installation ' +
-          'without reliable internet, that turns recovery into a shipping problem during an outage.',
-      }
-}
-
-/**
- * ⚑ THE FILESYSTEM GETS A DEADLINE, exactly like the network probe. This reads a bind mount of a host
- * directory, and `collectSystemFacts` joins every fact with one `Promise.all` — so a wedged mount with
- * no bound would not degrade this row, it would hang the whole Manage page for the Site Administrator
- * who most likely opened it BECAUSE something was already broken. Same budget as `probePdfEngine`.
- *
- * Failure and timeout both collapse to `null` on purpose: the operator's next step is identical, which
- * is the argument `probePdfEngine` already makes about unreachable-vs-timed-out. Collapsing here also
- * means the losing promise's rejection is handled rather than becoming an unhandled rejection, and its
- * own `finally` still closes the handle.
- */
-function withDeadline<T>(work: Promise<T>, ms: number): Promise<T | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const deadline = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), ms)
-  })
-  return Promise.race([work.catch(() => null), deadline]).finally(() => clearTimeout(timer))
-}
-
-/**
- * ⚑ BOUNDED BEFORE IT IS READ, AND THEN AGAIN AFTER. `stat` short-circuits an oversized file so it is
- * never slurped; the second check exists because a reported size is not a promise — a pipe or a
- * synthetic file can stat as 0 and still stream. Two enforcement points, one limit, distinct reasons.
- */
-async function readBackupStatus(): Promise<BackupStatusV1 | null> {
-  const file = await open(BACKUP_STATUS_FILE, 'r')
-  try {
-    const metadata = await file.stat()
-    if (!metadata.isFile() || metadata.size > MAX_BACKUP_STATUS_BYTES) return null
-    const bytes = await file.readFile()
-    if (bytes.byteLength > MAX_BACKUP_STATUS_BYTES) return null
-    // The shared decoder owns "untrusted JSON + a runtime contract, else null" for the artifact caches
-    // too, so a future hardening of it reaches this reader instead of stopping at a second copy.
-    return decodeCachedJson(bytes, isBackupStatusV1)
-  } finally {
-    await file.close()
-  }
-}
-
-/**
- * The host backup script is the sole writer; the app receives its directory read-only. Absence and a
- * malformed record are both `unknown`, never `off`: neither proves that no backup exists remotely.
- *
- * ⚑ AND `unknown` IS THE ORDINARY CASE ON A HEALTHY BOX THAT HAS NEVER RUN THE SCRIPT, so the detail
- * names the two things that actually produce a record — rather than the env var, which cannot.
- */
-async function readBackupFact(): Promise<SystemFact> {
-  const base: Omit<SystemFact, 'value' | 'status'> = {
-    key: 'backup',
-    label: 'Most recent successful backup',
-    envVar: 'BACKUP_RCLONE_REMOTE',
-    /**
-     * ⚑ "SAFELY" IS GONE, and its removal is the whole point of this row's honesty. A successful
-     * upload is not a restorable backup: the record says the encrypted file left the machine, not that
-     * it decrypts or that Postgres will accept it. Only the restore drill in `docs/OPS.md` shows that,
-     * and "safely" quietly promised it (review, 2026-08-21).
-     */
-    description:
-      'The most recent time an encrypted copy of the database was successfully sent to the ' +
-      'configured backup location.',
-  }
-  const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
-    ...base,
-    value,
-    status,
-    detail,
-  })
-
-  const status = await withDeadline(readBackupStatus(), PROBE_TIMEOUT_MS)
-  if (!status) {
-    return fact(
-      'unknown',
-      'No successful backup recorded',
-      'No backup has reported success on this machine yet — check that the nightly backup is set up.',
-    )
-  }
-  return fact(
-    'ok',
-    status.completedAt.replace('T', ' ').replace('Z', ' UTC'),
-    // ⚑ THE FILENAME IS GONE from this line (operator review, 2026-08-21): it is opaque on screen and
-    // `scripts/restore-db.sh --list` is where you go when you actually need it. What an administrator
-    // wants here is which kind of backup, where it went, and that it is not empty.
-    `${backupStreamLabel(status.stream)} backup, ${mb(status.encryptedBytes)}, sent to ` +
-      `${destinationLabel(status.destination)} (${status.destination}).`,
-  )
-}
 
 /**
  * Is the PDF sidecar answering?
@@ -446,37 +201,20 @@ async function probeArtifactCache(): Promise<SystemFact> {
  * The one guard is the floor: rounding alone would print "0 MB" for a small backup, which reads as a
  * fault rather than as a small number.
  */
-const mb = (bytes: number): string => {
+export const mb = (bytes: number): string => {
   const value = Math.round(bytes / 1_048_576)
   return value < 1 ? 'under 1 MB' : `${value} MB`
 }
 
 /**
- * ⚑ WE CANNOT SAY "GOOGLE DRIVE", AND SAYING IT WOULD BE A GUESS. `BACKUP_RCLONE_REMOTE` is either an
- * absolute path (which `backup-db.sh` requires to be a separate, sentinel-marked mount — so a genuine
- * removable drive) or an `rclone` remote in `nickname:path` form. That nickname is chosen by whoever
- * configured rclone: `drive:` is conventional for Google Drive because rclone's own documentation uses
- * it, but the same remote could be Dropbox or S3. So the two cases we can tell apart honestly are
- * removable-vs-cloud, and the raw value travels alongside for anyone who needs it.
- */
-const isRemovableDestination = (destination: string): boolean => destination.startsWith('/')
-
-const destinationLabel = (destination: string): string =>
-  isRemovableDestination(destination) ? 'a removable backup drive' : 'a cloud backup location'
-
-/**
  * Every fact, in the order the panel shows them: identity first, then the capabilities an operator
  * asks about when something is not working.
  *
- * The two probes and the recorded backup read run concurrently — they are independent, and the
- * network one is normally the slow one.
+ * The two probes run concurrently — they are independent, and the network one is normally the slow
+ * one.
  */
 export async function collectSystemFacts(): Promise<SystemFact[]> {
-  const [pdfEngine, artifactCache, backup] = await Promise.all([
-    probePdfEngine(),
-    probeArtifactCache(),
-    readBackupFact(),
-  ])
+  const [pdfEngine, artifactCache] = await Promise.all([probePdfEngine(), probeArtifactCache()])
 
   const serverUrl = process.env.SERVER_URL?.trim()
   const publicLibrary = isPublicLibraryEnabled()
@@ -573,9 +311,6 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',
     },
-    backupDestinationFact(),
-    backupRecoveryFact(),
-    backup,
     pdfEngine,
     artifactCache,
   ]

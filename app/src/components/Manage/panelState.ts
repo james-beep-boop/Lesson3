@@ -86,6 +86,7 @@ export const PANEL_IDS = [
   'system',
   'system.features',
   'system.deployment',
+  'system.backups',
 ] as const
 
 export type PanelId = (typeof PANEL_IDS)[number]

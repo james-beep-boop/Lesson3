@@ -13,18 +13,6 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const backupFileMock = vi.hoisted(() => ({
-  close: vi.fn(),
-  open: vi.fn(),
-  readFile: vi.fn(),
-  stat: vi.fn(),
-}))
-
-vi.mock('fs/promises', async () => {
-  const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises')
-  return { ...actual, open: backupFileMock.open }
-})
-
 /**
  * ⚑ THE CACHE MODULE IS MOCKED, because an env var CANNOT steer it. `artifactCache.ts` resolves
  * `CACHE_DIR` and `MAX_BYTES` ONCE at module load, so the earlier version of this spec — which set
@@ -47,12 +35,6 @@ const ENV_KEYS = [
   'SMTP_HOST',
   'SENTRY_DSN',
   'GOTENBERG_URL',
-  // ⚑ MUST BE IN THIS LIST, not just used by the destination cases below. `beforeEach` clears every key
-  // here and `afterEach` restores it, so a key that is absent from the list both leaks into later tests
-  // and picks up whatever the developer's real environment happens to hold — which would make the
-  // "nothing is being backed up" case pass or fail depending on the machine.
-  'BACKUP_RCLONE_REMOTE',
-  'BACKUP_AGE_RECIPIENT_SCHOOL',
 ] as const
 
 let saved: Record<string, string | undefined>
@@ -65,28 +47,9 @@ let saved: Record<string, string | undefined>
  * unhandled errors beside six passing tests. A factory is only called if `fetch` is.
  */
 const stubFetch = (make: () => Promise<Response>) => vi.stubGlobal('fetch', vi.fn(make))
-/**
- * ⚑ `readFile` RESOLVES A BUFFER, because the reader now hands the bytes to the shared
- * `decodeCachedJson` — the same decoder the artifact caches use — rather than parsing a string itself.
- * A string here would still satisfy `JSON.parse` and quietly skip the post-read length bound, so the
- * mock has to match the real call's shape and not merely its content.
- */
-const stubBackupRecord = (raw: string, size = Buffer.byteLength(raw, 'utf8')) => {
-  backupFileMock.stat.mockResolvedValue({ isFile: () => true, size })
-  backupFileMock.readFile.mockResolvedValue(Buffer.from(raw, 'utf8'))
-  backupFileMock.close.mockResolvedValue(undefined)
-  backupFileMock.open.mockResolvedValue({
-    close: backupFileMock.close,
-    readFile: backupFileMock.readFile,
-    stat: backupFileMock.stat,
-  })
-}
-
 beforeEach(() => {
   saved = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]))
   for (const k of ENV_KEYS) delete process.env[k]
-  for (const mock of Object.values(backupFileMock)) mock.mockReset()
-  backupFileMock.open.mockRejectedValue(new Error('no backup record'))
   // Default every case to an unreachable sidecar; the two cases that are ABOUT the response re-stub.
   // Five identical stub blocks used to open five cases that had nothing to do with fetch.
   stubFetch(() => Promise.reject(new Error('offline')))
@@ -112,66 +75,10 @@ describe('collectSystemFacts', () => {
     // Both failure paths taken at once, and the panel still has every row.
     expect(byKey(facts, 'pdfEngine').status).toBe('unknown')
     expect(byKey(facts, 'artifactCache').status).toBe('unknown')
-    expect(byKey(facts, 'backup').status).toBe('unknown')
     // ⚑ A COUNT, deliberately: it is what noticed the eighth row arriving, which is the point of
-    // pinning it rather than only checking the rows this case names.
-    expect(facts).toHaveLength(9)
-  })
-
-  /**
-   * ⚑ THE ROW MUST NOT SAY THE WHOLE HISTORY BECAME RECOVERABLE. `age` cannot retro-encrypt uploaded
-   * dumps, so configuring the school's key changes only backups written afterwards — and a row implying
-   * otherwise would be discovered during a recovery, which is the worst possible time.
-   */
-  describe('backup recovery', () => {
-    it('reports independent recovery once the school holds its own key', async () => {
-      process.env.BACKUP_AGE_RECIPIENT_SCHOOL = 'age1schoolkey'
-      const fact = byKey(await collectSystemFacts(), 'backupRecovery')
-      expect(fact.status).toBe('ok')
-      expect(fact.label).toBe('School recovery key')
-      expect(fact.value).toBe('School recovery key configured')
-      expect(fact.description).toContain('reported status, not a restore control')
-      expect(fact.detail).toContain('BEFORE this key was configured')
-    })
-
-    it('says recovery needs ARES when no school key is set', async () => {
-      delete process.env.BACKUP_AGE_RECIPIENT_SCHOOL
-      const fact = byKey(await collectSystemFacts(), 'backupRecovery')
-      expect(fact.status).toBe('off')
-      expect(fact.value).toBe('Recovery needs ARES')
-    })
-  })
-
-  /**
-   * ⚑ WHERE BACKUPS GO IS A DIFFERENT QUESTION FROM WHETHER ONE HAPPENED, and the destination row exists
-   * because the panel used to answer only the second — leaving an offline school setting up a USB drive
-   * with no way to confirm where a backup would land until one succeeded.
-   */
-  describe('backup destination', () => {
-    it('names a removable drive from an absolute path, and keeps the raw value in the detail', async () => {
-      process.env.BACKUP_RCLONE_REMOTE = '/media/lesson3-backup/lesson3-backups'
-      const fact = byKey(await collectSystemFacts(), 'backupDestination')
-      expect(fact.status).toBe('ok')
-      expect(fact.value).toBe('A removable drive')
-      expect(fact.detail).toBe('/media/lesson3-backup/lesson3-backups')
-    })
-
-    it('names a cloud location from an rclone remote', async () => {
-      process.env.BACKUP_RCLONE_REMOTE = 'drive:lesson3-backups'
-      const fact = byKey(await collectSystemFacts(), 'backupDestination')
-      expect(fact.status).toBe('ok')
-      expect(fact.value).toBe('A cloud location')
-      // ⚑ NOT "Google Drive": `drive:` is a nickname whoever configured rclone chose, conventional for
-      // Drive but not a guarantee. The raw value rides along instead of being interpreted.
-      expect(fact.detail).toBe('drive:lesson3-backups')
-    })
-
-    it('says plainly that nothing is being backed up when it is unset', async () => {
-      delete process.env.BACKUP_RCLONE_REMOTE
-      const fact = byKey(await collectSystemFacts(), 'backupDestination')
-      expect(fact.status).toBe('off')
-      expect(fact.detail).toContain('No backups can run')
-    })
+    // pinning it rather than only checking the rows this case names. Six since the three backup rows
+    // moved to Manage → System → Backups (`backupStatus.spec.ts`, design A5).
+    expect(facts).toHaveLength(6)
   })
 
   it('reports PDF output working when the sidecar answers', async () => {
@@ -214,79 +121,6 @@ describe('collectSystemFacts', () => {
     for (const key of ['serverUrl', 'publicLibrary', 'email', 'errorTracking']) {
       expect(byKey(facts, key).status, `${key} should be off, not unknown`).toBe('off')
     }
-  })
-
-  it('reports the host-written backup success with its stream, destination and size', async () => {
-    stubBackupRecord(
-      JSON.stringify({
-        version: 1,
-        completedAt: '2026-08-22T03:25:34Z',
-        stream: 'premigrate',
-        destination: 'drive:lesson3-backups',
-        filename: 'lesson3-20260822T032534Z-premigrate-83b9ab0.dump.age',
-        encryptedBytes: 1_572_864,
-      }),
-    )
-    const backup = byKey(await collectSystemFacts(), 'backup')
-    expect(backup).toMatchObject({
-      status: 'ok',
-      value: '2026-08-22 03:25:34 UTC',
-      envVar: 'BACKUP_RCLONE_REMOTE',
-    })
-    // ⚑ THE ONE ROW THAT KEEPS A DETAIL LINE, because "and where it went" is the point of it. Exact
-    // string, not a `toContain`: the destination and the kind are the two things an administrator
-    // reads, and a premigration success quietly reported as a daily one is the misreading the whole
-    // row exists to prevent. The filename was dropped on purpose — opaque on screen, and
-    // `scripts/restore-db.sh --list` is where you go when you need it.
-    // ⚑ THE DESTINATION IS DESCRIBED *AND* QUOTED. "a cloud backup location" is all we can honestly
-    // infer from an rclone nickname — `drive:` is conventional for Google Drive but the remote could be
-    // anything — so the raw value rides along for whoever needs to act on it.
-    expect(backup.detail).toBe(
-      'Premigration backup, 2 MB, sent to a cloud backup location (drive:lesson3-backups).',
-    )
-  })
-
-  /**
-   * ⚑ THE HANG IS THE FAILURE MODE THIS ROW ADDS. Every other fact is an env read or a bounded probe;
-   * this one reads a bind mount of a host directory, and `collectSystemFacts` joins them all with one
-   * `Promise.all` — so an unbounded read would not degrade one row, it would hold the whole Manage page
-   * open. Verified by mutation: deleting the `withDeadline` wrapper makes this case hang until vitest
-   * kills it, rather than failing an assertion.
-   */
-  it('degrades to unknown instead of hanging when the status file never resolves', async () => {
-    backupFileMock.open.mockReturnValue(new Promise(() => {}))
-    const started = Date.now()
-    const backup = byKey(await collectSystemFacts(), 'backup')
-    expect(backup.status).toBe('unknown')
-    expect(
-      Date.now() - started,
-      'the read must give up on its own deadline, not wait for the caller',
-    ).toBeLessThan(5_000)
-  })
-
-  it('does not mistake a malformed or oversized status file for backup evidence', async () => {
-    stubBackupRecord(JSON.stringify({ version: 1, completedAt: 'yesterday' }))
-    expect(byKey(await collectSystemFacts(), 'backup').status).toBe('unknown')
-
-    // JavaScript normalizes this to March 2; it is not evidence that a backup completed on Feb 30.
-    stubBackupRecord(
-      JSON.stringify({
-        version: 1,
-        completedAt: '2026-02-30T03:25:34Z',
-        stream: 'daily',
-        destination: 'drive:lesson3-backups',
-        filename: 'lesson3-20260230T032534Z.dump.age',
-        encryptedBytes: 12,
-      }),
-    )
-    expect(byKey(await collectSystemFacts(), 'backup').status).toBe('unknown')
-
-    backupFileMock.readFile.mockClear()
-    backupFileMock.close.mockClear()
-    stubBackupRecord('must not be read', 4_097)
-    expect(byKey(await collectSystemFacts(), 'backup').status).toBe('unknown')
-    expect(backupFileMock.readFile).not.toHaveBeenCalled()
-    expect(backupFileMock.close).toHaveBeenCalledOnce()
   })
 
   /**

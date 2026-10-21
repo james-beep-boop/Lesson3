@@ -60,6 +60,7 @@ exec docker run --rm --init --name lesson3-dev-server \
   -p 3000:3000 \
   "${DEV_DEPS_MOUNTS[@]}" \
   -v "${DEV_REPO_ROOT}/out/resource-library:/var/lib/lesson3-resources:ro" \
+  -v "${DEV_REPO_ROOT}/out/ops:/var/run/lesson3-ops:ro" \
   --env-file .env \
   -e NODE_ENV=development \
   -e ADMIN_URL=http://localhost:3000 \

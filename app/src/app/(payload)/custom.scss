@@ -630,6 +630,48 @@ body {
       // that looked like nothing.
       color: var(--theme-error-500);
     }
+
+    // Manage → System → Backups statements (design A5) carry their own three states. `attention` is
+    // the one to notice; `unknown` means the records cannot say yet, which is not a fault, so it keeps
+    // the ordinary muted colour.
+    &[data-state='ok'] {
+      color: var(--theme-success-500);
+    }
+
+    &[data-state='attention'] {
+      color: var(--theme-error-500);
+    }
+  }
+
+  // "If you ever need to restore" under the Backups statements: separate it from the list and give
+  // its three short paragraphs room (they ran together as one block without this).
+  &__restore-note {
+    margin-top: var(--app-space-2);
+
+    > p {
+      margin: 0 0 var(--app-space-1);
+    }
+  }
+
+  // The operator-facing half of the Backups box: collapsed by default, plain label/value pairs.
+  &__technical {
+    margin-top: var(--app-space-2);
+    font-size: var(--app-secondary-size);
+
+    > summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    dt {
+      margin-top: var(--app-space-1);
+      color: var(--theme-elevation-600);
+    }
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
   }
 
   &__row-main {

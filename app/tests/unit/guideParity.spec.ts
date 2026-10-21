@@ -218,6 +218,26 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'cd /srv/lesson3 && scripts/restore-db.sh --list',
   },
   {
+    // Design A5 (2026-10-21): the backup statements live on their own box, and freshness is judged by
+    // the data a backup holds — the fact an operator would otherwise misread from an upload time.
+    what: 'backup freshness is judged by what the data covers, on Manage → System → Backups',
+    claim:
+      'Backup up to date is judged by the moment a backup’s data was taken, not by when it was uploaded.',
+  },
+  {
+    what: 'full recovery is reported as untested until Phase B shows it works',
+    claim: 'Full recovery reads “Not yet tested” until rebuilding the installation',
+  },
+  {
+    what: 'the school agrees the limits; unset means "Not agreed", and a week means a week of lost work',
+    claim: 'A limit of one week means accepting the loss of up to a week’s work.',
+  },
+  {
+    what: 'the removable-drive action line',
+    claim:
+      'connect the school’s backup drive and run the backup, then take the drive away from the server',
+  },
+  {
     // Design A1 (2026-10-21): a live restore is staged and reversible until the previous database is
     // discarded — and undoing it loses work saved since, which an operator must know before choosing.
     what: 'a live restore is checked first, keeps the previous database, and undoing loses later work',

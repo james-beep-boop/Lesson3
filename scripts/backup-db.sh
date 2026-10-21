@@ -23,8 +23,15 @@
 #     regular, non-symlink `.lesson3-backup-volume`. The script keeps the destination directory open
 #     and checks the mount identity around upload, so an absent or changed USB drive cannot fill the
 #     boot disk.
-#   - After upload, atomically writes `out/ops/backup-status.json`. The app mounts `out/ops` read-only
-#     reports that durable success evidence in Manage → System; failed uploads never advance it.
+#   - Records every run in ONE FILE PER STREAM, `out/ops/backup/<stream>.json` (version 2, design A2,
+#     `docs/DESIGN-backup-recovery-2026-10-21.md`): the last success (with `coversUntil`, the moment
+#     `pg_dump` began, so the moment whose data the backup holds), the last failure (time, stage, one
+#     line of reason, written by an exit trap), and the last 31 `coversUntil` values. Each file is
+#     replaced atomically, so no run rewrites another stream's record. The app mounts `out/ops`
+#     read-only and reports these on Manage → System → Backups. A failed run never advances a success.
+#   - Holds an `flock` for the whole run, so two backups never run at once; the second waits.
+#     `out/ops/backup-status.json` (version 1) is no longer written; the app reads it only until the
+#     first per-stream record exists.
 #   - On success, optionally pings HEALTHCHECK_BACKUP_URL (the monitoring dead-man's-switch).
 #
 # USAGE
@@ -42,6 +49,7 @@
 #   BACKUP_MONTHLY_KEEP              default 12   (newest N kept in monthly/)
 #   BACKUP_PREMIGRATE_RETENTION_DAYS default 90   (premigrate/ pruned by age, in days)
 #   HEALTHCHECK_BACKUP_URL           optional; curled on success
+#   BACKUP_LOCK_WAIT_SECONDS         default 3600 (how long a run waits for another to finish)
 #   BACKUP_DB_NAME / BACKUP_DB_USER  default lesson3 / lesson3
 set -euo pipefail
 
@@ -58,12 +66,17 @@ DAILY_KEEP="$(env_get BACKUP_DAILY_KEEP)";     DAILY_KEEP="${DAILY_KEEP:-7}"
 WEEKLY_KEEP="$(env_get BACKUP_WEEKLY_KEEP)";   WEEKLY_KEEP="${WEEKLY_KEEP:-4}"
 MONTHLY_KEEP="$(env_get BACKUP_MONTHLY_KEEP)"; MONTHLY_KEEP="${MONTHLY_KEEP:-12}"
 PREMIGRATE_RETENTION_DAYS="$(env_get BACKUP_PREMIGRATE_RETENTION_DAYS)"; PREMIGRATE_RETENTION_DAYS="${PREMIGRATE_RETENTION_DAYS:-90}"
-BACKUP_STATUS_FILE="$REPO_DIR/out/ops/backup-status.json"
+BACKUP_RECORD_DIR="$REPO_DIR/out/ops/backup"
+LOCK_WAIT="$(env_get BACKUP_LOCK_WAIT_SECONDS)"; LOCK_WAIT="${LOCK_WAIT:-3600}"
 
 LABEL=""
 [[ "${1:-}" == "--label" && -n "${2:-}" ]] && LABEL="$2"
 
-die() { echo "backup-db: ERROR: $*" >&2; exit 1; }
+# ⚑ A FAILURE IS RECORDED, NOT JUST PRINTED. Cron mails stderr to nobody on most servers, so a backup
+# that fails every night looks, on the page, exactly like one that was never set up. `die` keeps the
+# reason and the EXIT trap writes it to this stream's record with the stage it reached.
+STREAM=""; STAGE="setup"; FAIL_REASON=""
+die() { FAIL_REASON="$*"; echo "backup-db: ERROR: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH ($PATH) — see docs/OPS.md setup"; }
 # Reject a retention typo (0 / negative / non-numeric). A bad value would otherwise mean "delete the
 # WHOLE stream" (count-prune: REMOVE = total - 0) or crash `$(( ))` AFTER the dump is already uploaded.
@@ -132,27 +145,105 @@ json_escape() {
   printf '%s' "$value"
 }
 
-# The upload is the success boundary. This record is replaced atomically afterwards, so a reader sees
-# either the previous complete success or the new one — never a half-written JSON document.
-write_backup_status() {
-  local completed_at="$1" status_dir
-  status_dir="$(dirname "$BACKUP_STATUS_FILE")"
-  mkdir -p "$status_dir"
-  STATUS_TMP="$(mktemp "$status_dir/.backup-status.XXXXXX")"
-  printf '{\n  "version": 1,\n  "completedAt": "%s",\n  "stream": "%s",\n  "destination": "%s",\n  "filename": "%s",\n  "encryptedBytes": %s\n}\n' \
-    "$(json_escape "$completed_at" "completion timestamp")" \
-    "$(json_escape "$STREAM" "backup stream")" \
-    "$(json_escape "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE")" \
-    "$(json_escape "$NAME" "backup filename")" \
-    "$SIZE" >"$STATUS_TMP"
-  chmod 0644 "$STATUS_TMP"
-  mv -f "$STATUS_TMP" "$BACKUP_STATUS_FILE"
-  STATUS_TMP=""
-  echo "backup-db: recorded success in $BACKUP_STATUS_FILE"
+# ─── Per-stream records (version 2) ──────────────────────────────────────────────────────────────────
+#
+# One line per field group, so a run can carry the OTHER group forward verbatim (a success keeps the
+# last failure and vice versa) without parsing or re-escaping JSON in bash: the copied line is exactly
+# the text a previous run wrote. The reader compares times, so an old failure beside a newer success
+# reads as "the last attempt succeeded".
+RECORD_TMP=""
+ISO_RE='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'
+
+previous_group() { # key — the previous record's JSON value for that group, or null
+  local file="$BACKUP_RECORD_DIR/$STREAM.json" line
+  line="$(grep -m1 -E "^  \"$1\": (null|\{.*\}|\[.*\]),?\$" "$file" 2>/dev/null || true)"
+  line="${line#  \"$1\": }"; line="${line%,}"
+  printf '%s' "${line:-null}"
 }
 
-need docker; need age; need rclone
+write_record() { # success|failure
+  local now since history success failure tmp_dir
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  since="$(grep -m1 -oE "\"recordingSince\": \"$ISO_RE\"" "$BACKUP_RECORD_DIR/$STREAM.json" 2>/dev/null \
+    | grep -oE "$ISO_RE" || true)"
+  since="${since:-$now}"
+  history="$(previous_group history | grep -oE "$ISO_RE" || true)"
+  success="$(previous_group lastSuccess)"
+  failure="$(previous_group lastFailure)"
+  if [[ "$1" == success ]]; then
+    history="$(printf '%s\n%s\n' "$history" "$COVERS_UNTIL" | { grep -E "^$ISO_RE\$" || true; } | tail -n 31)"
+    success="$(printf '{"coversUntil": "%s", "completedAt": "%s", "filename": "%s", "encryptedBytes": %s, "destination": "%s"}' \
+      "$COVERS_UNTIL" "$now" "$(json_escape "$NAME" "backup filename")" "$SIZE" \
+      "$(json_escape "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE")")"
+  else
+    failure="$(printf '{"at": "%s", "stage": "%s", "reason": "%s"}' "$now" "$STAGE" \
+      "$(json_escape "$(printf '%s' "$2" | tr '\n\r\t' '   ' | cut -c1-300)" "failure reason")")"
+  fi
+  history="$(printf '%s\n' "$history" | { grep -E "^$ISO_RE\$" || true; } | sed 's/.*/"&"/' | paste -sd, - | sed 's/,/, /g')"
+  tmp_dir="$BACKUP_RECORD_DIR"
+  mkdir -p "$tmp_dir"
+  RECORD_TMP="$(mktemp "$tmp_dir/.$STREAM.XXXXXX")"
+  printf '{\n  "version": 2,\n  "stream": "%s",\n  "recordingSince": "%s",\n  "lastSuccess": %s,\n  "lastFailure": %s,\n  "history": [%s]\n}\n' \
+    "$STREAM" "$since" "$success" "$failure" "$history" >"$RECORD_TMP"
+  chmod 0644 "$RECORD_TMP"
+  mv -f "$RECORD_TMP" "$BACKUP_RECORD_DIR/$STREAM.json"
+  RECORD_TMP=""
+}
+
+# The EXIT trap: clean up, and if this run failed after its stream was known, say so in the record.
+on_exit() {
+  local status=$?
+  [[ -z "${TMP:-}" ]] || rm -rf "$TMP"
+  [[ -z "$RECORD_TMP" ]] || rm -f "$RECORD_TMP"
+  # Not after `done`: the upload and its record already succeeded, and pruning is best-effort.
+  # Not at `lock` either: a run that never got the lock must not write a record the holder may be
+  # writing at that moment — its replace could undo the holder's success.
+  if [[ "$status" -ne 0 && -n "$STREAM" && "$STAGE" != done && "$STAGE" != lock ]]; then
+    write_record failure "${FAIL_REASON:-stopped with exit status $status during $STAGE}" 2>/dev/null \
+      && echo "backup-db: recorded the failure in $BACKUP_RECORD_DIR/$STREAM.json" >&2 || true
+  fi
+  exit "$status"
+}
+trap on_exit EXIT
+
+# Map the label to a stream + its prune policy. daily/weekly/monthly keep the newest KEEP_COUNT dumps
+# (count-based); premigrate keeps by age (KEEP_DAYS). Unknown labels are rejected (a typo guard so a
+# fat-fingered cron can't silently spray dumps into a new, never-pruned stream).
+KEEP_COUNT=""; KEEP_DAYS=""
+case "$LABEL" in
+  "")          STREAM="daily";      KEEP_COUNT="$DAILY_KEEP" ;;
+  weekly)      STREAM="weekly";     KEEP_COUNT="$WEEKLY_KEEP" ;;
+  monthly)     STREAM="monthly";    KEEP_COUNT="$MONTHLY_KEEP" ;;
+  premigrate*) STREAM="premigrate"; KEEP_DAYS="$PREMIGRATE_RETENTION_DAYS" ;;
+  # ⚑ THE MESSAGE NAMES ALL FOUR FORMS, INCLUDING THE TWO IT USED TO OMIT. It read
+  # "(use weekly | monthly | premigrate)", which is incomplete in both directions: it never said that
+  # NO label means a daily, and it never said `premigrate` accepts a SUFFIX — which is how `deploy.sh`
+  # itself stamps the SHA (`--label premigrate-$SHA`). Someone reading the old message could not tell
+  # that `premigrate-two-recipient-check` was legal, and the operator lost a run to exactly that
+  # (2026-08-22). An error that lists the valid inputs incorrectly is worse than one that lists none.
+  *)           die "unknown --label '$LABEL'. Valid: no --label at all (daily), weekly, monthly, or premigrate with an optional suffix (e.g. premigrate-\$SHA)" ;;
+esac
+
+# Validate the retention value actually selected for this run — BEFORE the dump/upload/prune. if/then
+# (not `[[ ]] && cmd`) so a false test can't trip `set -e` on the premigrate path (where KEEP_COUNT="").
+if [[ -n "$KEEP_COUNT" ]]; then positive_int "keep-count for '$STREAM'" "$KEEP_COUNT"; fi
+if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KEEP_DAYS"; fi
+
+need docker; need age; need rclone; need flock
 [[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
+
+# ⚑ ONE BACKUP AT A TIME, FOR THE WHOLE RUN. A weekly cron line and a deploy's premigrate snapshot can
+# start together; two runs would race to prune the same remote and to replace records. The second waits
+# (the kernel releases the lock if the first dies, so a crash cannot leave it held).
+STAGE="lock"
+positive_int "BACKUP_LOCK_WAIT_SECONDS" "$LOCK_WAIT"
+mkdir -p "$BACKUP_RECORD_DIR"
+exec 8>"$BACKUP_RECORD_DIR/.lock"
+if ! flock -n 8; then
+  echo "backup-db: another backup is running; waiting up to ${LOCK_WAIT}s for it to finish"
+  flock -w "$LOCK_WAIT" 8 || die "another backup was still running after ${LOCK_WAIT}s"
+fi
+STAGE="setup"
 
 # ⚑ TWO RECIPIENTS, SO AN OFFLINE SCHOOL CAN RECOVER WITHOUT ARES (operator decision 2026-08-22,
 # SPEC §11). `age` encrypts to any number of recipients and EITHER identity decrypts independently, so
@@ -181,54 +272,49 @@ fi
 reject_unsupported_json_controls "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE"
 reject_unsupported_json_controls "$DB_NAME" "BACKUP_DB_NAME"
 reject_unsupported_json_controls "$LABEL" "--label"
+STAGE="destination"
 validate_destination
-
-# Map the label to a stream + its prune policy. daily/weekly/monthly keep the newest KEEP_COUNT dumps
-# (count-based); premigrate keeps by age (KEEP_DAYS). Unknown labels are rejected (a typo guard so a
-# fat-fingered cron can't silently spray dumps into a new, never-pruned stream).
-KEEP_COUNT=""; KEEP_DAYS=""
-case "$LABEL" in
-  "")          STREAM="daily";      KEEP_COUNT="$DAILY_KEEP" ;;
-  weekly)      STREAM="weekly";     KEEP_COUNT="$WEEKLY_KEEP" ;;
-  monthly)     STREAM="monthly";    KEEP_COUNT="$MONTHLY_KEEP" ;;
-  premigrate*) STREAM="premigrate"; KEEP_DAYS="$PREMIGRATE_RETENTION_DAYS" ;;
-  # ⚑ THE MESSAGE NAMES ALL FOUR FORMS, INCLUDING THE TWO IT USED TO OMIT. It read
-  # "(use weekly | monthly | premigrate)", which is incomplete in both directions: it never said that
-  # NO label means a daily, and it never said `premigrate` accepts a SUFFIX — which is how `deploy.sh`
-  # itself stamps the SHA (`--label premigrate-$SHA`). Someone reading the old message could not tell
-  # that `premigrate-two-recipient-check` was legal, and the operator lost a run to exactly that
-  # (2026-08-22). An error that lists the valid inputs incorrectly is worse than one that lists none.
-  *)           die "unknown --label '$LABEL'. Valid: no --label at all (daily), weekly, monthly, or premigrate with an optional suffix (e.g. premigrate-\$SHA)" ;;
-esac
-
-# Validate the retention value actually selected for this run — BEFORE the dump/upload/prune. if/then
-# (not `[[ ]] && cmd`) so a false test can't trip `set -e` on the premigrate path (where KEEP_COUNT="").
-if [[ -n "$KEEP_COUNT" ]]; then positive_int "keep-count for '$STREAM'" "$KEEP_COUNT"; fi
-if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KEEP_DAYS"; fi
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 NAME="${DB_NAME}-${TS}${LABEL:+-$LABEL}.dump.age"
 DEST="${BACKUP_RCLONE_REMOTE%/}/${STREAM}/${NAME}"
-TMP="$(mktemp -d)"; STATUS_TMP=""
-trap 'rm -rf "$TMP"; [[ -z "$STATUS_TMP" ]] || rm -f "$STATUS_TMP"' EXIT
+TMP="$(mktemp -d)"
 LOCAL="$TMP/$NAME"
 
 echo "backup-db: dumping '$DB_NAME' -> encrypt -> $DEST"
 
-# pg_dump in the container (custom format), encrypt on the host. `set -o pipefail` makes a pg_dump
-# failure fail the whole pipe rather than uploading a truncated/empty file.
+# ⚑ `coversUntil` IS TAKEN HERE, BEFORE pg_dump STARTS. The dump is a consistent snapshot from (about)
+# this moment, so this is the newest instant whose work the backup is guaranteed to hold. Freshness is
+# judged by it, never by upload time: a slow or retried upload of an old dump is still old data.
+COVERS_UNTIL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# pg_dump in the container (custom format), encrypt on the host. A pg_dump failure must fail the run
+# rather than upload a truncated file; PIPESTATUS also says WHICH half failed, for the record.
+STAGE="dump"
+set +e
 docker compose exec -T postgres pg_dump -U "$DB_USER" -Fc "$DB_NAME" \
   | age "${AGE_RECIPIENT_ARGS[@]}" -o "$LOCAL"
+PIPE=("${PIPESTATUS[@]}")
+set -e
+[[ "${PIPE[0]}" -eq 0 ]] || die "pg_dump failed (exit ${PIPE[0]}) — nothing uploaded"
+STAGE="encrypt"
+[[ "${PIPE[1]}" -eq 0 ]] || die "age could not encrypt the dump (exit ${PIPE[1]}) — nothing uploaded"
 
 SIZE="$(wc -c < "$LOCAL" | tr -d '[:space:]')"
+STAGE="dump"
 [[ "$SIZE" -gt 0 ]] || die "encrypted dump is empty — aborting (nothing uploaded)"
 echo "backup-db: encrypted size ${SIZE} bytes"
 
+STAGE="destination"
 verify_local_mount_unchanged
-rclone copyto "$LOCAL" "$DEST" --no-traverse
+STAGE="upload"
+rclone copyto "$LOCAL" "$DEST" --no-traverse || die "upload to $DEST failed"
 verify_local_mount_unchanged
 echo "backup-db: uploaded $DEST"
-write_backup_status "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+STAGE="record"
+write_record success
+STAGE="done"
+echo "backup-db: recorded success in $BACKUP_RECORD_DIR/$STREAM.json"
 
 # Prune this stream. Best-effort — a prune failure must never fail the backup itself (already uploaded).
 STREAM_DIR="${BACKUP_RCLONE_REMOTE%/}/${STREAM}/"

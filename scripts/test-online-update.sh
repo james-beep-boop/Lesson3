@@ -60,9 +60,9 @@ case "$(basename "$0")" in
     echo backup >>"$STUB_ROOT/calls"
     [[ "$(cat "$STUB_ROOT/database")" == original ]] || stub_fail 'post-migration backup attempted'
     [[ "$FAIL_STAGE" != backup ]] || exit 1
-    mkdir -p out/ops
-    printf '%s\n' '{"filename":"original-premigrate.dump.age","destination":"remote:premigrate"}' \
-      >out/ops/backup-status.json
+    mkdir -p out/ops/backup
+    printf '%s\n' '{"version":2,"lastSuccess":{"filename":"original-premigrate.dump.age","destination":"remote:premigrate"}}' \
+      >out/ops/backup/premigrate.json
     echo 'uploaded original-premigrate.dump.age to remote:premigrate'
     exit 0
     ;;
@@ -176,11 +176,11 @@ for stage in startup health; do
     previous_unchanged "$PENDING"
     if [[ "$attempt" == 1 ]]; then
       cp "$PENDING/backup.log" "$CASE/backup.log"
-      cp "$PENDING/backup-status.json" "$CASE/backup-status.json"
-      echo 'routine backup replaced status' >"$TARGET/out/ops/backup-status.json"
+      cp "$PENDING/premigrate-backup.json" "$CASE/premigrate-backup.json"
+      echo 'a later backup replaced the record' >"$TARGET/out/ops/backup/premigrate.json"
     fi
     cmp -s "$PENDING/backup.log" "$CASE/backup.log" || fail 'original backup log replaced'
-    cmp -s "$PENDING/backup-status.json" "$CASE/backup-status.json" || fail 'original backup identity replaced'
+    cmp -s "$PENDING/premigrate-backup.json" "$CASE/premigrate-backup.json" || fail 'original backup identity replaced'
   done
   count_is backup 1
   if [[ "$stage" == health ]]; then count_is health 120; count_is logs 2; fi
@@ -195,7 +195,7 @@ for stage in startup health; do
   completed
   count_is backup 1
   cmp -s "$ARCHIVE/backup.log" "$CASE/backup.log" || fail 'completion replaced original backup'
-  cmp -s "$ARCHIVE/backup-status.json" "$CASE/backup-status.json" || fail 'completion replaced backup identity'
+  cmp -s "$ARCHIVE/premigrate-backup.json" "$CASE/premigrate-backup.json" || fail 'completion replaced backup identity'
   run_update success
   failed_with 'no pending update to resume'
   run_update success "$TMP/conflicting"

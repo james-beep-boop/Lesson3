@@ -78,7 +78,8 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
    ARES. The school's private identity goes somewhere durable and off-box (a safe; not the server).
    ⚑ Forward-only: dumps written before you set it stay readable only by ARES. ⚑ The two keys must
    differ — the script refuses a duplicate, since it would grant no independent recovery.
-   Manage → System's "School recovery key" row reports which state an installation is in.
+   Manage → System → Backups' "School recovery key" statement reports which state an installation
+   is in, and where `BACKUP_KEY_HELD_BY` says the private key is kept.
 
 3. **Choose and prepare the destination.**
 
@@ -152,25 +153,48 @@ windows it applied); counts before/after via
 
 - Manual backup: `scripts/backup-db.sh` (writes to `daily/`).
 - List backups: `scripts/restore-db.sh --list` (or `--list daily` / `--list premigrate`).
-- Successful uploads atomically replace `out/ops/backup-status.json`; failed uploads leave the previous
-  success untouched. Manage → System reads that directory through a read-only container mount and
-  shows the UTC completion time, stream/type and actual destination. ⚑ `out/ops`, not `out` — `out/`
-  holds unrelated host artifacts and is deliberately NOT mounted (narrowed 2026-08-21 after the deploy
-  verification found the wider mount). If an installation still has an old `out/backup-status.json`, it
-  is orphaned and can be deleted; the next backup or deploy writes the new location.
-- **Manage → System also shows the destination as its own row**, computed from `BACKUP_RCLONE_REMOTE`
-  and present whether or not a backup has ever succeeded — so a USB installation can confirm where
-  backups *would* go while setting up. It reads "A removable drive" or "A cloud location" with the raw
-  value beneath. ⚑ Reported, never chosen: a dropdown could not prepare a drive or write `.env`, so it
-  would look live and produce refusing backups.
-- ⚑ **A green row is not proof of a recurring schedule — read the stream/type.** `deploy.sh` takes a
-  `premigrate` snapshot on every deploy, so a box with no cron at all will still show a recent
-  successful backup, labelled **Premigration**. That is why the row names the stream: a healthy
-  installation shows **Daily**. A `Premigration` row on its own means "the last thing that backed this
-  database up was a deploy", which is a real backup but not a schedule.
-- ⚑ **And no row of any kind proves the backup is RESTORABLE.** The record says an upload succeeded, not
-  that the ciphertext decrypts or that `pg_restore` accepts it. Only the drill below establishes that,
-  and nothing on this screen can substitute for having run it.
+- **Records, one per stream (design A2, 2026-10-21).** Every run writes
+  `out/ops/backup/<stream>.json` (`daily`, `weekly`, `monthly`, `premigrate`), replaced atomically:
+  - **`lastSuccess`**, with `coversUntil` (the moment `pg_dump` began, so the newest work the backup is
+    sure to hold), `completedAt`, file, size and destination;
+  - **`lastFailure`**: time, stage (`setup`, `destination`, `dump`, `encrypt`, `upload`, `record`) and
+    one line of reason, written by an exit trap — so a backup that fails every night under cron no
+    longer looks the same as one never set up. (A run that gives up waiting for the lock writes
+    nothing: the run holding it owns the record.);
+  - **`history`**: the last 31 `coversUntil` values, and `recordingSince`.
+
+  A success keeps the stream's last failure line and a failure keeps its last success, byte for byte;
+  the page compares their times. `backup-db.sh` holds an `flock` on `out/ops/backup/.lock` for the whole
+  run, so two backups never run at once: the second waits (`BACKUP_LOCK_WAIT_SECONDS`, default 3600)
+  and both records survive. `out/ops/backup-status.json` (version 1) is no longer written; the page
+  reads it only until the first per-stream record exists, and calls freshness "Unknown — history
+  incomplete" meanwhile. ⚑ `out/ops`, not `out`, is mounted into the app, read-only (narrowed
+  2026-08-21: `out/` holds unrelated host artifacts).
+- **Manage → System → Backups** turns those records into separate statements, each up to date,
+  attention or unknown. There is no overall "Protected":
+  - **Backup up to date:** the newest *routine* `coversUntil`, judged against `BACKUP_MAX_DATA_LOSS`;
+  - **Routine backups:** how many of the last 7 days had one;
+  - **Last attempt:** the newest success or failure of any stream;
+  - **Agreed recovery time:** `RECOVERY_TARGET_TIME`;
+  - **Full recovery:** "Not yet tested" until Phase B;
+  - **Who recovers:** `BACKUP_RECOVERY_CONTACT`;
+  - **School recovery key:** with `BACKUP_KEY_HELD_BY`;
+  - **Restore:** while a restore journal is open.
+
+  Times are the viewer's local time with a relative age; UTC, the destination, every stream's last
+  success and failure, and the school key's short fingerprint are under *Technical details*.
+- **The agreement settings are the school's, not Lesson3's.** `BACKUP_MAX_DATA_LOSS` and
+  `RECOVERY_TARGET_TIME` take `12h`, `1d` or `1w`; unset, the page says "Not agreed" (operator decision
+  2026-10-21: every school is "Not agreed" until it agrees). `BACKUP_RECOVERY_CONTACT` (who, and how to
+  reach them) and `BACKUP_KEY_HELD_BY` (where the private key is kept) are shown as "Recorded as …",
+  unverified. For online installs the Site Administrator holds the read-only backup-storage
+  credential (operator decision 2026-10-21). The app reads these at start, like every System setting.
+- ⚑ **A pre-update snapshot is not a schedule.** `deploy.sh` and `update.sh` take a `premigrate` backup
+  on every deploy, so a box with no cron at all still has recent successes — which is why "Backup up to
+  date" and "Routine backups" count only `daily`, `weekly` and `monthly`.
+- ⚑ **And no statement proves a backup is RESTORABLE.** A record says an upload succeeded, not that the
+  ciphertext decrypts or that `pg_restore` accepts it. Only the drill below establishes that for one
+  backup, and only Phase B's acceptance test can change "Full recovery: Not yet tested".
 
 ### Isolated HTTP/browser test stacks
 

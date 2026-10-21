@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
-# Branch cover for backup-db.sh's destination safety and success-record contract. The real backup
+# Branch cover for backup-db.sh's destination safety and per-stream record contract (version 2, design
+# A2: `out/ops/backup/<stream>.json` — last success with `coversUntil`, last failure with its stage,
+# the last 31 `coversUntil` values). The real backup
 # script runs with docker/age/rclone stubbed, in a throwaway repo, so no daemon, database or remote is
 # touched. This pins the two deployment shapes SPEC §11 permits:
 #   * configured rclone remote (today Google Drive) — no local sentinel;
@@ -23,12 +25,16 @@ prepare_case() {
   cat >"$SANDBOX/home/bin/docker" <<EOF
 #!/usr/bin/env bash
 echo "docker \$*" >>"$SANDBOX/calls"
-if [[ "\$1 \$2" == "compose exec" ]]; then printf 'postgres custom-format bytes'; fi
+if [[ "\$1 \$2" == "compose exec" ]]; then
+  [[ "\${FAIL_DUMP:-}" == "1" ]] && { echo "pg_dump: error: connection refused" >&2; exit 3; }
+  printf 'postgres custom-format bytes'
+fi
 EOF
 
   cat >"$SANDBOX/home/bin/age" <<EOF
 #!/usr/bin/env bash
 echo "age \$*" >>"$SANDBOX/calls"
+[[ "\${FAIL_AGE:-}" == "1" ]] && { cat >/dev/null; exit 4; }
 out=""
 while [[ \$# -gt 0 ]]; do
   [[ "\$1" == "-o" ]] && { out="\$2"; shift 2; continue; }
@@ -54,19 +60,28 @@ else
   printf '%s\n' "$SANDBOX/usb /dev/test-usb ext4 8:17"
 fi
 EOF
+  # The lock is exercised for real in the concurrency case at the end; here it always succeeds unless
+  # a case asks for "another backup is running".
+  cat >"$SANDBOX/home/bin/flock" <<EOF
+#!/usr/bin/env bash
+echo "flock \$*" >>"$SANDBOX/calls"
+[[ "\${LOCK_HELD:-}" == "1" ]] && exit 1
+exit 0
+EOF
   chmod +x "$SANDBOX/home/bin/docker" "$SANDBOX/home/bin/age" \
-    "$SANDBOX/home/bin/rclone" "$SANDBOX/home/bin/findmnt"
+    "$SANDBOX/home/bin/rclone" "$SANDBOX/home/bin/findmnt" "$SANDBOX/home/bin/flock"
 }
 
 run_case() {
   env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
     BACKUP_AGE_RECIPIENT="age1testrecipient" BACKUP_RCLONE_REMOTE="$1" \
     FAIL_COPY="${2:-0}" BACKUP_DB_NAME="${3:-}" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+    FAIL_DUMP="${FAIL_DUMP:-0}" FAIL_AGE="${FAIL_AGE:-0}" LOCK_HELD="${LOCK_HELD:-0}" \
     bash "$BACKUP" --label "${4:-premigrate-test}" >"$SANDBOX/output" 2>&1
   EXIT=$?
   CALLS="$(cat "$SANDBOX/calls")"
   OUTPUT="$(cat "$SANDBOX/output")"
-  STATUS="$SANDBOX/repo/out/ops/backup-status.json"
+  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
 }
 
 # Same as run_case, but with the school's second recipient set — so the two-recipient cases can assert
@@ -79,8 +94,15 @@ run_case_with_school() {
   EXIT=$?
   CALLS="$(cat "$SANDBOX/calls")"
   OUTPUT="$(cat "$SANDBOX/output")"
-  STATUS="$SANDBOX/repo/out/ops/backup-status.json"
+  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
 }
+
+# Record helpers: one group per line, as backup-db.sh writes it.
+group() { grep -m1 "^  \"$1\": " "$STATUS" 2>/dev/null; }
+no_success() { [[ "$(group lastSuccess)" == '  "lastSuccess": null,' ]]; }
+failed_at() { group lastFailure | grep -Fq "\"stage\": \"$1\""; }
+ok() { "$@" && echo 0 || echo 1; }
+ISO='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'
 
 check() {
   if [[ "$3" == "0" ]]; then
@@ -98,23 +120,34 @@ echo "backup-db.sh destination + status contract:"
 prepare_case
 run_case "drive:lesson3-backups"
 check "configured remote succeeds" "expected zero exit" "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
-check "success writes the status record" "expected $STATUS" "$([[ -f "$STATUS" ]] && echo 0 || echo 1)"
+check "success writes this stream's record" "expected $STATUS" "$([[ -f "$STATUS" ]] && echo 0 || echo 1)"
 check "record names the actual remote" "expected destination in JSON" \
-  "$(grep -Fq '"destination": "drive:lesson3-backups"' "$STATUS" && echo 0 || echo 1)"
-check "record distinguishes premigration" "expected stream in JSON" \
+  "$(group lastSuccess | grep -Fq '"destination": "drive:lesson3-backups"' && echo 0 || echo 1)"
+check "record is the premigration stream's" "expected stream in JSON" \
   "$(grep -Fq '"stream": "premigrate"' "$STATUS" && echo 0 || echo 1)"
-check "record uses the v1 contract" "expected version 1" \
-  "$(grep -Fq '"version": 1' "$STATUS" && echo 0 || echo 1)"
+check "record uses the v2 contract" "expected version 2" \
+  "$(grep -Fq '"version": 2' "$STATUS" && echo 0 || echo 1)"
+check "record says what the data covers" "expected coversUntil, a seconds-precision ISO UTC time" \
+  "$(group lastSuccess | grep -Eq "\"coversUntil\": \"$ISO\"" && echo 0 || echo 1)"
 check "record has a UTC completion time" "expected seconds-precision ISO UTC time" \
-  "$(grep -Eq '"completedAt": "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"' "$STATUS" && echo 0 || echo 1)"
+  "$(group lastSuccess | grep -Eq "\"completedAt\": \"$ISO\"" && echo 0 || echo 1)"
 check "record names the uploaded artifact" "expected encrypted backup filename" \
-  "$(grep -Eq '"filename": "lesson3-[0-9]{8}T[0-9]{6}Z-premigrate-test\.dump\.age"' "$STATUS" && echo 0 || echo 1)"
+  "$(group lastSuccess | grep -Eq '"filename": "lesson3-[0-9]{8}T[0-9]{6}Z-premigrate-test\.dump\.age"' && echo 0 || echo 1)"
 check "record reports a positive encrypted size" "expected positive integer byte count" \
-  "$(grep -Eq '"encryptedBytes": [1-9][0-9]*' "$STATUS" && echo 0 || echo 1)"
+  "$(group lastSuccess | grep -Eq '"encryptedBytes": [1-9][0-9]*' && echo 0 || echo 1)"
+check "record starts the history with this backup" "expected one coversUntil in history" \
+  "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 1 ]] && echo 0 || echo 1)"
+check "record notes when recording began" "expected recordingSince" \
+  "$(grep -Eq "\"recordingSince\": \"$ISO\"" "$STATUS" && echo 0 || echo 1)"
+check "a success leaves no failure" "expected lastFailure null" \
+  "$([[ "$(group lastFailure)" == '  "lastFailure": null,' ]] && echo 0 || echo 1)"
 check "record follows upload" "expected uploaded log before recorded log" \
   "$(awk '/backup-db: uploaded/{u=NR} /backup-db: recorded success/{r=NR} END{exit !(u && r && u < r)}' "$SANDBOX/output" && echo 0 || echo 1)"
-check "atomic temp is gone" "expected no partial status file" \
-  "$(compgen -G "$SANDBOX/repo/out/ops/.backup-status.*" >/dev/null && echo 1 || echo 0)"
+check "atomic temp is gone" "expected no partial record file" \
+  "$(compgen -G "$SANDBOX/repo/out/ops/backup/.premigrate.*" >/dev/null && echo 1 || echo 0)"
+check "the version 1 file is no longer written" "backup-status.json must not appear" \
+  "$([[ ! -e "$SANDBOX/repo/out/ops/backup-status.json" ]] && echo 0 || echo 1)"
+check "the run took the lock" "flock must run" "$([[ "$CALLS" == *"flock -n 8"* ]] && echo 0 || echo 1)"
 
 # 2. A missing/unmounted removable drive must abort before pg_dump, not write onto the root disk.
 prepare_case
@@ -123,7 +156,10 @@ run_case "$USB"
 check "missing USB sentinel fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "missing USB fails before pg_dump" "docker must not run" \
   "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
-check "missing USB leaves no status" "status must not exist" "$([[ ! -e "$STATUS" ]] && echo 0 || echo 1)"
+check "missing USB records no success" "lastSuccess must stay null" "$(ok no_success)"
+check "missing USB records a destination failure" "lastFailure stage must be destination" "$(ok failed_at destination)"
+check "missing USB's reason names the sentinel" "reason must say what was missing" \
+  "$(group lastFailure | grep -q sentinel && echo 0 || echo 1)"
 
 prepare_case
 run_case "relative/lesson3-backups"
@@ -255,18 +291,68 @@ run_case "$USB"
 check "post-upload mount change fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "post-upload check follows copyto" "rclone copyto must run first" \
   "$([[ "$CALLS" == *"rclone copyto"* ]] && echo 0 || echo 1)"
-check "post-upload change leaves no status" "status must not advance" \
-  "$([[ ! -e "$STATUS" ]] && echo 0 || echo 1)"
+check "post-upload change records no success" "lastSuccess must stay null" "$(ok no_success)"
+check "post-upload change is an upload failure" "lastFailure stage must be upload" "$(ok failed_at upload)"
 
-# 6. An upload failure must preserve the previous known-good record exactly.
+# 6. An upload failure must keep the previous success exactly, and add the failure beside it.
 prepare_case
-mkdir -p "$SANDBOX/repo/out/ops"
-printf '%s\n' '{"version":1,"sentinel":"previous-good"}' >"$SANDBOX/repo/out/ops/backup-status.json"
-OLD="$(cat "$SANDBOX/repo/out/ops/backup-status.json")"
+mkdir -p "$SANDBOX/repo/out/ops/backup"
+cat >"$SANDBOX/repo/out/ops/backup/premigrate.json" <<'JSON'
+{
+  "version": 2,
+  "stream": "premigrate",
+  "recordingSince": "2026-10-01T02:00:00Z",
+  "lastSuccess": {"coversUntil": "2026-10-20T02:00:00Z", "completedAt": "2026-10-20T02:01:00Z", "filename": "previous \"good\".dump.age", "encryptedBytes": 7, "destination": "drive:lesson3-backups"},
+  "lastFailure": null,
+  "history": ["2026-10-19T02:00:00Z", "2026-10-20T02:00:00Z"]
+}
+JSON
+OLD_SUCCESS="$(grep '"lastSuccess"' "$SANDBOX/repo/out/ops/backup/premigrate.json")"
 run_case "drive:lesson3-backups" 1
 check "failed upload exits non-zero" "expected rclone failure" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
-check "failed upload preserves previous success" "status must remain byte-identical" \
-  "$([[ -f "$STATUS" && "$(cat "$STATUS")" == "$OLD" ]] && echo 0 || echo 1)"
+check "failed upload keeps the previous success verbatim" "lastSuccess line must be byte-identical" \
+  "$([[ "$(group lastSuccess)" == "$OLD_SUCCESS" ]] && echo 0 || echo 1)"
+check "failed upload records an upload failure" "lastFailure stage must be upload" "$(ok failed_at upload)"
+check "failed upload keeps the history" "two entries must remain" \
+  "$([[ "$(group history)" == '  "history": ["2026-10-19T02:00:00Z", "2026-10-20T02:00:00Z"]' ]] && echo 0 || echo 1)"
+check "failed upload keeps when recording began" "recordingSince must not move" \
+  "$(grep -Fq '"recordingSince": "2026-10-01T02:00:00Z"' "$STATUS" && echo 0 || echo 1)"
+OLD_FAILURE="$(group lastFailure)"
+
+# 6b. The next success keeps that failure line (the reader compares times) and extends the history.
+run_case "drive:lesson3-backups"
+check "a later success keeps the failure verbatim" "lastFailure line must be byte-identical" \
+  "$([[ "$(group lastFailure)" == "$OLD_FAILURE" ]] && echo 0 || echo 1)"
+check "a later success appends to the history" "three entries expected" \
+  "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 3 ]] && echo 0 || echo 1)"
+
+# 6c. The history keeps the newest 31.
+prepare_case
+mkdir -p "$SANDBOX/repo/out/ops/backup"
+H="$(for d in $(seq -w 1 31); do printf '"2026-08-%sT02:00:00Z", ' "$d"; done)"
+printf '{\n  "version": 2,\n  "stream": "premigrate",\n  "recordingSince": "2026-08-01T02:00:00Z",\n  "lastSuccess": null,\n  "lastFailure": null,\n  "history": [%s]\n}\n' \
+  "${H%, }" >"$SANDBOX/repo/out/ops/backup/premigrate.json"
+run_case "drive:lesson3-backups"
+check "history is capped at 31" "31 entries expected" \
+  "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 31 ]] && echo 0 || echo 1)"
+check "the oldest entry is the one dropped" "2026-08-01 must be gone, 2026-08-02 kept" \
+  "$(group history | grep -q '2026-08-01T' && echo 1 || { group history | grep -q '2026-08-02T' && echo 0 || echo 1; })"
+
+# 6d. Each stage that can fail is named in the record.
+prepare_case
+FAIL_DUMP=1 run_case "drive:lesson3-backups"
+check "a pg_dump failure is recorded as dump" "lastFailure stage must be dump" "$(ok failed_at dump)"
+check "a pg_dump failure uploads nothing" "rclone copyto must not run" \
+  "$([[ "$CALLS" != *"rclone copyto"* ]] && echo 0 || echo 1)"
+prepare_case
+FAIL_AGE=1 run_case "drive:lesson3-backups"
+check "an encryption failure is recorded as encrypt" "lastFailure stage must be encrypt" "$(ok failed_at encrypt)"
+prepare_case
+LOCK_HELD=1 run_case "drive:lesson3-backups"
+check "a lock never freed fails the run" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+check "a run without the lock writes no record" "the holder owns the record" "$([[ ! -e "$STATUS" ]] && echo 0 || echo 1)"
+check "a held lock waits before giving up" "flock -w must run" "$([[ "$CALLS" == *"flock -w"* ]] && echo 0 || echo 1)"
+check "a held lock dumps nothing" "docker must not run" "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
 
 # ── Two recipients (SPEC §11: an offline school must be able to recover without ARES) ──────────────
 #
@@ -321,6 +407,62 @@ run_case "$USB" 0 "" "premigrate-two-recipient-check"
 check "premigrate accepts a suffix" "expected exit 0" "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
 check "suffixed premigrate records the premigrate stream" "stream must be premigrate" \
   "$(grep -q '"stream": "premigrate"' "$STATUS" && echo 0 || echo 1)"
+
+# A bad label is not a stream, so it writes no record at all.
+prepare_case
+run_case "drive:lesson3-backups" 0 "" "manual-bad"
+check "an unknown label writes no record" "no file under out/ops/backup" \
+  "$([[ -z "$(ls "$SANDBOX/repo/out/ops/backup" 2>/dev/null)" ]] && echo 0 || echo 1)"
+
+# ── Two runs at once, with the REAL lock ───────────────────────────────────────────────────────────
+#
+# ⚑ THE STUBBED flock ABOVE PROVES THE SCRIPT ASKS FOR THE LOCK; ONLY THE REAL ONE PROVES IT HOLDS. Two
+# runs start together while the first is still dumping: the second must wait, both must succeed, and
+# both must survive in the records — same stream (no lost update to its history) and different streams.
+# macOS has no `flock`; CI's Ubuntu runner does, and on a Mac this file runs in the probe tools image
+# (`scripts/lib/restore-probe-tools.Dockerfile`), which has it.
+REAL_FLOCK="$(PATH=/usr/bin:/bin:/usr/sbin:/sbin command -v flock || true)"
+if [[ -z "$REAL_FLOCK" ]]; then
+  echo "  SKIP two runs at once — this host has no flock (CI runs it; on a Mac run this in the probe tools image)"
+else
+  prepare_case
+  rm -f "$SANDBOX/home/bin/flock"
+  ln -s "$REAL_FLOCK" "$SANDBOX/home/bin/flock"
+  # The first run holds the lock while its dump takes two seconds.
+  cat >"$SANDBOX/home/bin/docker" <<EOF
+#!/usr/bin/env bash
+echo "docker \$*" >>"$SANDBOX/calls"
+if [[ "\$1 \$2" == "compose exec" ]]; then
+  [[ -e "$SANDBOX/dumping" ]] && echo "OVERLAP" >>"$SANDBOX/calls"
+  : >"$SANDBOX/dumping"; sleep 2; rm -f "$SANDBOX/dumping"
+  printf 'postgres custom-format bytes'
+fi
+EOF
+  chmod +x "$SANDBOX/home/bin/docker"
+  concurrent() { # label output-file
+    env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="age1testrecipient" \
+      BACKUP_RCLONE_REMOTE="drive:lesson3-backups" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+      bash "$BACKUP" --label "$1" >"$2" 2>&1
+  }
+  concurrent premigrate-first "$SANDBOX/out1" & P1=$!
+  sleep 0.5
+  concurrent premigrate-second "$SANDBOX/out2" & P2=$!
+  concurrent weekly "$SANDBOX/out3" & P3=$!
+  wait "$P1"; E1=$?; wait "$P2"; E2=$?; wait "$P3"; E3=$?
+  OUTPUT="$(cat "$SANDBOX/out1" "$SANDBOX/out2" "$SANDBOX/out3")"; CALLS="$(cat "$SANDBOX/calls")"; EXIT="$E1/$E2/$E3"
+  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
+  check "two at once: every run succeeds" "expected all exits 0" "$([[ "$EXIT" == 0/0/0 ]] && echo 0 || echo 1)"
+  check "two at once: a later run waited for the lock" "expected the waiting message" \
+    "$(grep -q "another backup is running; waiting" "$SANDBOX/out2" "$SANDBOX/out3" && echo 0 || echo 1)"
+  check "two at once: the same stream kept both" "premigrate history must hold two entries" \
+    "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 2 ]] && echo 0 || echo 1)"
+  check "two at once: the other stream's record survives" "weekly.json must have a success" \
+    "$(grep -q '"lastSuccess": {' "$SANDBOX/repo/out/ops/backup/weekly.json" && echo 0 || echo 1)"
+  check "two at once: all three dumps ran" "three pg_dump calls expected" \
+    "$([[ "$(grep -c '^docker compose exec' <<<"$CALLS")" == 3 ]] && echo 0 || echo 1)"
+  check "two at once: the dumps never overlapped" "no dump may start while another runs" \
+    "$([[ "$CALLS" != *OVERLAP* ]] && echo 0 || echo 1)"
+fi
 
 echo
 printf 'backup status: %d passed, %d failed\n' "$pass" "$fail"

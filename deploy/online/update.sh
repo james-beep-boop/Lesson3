@@ -155,6 +155,9 @@ if [[ "$phase" == staged ]]; then
       die "pre-migration backup failed; no activation attempted"
     fi
     cat "$PENDING/backup.log"
+    # The backup just taken ran the INSTALLED backup-db.sh: a current one records in
+    # out/ops/backup/premigrate.json, an older one out/ops/backup-status.json. Keep whichever exists.
+    [[ ! -f out/ops/backup/premigrate.json ]] || cp -p out/ops/backup/premigrate.json "$PENDING/premigrate-backup.json"
     [[ ! -f out/ops/backup-status.json ]] || cp -p out/ops/backup-status.json "$PENDING/backup-status.json"
   elif [[ "${ALLOW_UNBACKED_UPDATE:-}" == "1" ]]; then
     echo "update: WARNING: proceeding without a backup (ALLOW_UNBACKED_UPDATE=1)" >&2
