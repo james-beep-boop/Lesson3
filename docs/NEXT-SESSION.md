@@ -22,8 +22,25 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-21
 
-**Newest (2026-10-21):** Mark (ARES) answered the open Insert link questions; the fix is on
-`fix/insert-link-mark-rules` (PR, not merged). Tracker addresses are kept as copied (unwrapping
+**Newest (2026-10-21): v1.00 is released**: tag `v1.00` on `e179411`, published 05:23 UTC by
+`publish-containers.yml` run 39548789541. Every job passed and the bundle and checksum are attached.
+It carries #418–#425: Standard/Advanced tools (#419, **migration**; every installation switches to
+Standard on update, as the tag message and CHANGELOG say), the Insert link fixes (#418, #424), Welcome
+once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 24.22 (#422, #425), and
+`proxy.ts` (#423). CHANGELOG is now cut into v0.96–v1.00 sections; it had not been cut since v0.95.
+**Not yet deployed** to the Rock or any school.
+
+**In progress:**
+- Backup and recovery, `docs/DESIGN-backup-recovery-2026-10-21.md`: Phase A is approved. A1 (the staged,
+  reversible restore) is being built in its own session; no PR yet. A2–A6 (records, page, Guide) come as
+  PR 2. Phase B (recovery kit and a clean-machine acceptance test on amd64 and arm64) is owned by the
+  operator, with a target of 2026-11-30.
+- Open from the dependency review: drop `turbopackMinify: false` once a Payload 3.x release ships
+  payloadcms/payload#18775, which is merged on 3.x but unreleased (do it as its own change after the
+  Payload bump); React 19.3, Playwright 1.64 and the majors each as their own change.
+
+**Earlier (2026-10-21):** Mark (ARES) answered the open Insert link questions; the fix merged as #424
+(`8ed85a2`). Tracker addresses are kept as copied (unwrapping
 removed; otherwise not tracked), `?prev…` is dropped from every ARES address, and `localhost` and
 `127.0.0.1` are stored as `ares.local`. It also fixes a shipped bug: Kolibri at `ares.local/kolibri/…`
 was never shortened. See DECISIONS 2026-10-21 (Mark's answers).

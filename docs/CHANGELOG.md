@@ -10,10 +10,20 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+## v1.00 (2026-10-21)
+
 - Node 24 LTS moves from 24.21.0 to 24.22.0, and both Node images are now pinned by multi-architecture
   digest like Postgres and Gotenberg. The generator's YAML reader moves to js-yaml 5.5.0, matching the
   ARES generator's 5.x line. Generated DOCX for three ARES sub-strands is unchanged, and their PDFs keep
   the same page counts.
+
+- Dependency patch updates within the versions already in use: React 19.2.9, Sentry 10.76.2, jsdom
+  28.1.0 and nodemailer 10.1.7. The server's security-header code now uses Next.js 16's `proxy`
+  convention in place of the deprecated `middleware` file, and runs on Node.js. Nothing changes for
+  users or operators (#422, #423).
+
+- Grades are limited to 1–12. "+ Grade" in Manage → Subjects and grades offers only the missing grades,
+  and grades outside 1–12 are refused. Account rows show name and email on one line (#421).
 
 - Insert link keeps ARES tracker addresses as copied, so visits through them are counted again
   (previously the tracker part was removed). Navigation state starting `?prev` is now removed from
@@ -33,6 +43,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
   and an ARES address copied on the ARES machine itself (`localhost`) is stored as `ares.local`. The
   dialog and help now say to copy the address from the browser's address bar on the ARES page.
 
+## v0.99 (2026-10-20)
+
 - Manage warns Site Administrators when the server's clock and their own device's differ by more than
   an hour, as can happen on an offline school server after a power cut.
 
@@ -43,6 +55,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Sign-up on a site without email (offline school servers): the form explains that the school's Site
   Administrator approves new accounts, signing in early says the account is waiting for approval,
   and Manage shows administrators how many accounts are waiting, with a link to approve them.
+
+## v0.98 (2026-10-19)
 
 - Update both PDF converter images to Gotenberg 8.38.0 / LibreOffice 26.8.1.1 with pinned
   multi-architecture digests. Arial remains installed in the custom image. Representative PDFs
@@ -164,6 +178,14 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Combine versions, phase 2: the engine that works out what combining two versions produces, and a
   read-only preview endpoint (`GET /api/lesson-bundle-versions/:id/combine-preview?with=:id`). No
   screen yet; nothing is written. SPEC §6.
+
+## v0.97 (2026-10-16)
+
+- Backup recovery guidance for Site Administrators is clearer: Manage reports backup status only, and
+  the Guide explains the manual backup and listing commands and when recovery needs ARES (#396). The
+  redundant editing-access help link is removed from the lesson toolbar (#392).
+
+## v0.96 (2026-10-12)
 
 - Retire the completed one-off v0.95 publication job; future releases use the normal tag publisher.
 
