@@ -58,7 +58,9 @@ once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 2
   v1.01, A2–A6 #430 in v1.02). **Phase B is next and not started**: the recovery kit (one per release and
   architecture), `recover.sh` (install from the kit, fresh secrets, restore through A1's staged path,
   write a recovery receipt the page reads), and the clean-machine acceptance test on amd64 and arm64.
-  It is owned by the operator, with a target of 2026-11-30. Open before it starts:
+  It is owned by the operator, with a target of 2026-11-30. **The plan is
+  `docs/PLAN-phase-b-recovery-2026-10-22.md`** (proposal; five PRs, B1–B5, then the runs, B6; seven
+  decisions needed first, the main one being two wipeable test machines). Open before it starts:
   - the interim stopgap (proposed: none for now; do it per school at install);
   - teacher laptops as stopgap hosts (proposed: no for now);
   - checking that nothing stored depends on the old `PAYLOAD_SECRET`.
