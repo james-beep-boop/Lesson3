@@ -217,6 +217,13 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'the backup-list command is available to the server operator',
     claim: 'cd /srv/lesson3 && scripts/restore-db.sh --list',
   },
+  {
+    // Design A1 (2026-10-21): a live restore is staged and reversible until the previous database is
+    // discarded — and undoing it loses work saved since, which an operator must know before choosing.
+    what: 'a live restore is checked first, keeps the previous database, and undoing loses later work',
+    claim:
+      'It checks the backup in a separate database first, stops the application itself, and keeps the previous database until you discard it, so the restore can be undone until then. Work saved after the restore is lost if you undo it.',
+  },
   // ⚑ Edit recovery had NO guide coverage at all until 2026-08-25 — a teacher met that dialog with no
   // prior explanation, and it is the one place outside version-compare showing red/green diff
   // colours. These four are the facts they could act on and be wrong about.
