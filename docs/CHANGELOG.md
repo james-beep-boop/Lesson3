@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Drafts: text typed while the editor was still checking for an earlier draft is now saved about
+  8 seconds after the check finishes. Before, it waited for the next keystroke or for the window to
+  lose focus.
+
 - Dependency patch updates: fast-uri 3.1.9, which fixes four URI-parsing advisories that Lesson3's
   code does not reach, plus Vitest 4.1.12, PostCSS 8.5.31 and ESLint 9.39.5. Nothing changes for users
   or operators.

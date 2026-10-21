@@ -781,6 +781,12 @@ export function useEditRecovery(args: {
   // the effect re-runs, clears the pending timer and schedules a fresh one — and, after a capture
   // lands, schedules the NEXT one. `ready` is here so a session that started while the user was
   // already typing still gets its first capture scheduled.
+  //
+  // ⚑ `entry.phase` is here for the same reason as `ready`. A tick that lands while the entry is
+  // unresolved is refused by the gate and spent, so when the phase settles to `clear` — a retried
+  // lookup, a slow first one outlasting the debounce, or a kept offer — nothing else here changes and
+  // work typed in that window waited for another keystroke or a blur (Codex review of v1.00). The
+  // gate itself stays in `captureAndReport`; this only makes sure a tick arrives after it opens.
   useEffect(() => {
     if (!active || !modified || !ready) {
       clearTimer()
@@ -788,7 +794,7 @@ export function useEditRecovery(args: {
     }
     timer.current = setTimeout(() => void captureAndReport(), CAPTURE_DEBOUNCE_MS)
     return clearTimer
-  }, [active, modified, ready, changeSignal, captureAndReport, clearTimer])
+  }, [active, modified, ready, changeSignal, entry.phase, captureAndReport, clearTimer])
 
   // Flush on blur and when the tab is hidden — the last chance before a backgrounded tab's timers are
   // throttled, which is also the path a closing laptop lid takes.
