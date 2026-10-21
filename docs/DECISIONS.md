@@ -26,7 +26,9 @@ any age as `ok`, and its single record lets an update snapshot hide earlier rout
   materials only, signs in, opens a known lesson and exports DOCX and PDF. It must pass once online
   and once offline, the offline run with no internet and no ARES help, recording the work lost and
   the time taken.
-- Ubuntu **24.04 LTS**; 26.04 LTS later, moved to deliberately, with new kits.
+- Ubuntu **24.04 LTS**. No move to 26.04 for quite some time; any move needs new kits.
+- **Phase A approved** (later the same day): two PRs, the staged restore (A1) first.
+- The acceptance test runs on **both amd64 and arm64**. Each architecture has its own kit.
 - Minimum replacement machine: **amd64 or arm64, 8 GB RAM, 512 GB drive**. Images are already
   published for both architectures.
 - **No passphrase** on the private recovery key. Rely on physical custody and the two recipients, and
@@ -34,7 +36,6 @@ any age as `ok`, and its single record lets an update snapshot hide earlier rout
 
 **Still to decide:**
 
-- approval of Phase A (two PRs: the staged restore first, then records, page and Guide);
 - each school's agreed maximum data loss and recovery time (no defaults; "Not agreed" until set);
 - who holds the read-only Drive credential;
 - whether to start the interim stopgap;

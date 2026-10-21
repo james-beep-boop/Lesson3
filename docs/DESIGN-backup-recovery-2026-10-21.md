@@ -1,7 +1,7 @@
 # Backup and recovery — revised design (proposal)
 
-**Status: PROPOSAL, not approved. Revision 2, 2026-10-21.** Nothing here is authorized for implementation
-until the operator approves it. Revision 1 (`cc14977`) followed Codex's first review. This revision folds
+**Status: Phase A APPROVED 2026-10-21 (A1 first, then A2–A6); Phase B scoped and owned. Revision 2,
+2026-10-21.** Revision 1 (`cc14977`) followed Codex's first review. This revision folds
 in Codex's second review (five amendments plus the schedule point) and opens Phase B for decision now,
 instead of leaving it to wait on the paused USB installer.
 
@@ -177,7 +177,9 @@ it**. The main issues and the proposed answers:
 
 1. **Owner and completion date — DECIDED 2026-10-21: the operator (James) owns Phase B; target
    2026-11-30.** Completion means the acceptance test has passed: once for an online install, and once
-   offline on a clean machine meeting the minimum below, run by a technician rather than a developer.
+   offline on a clean machine meeting the minimum below, **on both amd64 and arm64** (decided
+   2026-10-21: each architecture has its own kit, and an untested kit is an untested backup), run by a
+   technician rather than a developer.
 2. **The recovery kit = the release stick.** Restores migrate forward, so the kit needs software **at
    least as new as** the backup, not an exact match. One kit per release, written when that release is
    installed, therefore covers every backup taken on it. The kit holds:
@@ -190,8 +192,8 @@ it**. The main issues and the proposed answers:
    - `recover.sh` and the printed sheet.
    
    The update stick the installer design already proposes is the same artifact. Build it once.
-3. **Operating system and hardware — DECIDED 2026-10-21.** Ubuntu **24.04 LTS** today; a later move to
-   26.04 LTS is possible, made deliberately. Each kit records its Ubuntu version and carries the Docker
+3. **Operating system and hardware — DECIDED 2026-10-21.** Ubuntu **24.04 LTS**; no move to 26.04 is
+   expected for quite some time, and any move would be made deliberately. Each kit records its Ubuntu version and carries the Docker
    packages for that version, so moving to 26.04 means new kits as well as new servers. Minimum
    replacement machine: **Intel/AMD (amd64) or ARM (arm64), 8 GB RAM, 512 GB drive.** Ubuntu install
    media for the matching architecture comes with each kit (or as a separately kept stick). *Still
@@ -240,18 +242,18 @@ This is manual and untested. The page still says "Full recovery: Not yet tested"
 
 ## Decisions
 
-**Decided 2026-10-21 (operator):** Phase B owner is the operator (James), target 2026-11-30; Ubuntu 24.04
-LTS (26.04 possible later); minimum replacement machine amd64 or arm64, 8 GB RAM, 512 GB drive; no
+**Decided 2026-10-21 (operator):** Phase A approved as two PRs, A1 first; Phase B owner is the operator
+(James), target 2026-11-30; acceptance test on both amd64 and arm64; Ubuntu 24.04
+LTS (no 26.04 for quite some time); minimum replacement machine amd64 or arm64, 8 GB RAM, 512 GB drive; no
 passphrase on the private key.
 
 **Still needed:**
 
-1. Approve Phase A as two PRs (A1 first, then A2–A6)?
-2. For each school: the agreed maximum data loss and recovery time, or record them as "Not agreed".
-3. Who holds the read-only Drive credential for online installs.
-4. Start the interim stopgap now?
-5. The demo server (the Rock): who is the recovery contact, and where is its key kept?
-6. May a teacher laptop that meets the minimum serve as a stopgap host?
+1. For each school: the agreed maximum data loss and recovery time, or record them as "Not agreed".
+2. Who holds the read-only Drive credential for online installs.
+3. Start the interim stopgap now?
+4. The demo server (the Rock): who is the recovery contact, and where is its key kept?
+5. May a teacher laptop that meets the minimum serve as a stopgap host?
 
 ## Not in scope
 
