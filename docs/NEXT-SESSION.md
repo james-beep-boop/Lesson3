@@ -22,7 +22,14 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-21
 
-**Newest (2026-10-21): v1.00 is released**: tag `v1.00` on `e179411`, published 05:23 UTC by
+**Newest (2026-10-21): v1.01** is tagged from the tip of `main`, so a deploy shows "Version 1.01".
+It carries A1, the staged, reversible restore (#426; operators now finish a live restore with
+`--confirm` or `--undo`), the drafts autosave re-arm fix from Codex's v1.00 review (#427), and the
+dependency patches (#428). Phase A's second PR (records, page, Guide) is next. Add to its scope: show
+a pending (provisional) restore on Manage → System from `out/ops/restore-journal.json`. Phase B:
+have the updater print the release's ⚑ operator notes. #429 (Playwright 1.64.1, test-only) is open.
+
+**Earlier (2026-10-21): v1.00 is released**: tag `v1.00` on `e179411`, published 05:23 UTC by
 `publish-containers.yml` run 39548789541. Every job passed and the bundle and checksum are attached.
 It carries #418–#425: Standard/Advanced tools (#419, **migration**; every installation switches to
 Standard on update, as the tag message and CHANGELOG say), the Insert link fixes (#418, #424), Welcome
