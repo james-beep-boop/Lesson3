@@ -1,6 +1,6 @@
 # Lesson3 audit operating handbook
 
-**Status:** planning; audit execution has not started. Revised 2026-10-14.
+**Status:** planning; audit execution has not started. Revised 2026-10-22.
 Read this handbook plus only your assigned section of [the chunk catalog](catalog.md).
 Machine identities, access details, account status and raw evidence belong in private operations notes
 outside Git. Public documentation uses roles: coordinator, author-a, author-b, heavy-worker, test-target.
@@ -44,6 +44,10 @@ Keep heavy builds/tests off a memory-constrained coordinator. A reviewer may exe
 in its own isolated heavy-worker checkout; it need not run them on its laptop.
 Source-read access, package installation, runtime availability and authenticated clients are separate
 prerequisites. SSH success alone proves none of the latter.
+Audit tools live in a separate pinned tool environment outside the checkout (its own manifest and
+lockfile, exact versions recorded); never add them to the product lockfile. A tool that must resolve
+from the app (e.g. a Vitest coverage provider matching the pinned `vitest`) runs in a throwaway copy
+whose lockfile change is discarded. The pilot smoke-tests every scan command before C10 relies on it.
 
 ## Targets, isolation and prerequisites
 
@@ -64,6 +68,20 @@ require process/outcome reconciliation. C01 implements acquisition/release for t
 Set finite request/concurrency/time caps; health or monitoring failure stops load before access is lost.
 Never send mail outside operator-controlled recipients/capture, or retry an uncertain mutation blindly.
 Private target/account readiness is recorded privately, not as a public checklist of weaknesses.
+
+## First execution wave
+
+Phase numbers group work; they are not a sequence that finishes every scan before any attack.
+Run in this order, with the matching source review alongside each step:
+
+1. C00 baseline, then C01 setup/reset proof on the approved target.
+2. C20 surface inventory and C21 expected permission matrix (with C5.1).
+3. C22–C24 authorization, C30–C31 versioning and C40–C41 ingest attacks (with C5.2, C5.12).
+4. C82 blind pass (Codex, separate session; see Opposite-family review) runs in this wave.
+
+Remaining scans (C10–C15), cleanup analysis and Phases 5–7 stay in scope and fill capacity, but never
+delay steps 1–3. If no target is ready, run the source-only parts of steps 2–3 (C21, C30, C40, C5.1,
+C5.2) and record the runtime parts as blocked with an exact next action, not as covered.
 
 ## Small coordination and sessions
 
@@ -87,6 +105,12 @@ migrations and lockfile resolution. Intention, a source reference or tool warnin
 Separate source-confirmed, locally reproduced, deployment-reproduced and pending evidence.
 Each candidate needs ID, exact source/deployment SHA, scenario/preconditions, cited code, sanitized
 repro/command/exit status, environment/fixture versions, expected/actual and impact/severity rationale.
+Record four independent fields: impact severity; evidence scope and confidence; new vs previously
+known (with pointer); and review status/fix disposition. A known issue can still be a serious live
+risk, and a locally reproduced defect is confirmed without deployment reproduction.
+Expected behavior comes from current policy (SPEC, DECISIONS, design docs at the audit base), not
+from older audit notes or assumptions; re-check a catalog premise against current source before
+testing it, and correct the catalog rather than filing a finding against a stale premise.
 Run existing suites once per relevant baseline; record pass/fail/not-run and reasons/gaps.
 Rerun for a concrete repro, changed conditions or reliability concern, not to fill session time.
 Use privacy-reviewed snippets; raw sensitive artifacts remain outside repository and public CI logs.
@@ -118,11 +142,19 @@ withdrawals, duplicates and unresolved claims separately. Evidence maturity rema
 Every accepted High/Critical needs a runnable repro spec against the unfixed baseline; reviewer may
 run it remotely in a separate isolated checkout/stack within approved limits.
 C82 independently searches for missed issues; new claims receive their own IDs and the same tiers.
+Keep C82 genuinely blind: it runs in a fresh Codex session, in a clone at the audit base SHA with no
+`docs/audit/findings/**` or review/response files, given only source, specification and assignment.
+Schedule it before Codex reviews any finding in its scope. Seal its report (commit or hash it and
+record that in the progress table) before any comparison; later edits go in a separate addendum.
 
 ## Completion and handoff
 
 Stop when required coverage, existing-suite outcomes, review/response and report criteria are met,
-or the user stops work. Quota/prerequisite pauses preserve state; time alone grants no authorization.
+or the user stops work. Required coverage is per chunk: before starting, the executor writes a short
+chunk contract at the top of its report (mandatory checks, evidence artifacts, allowed exclusions with
+reasons, exit condition); the coordinator accepts or amends it. Where exhaustive combinations are
+impractical, record the selection rule and the omitted cases. LOC is a sizing aid only; judge coverage
+by the invariants checked and the boundaries actually exercised. Quota/prerequisite pauses preserve state; time alone grants no authorization.
 Essential unrun checks/unresolved evidence mean qualified or partial completion, never silently clean.
 Final index/summary must be self-contained: revisions/environment/exclusions, component understanding,
 accepted prioritized findings/repros, test results/gaps, risk rationale, withdrawals/unresolved and

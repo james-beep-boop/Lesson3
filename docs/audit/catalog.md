@@ -22,6 +22,8 @@ trust boundaries. Manifest exclusions need reasons, not an assumption that gener
 C00–C01 establish an approved isolated target; eligible runtime chunks follow those gates.
 Shared deployment confirmation is a separate environment label, not a substitute for local tests.
 Use private role-to-host configuration; never substitute literal infrastructure details into public notes.
+Every chunk opens its report with a chunk contract (handbook, Completion and handoff); an **Exit**
+line below is the minimum that contract must include, not the whole of it.
 
 ### Phase 0 — Setup and baseline
 
@@ -77,8 +79,10 @@ serialization verified. This cleanup is a plan update, not a stack startup or te
 
 #### C10 — Run all scans · Hand · S
 Write and run `docs/audit/tools/run-scans.sh`. Private raw outputs go outside the checkout
-(the handbook); only sanitized scan artifacts and condensed summaries go into `scans/`. Tools live outside
-the repo (the handbook). Every scan hit is retained for triage even when the model reads only a short summary.
+(the handbook); only sanitized scan artifacts and condensed summaries go into `scans/`. Tools live in the
+pinned audit-tool environment outside the repo (the handbook), with exact versions recorded in
+`scans/baseline.md`; each command below was smoke-tested in the pilot. Every scan hit is retained for
+triage even when the model reads only a short summary.
 
 | Scan | Command sketch | Summary keeps |
 |---|---|---|
@@ -89,7 +93,7 @@ the repo (the handbook). Every scan hit is retained for triage even when the mod
 | Duplication | `jscpd app/src --min-tokens 50 --reporters json` (handbook exclusions) | top 30 clone clusters by size |
 | Strict lint (report-only) | `eslint -c docs/audit/tools/eslint.audit.mjs app/src` with typescript-eslint strict-type-checked + sonarjs | counts by rule, top files |
 | TS strictness probe | `tsc --noEmit --noUnusedLocals --noUnusedParameters` | counts, top files |
-| Suppressions | `rg -n "@ts-ignore\|@ts-expect-error\|eslint-disable\|as any\|: any\b\|TODO\|FIXME\|HACK"` | counts by kind and file |
+| Suppressions | `rg -n -e '@ts-ignore' -e '@ts-expect-error' -e 'eslint-disable' -e 'as any' -e ': any\b' -e 'TODO' -e 'FIXME' -e 'HACK'` (separate `-e` patterns: `\|` is a literal pipe in ripgrep) | counts by kind and file |
 | Complexity | sonarjs cognitive complexity + largest functions | top 30 functions |
 | CSS lint | `stylelint` (standard + scss configs) on `styles.css`, `custom.scss`, `app-tokens.scss` | counts by rule |
 | CSS inventory | script: hard-coded colors/px vs tokens, `!important`, z-index values, duplicate selectors, media queries | tables |
@@ -97,7 +101,7 @@ the repo (the handbook). Every scan hit is retained for triage even when the mod
 | Shell | `shellcheck` on `deploy/**/*.sh`, `scripts/**/*.sh`, `app/scripts/**/*.sh` | issues by file |
 | Dockerfile | `hadolint app/Dockerfile` | issues |
 | Actions | list `uses:` in `.github/workflows/*.yml`; flag tag-pinned (not SHA-pinned) actions | table |
-| Coverage | `npm run test:unit -- --coverage` and `test:int -- --coverage` | per-directory %, zero-coverage files |
+| Coverage | `npm run test:unit -- --coverage` and `test:int -- --coverage`, in a throwaway copy with a coverage provider matching the pinned `vitest` (none is declared in `app/package.json`) | per-directory %, zero-coverage files |
 
 **Exit:** every scan has a summary file; failures to run are noted, not fixed.
 
@@ -131,7 +135,8 @@ names with `rg` in `.tsx`). Compare against `docs/DESIGN-visual-system-2026-07-3
 `docs/DESIGN-button-system-2026-07-30.md`. Findings: `findings/C14-css-static.md`.
 
 #### C15 — Triage: secrets, shell, Docker, CI · Light · S
-Triage gitleaks (any real secret in history is **Critical** — the repo is public), shellcheck,
+Triage gitleaks (a real secret in history is urgent because the repo is public; rate it by what the
+secret grants and whether it is still valid, and report it to the operator at once), shellcheck,
 hadolint, Actions pinning, `app/test.env` contents, `.env.example` defaults.
 Findings: `findings/C15-config-secrets.md`.
 
@@ -142,9 +147,11 @@ Findings: `findings/C15-config-secrets.md`.
 #### C20 — Audit harness and surface inventory · Light · M
 1. Build `app/tests/audit/` with `playwright.audit.config.ts` (base URL from `.env.audit`; Chromium +
    WebKit projects), a role login helper with cached storage state per account, and an API client for
-   Payload REST (`/api/<collection>`), GraphQL (`/api/graphql`), and custom endpoints.
+   Payload REST (`/api/<collection>`) and custom endpoints. GraphQL is disabled (`graphQL.disable` in
+   `payload.config.ts` and its route files deleted; DECISIONS 2026-06-26): the harness only proves it
+   stays unreachable.
 2. **Surface inventory** → `scans/surface.md`: every frontend route (`app/src/app/(frontend)/**`),
-   admin route, collection and its REST/GraphQL operations (`app/src/collections/*.ts`, including
+   admin route, collection and its REST operations (`app/src/collections/*.ts`, including
    versions endpoints), every custom endpoint (`app/src/endpoints/*.ts` — method, path, auth check),
    jobs that can be triggered by users, and globals. Supplement by crawling the site as each role and
    recording every distinct URL and XHR.
@@ -164,22 +171,24 @@ finding. Ambiguous policy remains a recorded question; implemented behavior is n
 #### C22 — Actual permission matrix (attack run) · Strong · L
 Encode the matrix as data-driven specs (`rbac.audit.spec.ts`) so every cell is executed, then diff
 actual vs expected. Split into parts by collection group if needed. Cover at minimum:
-- REST **and** GraphQL for every collection operation, including `versions` endpoints and
+- REST for every collection operation, including `versions` endpoints and
   `?draft=true`, `depth=` population leaking related documents, `select`/`where` on hidden fields
   (e.g. `where[email][like]=` as a teacher to probe whether hidden fields act as an oracle).
-- GraphQL introspection availability to anonymous users; query depth/complexity limits.
+- GraphQL stays unreachable: `GET`/`POST /api/graphql` and an introspection query return 404 for
+  every role. Expand the matrix to GraphQL only if an enabled GraphQL surface is discovered.
 - **Mass assignment:** signup and self-update bodies carrying `roles`, `_verified`, `assignments`,
   provenance fields; subject admin granting `siteAdmin` or assignments outside their subject-grade.
 - Subject-admin **transfer of administration** (irreversible per code comments): can it be done to a
   subject-grade you don't administer, to yourself, repeatedly, or by a teacher with editing access?
 - Last-site-admin protection; site admin self-demotion; deleting a user who owns versions.
-- Field-level reads: `email` readable only by owner and site admins — check list endpoints, GraphQL,
+- Field-level reads: `email` readable only by owner and site admins — check list endpoints,
   populated relations (e.g. author on versions, discussion replies), and admin UI. Respect the
   deliberate Roles & Access projection carve-out for Subject Administrators in SPEC §8.
 - Admin-panel access for teachers (should be denied) via direct URL, not just navigation.
 - Every custom endpoint × every role, including unauthenticated, with tampered IDs.
 
-Findings: `findings/C22-rbac.md`. Any confirmed escalation is **Critical** — write it immediately.
+Findings: `findings/C22-rbac.md`. Write up any confirmed escalation immediately and tell the
+coordinator; rate it by the authority gained, its prerequisites and blast radius (Severity reference).
 
 #### C23 — Authentication flows · Strong · M
 - **Lockout/rate limiting:** no `maxLoginAttempts` was seen in `app/src/collections/Users.ts` during
@@ -217,7 +226,7 @@ and missing rate limits; `discussionNavState` leaking other users' state. Findin
 #### C30 — Write-path analysis · Strong · M
 Read `app/src/access/versionImmutability.ts`, `versioning.ts`, `bundle.ts`,
 `app/src/collections/LessonBundleVersions.ts`, `LessonPlans.ts`, `EditRecovery.ts`, and related
-hooks. Enumerate **every** path that can create, modify, or delete a version: REST, GraphQL, Local API
+hooks. Enumerate **every** path that can create, modify, or delete a version: REST, Local API
 calls inside endpoints and jobs (which bypass access control unless `overrideAccess: false`), admin
 bulk actions, recovery/restore, request-editing locks, migrations, scripts. For each, state the guard.
 Any Local API call that writes versions without an explicit guard is a finding.
@@ -225,14 +234,21 @@ Findings: `findings/C30-version-write-paths.md`.
 
 #### C31 — Immutability attack run · Strong · M · [exclusive]
 1. Snapshot checksums of all version rows via read-only `psql` (hash of each row's content columns).
-2. Attempt to update/delete historical versions through every C30 path as every role.
-3. **Races:** fire concurrent saves from two teachers with editing access (and the same teacher in two sessions) with
-   `Promise.all`; look for duplicate version numbers, lost updates, non-monotonic version numbering,
-   or orphaned rows. Test request-editing lock stealing and stale locks.
+2. Attempt to update historical versions through every C30 path as every role. Deletion is two
+   separate questions: unauthorized deletion (a role outside the delete grant in
+   `access/versioning.ts`, or any deletion of the Official version, which `enforceOfficialNotDeletable`
+   blocks) is a finding; deletion of a non-Official version by a role the grant permits is intended
+   behavior (SPEC §5/§13). Log each permitted deletion so step 5 can expect it.
+3. **Races:** concurrent saves from two teachers with editing access (and the same teacher in two
+   sessions). `Promise.all` alone does not prove overlap: hold the contended row or lock with a
+   controlled barrier (`app/tests/helpers/rowLocks.ts`: `whileRowLocked`, `whileLockHeld`), confirm the
+   second request actually waited, then assert final database state: no duplicate or non-monotonic
+   version numbers, lost updates or orphaned rows. Test request-editing lock stealing and stale locks.
 4. Recovery and restore paths: can restoring create a version attributed to the wrong user or with
    altered history?
-5. Re-run checksums; any change to a historical row is **Critical**. Check DB constraints (unique
-   indexes on version number per lesson) exist.
+5. Re-run checksums. Any change to a surviving historical row, or a deletion not logged as permitted in
+   step 2, is a finding; rate it by impact (Severity reference). Check DB constraints (unique indexes on
+   version number per lesson) exist.
 
 Findings: `findings/C31-immutability-attacks.md`. Reset afterward.
 
@@ -243,18 +259,26 @@ Findings: `findings/C31-immutability-attacks.md`. Reset afterward.
 #### C40 — Ingest code review · Strong · M
 Review `app/src/ingest/**` (including `extract.ts`, which uses **acorn** to parse ARES JavaScript data
 files — confirm it only walks the AST and never evaluates code), the contract schema gate, and
-`previewParse.ts`, `recoveryParse.ts`, `parseFormat.ts`. Check size/time limits, use of mammoth,
-jszip, jsdom (is jsdom run with scripts disabled and no resource loading?), DOMPurify configuration,
-error handling for malformed input, and all-or-nothing semantics. Findings: `findings/C40-ingest-code.md`.
+`previewParse.ts`, `recoveryParse.ts`, `parseFormat.ts`. Web ingest accepts only `.json` and `.zip`
+of JSON (`ingest/uploadFiles.ts`, `endpoints/uploadBundles.ts`); `.js` extraction is CLI-only. Check
+size/time limits, the JSZip central-directory pre-count, error handling for malformed input and
+all-or-nothing semantics. mammoth, jsdom and DOMPurify run on the preview path
+(`generator/previewBundle.ts`, `lib/domWindow.ts`) over DOCX the app generated itself from validated
+data, not over uploads: check jsdom runs with scripts disabled and no resource loading, and the
+DOMPurify configuration. Findings: `findings/C40-ingest-code.md`.
 
 #### C41 — Malicious upload corpus · Strong · M · [exclusive]
 Generate the corpus outside the checkout with a script; record sanitized fixture recipes/hashes.
-Upload each as the relevant roles while watching resource usage and private target logs:
-- DOCX zip bomb; very deeply nested XML; XML external entity and billion-laughs payloads inside DOCX
-  parts; zip entries with path traversal names (`../../`); huge embedded images; truncated/corrupt zip.
-- Wrong extension vs content, polyglot files, empty files, 0-byte parts.
-- JS data files containing executable code, prototype-pollution keys (`__proto__`, `constructor`),
-  enormous literals, deeply nested arrays.
+Aim each corpus at the parser that really receives it. Upload web cases as the relevant roles
+while watching resource usage and private target logs:
+- **Web ZIP (JSZip):** zip bomb, entry-count overflow, crafted ZIP64 locators, duplicate and path
+  traversal entry names (`../../`), non-JSON entries, truncated/corrupt archives.
+- **Web JSON (`extractAresJson`):** prototype-pollution keys (`__proto__`, `constructor`), enormous
+  literals, deeply nested arrays/objects, invalid UTF-8, contract-gate edge cases.
+- Wrong extension vs content (including `.js` and `.docx` sent to the web upload, which must be
+  refused), polyglot files, empty files.
+- **CLI `.js` extraction (acorn, `ingest/extract.ts`):** run locally, not over HTTP. Data files with
+  executable code, getters, computed keys and template literals must be refused without evaluation.
 - Script/HTML injection in every text field that later renders in preview, editor, export, email.
 - **Local body limits and approved deployment proxy confirmation:** oversized bodies with correct `Content-Length`, missing
   `Content-Length`, and chunked transfer encoding — `docs/OPS.md` says a proxy-layer ceiling is
@@ -268,10 +292,12 @@ Findings: `findings/C41-upload-abuse.md`.
    page image diff.
 2. Edge content: Swahili and other diacritics, emoji, very long tables, empty sections, maximum-length
    fields.
-3. `exportAuth.ts`: can a teacher export unpublished or out-of-scope versions? Are download URLs
-   guessable or reusable by others? Cache-key collisions between versions?
-4. `emailVersion.ts`: can a user email artifacts to arbitrary addresses (spam relay), how is it rate
-   limited, and is header injection possible? (Only send to `@lesson3.local` or the mail catcher.)
+3. `exportAuth.ts`: any authenticated user may view and export any retained version by design
+   (SPEC §1, §8); export is gated on read access, with no separate published/scope gate. Verify the
+   export gate equals the read gate (anonymous, unverified, public-library on/off), and that download
+   URLs, prepare/status polls and cache keys cannot cross versions or leak to non-readers.
+4. `emailVersion.ts`: sending to any address is intended (SPEC §9/§11). Assess relay abuse instead:
+   rate limits, recipient caps and header injection. (Only send to `@lesson3.local` or the mail catcher.)
 5. Fire 20–50 concurrent exports; observe Gotenberg and the artifact cache.
 
 Findings: `findings/C42-export.md`.
@@ -305,7 +331,7 @@ covered a file deeply, the unit records `covered by C<nn>` for it in Coverage in
 | **C5.11 Frontend — components & client** *(split ~6 parts at C00: admin, upload, editor, session, export/preview, discussions/misc)* | `src/components/*`; client-component tests | ~11,500 | Light→Strong | Client-side auth flows, form/CSRF posture, preview/PDF client paths, unsafe HTML rendering (`dangerouslySetInnerHTML`), duplicated components (feeds C12/C14). |
 | **C5.12 Fields & editor grammar** | `src/fields/*` | ~570 | Strong | The editable-field definitions and the grammar-subset invariant (plain strings, `\n` = paragraph, `- ` = bullet, no inline markup; `phase` controlled). |
 | **C5.13 Config & wiring** | `app/src/payload.config.ts`, `next.config.ts`, `eslint.config.mjs`, `vitest.setup.ts`, `playwright.config.ts`, `scripts/seed-users.ts`, `scripts/recover-site-admin.ts`, `scripts/check-approuter.mjs` | ~600 | Strong | Central Payload wiring (jobs, collection/access registration, GraphQL settings, CSRF/CORS from `SERVER_URL`), headers config. A misconfig here is a systemic hole. (`Dockerfile`, CI and `deploy/**` are read in C70.) |
-| **C5.14 Migrations (spot-check)** | `src/migrations/*` — **hand-edited only** | — | Light | Data migrations, custom `down()`, enum-narrowing `down()` (delete-before-cast), anything non-generated. Don't read generated schema. |
+| **C5.14 Migrations (spot-check + upgrade drill)** | `src/migrations/*` — **hand-edited only** | — | Light→Strong | Data migrations, custom `down()`, enum-narrowing `down()` (delete-before-cast), anything non-generated. Don't read generated schema. **Upgrade drill** (needs C01 target): install a representative previous release, seed synthetic data covering every collection, upgrade to the audit base, and assert the data survived. A fresh install cannot show existing data is preserved. Never use real backup data. |
 
 **Per-unit checklist:** logic errors and wrong conditions; unhandled promise rejections and swallowed
 errors; null/undefined paths; dates and time zones; multi-step writes without a transaction; Local API
@@ -407,11 +433,15 @@ misses. Use code plus the audit harness to follow each flow end to end:
 Findings: `findings/C81-vertical-flows.md`.
 
 #### C82 — Blind cross-model review · Cross · M
+Listed here for its comparison step; the blind pass itself runs in the first execution wave (handbook).
 A different model family (e.g. Codex if Claude did the originals) independently reviews
-`app/src/access/**`, the C30 write paths, and `app/src/ingest/**` **without** reading earlier findings
-first, writing `findings/C82-cross-review.md`. Only then compare against C22/C30/C31/C40/C41/C5.1/C5.2
-and note agreements, new findings, and disputed findings. New candidates enter the mandatory
-review tiers in the handbook; this blind missing-issue pass supplements finding validation.
+`app/src/access/**`, the version write paths, and `app/src/ingest/**` in a fresh session and a clone
+at the audit base SHA containing no findings, reviews or responses, given only source, specification
+and assignment. Run it before that family reviews any finding in this scope. Write
+`findings/C82-cross-review.md` and seal it (record its commit or hash in the progress table). Only then
+compare against C22/C30/C31/C40/C41/C5.1/C5.2 and note agreements, new findings, and disputed findings;
+changes after sealing go in an addendum. New candidates enter the mandatory review tiers in the
+handbook; this blind missing-issue pass supplements finding validation.
 
 #### C83 — Synthesis and roadmap · Strong · M
 1. **Change sweep:** compare immutable audit base to a separately recorded current main SHA, not
@@ -419,14 +449,14 @@ review tiers in the handbook; this blind missing-issue pass supplements finding 
    original evidence/revision. If none changed, note "no reopen needed".
 2. De-duplicate and incorporate all handbook critiques/author responses. Build `FINDINGS.md` with accepted
    findings and separate withdrawn/duplicate/unresolved sections, each linking its audit trail.
-   Include final evidence/review status, severity/class/category/location and later fix disposition.
+   Include final evidence/review status, severity/exposure/known-status/category/location and later fix disposition.
    Only accepted findings enter confirmed totals or the fix roadmap; list unsampled author-verified
    observations separately, without implying peer confirmation.
 3. Write `SUMMARY.md` as a self-contained handoff (see the handbook): executive summary, audited/deployed revisions,
-   environment and exclusions; accepted counts by severity/class/category and prioritized risks with
+   environment and exclusions; accepted counts by severity/exposure/category and prioritized risks with
    rationale; test results/coverage gaps; unresolved/withdrawn outcomes; and a PR-sized fix roadmap.
    Link component understanding and include the minimum sanitized evidence/repro needed to act,
-   without depending on chat history. Accepted live-risk Critical/High lead, each with a regression test.
+   without depending on chat history. Accepted live-exposure Critical/High lead, each with a regression test.
 4. List audit checks worth adopting permanently (scans for CI, audit specs to promote).
 5. Remind the operator to rotate all audit account passwords, remove extra accounts if unwanted, and
    remove Mailpit or point SMTP back if it was added only for the audit.
@@ -447,16 +477,20 @@ can be re-run without model calls; execution still consumes compute and interpre
 | **Low** | Minor bug, inconsistency, small inefficiency, hardening gap |
 | **Info** | Cleanup, duplication, dead code, style inconsistency, doc drift, suggestions |
 
+The examples are guidance, not automatic ratings. Rate each finding by the authority or data gained,
+the prerequisites an attacker needs, and the blast radius. Escalate investigation immediately for
+anything that looks serious; settle the final rating only once the evidence is in.
+
 ## Finding template
 
 ```markdown
 ### F-C22-007 — Teacher with editing access on SG-B can PATCH a lesson plan in SG-A via REST
-- **Severity:** Critical   **Category:** rbac   **Class:** live-risk
+- **Severity:** Critical   **Category:** rbac   **Exposure:** live | future-scale   **Known status:** new | previously known (pointer)
 - **Audit status:** candidate | under-review | author-recheck | accepted | author-verified/unreviewed | withdrawn | unresolved | duplicate
 - **Revision / provenance:** source SHA, deployment SHA if tested, artifact version/hash, author role/model/date (account identity private)
 - **Review tier / coverage:** full-cycle | single-pass | sampled | unsampled; selection rule/batch/IDs if sampled
 - **Peer review:** reviewer role/model/date (account identity private); verdict/evidence and author response where required by the tier
-- **Evidence scope:** source-confirmed | locally reproduced | deployment reproduced | pending reproduction
+- **Evidence scope:** source-confirmed | locally reproduced | deployment reproduced | pending reproduction   **Confidence:** high | medium | low
 - **Scenario:** one line — concrete input/state → wrong outcome
 - **Where:** `PATCH /api/lesson-plans/:id` · `app/src/access/bundle.ts:L42-L61`
 - **Evidence:** sanitized source/request/test result; exact command, exit status, source SHA and relevant runtime/tool/fixture conditions
@@ -470,13 +504,17 @@ can be re-run without model calls; execution still consumes compute and interpre
 
 IDs are `F-<chunk>-<nnn>`, numbered within the chunk file (Phase 5 units use e.g. `F-C5.3-002`).
 
-## Evidence classification
+## Finding dimensions
 
-| Class | Meaning |
-|---|---|
-| **live-risk** | Real and currently exploitable or broken on the deployed code |
-| **known-planned** | Already on the roadmap or in `known.md` (e.g. working drafts, the `emailVersionArtifact` no-op) — record once with a pointer, never re-flag |
-| **future** | Only matters at a scale or exposure the project isn't at yet (e.g. thousands of concurrent users) |
+Each finding records these separately; none implies another.
+
+| Field | Values | Meaning |
+|---|---|---|
+| **Severity** | Critical … Info | Impact if real (Severity reference) |
+| **Exposure** | live · future-scale | Broken or exploitable at the audit base now, or only at a scale/exposure the project isn't at yet |
+| **Known status** | new · previously known | Previously known = already in `known.md`, DECISIONS or the roadmap; record once with a pointer and still rate its severity, since a known issue can be a serious live risk |
+| **Evidence scope / confidence** | see template | Where it was shown (source, local, deployment) and how sure; local reproduction confirms a defect without deployment reproduction |
+| **Audit status / disposition** | see template | Review outcome, then fix decision at triage |
 
 ## Progress table
 
@@ -515,7 +553,7 @@ Cycle base SHA: `<sha>` · Started: `<date>`
 | C5.11a–f | Components & client | Light→Strong | L | todo | | | | split points from C00 |
 | C5.12 | Fields & editor grammar | Strong | S | todo | | | | |
 | C5.13 | Config & wiring | Strong | S | todo | | | | |
-| C5.14 | Migrations spot-check | Light | S | todo | | | | hand-edited only |
+| C5.14 | Migrations spot-check + upgrade drill | Light→Strong | S | todo | | | | hand-edited only; drill needs C01 |
 | C60 | Visual consistency crawl | Light | M | todo | | | | |
 | C61 | Accessibility | Light | M | todo | | | | |
 | C62 | Performance + load | Light | M | todo | | | | exclusive (load) |
@@ -525,5 +563,5 @@ Cycle base SHA: `<sha>` · Started: `<date>`
 | C72 | Test-suite quality | Light→Strong | S | todo | | | | |
 | C80 | Cross-cutting reconciliation | Strong | M | todo | | | | promotes/discards all leads |
 | C81 | Vertical-flow pass | Strong | M | todo | | | | capstone |
-| C82 | Blind cross-model review | Cross | M | todo | | | | different model family |
+| C82 | Blind cross-model review | Cross | M | todo | | | | different model family; first wave; record sealed commit/hash |
 | C83 | Synthesis + change sweep + roadmap | Strong | M | todo | | | | |
