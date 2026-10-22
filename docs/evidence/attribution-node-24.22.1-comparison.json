@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-22",
+  "baseCommit": "df07d68190307f21c3737bf49afe6e2096d61fe7",
+  "rendererLibraryCommit": "f83db61931566df6bde9252db552bd353ed43d7a",
+  "attributionConfigCommit": "d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e",
+  "nodeBefore": "24.22.0",
+  "nodeAfter": "24.22.1",
+  "rendererVersionBefore": 9,
+  "rendererVersionAfter": 10,
+  "method": {
+    "docx": "Compare every ZIP part after canonicalizing relationship IDs by Type/Target/TargetMode and core creation/modification timestamps, and replacing only SeaVuria and ARES. with SeaVuria and ARES Education. No styles, content or hyperlink destinations excluded.",
+    "pdf": "Convert old and new DOCX through the same pinned Gotenberg 8.38.0 Arial image. Compare page counts and whitespace-normalized pdftotext -layout output after only the copyright replacement.",
+    "baseline": "Physics and Trigonometry baseline DOCX generated before changes on Node 24.22.0. Essential Mathematics baseline regenerated with the recorded old config on Node 24.22.1 after detecting an output-directory name collision with another Indices fixture. No Node before/after claim is made for that baseline.",
+    "visual": "Inspected the updated Essential Mathematics attribution block; corrected copyright text fits without clipping.",
+    "scope": "Three pinned fixture bundles, four deliverables each. Not an all-documents guarantee."
+  },
+  "documents": [
+    {
+      "file": "SS1.2_Indices/finalExplanation.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 7,
+      "pagesAfter": 7,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "a1593bb61a95e490c3029ae33ed571e369d79ce78503112c26a0c6b364568583",
+      "beforePDFSha256": "47fe4092839eca1649ecd0837e1bc067fdcca27bc7636a7bcdafc5157bd83400",
+      "afterDOCXSha256": "a773d6eece9fdeeed3c1f84719c217c617faff6f0c7cf18d893f905cb6ab0961",
+      "afterPDFSha256": "5a17130e558a20b453a83c673bd7f43f572c214bbbbe04be126266ebf2831968"
+    },
+    {
+      "file": "SS1.2_Indices/lessonSequence.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 56,
+      "pagesAfter": 56,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "a60b75282d60ab3aec747cf20b98e8c44d5ffdc55a5dd2f827b2117e0a760e10",
+      "beforePDFSha256": "b77cb167fed023494278148a234ada95e561fb422aee95f27f1727e99a63a482",
+      "afterDOCXSha256": "8697d6de59393fea2984931d16e1628f8b8214dbd51241b6440178217b9e33b5",
+      "afterPDFSha256": "c08e88251430f96b8d8b582f896934a061884c0512d77bba7c7529cc56974b0d"
+    },
+    {
+      "file": "SS1.2_Indices/summaryTable.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 4,
+      "pagesAfter": 4,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "9650edeac272bd3b902c8e86526895f6ce9446afce6eeab4e7993f45566bf1b5",
+      "beforePDFSha256": "bcf288e4209655f636fb8f5ddc8f4821e671a49c38dc03d331b53f45876f2f08",
+      "afterDOCXSha256": "8e45a9349a68736e5be68ee6ad2e9e55cecef6ce4036c0aa3275022e66dc6c39",
+      "afterPDFSha256": "051e88dc926c4568c60bac67950f7ee795e58af0440ef4f83d1473b888cc7150"
+    },
+    {
+      "file": "SS1.2_Indices/teacherKey.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 4,
+      "pagesAfter": 4,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "675d87d339198703a9e0b97bd8f6aeaa5b75160d55599bb433e0fdd82ed5eca2",
+      "beforePDFSha256": "f2c505091363c51bb60e38e75966221be5fc38b726973000090df78869f41ff0",
+      "afterDOCXSha256": "0ab46a2a3cad9523760702e633faac512e3daca777dd485e21f6e7aed2303973",
+      "afterPDFSha256": "30f76d99effaec2d0da5eac2a7e0cd9851c8b57901f88d63ffc33680c7062f8f"
+    },
+    {
+      "file": "SS3.1_Trigonometry_I/finalExplanation.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 7,
+      "pagesAfter": 7,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "1fbe483ba5d38970976a4fe4762a2715e3d6455b0df0ead96431d62925ea983c",
+      "beforePDFSha256": "fd763161980b9830211890e407f170ca74f73682d0bb6d7a9ea6432998ea62ea",
+      "afterDOCXSha256": "8eae6ecd2ca65b0dc76cb9452642200aeb32d5c2acc7a1e47984fdada8a80caa",
+      "afterPDFSha256": "478a7fa99cc2c729d5438e25c6b524eea6212a4ea965e2f011d7e6e1050d31bd"
+    },
+    {
+      "file": "SS3.1_Trigonometry_I/lessonSequence.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 69,
+      "pagesAfter": 69,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "2ff1c2c5c902f73c959cefcf6815c5d5d12bc527c7ec422c1568495eeb4c9fe5",
+      "beforePDFSha256": "6bc52677f754e50d1aa179848a3f9fe8a78c28abc0313ca791267e30c7f0287e",
+      "afterDOCXSha256": "8f59ecc4b4feaa36266b5f970820a4d70311a846487abadac3f49c79c8a9647f",
+      "afterPDFSha256": "7d75f5c24b40f7e01815180cf8cd74ffb2c7f90a044cc2e4dec65190d052ca30"
+    },
+    {
+      "file": "SS3.1_Trigonometry_I/summaryTable.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 4,
+      "pagesAfter": 4,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "587997f526caef911953bbe0d29c2affedbc89098bd496ff7e17f0a76c4fc84c",
+      "beforePDFSha256": "eb46e923d96434fcab27115b64a997c77b678cc4176563fa38d6abaf58b0f4d2",
+      "afterDOCXSha256": "da2d4cd73ec16a9f97e464e73a7f3112e92887162d5196a30a8dd3868e6da812",
+      "afterPDFSha256": "4a7f9bc72b88dca15ff3ca6a60518617eb579e6e7603dce71cb9eff2b984b1bf"
+    },
+    {
+      "file": "SS3.1_Trigonometry_I/teacherKey.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 4,
+      "pagesAfter": 4,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "f4f0ad3606398f44a92f984f4b48a3bcf841b0fbe29a935d01715d0925a81074",
+      "beforePDFSha256": "b11a581e887c0fe4b23b859dc7459f401836da9d292a906bef7d6af11e2eefc9",
+      "afterDOCXSha256": "c2320f0791d57ec58dec4ebdb4b28bb5d8da2a397335a5d3d209dfb2c8d62b2c",
+      "afterPDFSha256": "7460b0e39b791fc01721bdfcfc5b463a2f89eb66f319b53eb64e52e62e2070d0"
+    },
+    {
+      "file": "SS4.1_Greenhouse_Effect_and_Climate_Change/finalExplanation.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 7,
+      "pagesAfter": 7,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "e7836bb0c242905247860d15ef0372b555d498b496cb28c94a3e281beea15e97",
+      "beforePDFSha256": "7810a2e8902cac20eec42793716a9d6367f3d013e6ade844bba2e82ed6dc798d",
+      "afterDOCXSha256": "239a9a4ffc2ea22b3da558248227f4e87cab5433eedc8d8b06c1649c7ec4304c",
+      "afterPDFSha256": "c926c9de0cb97231b4705852dc107860f68d4d5933f5d1bec264928488e01417"
+    },
+    {
+      "file": "SS4.1_Greenhouse_Effect_and_Climate_Change/lessonSequence.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 50,
+      "pagesAfter": 50,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "5ab07477c64a4aaa262c4826d80f8e7a324de36b4da6ae0b942df0cd814b72ca",
+      "beforePDFSha256": "92bf3c46906c5fe3b268f923b3cdfb1a360e8a9313f59021e09656682a8607a1",
+      "afterDOCXSha256": "1ba8ba04ebf812253de7f05561cfac8e219e154f12224a2efddebb40901759bc",
+      "afterPDFSha256": "8d64c210d1803cfb765e539d59e9ff3a02af37e0a7bf93d87250f4ae08ef17ee"
+    },
+    {
+      "file": "SS4.1_Greenhouse_Effect_and_Climate_Change/summaryTable.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 4,
+      "pagesAfter": 4,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "33cf966337eb2a27a0b556e5b10e59cc9c51ee1446d260dd99b7f540b3fedb6d",
+      "beforePDFSha256": "871a880d3f406909c521d4620b126ae85144991ce3b1cb8003787cdbf53f1963",
+      "afterDOCXSha256": "53e71250c27b84dc499f6592c9c35eebeaecbc0e3a5d08e9b08937bfe698f714",
+      "afterPDFSha256": "06b04bb803e9f92f35bc62304ab3564fb310774a83298605e7b7a951015de192"
+    },
+    {
+      "file": "SS4.1_Greenhouse_Effect_and_Climate_Change/teacherKey.docx",
+      "parts": 22,
+      "unexpectedDocxParts": [],
+      "pagesBefore": 4,
+      "pagesAfter": 4,
+      "pdfTextMatchesAfterCopyrightReplacement": true,
+      "beforeDOCXSha256": "fb5557724e3fa5323020cf392413cd69b9d200a36ef6dfb8dd606634c8dc117a",
+      "beforePDFSha256": "afa2495deec5158a856b0392e40dc7a1fb20d899b165b469fc5630c5063892d6",
+      "afterDOCXSha256": "fdb711d79511f5e2a62180031cf10186476300f27a3513a7a26392a0edb40ac6",
+      "afterPDFSha256": "36f00a3d4c1721759ffe83442be9782a9c36dd3a4caeba226886f45136d87fcf"
+    }
+  ]
+}

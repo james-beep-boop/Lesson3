@@ -11,6 +11,94 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — PR #432 review: reproduce split pins and guard attribution cache invalidation
+
+Confirmed the seven review findings. Merge current main into the published branch rather than
+rebasing/force-pushing it: published history must remain intact. Main's Apple Silicon trial guide
+introduced another executable Node base-image pin after this branch was cut; update that example
+to the same 24.22.1 Alpine index digest. Current audit guidance follows the new runtime too.
+
+`vendor-generator.sh <clone> <library-sha> [config-sha]` now accepts a separate attribution revision,
+defaulting to the library revision for existing two-argument callers. It validates both revisions
+before replacing files. The documented current command explicitly passes `f83db61` and `d3d2b87`,
+so replaying it preserves the libraries and reproduces the new attribution configuration. The
+provenance opening now labels the library pin and does not claim the config is from that revision.
+SPEC's copyright name is corrected to ARES Education.
+
+**Tests:** a disposable upstream Git repository deliberately changes all four libraries alongside
+its config. The shell regression proves the old invocation, split invocation, fixed-year-only
+runtime deviation, retention of the unused key, and refusal of invalid revisions without changing
+vendored files. The real upstream two-pin command also reproduces the shipped files byte-for-byte.
+The provenance test requires both source labels, the cache regression requires renderer revision
+>=10 (a temporary rollback to 9 fails that test), and the three-lesson fixture checks all four
+copyright occurrences. All 64 focused tests, shell regressions, ESLint and formatting pass.
+
+**Lesson:** a separate source pin needs a reproducible script interface, not only a manual procedure.
+Cache regression tests must require the revision that carries the current rendering change;
+otherwise fresh-render wording tests can pass while old cached wording remains visible.
+
+## 2026-10-22 — Node 24.22.1 security patch, all runtime pins together
+
+Update the app's Alpine base, the Bookworm browser runner and the Alpine restore-probe tools to
+24.22.1. Both `.nvmrc` files and both manifest floors require `>=24.22.1 <25`; current engineering
+guidance and script comments follow. Historical release records stay unchanged. The lockfile's
+only change is its root Node engine floor; no dependency package is upgraded.
+
+The Docker Hub multi-architecture index digests, resolved 2026-10-22, are:
+- Alpine 3.24: `sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53`;
+- Debian Bookworm: `sha256:6449e19d8184d84062525b6a7524def03146c2cb04a7f08b076680d0e8e4240a`.
+Both list linux/amd64 and linux/arm64/v8. The OS release families are unchanged.
+
+Node identifies this as a security release, including high-severity TLS/IP normalization, DNS-input
+and Brotli fixes, plus updated root certificates, OpenSSL 3.5.9 and Undici 7.30.1. Exercise outbound
+HTTP and authentication through the real production runner rather than assuming patch releases
+cannot change behavior. Reference: https://nodejs.org/en/blog/release/v24.22.1.
+
+**Local verification (isolated `lesson3-codex-probe`, localhost:3103):** native ARM64 production
+build and empty-database migrations pass; the running app reports v24.22.1. Unit 1,771/1,771,
+integration 327/327, TypeScript, ESLint, formatting and the contract gate pass. The wire run passed
+431 tests and failed six resource-library cases because this fresh checkout's PDF fixture directory
+was mode 0700. Making only that synthetic fixture readable by the app's non-root user fixes the
+setup; the affected file then passes 119 tests (four existing no-SMTP skips). All other wire files,
+including the 12 teacher-key/attribution/export cases, pass. No application fix was needed.
+
+The installed Payload email adapter also delivered one synthetic message over certificate-verified,
+authenticated TLS into a local sink in a network-isolated container. This exercises Node/Nodemailer
+TLS without contacting a real recipient or claiming a check of the production SMTP provider.
+
+Deploy-sidecar 15/15, backup-status 98/98, restore-script 95/95 and the real restore stack 104/104
+pass, as do bundle, manifest, updater and publisher checks. Production audit passes its high/critical
+threshold with the same eight moderate findings. Every locked dependency package entry is unchanged.
+
+**Export evidence:** `docs/evidence/attribution-node-24.22.1-comparison.json` records all 12 document
+pairs from Physics, Essential Mathematics Indices and Trigonometry I. All 264 DOCX parts match after
+normalizing random relationship IDs (while retaining targets), core timestamps and only the intended
+copyright wording. The PDFs retain page counts 50/7/4/4, 56/7/4/4 and 69/7/4/4 respectively, with no
+other extracted-text change. The updated attribution block was inspected for wrapping/clipping.
+The evidence records a temporary fixture-name collision and the regenerated Indices baseline so it
+does not overstate the Node-before/after coverage. No oracle files or fidelity comparison rules change.
+
+## 2026-10-22 — Approved pause exception: attribution correction and Node security patch
+
+The operator explicitly approved these two maintenance changes as a narrow exception to the
+Phase B pause, then instructed implementation after planning. Phase B remains paused. Prepare a
+reviewable branch and validate it; release, merge and deployment are separate steps, not authorized
+by this maintenance instruction.
+
+Sync upstream attribution configuration at `d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e`, preserving
+only Lesson3's fixed `year: 2026` line. Only the two copyright occurrences change to "SeaVuria and
+ARES Education"; keep the technical-implementation wording and retain the unused `slide_footer`.
+The vendored renderer libraries stay at `f83db61`. Renderer revision 10 invalidates derived DOCX,
+PDF and HTML-preview cache keys; no cache deletion or lesson-data mutation is needed.
+
+**Regression lesson:** substring assertions for "SeaVuria and ARES" accept both wordings. Require
+"SeaVuria and ARES Education." and reject "SeaVuria and ARES.". The strengthened unit tests fail
+three attribution cases before the config sync; the footer count also checks every lesson.
+
+The operator reports v1.02 is deployed on the Rock. That is an operator report, not a fresh
+telemetry check. Current main also includes lesson filters and upload-taxonomy creation after
+v1.02, so a future v1.03 release from main would include those changes too.
+
 ## 2026-10-22 — Lesson filters must validate URL subjects before rendering a dropdown
 
 Claude's review of the compact lesson filters caught an unavailable URL subject filtering out every

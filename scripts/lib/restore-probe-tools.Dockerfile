@@ -6,5 +6,5 @@
 # way everywhere without installing anything on the host. Test-only; never part of an installation.
 #
 # Same pinned base as app/Dockerfile, so no new base image enters the repository.
-FROM node:24.22.0-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 RUN apk add --no-cache bash coreutils docker-cli docker-cli-compose age rclone procps util-linux

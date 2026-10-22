@@ -263,23 +263,27 @@ describe('attribution', () => {
       const { xml } = await parts(buf)
       expect(xml, `${name} carries the attribution block`).toContain('Curriculum Alignment')
       expect(xml, `${name} names the licence`).toContain(HEADER)
-      expect(xml, `${name} names the creators`).toContain('SeaVuria and ARES')
+      expect(xml, `${name} names the creators`).toContain('SeaVuria and ARES Education.')
+      expect(xml, `${name} has no old copyright wording`).not.toContain('SeaVuria and ARES.')
     }
   })
 
   it('puts the short footer after EVERY lesson, and the full block once', async () => {
     const { xml } = await parts(await generateLessonSequenceDocx(data()))
     expect(count(xml, FOOTER)).toBe(2)
+    expect(count(xml, '© 2026 SeaVuria and ARES Education.')).toBe(3)
     expect(count(xml, HEADER)).toBe(1)
     const three = data({
       LESSONS: [1, 2, 3].map((n) => lesson(n, `Lesson ${n}`, links(`L${n}`))),
     })
-    expect(count((await parts(await generateLessonSequenceDocx(three))).xml, FOOTER)).toBe(3)
+    const threeXml = (await parts(await generateLessonSequenceDocx(three))).xml
+    expect(count(threeXml, FOOTER)).toBe(3)
+    expect(count(threeXml, '© 2026 SeaVuria and ARES Education.')).toBe(4)
   })
 
   it('uses the FIXED configured copyright year, never the render-time year', async () => {
     const { xml } = await parts(await generateTeacherKeyDocx(data()))
-    expect(xml).toContain('© 2026 SeaVuria and ARES')
+    expect(xml).toContain('© 2026 SeaVuria and ARES Education.')
     // Stable across wall-clock years: rendering "in 2031" must not change the stamped year. The module
     // caches after first use, so load a FRESH copy to prove the config — not the cache — decides it.
     vi.useFakeTimers({ toFake: ['Date'] })

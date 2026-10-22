@@ -83,7 +83,8 @@ describe('vendored generator provenance', () => {
     expect(count(sections, /\brichCell\(/g)).toBe(2) // overview + the full-width table row — nothing else
   })
 
-  it('records the pinned commit the files were vendored from', () => {
-    expect(record).toMatch(/Pinned commit:\*\* `[0-9a-f]{40}`/)
+  it('records separate source commits for the libraries and attribution configuration', () => {
+    expect(record).toMatch(/Library commit:\*\* `[0-9a-f]{40}`/)
+    expect(record).toMatch(/Configuration commit:\*\* `[0-9a-f]{40}`/)
   })
 })

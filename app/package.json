@@ -94,12 +94,12 @@
     "vitest": "4.1.12"
   },
   "engines": {
-    "node": ">=24.22.0 <25"
+    "node": ">=24.22.1 <25"
   },
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": ">=24.22.0 <25",
+      "version": ">=24.22.1 <25",
       "onFail": "error"
     }
   }
