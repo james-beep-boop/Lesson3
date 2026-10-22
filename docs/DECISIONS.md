@@ -21,6 +21,14 @@ set `-webkit-text-size-adjust: 100%; text-size-adjust: 100%`. Use `100%`, never 
 disabled zoom in older Safari. Acceptance is on a real iPhone: landscape → portrait → landscape →
 tap, on Discussions and on Manage, and pinch zoom must still work.
 
+The content preview (`endpoints/previewShared.ts`) is a standalone HTML document that neither layout
+reaches, and it had no viewport tag either, so iPhone Safari laid it out at 980px and shrank it. It
+now has both the viewport tag and the rule. Phone landscape is wider than the 640px editing cutoff,
+so this page is reachable there. The viewport tag changes its phone layout, so it needs its own
+iPhone check: open in landscape, rotate, tap, and look at long text and wide tables for overflow.
+The preview HTTP test pins both additions. Nothing else in `src` sets `text-size-adjust`, and the
+preview is the only HTML document generated outside the two layouts.
+
 **Lesson (Codex review correction):** state a diagnosis no more firmly than the evidence allows.
 Claude argued that "if our CSS were wrong, everything would scale together", but CSS can resize
 individual blocks. The screenshots pointed strongly to autosizing without proving it, and the

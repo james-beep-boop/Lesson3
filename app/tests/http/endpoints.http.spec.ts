@@ -411,6 +411,9 @@ describe('Preview endpoint (SPEC §5)', () => {
     const html = await res.text()
     expect(html).toContain('Content preview')
     expect(html).toContain('Close this tab to return to your edits.')
+    // Standalone page — neither app layout's viewport nor its stylesheet reaches it (2026-10-22).
+    expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">')
+    expect(html).toContain('text-size-adjust: 100%')
   })
 
   it('Teacher POST unsaved-preview → 404 (EDIT-gated, not just read)', async () => {

@@ -52,8 +52,10 @@ function previewPage(title: string, sections: PreviewSection[], unsaved: boolean
   const provenance = unsaved ? 'unsaved edits' : 'latest saved version'
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Preview — ${escapeHtml(title)}</title>
 <style>
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* no iOS landscape text boost (2026-10-22) */
   body { font: 15px/1.5 system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
   .page-head { color: #666; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
   .new-tab-note { margin: 0 0 1rem; padding: 0.65rem 0.8rem; color: #333; background: #f1f5f9;
