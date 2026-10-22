@@ -32,9 +32,18 @@ describe('filterRows', () => {
     expect(filterRows(ROWS, { subject: 'Biology', grade: 10 }).map((r) => r.id)).toEqual([1])
   })
 
-  it('composes the search query with the chips', () => {
+  it('composes the search query with the filters', () => {
     expect(filterRows(ROWS, { grade: 10, q: 'acid' }).map((r) => r.id)).toEqual([3])
     expect(filterRows(ROWS, { subject: 'Biology', q: 'acid' })).toHaveLength(0)
+  })
+
+  it('matches any selected grade while combining subject and search', () => {
+    expect(filterRows(ROWS, { grade: [10, 11] }).map((r) => r.id)).toEqual([1, 2, 3])
+    expect(filterRows(ROWS, { grade: [10, 11], subject: 'Biology' }).map((r) => r.id)).toEqual([
+      1, 2,
+    ])
+    expect(filterRows(ROWS, { grade: [10, 11], q: 'genetics' }).map((r) => r.id)).toEqual([2])
+    expect(filterRows(ROWS, { grade: [] })).toHaveLength(3)
   })
 
   it('treats a whitespace query and null grade as absent', () => {

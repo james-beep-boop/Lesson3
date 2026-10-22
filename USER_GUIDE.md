@@ -29,7 +29,8 @@ _Compare_ button.
 - **Browse lesson plans:** the home page groups lessons by subject and grade, then by strand and sub-strand in
   curriculum order.
 - **Search and filter:** use the search box to find a subject, grade, strand, or sub-strand, and use
-  the subject and grade buttons to narrow the list. Search and filters work together.
+  the grade checkboxes and subject dropdown to narrow the list. Select any number of grades, or
+  All for every grade. Search and filters work together.
 - **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
   keep that lesson in _My favorites_ at the top of the home page. Teachers see the current Official
   version when one is promoted. With editing access, a favorite stays on the exact version you chose;

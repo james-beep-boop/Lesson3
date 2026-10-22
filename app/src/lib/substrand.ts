@@ -291,26 +291,26 @@ export function matchesQuery(r: CurriculumRow, query: string): boolean {
 }
 
 /**
- * The library's combined display filter (perf fix 2026-07-09): subject/grade chips AND the search
+ * The library's combined display filter: subject/grades AND the search
  * query applied in one pure pass — the client browser filters IN MEMORY (the whole catalogue is
- * already loaded), so chips and typing are instant instead of a server round-trip per click.
+ * already loaded), so filtering and typing are instant instead of a server round-trip per click.
  */
 export function filterRows<T extends CurriculumRow>(
   rows: readonly T[],
-  criteria: { q?: string; subject?: string; grade?: number | null },
+  criteria: { q?: string; subject?: string; grade?: number | readonly number[] | null },
 ): T[] {
   const subject = criteria.subject ?? ''
-  const grade = criteria.grade ?? null
+  const grades = (Array.isArray(criteria.grade) ? criteria.grade : [criteria.grade]).filter(
+    (g): g is number => typeof g === 'number' && Number.isFinite(g),
+  )
   // Tokenised ONCE for the whole pass. Per-row `matchesQuery` re-split the query for every row, so a
   // keystroke cost N tokenisations — on the catalogue, which filters the whole corpus on every
-  // keystroke and every chip click, that was the bulk of the work here.
+  // keystroke and every filter change, that was the bulk of the work here.
   const tokens = tokenise(criteria.q ?? '')
   return rows.filter(
     (r) =>
       (!subject || r.subjectName === subject) &&
-      // NaN (e.g. a hand-edited ?grade=abc) means NO grade filter — matching it against rows
-      // would silently empty the catalogue while no chip shows active.
-      (grade == null || Number.isNaN(grade) || r.grade === grade) &&
+      (grades.length === 0 || (r.grade != null && grades.includes(r.grade))) &&
       matchesTokens(r, tokens),
   )
 }

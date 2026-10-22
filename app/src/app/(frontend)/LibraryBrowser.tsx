@@ -2,11 +2,11 @@
 
 /**
  * Client-side library browsing (perf fix 2026-07-09). The server page loads the WHOLE catalogue
- * once (it always did); this component owns search + subject/grade filtering IN MEMORY, so a chip
+ * once (it always did); this component owns search + subject/grade filtering IN MEMORY, so a filter
  * click or a keystroke re-renders instantly instead of re-running four Payload queries per
  * navigation (the old server-link filters cost ~1s per click on the Rock).
  *
- * URL contract unchanged: `?q=&subject=&grade=` still round-trips — written via
+ * `?q=&subject=&grade=` round-trips (multiple grades are comma-separated) — written via
  * `history.replaceState` (no RSC re-fetch), read back on popstate (back/forward) and as the
  * initial SSR state (a shared filtered URL renders filtered on first paint).
  */
@@ -90,19 +90,28 @@ export default function LibraryBrowser({
   }, [])
 
   const q = criteria.q.trim()
-  const gradeNum = criteria.grade ? Number(criteria.grade) : null
   const subjects = useMemo(
     () => [...new Set(rows.map((r) => r.subjectName))].sort((a, b) => a.localeCompare(b)),
     [rows],
   )
+  const subject = subjects.includes(criteria.subject) ? criteria.subject : ''
   const grades = useMemo(
     () =>
       [...new Set(rows.flatMap((r) => (r.grade != null ? [r.grade] : [])))].sort((a, b) => a - b),
     [rows],
   )
+  const selectedGrades = criteria.grade
+    .split(',')
+    .filter((g) => g.trim() !== '')
+    .map(Number)
+    .filter((g) => grades.includes(g))
 
-  const filtered = filterRows(rows, { q, subject: criteria.subject, grade: gradeNum })
-  const filteredPinned = filterRows(pinnedRows, { q, subject: criteria.subject, grade: gradeNum })
+  const filtered = filterRows(rows, { q, subject, grade: selectedGrades })
+  const filteredPinned = filterRows(pinnedRows, {
+    q,
+    subject,
+    grade: selectedGrades,
+  })
 
   return (
     <>
@@ -134,10 +143,10 @@ export default function LibraryBrowser({
       <FilterBar
         subjects={subjects}
         grades={grades}
-        subject={criteria.subject}
-        grade={criteria.grade}
+        subject={subject}
+        selectedGrades={selectedGrades}
         onSubject={(subject) => apply({ subject })}
-        onGrade={(grade) => apply({ grade })}
+        onGrades={(selected) => apply({ grade: selected.join(',') })}
       />
 
       {filtered.length === 0 && filteredPinned.length === 0 ? (
@@ -169,52 +178,62 @@ export default function LibraryBrowser({
   )
 }
 
-/** Filter chips: instant client state; a group renders only when the data offers a real choice. */
+/** Compact controls with multiple grades and one subject; empty grades means All. */
 function FilterBar({
   subjects,
   grades,
   subject,
-  grade,
+  selectedGrades,
   onSubject,
-  onGrade,
+  onGrades,
 }: {
   subjects: string[]
   grades: number[]
   subject: string
-  grade: string
+  selectedGrades: number[]
   onSubject: (s: string) => void
-  onGrade: (g: string) => void
+  onGrades: (g: number[]) => void
 }) {
-  if (subjects.length < 2 && grades.length < 2) return null
-
-  const chip = (key: string, label: string, active: boolean, onClick: () => void) => (
-    <button
-      key={key}
-      type="button"
-      className={`btn btn--quiet${active ? ' is-active' : ''}`}
-      aria-pressed={active}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  )
-
   return (
     <div className="filter-bar">
-      {subjects.length > 1 && (
-        <div className="filter-group" role="group" aria-label="Filter by subject">
-          {chip('all-subjects', 'All subjects', !subject, () => onSubject(''))}
-          {subjects.map((s) => chip(`s-${s}`, s, subject === s, () => onSubject(s)))}
-        </div>
-      )}
-      {grades.length > 1 && (
-        <div className="filter-group" role="group" aria-label="Filter by grade">
-          {chip('all-grades', 'All grades', !grade, () => onGrade(''))}
-          {grades.map((g) =>
-            chip(`g-${g}`, `Grade ${g}`, grade === String(g), () => onGrade(String(g))),
-          )}
-        </div>
-      )}
+      <div className="filter-group" role="group" aria-label="Grades">
+        <span>Grades:</span>
+        <label className="filter-grade">
+          <input
+            type="checkbox"
+            checked={selectedGrades.length === 0}
+            onChange={() => onGrades([])}
+          />
+          All
+        </label>
+        {grades.map((g) => (
+          <label key={g} className="filter-grade">
+            <input
+              type="checkbox"
+              checked={selectedGrades.includes(g)}
+              onChange={() =>
+                onGrades(
+                  selectedGrades.includes(g)
+                    ? selectedGrades.filter((selected) => selected !== g)
+                    : [...selectedGrades, g].sort((a, b) => a - b),
+                )
+              }
+            />
+            {g}
+          </label>
+        ))}
+      </div>
+      <label className="filter-group">
+        Subjects:
+        <select value={subject} onChange={(e) => onSubject(e.target.value)}>
+          <option value="">All</option>
+          {subjects.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   )
 }

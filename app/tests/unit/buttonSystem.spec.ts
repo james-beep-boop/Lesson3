@@ -16,8 +16,8 @@
  *     modifier to a single class (0-1-0) loses it silently.
  *  3. Source ORDER decides several equal-specificity contests, all inside the system:
  *     `.btn:disabled` over `.btn.btn--primary` (0-2-0), so a disabled Save is not still filled;
- *     `.btn.is-active` over `.btn.btn--quiet` (0-2-0), so a selected filter actually looks selected;
- *     and the same pair again at `:hover` (0-3-0), so a hovered selected chip keeps white text
+ *     `.btn.is-active` over `.btn.btn--quiet` (0-2-0), so an active toggle actually looks active;
+ *     and the same pair again at `:hover` (0-3-0), so a hovered active toggle keeps white text
  *     instead of `--quiet`'s blue-on-blue.
  *
  *     ⚑ `.btn` vs the `.fav-toggle` glyph base USED to be on this list and is deliberately not any
@@ -363,9 +363,8 @@ describe('button system', () => {
   })
 
   it('orders the selected fill after --quiet, and keeps it off Favorite', () => {
-    // A selected filter chip is `.btn.btn--quiet.is-active`; both modifiers are 0-2-0, so ONLY
-    // source order makes the fill win over quiet's neutral border. Reversed, the active subject
-    // filter would render identically to the inactive ones — D4's "blue means selected" lost.
+    // Compare's active "Changes only" toggle is `.btn.btn--quiet.is-active`; both modifiers are
+    // 0-2-0, so source order makes the fill win over quiet's neutral border.
     expect(posOf('.btn.is-active')).toBeGreaterThan(posOf('.btn.btn--quiet'))
     // ...and disabled still outranks it, so a disabled selected control is not left filled.
     expect(posOf('.btn:disabled')).toBeGreaterThan(posOf('.btn.is-active'))
@@ -416,11 +415,11 @@ describe('button system', () => {
     }
   })
 
-  it('keeps white text on a HOVERED selected chip', () => {
+  it('keeps white text on a HOVERED active toggle', () => {
     // Two independent reviewers called `color` on `.btn.is-active:hover` a redundant leftover. It is
-    // load-bearing. A selected filter is `.btn.btn--quiet.is-active`, and on hover TWO rules tie at
+    // load-bearing. An active toggle is `.btn.btn--quiet.is-active`, and on hover TWO rules tie at
     // 0-3-0: `.btn.btn--quiet:hover` (blue text, D4's quiet promotion) and `.btn.is-active:hover`.
-    // Source order gives it to `is-active` — remove that one declaration and the selected chip
+    // Source order gives it to `is-active` — remove that one declaration and the active toggle
     // renders blue text on its blue fill, i.e. invisible. Pinned because "clean this up" will
     // otherwise be suggested again.
     const activeHover = bodyOf('.btn.is-active:hover')
