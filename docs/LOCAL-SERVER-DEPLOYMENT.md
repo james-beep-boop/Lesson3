@@ -28,6 +28,9 @@ HTTPS, a reverse proxy, and the complete “Going public” checklist in the
 - TCP port 3001 allowed from the local network and blocked at the internet edge.
 - `curl`, `openssl`, `tar`, and `sha256sum` on the host.
 
+An Apple Silicon Mac is not a supported server, but it can host a temporary evaluation that includes a
+backup and restore drill; see [Trial on an Apple Silicon Mac](#trial-on-an-apple-silicon-mac).
+
 ## Download and install
 
 GitHub attaches two files to every Lesson3 release: the deployment bundle and its SHA-256 checksum.
@@ -277,6 +280,101 @@ Do not run `docker compose down -v`: `-v` deletes the Postgres and artifact-cach
 
 The complete backup, restore, pruning, monitoring, public-exposure, and incident procedures remain in
 the [operations runbook](https://github.com/james-beep-boop/Lesson3/blob/main/docs/OPS.md).
+
+## Trial on an Apple Silicon Mac
+
+This is for evaluating a release on a Mac that already runs Docker Desktop, testing backup and restore,
+and then removing it. It is not a production installation: a laptop sleeps, and the
+backup destination below deliberately skips the separate-drive guard. Docker Desktop stays installed.
+
+The images are multi-architecture, so they run natively on Apple Silicon. Two things differ from Linux:
+`/srv` cannot be created on macOS, so install under your home directory; and macOS lacks `sha256sum`,
+so verify with `shasum`. Before starting, give Docker Desktop at least 4–5 GB of memory (Settings →
+Resources), and confirm `docker compose ls` shows no existing project named `lesson3` and that nothing
+already listens on port 3001. A Mac that also runs a Lesson3 development stack under the `lesson3`
+project name must not be used: the removal step below would delete that stack's database.
+
+```bash
+workdir="$(mktemp -d)" && cd "$workdir"
+curl -fLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/lesson3-online-deploy.tar.gz \
+  -fLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/lesson3-online-deploy.tar.gz.sha256
+shasum -a 256 -c lesson3-online-deploy.tar.gz.sha256
+tar -xzf lesson3-online-deploy.tar.gz
+mkdir ~/lesson3 && cp -a lesson3-deploy/. ~/lesson3/
+cd ~/lesson3
+./install.sh
+```
+
+Then create the first Site Administrator at `http://localhost:3001/login` as described above.
+
+### Backup and restore on the Mac
+
+The ops scripts need bash 5, `flock`, `age` and `rclone`, which macOS does not provide. Rather than
+install them on the Mac, run the scripts in a disposable Linux tools container that drives Docker
+Desktop through its socket — the same approach `scripts/test-restore-db-stack.sh` uses on a Mac. Run
+everything below from `~/lesson3`. The installation directory is mounted at the same path inside the
+container, so the paths Compose passes to Docker Desktop stay valid.
+
+```bash
+docker build -t lesson3-ops-tools - <<'EOF'
+FROM node:24.22.0-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+RUN apk add --no-cache bash coreutils docker-cli docker-cli-compose age rclone procps util-linux
+EOF
+ops() {
+  docker run --rm -it --init -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$PWD:$PWD" -w "$PWD" -e RCLONE_CONFIG_TRIAL_TYPE=local "$@"
+}
+mkdir -p keys backups
+ops lesson3-ops-tools age-keygen -o "$PWD/keys/backup.key"   # prints the public key, age1…
+echo "$PWD/backups"                                           # the absolute path for .env
+```
+
+Add both settings to `.env`, using the printed public key and path:
+
+```dotenv
+BACKUP_AGE_RECIPIENT=age1REPLACE_WITH_PRINTED_PUBLIC_KEY
+BACKUP_RCLONE_REMOTE=trial:/Users/REPLACE_WITH_YOU/lesson3/backups
+```
+
+`trial:` is an rclone remote of type `local`, defined by the `RCLONE_CONFIG_TRIAL_TYPE` variable in
+`ops`. Because it is a named remote rather than a bare path, `backup-db.sh` does not require a separately
+mounted drive and `.lesson3-backup-volume` sentinel. That is acceptable only for a trial whose backups
+are thrown away. Keeping the private key beside the backups is likewise trial-only.
+
+Take a backup, then confirm **Manage → System → Backups** reports it:
+
+```bash
+ops lesson3-ops-tools scripts/backup-db.sh
+```
+
+Run the restore drill into the disposable check database:
+
+```bash
+ops lesson3-ops-tools scripts/restore-db.sh --list daily
+ops -e AGE_IDENTITY="$PWD/keys/backup.key" lesson3-ops-tools \
+  scripts/restore-db.sh --from daily/REPLACE_WITH_LISTED_FILE --into lesson3_restore_check
+```
+
+Because the trial data is disposable, this is also a safe place to rehearse a live-database restore
+(`--into lesson3 --force-prod`, then `--confirm` or `--undo`) exactly as the
+[operations runbook](https://github.com/james-beep-boop/Lesson3/blob/main/docs/OPS.md) describes.
+
+### Remove the trial
+
+This is the one place `down -v` is intended: it deletes the trial's database and cache volumes, and
+`--rmi all` deletes the images its services used. Docker Desktop itself is left installed.
+
+```bash
+cd ~/lesson3
+docker compose down -v --rmi all --remove-orphans
+docker image rm lesson3-ops-tools
+docker image rm node@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+cd ~ && rm -rf ~/lesson3
+```
+
+`~/lesson3` holds the bundle, `.env`, the trial key and the trial backups, so deleting it removes the
+rest. If either removal reports that an image is in use, another project on the Mac uses the same image;
+leave it.
 
 ## Maintainer release procedure
 
