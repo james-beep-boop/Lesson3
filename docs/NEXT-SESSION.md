@@ -22,13 +22,21 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-22
 
-**Maintenance scope approved (2026-10-22):** the operator explicitly approved attribution and Node
-24.22.1 as exceptions to the pause. Work is prepared on `codex/attribution-node-24-22-1`: upstream
-attribution config `d3d2b87`, renderer revision 10, all Node pins including restore tools. Renderer
-libraries stay at `f83db61`; no dependency-package upgrade, schema change or cache purge. See the
-new DECISIONS entries and `docs/evidence/attribution-node-24.22.1-comparison.json` for validation.
-Release, merge and deployment remain separate. A release from current main also carries the lesson
-filters and #431 below. Phase B stays paused.
+**v1.03 tagged (2026-10-22):** #432 merged as `625a9d8` after the revised head
+`843ffa8` passed the full CI gate. The annotated tag triggers `publish-containers.yml`, which builds
+AMD64/ARM64 images and publishes the release only with its checksummed deployment bundle attached.
+Check that workflow for publication status before installing; creating the tag is not evidence that
+the bundle has finished building. No deployment was performed in this release session.
+
+v1.03 includes Node 24.22.1, the ARES Education copyright correction (renderer revision 10), lesson
+filters, upload-time missing subject/grade creation (#431), and the Apple Silicon trial guide.
+Renderer libraries stay at `f83db61`; attribution config is `d3d2b87`, reproducible through the
+vendoring script's separate config argument. No dependency-package upgrade, schema change or cache
+purge. The seven review fixes and validation are recorded in DECISIONS. Phase B remains paused.
+
+The merged maintenance branch is removed locally and on GitHub. The checkout is on main. The Rock's
+last operator-reported version is v1.02; deployment, backup-contact settings and the workstation
+restore drill are separate operational work.
 
 **Newest (2026-10-22): #431 merged (`ff3bdc2`): an upload offers to create missing subjects and
 grades** (SPEC §7, amended 2026-10-21). A web upload naming a subject or grade that does not exist
@@ -39,7 +47,7 @@ and the resubmission creates it in the plans' transaction under the `taxonomyCre
 - The dev CLI is unchanged. No migration.
 
 Codex reviewed it, and both P2s were fixed before the merge: space-only variants, and a subject
-created by a concurrent upload. CI was green. Not yet released or deployed. See DECISIONS 2026-10-21
+created by a concurrent upload. CI was green. Included in v1.03; not deployed in this release session. See DECISIONS 2026-10-21
 (the feature, and the `test:http` `NODE_ENV` lesson).
 
 **Earlier (2026-10-22): v1.02, and Phase A of backup and recovery is complete.** Tagged from the tip of
@@ -393,9 +401,10 @@ future exports with the operator's `/tmp/ares-scan-tools/scan.py <folder of ARES
 ## Handoff prompt
 
 > Pick up Lesson3. Fetch; read AGENTS → CLAUDE → SPEC → this file and recent relevant DECISIONS.
-> #414 merged as ca16830; v0.98 is published with verified bundle/checksum and both architectures.
-> Gotenberg 8.38.0 / LibreOffice 26.8.1.1 maintenance is complete; Arial and PDF fidelity are proved.
-> See DEPENDENCY-REVIEW-2026-10-19.md. Rock installation has not been performed by Codex.
-> Next priority is deployment/ARES hardware validation with the operator. Plan and obtain approval
-> before further feature work; do not merge or deploy without authorization for that work.
-> Full phase 4 and network implementations remain deferred. Only lesson3-codex-probe:3103.
+> PR #432 is merged after green CI; v1.03 is tagged. Verify the release publisher's result and
+> checksummed bundle before installation. It includes the Node 24.22.1 security patch, corrected
+> ARES Education attribution, lesson filters, #431 taxonomy confirmation and the Mac trial guide.
+> No deployment was performed in this release session; the Rock is operator-reported at v1.02.
+> Next operational work: confirm backup-contact settings and run the workstation restore drill.
+> Phase B is paused until test machines exist. Other deferred features remain unapproved.
+> Use only an isolated lesson3-codex-probe stack for fixture-writing tests.

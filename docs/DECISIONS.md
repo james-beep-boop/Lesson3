@@ -11,6 +11,20 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — Merge #432 and tag v1.03; no deployment
+
+The operator explicitly requested merge, repository cleanup and a new tag. Waited for the revised
+PR head `843ffa8` to pass the full GitHub CI gate (run `39753766293`) before merging #432 as
+`625a9d8`. Preserve published history, remove only the merged maintenance branch, and
+bring the local main up to date. No unrelated branches or data are deleted.
+
+Cut the changelog as v1.03 and update the current handoff. The annotated tag is the publication
+boundary; `publish-containers.yml` builds the multi-architecture images and publishes a checksummed
+bundle through its draft-first procedure. Do not create a release manually or move the tag. The
+release includes the lesson filters, #431 taxonomy confirmation and Mac trial guide already on main,
+as well as the reviewed Node/attribution work. No database migration or package-version upgrade is
+introduced since v1.02. Deployment is not part of this instruction; Phase B remains paused.
+
 ## 2026-10-22 — PR #432 review: reproduce split pins and guard attribution cache invalidation
 
 Confirmed the seven review findings. Merge current main into the published branch rather than

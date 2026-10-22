@@ -10,6 +10,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+## v1.03 (2026-10-22)
+
 - Node 24 LTS moves from 24.22.0 to the 24.22.1 security patch. Production, browser tests and restore
   probes use the same patch, pinned by multi-architecture image digest. Development requires
   Node >=24.22.1 <25. No application packages or database schema change.
@@ -21,6 +23,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Lessons uses grade checkboxes and a subject dropdown below the search bar. Select multiple grades,
   or All; search and subject filtering work together. Shared links with an unavailable subject or
   grade fall back to All for that filter.
+
+- Uploading lesson bundles now offers to create missing subjects and grades with explicit Site
+  Administrator approval. Case/spacing variants are refused; similar subject names require a decision.
+  Approved taxonomy and lesson plans are written in the same transaction (#431).
+
+- Added an Apple Silicon Mac trial-installation guide, including a disposable Linux tools container
+  for the backup/restore drill.
 
 ## v1.02 (2026-10-22)
 
