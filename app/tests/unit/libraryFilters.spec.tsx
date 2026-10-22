@@ -12,13 +12,13 @@ const rows: LessonRow[] = [
   { id: 3, subjectName: 'Chemistry', grade: 12, substrandName: 'Acids', lessonCount: 1 },
 ].map((row) => ({ ...row, substrandId: '1.1', strandName: 'Science' }))
 
-function browse(grade = '') {
+function browse(grade = '', subject = '') {
   return render(
     <LibraryBrowser
       rows={rows}
       pinnedRows={[]}
       favPairs={[]}
-      initial={{ q: '', subject: '', grade }}
+      initial={{ q: '', subject, grade }}
     />,
   )
 }
@@ -100,5 +100,21 @@ describe('library filters', () => {
     browse('abc,99')
     expect((screen.getByRole('checkbox', { name: 'All' }) as HTMLInputElement).checked).toBe(true)
     expect(screen.getByText('Cells')).toBeTruthy()
+  })
+
+  it('treats an unavailable subject as All on first render and history navigation', () => {
+    browse('', 'Physics')
+    const select = screen.getByRole('combobox', { name: 'Subjects:' }) as HTMLSelectElement
+    expect(select.value).toBe('')
+    expect(screen.getByText('Cells')).toBeTruthy()
+    expect(screen.getByText('Acids')).toBeTruthy()
+
+    fireEvent.change(select, { target: { value: 'Biology' } })
+    expect(screen.queryByText('Acids')).toBeNull()
+    window.history.replaceState(null, '', '/?subject=Physics&grade=12')
+    fireEvent(window, new PopStateEvent('popstate'))
+    expect(select.value).toBe('')
+    expect(screen.getByText('Acids')).toBeTruthy()
+    expect(screen.queryByText('Cells')).toBeNull()
   })
 })

@@ -11,6 +11,16 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — Lesson filters must validate URL subjects before rendering a dropdown
+
+Claude's review of the compact lesson filters caught an unavailable URL subject filtering out every
+lesson while the native dropdown displayed All. Normalize an unavailable subject to the empty
+selection for both the displayed control and the catalogue/favorites filters. Regression coverage
+checks first render and history navigation, including combination with a valid grade.
+
+**Lesson:** when replacing buttons with a native select, validate restored values against its options;
+a browser's fallback display does not update the application state used to filter results.
+
 ## 2026-10-21 — Playwright 1.64: the browser tests reach the app as `lesson3-e2e`, not `app`
 
 Playwright 1.58.2 → 1.64.1 (only `@playwright/test`, `playwright`, `playwright-core` move). A dependency

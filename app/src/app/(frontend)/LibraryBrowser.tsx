@@ -94,6 +94,7 @@ export default function LibraryBrowser({
     () => [...new Set(rows.map((r) => r.subjectName))].sort((a, b) => a.localeCompare(b)),
     [rows],
   )
+  const subject = subjects.includes(criteria.subject) ? criteria.subject : ''
   const grades = useMemo(
     () =>
       [...new Set(rows.flatMap((r) => (r.grade != null ? [r.grade] : [])))].sort((a, b) => a - b),
@@ -105,10 +106,10 @@ export default function LibraryBrowser({
     .map(Number)
     .filter((g) => grades.includes(g))
 
-  const filtered = filterRows(rows, { q, subject: criteria.subject, grade: selectedGrades })
+  const filtered = filterRows(rows, { q, subject, grade: selectedGrades })
   const filteredPinned = filterRows(pinnedRows, {
     q,
-    subject: criteria.subject,
+    subject,
     grade: selectedGrades,
   })
 
@@ -142,7 +143,7 @@ export default function LibraryBrowser({
       <FilterBar
         subjects={subjects}
         grades={grades}
-        subject={criteria.subject}
+        subject={subject}
         selectedGrades={selectedGrades}
         onSubject={(subject) => apply({ subject })}
         onGrades={(selected) => apply({ grade: selected.join(',') })}

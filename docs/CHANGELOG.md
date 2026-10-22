@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Lessons uses grade checkboxes and a subject dropdown below the search bar. Select multiple grades,
+  or All; search and subject filtering work together. Shared links with an unavailable subject or
+  grade fall back to All for that filter.
+
 ## v1.02 (2026-10-22)
 
 - ⚑ **Manage → System → Backups (Site Administrators; operators).** A new box states what the backup

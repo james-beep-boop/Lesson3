@@ -1357,19 +1357,12 @@ button.user-menu__item {
   border-color: var(--accent);
   color: var(--accent);
 }
-/* Selected, in a set (`.is-active`) — a mutually exclusive group where exactly one member is on:
-   the subject and grade filters. It FILLS, because a segmented control needs an unmissable current
-   choice, and because D4 (critique 2026-07-12) reserved blue for exactly this meaning.
-
-   Not the same as the TOGGLED state on Favorite, which fills its star and not its background. The
-   difference is real, not an inconsistency: Favorite is one optional switch sitting among more
-   consequential actions, so filling it would overstate it; a filter is a set where the selection IS
-   the point. Both are in the design doc §2a.
-
+/* Active (`.is-active`): Compare's "Changes only" toggle fills while enabled.
+   Favorite instead fills its star and keeps its background quiet (design doc §2a).
    ⚑ Keyed to `.is-active`, NOT to `[aria-pressed='true']` — the labelled Favorite also sets
    `aria-pressed`, so an attribute selector here would fill the one control we deliberately kept
-   unfilled. Both classes are written from the same `active` expression in the same JSX, so the
-   visible and accessible states cannot drift apart. Weight stays 400: filled means selected here,
+   unfilled. The toggle's class and aria-pressed share the same state, so the visible and accessible
+   states cannot drift apart. Weight stays 400: filled means active here,
    whereas filled AND 600 means primary. */
 .btn.is-active {
   background: var(--accent);
