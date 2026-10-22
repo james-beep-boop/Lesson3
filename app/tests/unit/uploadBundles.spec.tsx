@@ -231,3 +231,99 @@ describe('partial upload reporting', () => {
     )
   })
 })
+
+describe('missing subjects and grades (SPEC §7, amended 2026-10-21)', () => {
+  const confirmation = {
+    ok: false,
+    needsConfirmation: true,
+    count: 0,
+    bundles: [],
+    created: [],
+    rejected: [],
+    skipped: [],
+    missing: [
+      { subject: 'Geography', grade: 9, newSubject: true, similarTo: [], files: ['a.json'] },
+      {
+        subject: 'Maths',
+        grade: 9,
+        newSubject: true,
+        similarTo: ['Mathematics'],
+        files: ['b.json', 'c.json'],
+      },
+      { subject: 'Biology', grade: 11, newSubject: false, similarTo: [], files: ['d.json'] },
+    ],
+  }
+
+  /** Upload once against a 409, returning the fetch mock so the resubmission can be inspected. */
+  const ask = async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) =>
+      Response.json(confirmation, { status: 409 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const { container } = render(<UploadBundles />)
+    pickFile(container.querySelector('input[type=file]') as HTMLInputElement, 'lessons.zip')
+    fireEvent.click(screen.getByRole('button', { name: /^Upload/ }))
+    await screen.findByRole('group', { name: 'Create missing subjects and grades?' })
+    return { container, fetchMock }
+  }
+  type FetchMock = Awaited<ReturnType<typeof ask>>['fetchMock']
+  const sentApprovals = (fetchMock: FetchMock) => {
+    const form = fetchMock.mock.calls.at(-1)![1].body as FormData
+    return JSON.parse(form.get('createTaxonomy') as string)
+  }
+
+  it('asks once, and refuses to send until the similar-named subject is answered', async () => {
+    const { fetchMock } = await ask()
+    const box = (label: string) => screen.getByLabelText(label) as HTMLInputElement
+    expect(box('Create Geography — Grade 9 (1 file)').checked).toBe(true)
+    expect(box('Create Biology — Grade 11 (1 file)').checked).toBe(true)
+    expect(box('Create Maths — Grade 9 (2 files)').checked).toBe(false)
+    expect(box('Create Maths — Grade 9 (2 files)').disabled).toBe(true)
+    expect(screen.getByText(/a misspelling of “Mathematics”/)).toBeTruthy()
+    expect(
+      (screen.getByRole('button', { name: /^Create \d+ and import$/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true)
+    // The first request carried no approvals at all.
+    expect((fetchMock.mock.calls[0]![1].body as FormData).has('createTaxonomy')).toBe(false)
+  })
+
+  it('a misspelling is never sent for creation; the rest are', async () => {
+    const { fetchMock } = await ask()
+    fireEvent.click(screen.getByLabelText(/A misspelling/))
+    fetchMock.mockImplementation(async () =>
+      Response.json({ ...okResponse, created: [] }, { status: 200 }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Create 2 and import' }))
+    await screen.findByText(/Imported 1 file\(s\)/)
+    expect(sentApprovals(fetchMock)).toEqual([
+      { subject: 'Geography', grade: 9 },
+      { subject: 'Biology', grade: 11 },
+    ])
+  })
+
+  it('answering "new subject" ticks its grades and sends them', async () => {
+    const { fetchMock } = await ask()
+    fireEvent.click(screen.getByLabelText('A new subject'))
+    fireEvent.click(screen.getByLabelText('Create Geography — Grade 9 (1 file)')) // untick one
+    fetchMock.mockImplementation(async () =>
+      Response.json({ ...okResponse, created: [] }, { status: 200 }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Create 2 and import' }))
+    await screen.findByText(/Imported 1 file\(s\)/)
+    expect(sentApprovals(fetchMock)).toEqual([
+      { subject: 'Maths', grade: 9 },
+      { subject: 'Biology', grade: 11 },
+    ])
+  })
+
+  it('Cancel sends nothing and clears the picker', async () => {
+    const { container, fetchMock } = await ask()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(container.textContent).not.toContain('Create missing subjects')
+    expect((screen.getByRole('button', { name: /^Upload/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+  })
+})

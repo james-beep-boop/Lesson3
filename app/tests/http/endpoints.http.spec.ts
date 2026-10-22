@@ -2317,12 +2317,17 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
   /** A valid definitive-1.0.0 ARES raw-JSON export (all five groups, complete resourceLinks;
    *  UNIT/FE/ST null) resolving to the fixture's subject-grade, as a multipart File. A unique
    *  substrand_id → a fresh plan, never a re-ingest. */
-  const jsonFile = (name: string, substrandId: string): File => {
+  const jsonFile = (
+    name: string,
+    substrandId: string,
+    subject = `${MARK}Biology`,
+    grade = 12,
+  ): File => {
     const raw = {
       schemaVersion: '1.0.0',
       META: {
-        subject: `${MARK}Biology`,
-        grade: 12,
+        subject,
+        grade,
         substrand_id: substrandId,
         substrand_name: `${MARK}${substrandId}`,
         titleDoc: `${MARK}Upload ${substrandId}`,
@@ -2527,6 +2532,159 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
     expect(report.count).toBe(0)
     expect(report.bundles).toEqual([])
     expect(report.rejected[0].file).toBe('bad.zip/bad.json')
+  })
+
+  /**
+   * Missing subjects/grades (SPEC §7, amended 2026-10-21). The approval list is a write instruction,
+   * so the Site-Admin gate must run before it is read, an approval the files do not need is refused,
+   * and the first round writes nothing at all.
+   */
+  describe('missing subjects and grades', () => {
+    const NEW_SUBJECT = `${MARK}Geography`
+    const taxonomyZip = async () => {
+      const zip = new JSZip()
+        .file('geo9a.json', await jsonFile('geo9a.json', '91.1', NEW_SUBJECT, 9).text())
+        .file('geo9b.json', await jsonFile('geo9b.json', '91.2', NEW_SUBJECT, 9).text())
+        .file('geo10.json', await jsonFile('geo10.json', '91.3', NEW_SUBJECT, 10).text())
+        .file('bio8.json', await jsonFile('bio8.json', '91.4', `${MARK}Biology`, 8).text())
+        .file('bio12.json', await jsonFile('bio12.json', '91.5').text())
+      return zip.generateAsync({ type: 'arraybuffer' })
+    }
+    const build = (bytes: ArrayBuffer, approvals?: unknown) => (form: FormData) => {
+      form.append('files', new File([bytes], 'tax.zip'))
+      if (approvals !== undefined) form.append('createTaxonomy', JSON.stringify(approvals))
+    }
+    const subjectCount = () =>
+      fx.payload.count({ collection: 'subjects', where: { name: { equals: NEW_SUBJECT } } })
+    const gradeCount = () =>
+      fx.payload.count({
+        collection: 'subject-grades',
+        where: { displayName: { like: MARK } },
+      })
+    const planCount = () =>
+      fx.payload.count({
+        collection: 'lesson-plans',
+        where: { title: { like: `${MARK}Upload 91.` } },
+      })
+
+    it('401/403 for everyone but a Site Admin, even with an approval list; nothing is created', async () => {
+      const bytes = await taxonomyZip()
+      const approve = build(bytes, [{ subject: NEW_SUBJECT, grade: 9 }])
+      const grades = (await gradeCount()).totalDocs
+      expect((await post(undefined, approve)).status).toBe(401)
+      for (const role of ['teacher', 'editor', 'subjectAdmin'] as const) {
+        expect((await post(role, approve)).status).toBe(403)
+      }
+      expect((await subjectCount()).totalDocs).toBe(0)
+      expect((await gradeCount()).totalDocs).toBe(grades)
+    })
+
+    it('400 for a malformed approval list or one the files do not need; nothing is created', async () => {
+      const bytes = await taxonomyZip()
+      const grades = (await gradeCount()).totalDocs
+      for (const bad of [
+        'not json',
+        { subject: NEW_SUBJECT, grade: 9 },
+        [{ subject: '', grade: 9 }],
+        [{ subject: NEW_SUBJECT, grade: 9.5 }],
+      ]) {
+        const res = await post('siteAdmin', (f) => {
+          f.append('files', new File([bytes], 'tax.zip'))
+          f.append('createTaxonomy', typeof bad === 'string' ? bad : JSON.stringify(bad))
+        })
+        expect(res.status).toBe(400)
+      }
+      const stray = await post('siteAdmin', build(bytes, [{ subject: `${MARK}History`, grade: 9 }]))
+      expect(stray.status).toBe(400)
+      expect(JSON.stringify(await stray.json())).toContain('not needed by these files')
+      expect((await subjectCount()).totalDocs).toBe(0)
+      expect((await gradeCount()).totalDocs).toBe(grades)
+      expect((await planCount()).totalDocs).toBe(0)
+    })
+
+    it('409 lists every missing item across the ZIP and writes nothing; the approved round imports', async () => {
+      const bytes = await taxonomyZip()
+      const grades = (await gradeCount()).totalDocs
+
+      const asked = await post('siteAdmin', build(bytes))
+      expect(asked.status).toBe(409)
+      const question = await asked.json()
+      expect(question).toMatchObject({ ok: false, needsConfirmation: true, count: 0 })
+      expect(
+        question.missing.map(
+          (m: { subject: string; grade: number; newSubject: boolean; files: string[] }) => [
+            m.subject,
+            m.grade,
+            m.newSubject,
+            m.files,
+          ],
+        ),
+      ).toEqual([
+        [NEW_SUBJECT, 9, true, ['tax.zip/geo9a.json', 'tax.zip/geo9b.json']],
+        [NEW_SUBJECT, 10, true, ['tax.zip/geo10.json']],
+        [`${MARK}Biology`, 8, false, ['tax.zip/bio8.json']],
+      ])
+      // The file whose subject-grade exists waits too: one decision, one result.
+      expect((await planCount()).totalDocs).toBe(0)
+      expect((await subjectCount()).totalDocs).toBe(0)
+      expect((await gradeCount()).totalDocs).toBe(grades)
+
+      // Approve Geography 9 and Biology 8; decline Geography 10.
+      const res = await post(
+        'siteAdmin',
+        build(bytes, [
+          { subject: NEW_SUBJECT, grade: 9 },
+          { subject: `${MARK}Biology`, grade: 8 },
+        ]),
+      )
+      expect(res.status).toBe(200)
+      const report = await res.json()
+      expect(report.bundles.map((b: { file: string }) => b.file)).toEqual([
+        'tax.zip/bio12.json',
+        'tax.zip/geo9a.json',
+        'tax.zip/geo9b.json',
+        'tax.zip/bio8.json',
+      ])
+      expect(report.created).toEqual([
+        { subject: NEW_SUBJECT, grade: 9, newSubject: true },
+        { subject: `${MARK}Biology`, grade: 8, newSubject: false },
+      ])
+      expect(report.rejected).toEqual([
+        { file: 'tax.zip/geo10.json', error: expect.stringContaining('Not created') },
+      ])
+      expect((await subjectCount()).totalDocs).toBe(1)
+      expect((await gradeCount()).totalDocs).toBe(grades + 2)
+      const geo9 = await fx.payload.find({
+        collection: 'subject-grades',
+        where: { displayName: { equals: `${NEW_SUBJECT} — Grade 9` } },
+        depth: 0,
+      })
+      const plan = await fx.payload.findByID({
+        collection: 'lesson-plans',
+        id: report.bundles[1].id,
+        depth: 0,
+      })
+      expect(plan.subjectGrade).toBe(geo9.docs[0]!.id)
+      expect(plan.officialVersion).toBeTruthy()
+    })
+
+    it('never offers a subject differing from an existing one only by case', async () => {
+      const res = await post('siteAdmin', (f) =>
+        f.append('files', jsonFile('case.json', '91.6', `${MARK}BIOLOGY`, 12)),
+      )
+      expect(res.status).toBe(422)
+      const report = await res.json()
+      expect(report.needsConfirmation).toBeUndefined()
+      expect(report.rejected[0].error).toContain('only in capitals or spacing')
+      expect(
+        (
+          await fx.payload.count({
+            collection: 'subjects',
+            where: { name: { equals: `${MARK}BIOLOGY` } },
+          })
+        ).totalDocs,
+      ).toBe(0)
+    })
   })
 
   it('a Site Admin uploads and reads a full resource bundle without the Postgres argument-limit 500', async () => {

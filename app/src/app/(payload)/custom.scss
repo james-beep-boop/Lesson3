@@ -2436,6 +2436,28 @@ a.btn.lp-btn {
   flex-wrap: wrap;
 }
 
+// The upload's "create missing subjects and grades?" round (SPEC §7, amended 2026-10-21).
+.lp-upload-confirm {
+  margin: var(--app-space-3) 0 0;
+  padding: var(--app-space-3);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 4px;
+  min-width: 0;
+
+  legend {
+    font-weight: 600;
+    padding: 0 var(--app-space-1);
+  }
+
+  label {
+    cursor: pointer;
+  }
+}
+
+.lp-upload-confirm__subject {
+  margin-bottom: var(--app-space-3);
+}
+
 // The native file input is deliberately LEFT ALONE apart from its type, which is set to match the
 // controls beside it. Restyling `input[type=file]` means hiding it and driving it from a `<label>`,
 // which trades a familiar OS control — and its keyboard and screen-reader behaviour — for a

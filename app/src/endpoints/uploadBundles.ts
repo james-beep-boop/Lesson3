@@ -13,6 +13,11 @@
  *    `.js` RCE concern that kept ingest off HTTP (SPEC §7) does not apply to JSON.parse.
  *  - **Size/count caps** bound the request; the same validate + taxonomy gates as the CLI run
  *    in pre-flight; invalid files are rejected and valid files are committed together.
+ *  - **Missing subjects/grades (SPEC §7, amended 2026-10-21):** without a `createTaxonomy` field, an
+ *    upload that needs any returns **409** with `needsConfirmation` and the `missing` list, having
+ *    written nothing. The client resubmits the same files with `createTaxonomy` = a JSON array of
+ *    approved `{subject, grade}`; an approval the files do not need is a 400. Creation therefore
+ *    shares this endpoint's Site-Admin gate — there is no second door.
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
@@ -20,6 +25,7 @@ import { isSiteAdmin } from '../access'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import { ingestUploadItems } from '../ingest'
 import { IngestError } from '../ingest/errors'
+import type { TaxonomyKey } from '../ingest/taxonomy'
 import { MAX_BODY_BYTES, MAX_FILES, prepareUploadFiles } from '../ingest/uploadFiles'
 import type { User } from '../payload-types'
 import { assertDeclaredBodyWithin } from './respond'
@@ -75,20 +81,71 @@ export const uploadBundlesEndpoint: Endpoint = {
       throw e
     }
 
+    const approvals = parseApprovals(form.get('createTaxonomy'))
+
     // Trusted system path: authorization was enforced before buffering or inspecting any input.
-    const report = await ingestUploadItems(req.payload, inputs.items)
+    let report: Awaited<ReturnType<typeof ingestUploadItems>>
+    try {
+      report = await ingestUploadItems(req.payload, inputs.items, approvals)
+    } catch (e) {
+      if (e instanceof IngestError) throw new APIError(e.message, 400)
+      throw e
+    }
     const rejected = [...inputs.rejected, ...report.rejected]
+    const skipped = [...inputs.skipped, ...report.skipped]
+    if (report.needsConfirmation) {
+      return Response.json(
+        {
+          ok: false,
+          needsConfirmation: true,
+          missing: report.missing,
+          count: 0,
+          bundles: [],
+          created: [],
+          rejected,
+          skipped,
+        },
+        { status: 409 },
+      )
+    }
     const ok = report.bundles.length > 0 || report.skipped.length > 0
     return Response.json(
       {
         ok,
         count: report.bundles.length,
         bundles: report.bundles,
+        created: report.created,
         rejected,
-        skipped: [...inputs.skipped, ...report.skipped],
+        skipped,
         ...(ok ? {} : { error: 'No files were imported. See the rejection report.' }),
       },
       { status: ok ? 200 : 422 },
     )
   },
+}
+
+/** Most approvals one request may carry — far above any real upload (500 files at most). */
+const MAX_APPROVALS = 500
+
+/**
+ * The `createTaxonomy` form field: absent → `undefined` (not asked yet); otherwise a JSON array of
+ * `{subject, grade}` (possibly empty: "create nothing"). Anything malformed is a 400, never a guess.
+ */
+function parseApprovals(field: FormDataEntryValue | null): TaxonomyKey[] | undefined {
+  if (field == null) return undefined
+  const bad = () => new APIError('createTaxonomy must be a JSON array of {subject, grade}', 400)
+  if (typeof field !== 'string') throw bad()
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(field)
+  } catch {
+    throw bad()
+  }
+  if (!Array.isArray(parsed) || parsed.length > MAX_APPROVALS) throw bad()
+  return parsed.map((item) => {
+    const { subject, grade } = (item ?? {}) as { subject?: unknown; grade?: unknown }
+    if (typeof subject !== 'string' || !subject.trim() || subject.length > 200) throw bad()
+    if (typeof grade !== 'number' || !Number.isInteger(grade)) throw bad()
+    return { subject: subject.trim(), grade }
+  })
 }

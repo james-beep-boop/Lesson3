@@ -688,7 +688,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   Open <em>Manage → Subjects and grades</em>. Add the subject first, then tick its
                   grade. Use <em>+ Grade</em> to add a grade column from 1–12. The subject name and
-                  grade must match the lesson file.
+                  grade must match the lesson file. An upload can also create missing subjects and
+                  grades after asking you.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -699,12 +700,14 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     Open <em>Manage → Lesson plans → Upload lesson plans</em>.
                   </li>
-                  <li>
-                    First create the subject under <em>Subjects and grades → Subjects</em>, then add
-                    its grade under <em>Subject grades</em>. Uploads reject files with no matching
-                    subject grade.
-                  </li>
                   <li>Select ARES JSON files or ZIP archives containing JSON lesson plans.</li>
+                  <li>
+                    If the files name a subject or grade that does not exist yet, nothing is
+                    imported until you answer. Tick the subjects and grades to create. If a new
+                    subject’s name looks like an existing one, say whether it is a new subject or a
+                    misspelling; a misspelling is not created and its files are rejected so you can
+                    correct them.
+                  </li>
                   <li>
                     Submit the upload and review the report. Valid files are imported even if others
                     fail; rejected files include the reason. Unchanged files are skipped, so you can

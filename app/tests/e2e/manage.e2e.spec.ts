@@ -395,7 +395,7 @@ test.describe('Manage page', () => {
     await expect(page.getByRole('heading', { name: 'Set an Official version' })).toBeVisible()
     await openPanel(page, 'Upload lesson plans')
     await expect(
-      page.getByText('Before uploading, create the subject under', {
+      page.getByText('you will be asked whether to create it', {
         exact: false,
       }),
     ).toBeVisible()

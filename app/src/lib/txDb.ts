@@ -206,6 +206,9 @@ export const ADVISORY_LOCKS = {
   adminCount: { classifier: 1280527187, key: 2 },
   /** The System Save endpoint's check-and-write — `endpoints/systemSettingsSave.ts`. */
   systemSettings: { classifier: 1398362964, key: 1 },
+  /** Upload-approved Subject/SubjectGrade creation — `ingest/index.ts` (`createApprovedTaxonomy`).
+   *  Classifier is ASCII "TAXO". */
+  taxonomyCreate: { classifier: 1413568591, key: 1 },
 } as const
 export type AdvisoryLockName = keyof typeof ADVISORY_LOCKS
 
