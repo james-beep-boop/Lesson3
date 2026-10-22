@@ -21,6 +21,24 @@ checks first render and history navigation, including combination with a valid g
 **Lesson:** when replacing buttons with a native select, validate restored values against its options;
 a browser's fallback display does not update the application state used to filter results.
 
+## 2026-10-21 — Web upload offers to create missing subjects and grades
+
+Operator decision; amends SPEC §7, which said upload "never auto-creates Subjects/SubjectGrades
+(keeps that curated junction list clean)". A Site Administrator uploading files for a subject or
+grade that does not exist yet is now asked whether to create it, instead of being sent to Manage
+first. The old rule's purpose — no stray near-duplicate subjects — is kept by two means: nothing is
+created without an explicit approval, and near-miss names are handled by rule. Decisions taken:
+
+- **The whole request is checked before anything is asked or written.** Files that need no new
+  taxonomy wait too: one decision, one result, never half a batch plus a question.
+- **Near misses:** a name differing from an existing one only by case or whitespace is never
+  created (two such subjects must not coexist); a merely similar name is asked about, unticked,
+  as "new subject or misspelling?". A misspelling rejects its files; it is never mapped onto the
+  existing subject, because `META.subject` prints on the document and the fix belongs in the file.
+- **No server-side staging:** the browser resubmits the same files with the approval list, and the
+  server re-runs pre-flight and creates only approved items the files need, in the plan transaction.
+- **The dev CLI is left alone.**
+
 ## 2026-10-21 — Playwright 1.64: the browser tests reach the app as `lesson3-e2e`, not `app`
 
 Playwright 1.58.2 → 1.64.1 (only `@playwright/test`, `playwright`, `playwright-core` move). A dependency
