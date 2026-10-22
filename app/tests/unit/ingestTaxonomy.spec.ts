@@ -14,8 +14,9 @@ const pending = (file: string, subject: string, grade: number, subjectExists = f
 })
 
 describe('normalizeSubjectName', () => {
-  it('ignores letter case, surrounding and repeated whitespace', () => {
-    expect(normalizeSubjectName('  Life  SKILLS ')).toBe('life skills')
+  it('ignores letter case and ALL whitespace, including word boundaries', () => {
+    expect(normalizeSubjectName('  Life  SKILLS ')).toBe('lifeskills')
+    expect(normalizeSubjectName('LifeSkills')).toBe('lifeskills')
   })
 })
 
@@ -74,6 +75,39 @@ describe('classifyMissingTaxonomy', () => {
     expect(blocked.map((b) => b.file)).toEqual(['a.json', 'b.json'])
     expect(blocked[0]!.error).toContain('only in capitals or spacing')
     expect(blocked[0]!.error).toContain('"Mathematics"')
+  })
+
+  it('never offers a name that differs from an existing subject by inserted or deleted spaces', () => {
+    const { offered, blocked } = classifyMissingTaxonomy(
+      [pending('a.json', 'ComputerScience', 9), pending('b.json', 'Life Skills', 9)],
+      ['Computer Science', 'LifeSkills'],
+    )
+    expect(offered).toEqual([])
+    expect(blocked.map((b) => b.error)).toEqual([
+      expect.stringContaining('existing subject "Computer Science"'),
+      expect.stringContaining('existing subject "LifeSkills"'),
+    ])
+  })
+
+  it('blocks BOTH spellings when two new names in one upload differ only by a space', () => {
+    const { offered, blocked } = classifyMissingTaxonomy(
+      [pending('a.json', 'Computer Science', 9), pending('b.json', 'ComputerScience', 9)],
+      [],
+    )
+    expect(offered).toEqual([])
+    expect(blocked).toHaveLength(2)
+  })
+
+  it('an exact existing name is never blocked as its own near-duplicate (created since lookup)', () => {
+    // The file was resolved before a concurrent upload created "Geography"; it now needs only its grade.
+    const { offered, blocked } = classifyMissingTaxonomy(
+      [pending('a.json', 'Geography', 9, false)],
+      ['Geography'],
+    )
+    expect(blocked).toEqual([])
+    expect(offered).toEqual([
+      { subject: 'Geography', grade: 9, newSubject: false, similarTo: [], files: ['a.json'] },
+    ])
   })
 
   it('blocks BOTH spellings when two new names in one upload differ only by case', () => {

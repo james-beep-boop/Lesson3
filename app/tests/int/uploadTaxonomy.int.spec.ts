@@ -147,4 +147,55 @@ describe('upload-approved taxonomy', () => {
     expect(report.bundles).toHaveLength(1)
     expect(report.created).toEqual([])
   })
+
+  /**
+   * Codex review of PR #431: another upload creates the subject BETWEEN this file's own lookup and
+   * pre-flight's all-subjects read. Forced by creating it inside that read. Before the fix, the file
+   * was blocked as differing from itself "only in capitals or spacing" and the approved resubmission
+   * got a 400 for an "unneeded" approval.
+   */
+  it.each([
+    ['subject and grade', true],
+    ['subject only', false],
+  ])('a concurrent creation of the %s does not falsely reject the file', async (_, withGrade) => {
+    const subject = `${MARK}Raced${withGrade ? 'Both' : 'Subject'}`
+    const original = payload.find.bind(payload)
+    let raced = false
+    const find = vi.spyOn(payload, 'find').mockImplementation((async (args: {
+      collection: string
+      pagination?: boolean
+    }) => {
+      if (!raced && args.collection === 'subjects' && args.pagination === false) {
+        raced = true
+        const doc = await payload.create({
+          collection: 'subjects',
+          data: { name: subject },
+          overrideAccess: true,
+        })
+        if (withGrade) {
+          await payload.create({
+            collection: 'subject-grades',
+            data: { subject: doc.id, grade: 9 },
+            overrideAccess: true,
+          })
+        }
+      }
+      return original(args as never)
+    }) as never)
+    let report: Awaited<ReturnType<typeof ingestUploadItems>>
+    try {
+      report = await ingestUploadItems(
+        payload,
+        [item('a.json', rawBundle(withGrade ? '96.5' : '96.6', subject, 9))],
+        [{ subject, grade: 9 }],
+      )
+    } finally {
+      find.mockRestore()
+    }
+    expect(raced).toBe(true)
+    expect(report.rejected).toEqual([])
+    expect(report.bundles).toHaveLength(1)
+    expect(report.created).toEqual(withGrade ? [] : [{ subject, grade: 9, newSubject: false }])
+    expect((await subjectsNamed(subject)).totalDocs).toBe(1)
+  })
 })

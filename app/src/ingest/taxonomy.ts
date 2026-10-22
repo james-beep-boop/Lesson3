@@ -33,9 +33,12 @@ export type PendingTaxonomy = TaxonomyKey & { file: string; subjectExists: boole
 
 export const taxonomyKey = ({ subject, grade }: TaxonomyKey): string => `${subject}::${grade}`
 
-/** Case- and whitespace-insensitive form: `"  Life  skills "` and `"Life Skills"` are one name. */
-export const normalizeSubjectName = (name: string): string =>
-  name.trim().replace(/\s+/g, ' ').toLowerCase()
+/**
+ * The form two names must not share: case and ALL whitespace removed, so `"Life  skills"`,
+ * `"LifeSkills"` and `"Life Skills"` are one name. Word boundaries are deliberately not preserved —
+ * `ComputerScience` beside `Computer Science` is the stray near-duplicate this rule exists to stop.
+ */
+export const normalizeSubjectName = (name: string): string => name.replace(/\s+/g, '').toLowerCase()
 
 /** Plain Levenshtein distance (subject names are short; O(n·m) is fine). */
 function editDistance(a: string, b: string): number {
@@ -80,10 +83,13 @@ export function classifyMissingTaxonomy(
   existingSubjects: string[],
 ): { offered: MissingTaxonomy[]; blocked: { file: string; error: string }[] } {
   const existingByNorm = new Map(existingSubjects.map((n) => [normalizeSubjectName(n), n]))
+  // An exact existing name is never "new", even if the file was resolved before it was created.
+  const existingNames = new Set(existingSubjects)
+  const subjectExists = (p: PendingTaxonomy) => p.subjectExists || existingNames.has(p.subject)
   // Every distinct spelling of each new subject in this upload, by normalized name.
   const newSpellings = new Map<string, Set<string>>()
   for (const p of pending) {
-    if (p.subjectExists) continue
+    if (subjectExists(p)) continue
     const norm = normalizeSubjectName(p.subject)
     newSpellings.set(norm, (newSpellings.get(norm) ?? new Set()).add(p.subject))
   }
@@ -92,7 +98,7 @@ export function classifyMissingTaxonomy(
     if (!isGradeLevel(p.grade)) {
       return `Grade ${p.grade} is outside Grades ${MIN_GRADE}–${MAX_GRADE}, so it cannot be created. Correct META.grade in the file.`
     }
-    if (p.subjectExists) return null
+    if (subjectExists(p)) return null
     const norm = normalizeSubjectName(p.subject)
     const existing = existingByNorm.get(norm)
     if (existing) {
@@ -120,7 +126,7 @@ export function classifyMissingTaxonomy(
       offeredByKey.set(key, {
         subject: p.subject,
         grade: p.grade,
-        newSubject: !p.subjectExists,
+        newSubject: !subjectExists(p),
         similarTo: [],
         files: [p.file],
       })

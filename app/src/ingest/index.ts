@@ -490,6 +490,37 @@ async function prepareItems(
       select: { name: true },
       req: preflightReq,
     })
+    // Reconcile with taxonomy created since each file was resolved (a concurrent upload or Manage):
+    // a file whose exact subject now exists is looked up again, so it either resolves normally or
+    // waits only on its grade — never "differs from itself only in capitals or spacing".
+    const subjectNames = new Set(subjects.map((s) => s.name))
+    for (const p of pending.splice(0)) {
+      if (p.subjectExists || !subjectNames.has(p.taxonomy.subject)) {
+        pending.push(p)
+        continue
+      }
+      try {
+        const again = await resolveTaxonomy(payload, { META: { ...p.taxonomy } }, preflightReq)
+        if (again.subjectGradeId == null) {
+          pending.push({ ...p, subjectExists: true })
+          continue
+        }
+        const { subjectExists: _, ...rest } = p
+        prepared.push({
+          ...rest,
+          subjectGrade: again.subjectGradeId,
+          existingPlanId: await findExistingPlan(
+            payload,
+            again.subjectGradeId,
+            p.substrandId,
+            preflightReq,
+          ),
+        })
+      } catch (e) {
+        if (!(e instanceof IngestError)) throw e
+        rejected.push({ file: p.name, error: e.message })
+      }
+    }
     const { offered, blocked } = classifyMissingTaxonomy(
       pending.map((p) => ({ ...p.taxonomy, file: p.name, subjectExists: p.subjectExists })),
       subjects.map((s) => s.name),
