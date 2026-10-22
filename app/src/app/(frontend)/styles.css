@@ -784,7 +784,7 @@ button.user-menu__item {
   white-space: nowrap;
 }
 
-/* T2 filter chips: subject + grade rows under the search box; URL-driven links. */
+/* Library filters: grade checkboxes above a subject dropdown. */
 .filter-bar {
   display: flex;
   flex-direction: column;
@@ -793,13 +793,34 @@ button.user-menu__item {
 }
 .filter-group {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.4rem 0.8rem;
 }
-/* Subject/grade filters have no rule of their own: they are `.btn.btn--quiet` with `.is-active`,
-   from the shared button system (they were 999px pills at 0.85rem — a sixth geometry on a page that
-   now has one). Why selected FILLS, and how that differs from Favorite's toggled star, is explained
-   once on `.btn.is-active` rather than restated here. */
+.filter-grade {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+.filter-grade input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.filter-group select {
+  width: auto;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
 
 /* The name is the primary navigation to the lesson page. It reads as a link AT REST — accent
    colour, so new users see it's clickable without hovering (2026-07-14) — and underlines the name
@@ -1862,7 +1883,6 @@ button.user-menu__item {
   .substrand-versions:empty {
     display: none;
   }
-  /* (Filter chips reach the 44px hit area through the shared `.btn` rule below.) */
   /* (The versions chip reaches the 44px touch bar through the shared `.btn` rule below.) */
   .vp-line-open {
     min-height: 2.75rem;

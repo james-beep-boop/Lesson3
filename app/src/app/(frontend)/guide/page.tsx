@@ -87,7 +87,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                   <li>
                     Enter a subject, grade, strand, or sub-strand in the search box. Use the subject
-                    and grade buttons to narrow the results; search and filters work together.
+                    dropdown and grade checkboxes to narrow the results. Select any number of
+                    grades, or All for every grade; search and filters work together.
                   </li>
                   <li>
                     Open a sub-strand to read its Lesson Sequence, Final Explanation, and Summary
