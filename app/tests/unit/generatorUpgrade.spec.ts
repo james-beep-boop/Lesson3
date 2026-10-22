@@ -276,7 +276,9 @@ describe('attribution', () => {
     const three = data({
       LESSONS: [1, 2, 3].map((n) => lesson(n, `Lesson ${n}`, links(`L${n}`))),
     })
-    expect(count((await parts(await generateLessonSequenceDocx(three))).xml, FOOTER)).toBe(3)
+    const threeXml = (await parts(await generateLessonSequenceDocx(three))).xml
+    expect(count(threeXml, FOOTER)).toBe(3)
+    expect(count(threeXml, '© 2026 SeaVuria and ARES Education.')).toBe(4)
   })
 
   it('uses the FIXED configured copyright year, never the render-time year', async () => {

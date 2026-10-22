@@ -113,10 +113,10 @@ describe('export artifacts', () => {
     expect(await isExportReady(current)).toBe(false)
   })
 
-  it('is at least render version 9 for this generator', async () => {
-    // A deliberate tripwire: the pinned generator's output changed (attribution, split final explanation,
-    // tables, null wording, tables in more fields, keep-with-next, full-width framework tables). Lowering this would let a stale zip be served as if current.
+  it('is at least render version 10 for the corrected ARES Education attribution', async () => {
+    // Revision 10 changes the copyright wording. Lowering it to 9 would serve cached artifacts
+    // with the old attribution even though freshly generated documents pass the wording tests.
     const { GENERATOR_RENDER_VERSION } = await load()
-    expect(GENERATOR_RENDER_VERSION).toBeGreaterThanOrEqual(9)
+    expect(GENERATOR_RENDER_VERSION).toBeGreaterThanOrEqual(10)
   })
 })

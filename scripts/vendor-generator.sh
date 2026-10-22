@@ -4,25 +4,35 @@
 #
 # Copies the four Node lib files byte-verbatim from a local clone of
 # cbe-generation-system at a given commit into app/src/generator/vendor/lib/, and writes the
-# attribution config (see the YAML section below).
+# attribution config (see the YAML section below). An optional config revision keeps a
+# configuration-only update reproducible without changing renderer libraries.
 # aresResources.js is intentionally NOT vendored (single-runtime; see
 # app/src/generator/vendor/PROVENANCE.md).
 #
 # Usage:
-#   scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <commit-sha>
+#   scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <library-commit-sha> [config-commit-sha]
 #
 # After running, re-run both fidelity regressions BEFORE trusting the new version, then update
 # PROVENANCE.md. Create a mirror tag only as a separately approved upstream-repository operation.
 set -euo pipefail
 
-GEN_CLONE="${1:?usage: vendor-generator.sh <clone-path> <commit-sha>}"
-SHA="${2:?usage: vendor-generator.sh <clone-path> <commit-sha>}"
+GEN_CLONE="${1:?usage: vendor-generator.sh <clone-path> <library-commit-sha> [config-commit-sha]}"
+SHA="${2:?usage: vendor-generator.sh <clone-path> <library-commit-sha> [config-commit-sha]}"
+CONFIG_SHA="${3:-$SHA}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VEND="$REPO_ROOT/app/src/generator/vendor/lib"
 mkdir -p "$VEND"
 
 FILES=(build_docs.js sections.js docx_kit.js attribution.js)
+
+# Validate both revisions before replacing any vendored file.
+for f in "${FILES[@]}"; do
+  git -C "$GEN_CLONE" cat-file -e "${SHA}:generators/lib/$f"
+done
+git -C "$GEN_CLONE" cat-file -e "${CONFIG_SHA}:config/attribution.yaml"
+echo "library revision: $SHA"
+echo "attribution configuration revision: $CONFIG_SHA"
 
 for f in "${FILES[@]}"; do
   git -C "$GEN_CLONE" show "${SHA}:generators/lib/$f" > "$VEND/$f"
@@ -50,7 +60,7 @@ PRISTINE_DIR="$REPO_ROOT/app/src/generator/vendor/config"   # provenance copy, b
 CONFIG_DIR="$REPO_ROOT/app/src/generator/config"
 FIXED_YEAR=2026
 mkdir -p "$PRISTINE_DIR" "$CONFIG_DIR"
-git -C "$GEN_CLONE" show "${SHA}:config/attribution.yaml" > "$PRISTINE_DIR/attribution.upstream.yaml"
+git -C "$GEN_CLONE" show "${CONFIG_SHA}:config/attribution.yaml" > "$PRISTINE_DIR/attribution.upstream.yaml"
 sed -E "s/^year: auto( .*)?$/year: ${FIXED_YEAR}   # Lesson3: fixed configured copyright year (upstream: auto); see PROVENANCE.md/" \
   "$PRISTINE_DIR/attribution.upstream.yaml" > "$CONFIG_DIR/attribution.yaml"
 if ! grep -q "^year: ${FIXED_YEAR} " "$CONFIG_DIR/attribution.yaml"; then

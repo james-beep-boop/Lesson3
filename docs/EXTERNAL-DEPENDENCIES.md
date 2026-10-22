@@ -88,7 +88,8 @@ See `app/src/generator/vendor/PROVENANCE.md` for checksums and the re-sync proce
   supplies the stored JSON map through `AsyncLocalStorage` and filters hyperlinks to HTTP(S).
 - **`docx` and `mammoth` are pinned production dependencies** in `app/package.json`.
   Mammoth supplies DOCX-to-HTML previews as well as test comparisons; it is not test-only.
-- **Re-sync:** `scripts/vendor-generator.sh <clone> <sha>`, then re-run the fidelity regression
+- **Re-sync:** `scripts/vendor-generator.sh <clone> <library-sha> [config-sha]` (use both current pins
+  from `app/src/generator/vendor/PROVENANCE.md`), then re-run the fidelity regression
   (the acceptance gate) before trusting the new version.
 
 > `build_docs.js` already exports builders that return `docx` `Document`s and a `run(dataModule)`;

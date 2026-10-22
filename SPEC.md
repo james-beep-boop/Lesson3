@@ -178,7 +178,7 @@ DOCX fidelity is owned entirely by ARES's generator. Editing must stay within it
   no live Python/SQLite lookup, and no user-editable resource field.
 - **`framework[].phase` is a controlled vocabulary** — phase names drive colour-coding and resource lookup; an unknown phase silently degrades output. Phase is a fixed dropdown, never free text.
 - **Document attribution (implemented 2026-10-07; supersedes the 2026-08-12 "every page" wording):**
-  every document carries upstream's attribution and licence block — **CC BY-NC 4.0**, SeaVuria and ARES
+  every document carries upstream's attribution and licence block — **CC BY-NC 4.0**, SeaVuria and ARES Education
   — exactly as Mark's generator renders it: the full block once after the sub-strand overview in the Lesson
   Sequence and at the end of the Final Explanation, teacher key and Summary Table, plus a short footer after
   **every** lesson. It is **not** stamped on every page; the placement is upstream's (2026-10-01) and the

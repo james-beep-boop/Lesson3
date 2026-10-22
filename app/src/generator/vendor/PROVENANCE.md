@@ -4,11 +4,11 @@ The four files under `lib/` are copied byte-verbatim from the ARES CBE generatio
 not be edited locally. Lesson3 integration remains outside those files. The fidelity gates, not the
 commit label alone, are the acceptance proof for this pin.
 
-## Current source pin
+## Current library source pin
 
 - **Repository:** `markknit/cbe-generation-system`
 - **Branch:** `main`
-- **Pinned commit:** `f83db61931566df6bde9252db552bd353ed43d7a` (`f83db61`, upstream 2026-10-08 UTC; a direct
+- **Library commit:** `f83db61931566df6bde9252db552bd353ed43d7a` (`f83db61`, upstream 2026-10-08 UTC; a direct
   child of the previous pin `b3743ff`)
 - **Vendored:** 2026-10-08
 - **Reason:** adopt upstream's fix for the cramped table layout we reported. A Markdown table in a
@@ -16,8 +16,9 @@ commit label alone, are the acceptance proof for this pin.
   is now pulled out of the narrow cell (`stripTables`, new in `docx_kit.js`), a "(table below)" pointer is
   left behind, and the table prints **full-width in a row of its own under the phase** (`sections.js`).
   `richCell` also now treats a table as TWO OR MORE consecutive pipe rows — a lone `|x| = 3` line is maths and
-  stays text. Only `sections.js` and `docx_kit.js` changed; `build_docs.js`, `attribution.js`,
-  `config/attribution.yaml` and upstream's `aresResources.js` are byte-identical to the previous pin.
+  stays text. Only `sections.js` and `docx_kit.js` changed; `build_docs.js`, `attribution.js`
+  and upstream's `aresResources.js` are byte-identical to the previous library pin. Attribution
+  configuration has its own newer pin below; it is not sourced from this library revision.
   **Previous pins:** `b3743ff` (2026-10-07), `6591146` (2026-10-06), `a546ee3` (2026-09-19).
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
@@ -105,15 +106,25 @@ marks the directory as CommonJS so the ESM application can load the pristine sou
 From the Lesson3 repository root:
 
 ```sh
-scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <commit-sha>
+scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <library-commit-sha> [config-commit-sha]
 ```
 
-For the configuration-only update recorded above, copy `config/attribution.yaml` from its separate
-configuration commit into `vendor/config/attribution.upstream.yaml`, then derive the runtime copy by
-replacing only `year: auto` with the recorded fixed-year line. Keep `vendor/lib/` at its recorded pin.
+Omitting the configuration revision preserves the original single-commit behavior. To reproduce
+**the current split pins**, pass both revisions explicitly:
 
-The full re-sync script copies the four lib files and derives the fixed-year attribution config. Re-check upstream's
-`sections.js` resource path and `build_docs.js` imports against the bridge before trusting a new pin.
+```sh
+scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> \
+  f83db61931566df6bde9252db552bd353ed43d7a \
+  d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e
+```
+
+The script copies the four library files from the library revision, and the pristine attribution
+config from the configuration revision, then derives its fixed-year runtime copy. Both revisions
+are validated before any vendored file is replaced. Re-check upstream's `sections.js` resource path
+and `build_docs.js` imports against the bridge before trusting a new library pin.
+
+`bash scripts/test-vendor-generator.sh` exercises single-commit and split-commit reproduction against
+a disposable upstream Git repository whose library and configuration revisions differ.
 
 Then update this record and run, from `app/`:
 

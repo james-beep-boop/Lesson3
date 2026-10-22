@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — PR #432 review: reproduce split pins and guard attribution cache invalidation
+
+Confirmed the seven review findings. Merge current main into the published branch rather than
+rebasing/force-pushing it: published history must remain intact. Main's Apple Silicon trial guide
+introduced another executable Node base-image pin after this branch was cut; update that example
+to the same 24.22.1 Alpine index digest. Current audit guidance follows the new runtime too.
+
+`vendor-generator.sh <clone> <library-sha> [config-sha]` now accepts a separate attribution revision,
+defaulting to the library revision for existing two-argument callers. It validates both revisions
+before replacing files. The documented current command explicitly passes `f83db61` and `d3d2b87`,
+so replaying it preserves the libraries and reproduces the new attribution configuration. The
+provenance opening now labels the library pin and does not claim the config is from that revision.
+SPEC's copyright name is corrected to ARES Education.
+
+**Tests:** a disposable upstream Git repository deliberately changes all four libraries alongside
+its config. The shell regression proves the old invocation, split invocation, fixed-year-only
+runtime deviation, retention of the unused key, and refusal of invalid revisions without changing
+vendored files. The real upstream two-pin command also reproduces the shipped files byte-for-byte.
+The provenance test requires both source labels, the cache regression requires renderer revision
+>=10 (a temporary rollback to 9 fails that test), and the three-lesson fixture checks all four
+copyright occurrences. All 64 focused tests, shell regressions, ESLint and formatting pass.
+
+**Lesson:** a separate source pin needs a reproducible script interface, not only a manual procedure.
+Cache regression tests must require the revision that carries the current rendering change;
+otherwise fresh-render wording tests can pass while old cached wording remains visible.
+
 ## 2026-10-22 — Node 24.22.1 security patch, all runtime pins together
 
 Update the app's Alpine base, the Bookworm browser runner and the Alpine restore-probe tools to
