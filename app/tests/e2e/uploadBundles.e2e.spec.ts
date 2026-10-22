@@ -7,11 +7,11 @@ import { MARK, minimalResourceLinks, setupRoleFixture, type RoleFixture } from '
 
 let fx: RoleFixture
 
-const raw = (id: string) => ({
+const raw = (id: string, subject = fx.subject.name, grade = fx.subjectGrade.grade) => ({
   schemaVersion: '1.0.0',
   META: {
-    subject: fx.subject.name,
-    grade: fx.subjectGrade.grade,
+    subject,
+    grade,
     substrand_id: id,
     substrand_name: `${MARK}${id}`,
     titleDoc: `${MARK}ZIP ${id}`,
@@ -110,5 +110,47 @@ test.describe('ZIP upload report', () => {
     ).toBeVisible()
     await expect(page.getByText('bad.zip/bad.json', { exact: true })).toBeVisible()
     await expect(page.getByText(/lessons.zip\/folder\/last.json · New/)).toHaveCount(0)
+  })
+
+  test('asks before creating missing subjects and grades, then imports', async ({
+    page,
+  }, testInfo) => {
+    await loginAs(page, fx, 'siteAdmin')
+    await page.goto(`${BASE}/admin?open=plans,plans.upload`)
+    // A new subject that shares the fixture's long MARK prefix with `${MARK}Biology` — so it is
+    // "similar" and must be answered — plus a new grade of the existing fixture subject.
+    const geography = `${MARK}Geography`
+    const zip = new JSZip()
+      .file('geo-a.json', JSON.stringify(raw('99.newTax1', geography, 9)))
+      .file('geo-b.json', JSON.stringify(raw('99.newTax2', geography, 9)))
+      .file('bio.json', JSON.stringify(raw('99.newTax3', fx.subject.name, 9)))
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'new.zip',
+      mimeType: 'application/zip',
+      buffer: await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }),
+    })
+    await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
+
+    const confirm = page.getByRole('group', { name: 'Create missing subjects and grades?' })
+    await expect(confirm).toBeVisible()
+    await expect(confirm.getByText(`Create ${geography} — Grade 9 (2 files)`)).toBeVisible()
+    await expect(confirm.getByText(`Create ${fx.subject.name} — Grade 9 (1 file)`)).toBeVisible()
+    // The similar-named subject must be answered before anything is sent.
+    const create = confirm.getByRole('button', { name: /^Create \d+ and import$/ })
+    await expect(create).toBeDisabled()
+    await page.screenshot({ path: testInfo.outputPath('confirm-taxonomy.png'), fullPage: true })
+    await confirm.getByRole('radio', { name: 'A new subject' }).check()
+    await expect(confirm.getByRole('button', { name: 'Create 2 and import' })).toBeEnabled()
+    await confirm.getByRole('button', { name: 'Create 2 and import' }).click()
+
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Imported 3 file(s); rejected 0; skipped 0.' }),
+    ).toBeVisible()
+    const created = page.getByRole('list', { name: 'Created subjects and grades' })
+    await expect(created.getByRole('listitem')).toHaveText([
+      `${geography} — Grade 9 (new subject)`,
+      `${fx.subject.name} — Grade 9`,
+    ])
+    await expect(confirm).toHaveCount(0)
   })
 })

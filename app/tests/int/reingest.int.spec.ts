@@ -462,7 +462,7 @@ describe('partial web ingest', () => {
     ;(noGrade.META as Record<string, unknown>).grade = GRADE + 1
     const drift = rawBundle('97.82', 'Contract failure')
     drift.schemaVersion = 'invalid'
-    const result = await ingestUploadItems(payload, [
+    const files = [
       item('zip/first.json', rawBundle('97.80', 'First valid')),
       {
         name: 'zip/broken.json',
@@ -474,22 +474,31 @@ describe('partial web ingest', () => {
       item('zip/grade.json', noGrade),
       item('zip/contract.json', drift),
       item('zip/last.json', rawBundle('97.83', 'Last valid')),
+    ]
+    // Missing taxonomy (SPEC §7, amended 2026-10-21): the first round asks and writes nothing,
+    // listing both missing items beside the other rejections.
+    const before = await payload.count({ collection: 'lesson-bundle-versions' })
+    const asked = await ingestUploadItems(payload, files)
+    expect(asked.needsConfirmation).toBe(true)
+    expect(asked.bundles).toEqual([])
+    expect(asked.missing.map((m) => [m.subject, m.grade, m.newSubject, m.files])).toEqual([
+      ['Missing subject for ZIP test', GRADE, true, ['zip/taxonomy.json']],
+      [`${MARK}Biology`, GRADE + 1, false, ['zip/grade.json']],
     ])
+    expect(await payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
+
+    // Declining both imports the valid files and rejects the two that needed taxonomy.
+    const result = await ingestUploadItems(payload, files, [])
     expect(result.bundles.map((r) => r.file)).toEqual(['zip/first.json', 'zip/last.json'])
+    expect(result.created).toEqual([])
     expect(result.rejected.map((r) => r.file)).toEqual([
       'zip/broken.json',
+      'zip/contract.json',
       'zip/taxonomy.json',
       'zip/grade.json',
-      'zip/contract.json',
     ])
-    expect(result.rejected.find((r) => r.file === 'zip/taxonomy.json')?.error).toContain(
-      'Manage → Subjects and grades',
-    )
-    expect(result.rejected.find((r) => r.file === 'zip/grade.json')?.error).toContain(
-      'Manage → Subjects and grades → Subject grades',
-    )
-    expect(result.rejected.find((r) => r.file === 'zip/grade.json')?.error).toMatch(
-      /^No subject grade for/,
+    expect(result.rejected.find((r) => r.file === 'zip/grade.json')?.error).toBe(
+      `Not created: you chose not to create ${MARK}Biology — Grade ${GRADE + 1}.`,
     )
     for (const r of result.bundles) expect(await versionsOf(r.id)).toEqual(['1.0.0'])
   })

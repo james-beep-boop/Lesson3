@@ -21,6 +21,16 @@ checks first render and history navigation, including combination with a valid g
 **Lesson:** when replacing buttons with a native select, validate restored values against its options;
 a browser's fallback display does not update the application state used to filter results.
 
+## 2026-10-21 — `test:http` runs with `NODE_ENV=production`, never `test`
+
+Running the wire suite locally with `-e NODE_ENV=test` (copied from the `test:int` recipe) made the
+test process's Payload push its schema to the probe stack's **app** database and leave a `dev` row
+(batch −1) in `payload_migrations`. The next `migrate` container then stopped at Payload's interactive
+"you've run Payload in dev mode" prompt and hung silently for 40 minutes, holding the app back.
+Repaired by deleting that row (no schema had drifted). **The rule:** `NODE_ENV=test` belongs only to
+`test:int` against `lesson3_test`; `test:http` uses CI's invocation (`-e NODE_ENV=production`), because it
+shares the app's own database. A `migrate` container that stays "Up" means a prompt, not slowness.
+
 ## 2026-10-21 — Web upload offers to create missing subjects and grades
 
 Operator decision; amends SPEC §7, which said upload "never auto-creates Subjects/SubjectGrades

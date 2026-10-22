@@ -9,6 +9,11 @@
  * the real authorization boundary is the server endpoint (POST /api/lesson-plans/upload),
  * which re-checks isSiteAdmin. Accepts ARES `.json` exports and ZIP archives and creates Official 1.0.0
  * lesson-plan versions.
+ *
+ * Missing subjects/grades (SPEC §7, amended 2026-10-21): the server answers 409 with the `missing`
+ * list and writes nothing. The panel asks once, then resubmits the SAME files with `createTaxonomy`.
+ * A subject whose name resembles another (`similarTo`) must be answered "new subject" or
+ * "misspelling" before anything is sent; a misspelling is never created and its files are rejected.
  */
 import React, { useRef, useState } from 'react'
 import { Button, toast, useAuth, useConfig } from '@payloadcms/ui'
@@ -25,14 +30,34 @@ type UploadResult = {
 }
 
 type FileIssue = { file: string; error: string }
+type TaxonomyKey = { subject: string; grade: number }
+type MissingItem = TaxonomyKey & { newSubject: boolean; similarTo: string[]; files: string[] }
 type UploadReport = {
   ok: boolean
   count: number
   bundles: UploadResult[]
+  created?: (TaxonomyKey & { newSubject: boolean })[]
+  needsConfirmation?: boolean
+  missing?: MissingItem[]
   rejected?: FileIssue[]
   skipped?: FileIssue[]
   error?: string
   errors?: { message?: string }[]
+}
+
+const keyOf = (t: TaxonomyKey) => `${t.subject}::${t.grade}`
+const filesLabel = (n: number) => `${n} file${n === 1 ? '' : 's'}`
+
+/** Missing items grouped by subject, in the order the server listed them. */
+function groupBySubject(missing: MissingItem[]) {
+  const groups = new Map<string, MissingItem[]>()
+  for (const m of missing) groups.set(m.subject, [...(groups.get(m.subject) ?? []), m])
+  return [...groups.entries()].map(([subject, items]) => ({
+    subject,
+    newSubject: items[0]!.newSubject,
+    similarTo: items[0]!.similarTo,
+    items,
+  }))
 }
 
 export default function UploadBundles() {
@@ -43,9 +68,14 @@ export default function UploadBundles() {
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<UploadResult[]>([])
   const [report, setReport] = useState<UploadReport | null>(null)
+  /** The confirmation round: what to ask, the grade ticks, and each similar subject's answer. */
+  const [missing, setMissing] = useState<MissingItem[] | null>(null)
+  const [ticked, setTicked] = useState<Record<string, boolean>>({})
+  const [answers, setAnswers] = useState<Record<string, 'new' | 'misspelling'>>({})
   const clearReport = () => {
     setResults([])
     setReport(null)
+    setMissing(null)
   }
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -55,13 +85,15 @@ export default function UploadBundles() {
 
   const apiBase = `${config.serverURL || ''}${config.routes?.api || '/api'}`
 
-  const onUpload = async () => {
+  /** `approvals` undefined = first round; an array = the Site Administrator's answer. */
+  const onUpload = async (approvals?: TaxonomyKey[]) => {
     if (files.length === 0) {
       toast.error('Choose .json files or a .zip archive first')
       return
     }
     const form = new FormData()
     for (const f of files) form.append('files', f)
+    if (approvals) form.append('createTaxonomy', JSON.stringify(approvals))
 
     setBusy(true)
     clearReport()
@@ -72,6 +104,15 @@ export default function UploadBundles() {
         credentials: 'include',
       })
       const json = (await res.json()) as UploadReport
+      // Missing subjects/grades: nothing was written. Keep the files and ask.
+      if (res.status === 409 && json.needsConfirmation && Array.isArray(json.missing)) {
+        setReport(json)
+        setMissing(json.missing)
+        // Plainly new items start ticked; a similar-named subject starts unticked until answered.
+        setTicked(Object.fromEntries(json.missing.map((m) => [keyOf(m), m.similarTo.length === 0])))
+        setAnswers({})
+        return
+      }
       // A completed report can have no successes (422), or both imports and rejections (200).
       if (
         !Array.isArray(json.bundles) ||
@@ -85,7 +126,10 @@ export default function UploadBundles() {
       setResults(json.bundles)
       const rejected = json.rejected?.length ?? 0
       const skipped = json.skipped?.length ?? 0
-      const message = `Imported ${json.count} file(s); rejected ${rejected}; skipped ${skipped}.`
+      const createdCount = json.created?.length ?? 0
+      const message =
+        `Imported ${json.count} file(s); rejected ${rejected}; skipped ${skipped}.` +
+        (createdCount > 0 ? ` Created ${createdCount} subject grade(s).` : '')
       if (json.ok) toast.success(message)
       else toast.error(message)
       // Reset the picker so the button returns to its disabled "Upload" state and the same
@@ -99,6 +143,24 @@ export default function UploadBundles() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const groups = missing ? groupBySubject(missing) : []
+  const unanswered = groups.some((g) => g.similarTo.length > 0 && !answers[g.subject])
+  const approvals = (missing ?? []).filter(
+    (m) => ticked[keyOf(m)] && (m.similarTo.length === 0 || answers[m.subject] === 'new'),
+  )
+  const answer = (subject: string, value: 'new' | 'misspelling', items: MissingItem[]) => {
+    setAnswers((a) => ({ ...a, [subject]: value }))
+    setTicked((t) => ({
+      ...t,
+      ...Object.fromEntries(items.map((m) => [keyOf(m), value === 'new'])),
+    }))
+  }
+  const cancelConfirmation = () => {
+    clearReport()
+    setFiles([])
+    if (inputRef.current) inputRef.current.value = ''
   }
 
   return (
@@ -116,9 +178,8 @@ export default function UploadBundles() {
           0.85rem (13.6px) against the 14px token and had no max-width measure. */}
       <p className="lp-manage__desc">Site administrator only.</p>
       <p className="lp-manage__desc">
-        Before uploading, create the subject under <strong>Subjects and grades → Subjects</strong>,
-        then add its grade under <strong>Subject grades</strong>. The subject name and grade must
-        match the lesson file.
+        If a file names a subject or grade that does not exist yet, you will be asked whether to
+        create it before anything is imported. The subject name and grade come from the lesson file.
       </p>
       <p className="lp-manage__desc">
         Choose ARES <code>.json</code> exports or <code>.zip</code> archives containing JSON files,
@@ -154,16 +215,112 @@ export default function UploadBundles() {
           className="lp-btn"
           buttonStyle="secondary"
           size="small"
-          onClick={onUpload}
-          disabled={busy || files.length === 0}
+          onClick={() => onUpload()}
+          disabled={busy || files.length === 0 || missing != null}
         >
           {busy ? 'Uploading…' : `Upload${files.length ? ` ${files.length} file(s)` : ''}`}
         </Button>
       </div>
-      {report && (
+      {missing && (
+        <fieldset className="lp-upload-confirm" disabled={busy}>
+          <legend>Create missing subjects and grades?</legend>
+          <p className="lp-manage__desc">
+            Nothing has been imported yet. Tick what to create; files for anything left unticked are
+            rejected. A new grade has no Subject Administrator until you assign one.
+          </p>
+          {groups.map((g) => (
+            <div key={g.subject} className="lp-upload-confirm__subject">
+              <p>
+                <strong>{g.subject}</strong>
+                {g.newSubject ? ' (new subject)' : ' (existing subject, new grade)'}
+              </p>
+              {g.similarTo.length > 0 && (
+                <div role="radiogroup" aria-label={`Is ${g.subject} a new subject?`}>
+                  <p>
+                    Is “{g.subject}” a new subject, or a misspelling of “{g.similarTo.join('”, “')}
+                    ”?
+                  </p>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`answer-${g.subject}`}
+                      checked={answers[g.subject] === 'new'}
+                      onChange={() => answer(g.subject, 'new', g.items)}
+                    />{' '}
+                    A new subject
+                  </label>{' '}
+                  <label>
+                    <input
+                      type="radio"
+                      name={`answer-${g.subject}`}
+                      checked={answers[g.subject] === 'misspelling'}
+                      onChange={() => answer(g.subject, 'misspelling', g.items)}
+                    />{' '}
+                    A misspelling — reject its files so I can correct them
+                  </label>
+                </div>
+              )}
+              <ul className="lp-manage__list">
+                {g.items.map((m) => (
+                  <li key={keyOf(m)}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={!!ticked[keyOf(m)]}
+                        disabled={g.similarTo.length > 0 && answers[g.subject] !== 'new'}
+                        onChange={(e) => setTicked((t) => ({ ...t, [keyOf(m)]: e.target.checked }))}
+                      />{' '}
+                      Create {m.subject} — Grade {m.grade} ({filesLabel(m.files.length)})
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <div className="lp-manage__upload">
+            <Button
+              className="lp-btn"
+              buttonStyle="primary"
+              size="small"
+              onClick={() => onUpload(approvals.map(({ subject, grade }) => ({ subject, grade })))}
+              disabled={busy || unanswered}
+            >
+              {busy ? 'Uploading…' : `Create ${approvals.length} and import`}
+            </Button>
+            <Button
+              className="lp-btn"
+              buttonStyle="secondary"
+              size="small"
+              onClick={cancelConfirmation}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+          </div>
+          {unanswered && (
+            <p className="lp-manage__desc">
+              Answer each “new subject or misspelling?” question first.
+            </p>
+          )}
+        </fieldset>
+      )}
+      {report && !missing && (
         <div role="status" style={{ marginTop: '0.75rem' }}>
           Imported {report.count} file(s); rejected {report.rejected?.length ?? 0}; skipped{' '}
           {report.skipped?.length ?? 0}.
+        </div>
+      )}
+      {(report?.created?.length ?? 0) > 0 && (
+        <div>
+          <p id="lp-upload-created">Created subjects and grades</p>
+          <ul aria-labelledby="lp-upload-created">
+            {report?.created?.map((c) => (
+              <li key={keyOf(c)}>
+                {c.subject} — Grade {c.grade}
+                {c.newSubject ? ' (new subject)' : ''}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {results.length > 0 && (

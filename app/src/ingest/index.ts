@@ -18,15 +18,17 @@
  * Official via the parent LessonPlan. Later edits create additional non-official snapshots;
  * Site Admins / matching Subject Admins move the official pointer when a later version is ready.
  *
- * SubjectGrade: resolved by EXACT (Subject.name, grade) match. Missing taxonomy is a hard,
- * actionable failure — ingest never auto-creates Subjects/SubjectGrades, keeping that
- * curated junction list clean (docs/DECISIONS.md). Seed taxonomy before ingesting.
+ * SubjectGrade: resolved by EXACT (Subject.name, grade) match, and nothing is ever created silently.
+ * The CLI treats missing taxonomy as a hard, actionable failure (seed taxonomy first). The web upload
+ * (SPEC §7, amended 2026-10-21) reports every missing item across the request and writes nothing until
+ * the Site Administrator approves; the resubmitted upload then creates exactly the approved items the
+ * files need, in the same transaction as the plans. Near-miss names: see `taxonomy.ts`.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 import { commitTransaction, initTransaction, killTransaction } from 'payload'
-import { lockRows } from '../lib/txDb'
+import { lockRows, takeAdvisoryLock } from '../lib/txDb'
 import type { CollectionSlug, Payload, PayloadRequest } from 'payload'
 
 import { contractDrift } from './contract'
@@ -40,6 +42,13 @@ import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 import { latestRelease } from './releaseAncestry'
 import { withReleaseFingerprint } from './releaseFingerprintContext'
+import {
+  classifyMissingTaxonomy,
+  normalizeSubjectName,
+  taxonomyKey,
+  type MissingTaxonomy,
+  type TaxonomyKey,
+} from './taxonomy'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
 /** A minimal Local-API request carrier — also the shape `prewarmVersionArtifacts` accepts. */
@@ -136,12 +145,15 @@ async function findExistingPlan(
   return planIds[0] ?? null
 }
 
-/** Resolve the required `subjectGrade` id from META.subject / META.grade (exact match). */
-async function resolveSubjectGrade(
+/** A file's taxonomy: `subjectGradeId` null = missing (and `subjectId` null = the subject too). */
+type ResolvedTaxonomy = TaxonomyKey & { subjectId: number | null; subjectGradeId: number | null }
+
+/** Resolve META.subject / META.grade by EXACT match. Throws only for absent or malformed META. */
+async function resolveTaxonomy(
   payload: Payload,
   raw: Record<string, unknown>,
   req: IngestReq,
-): Promise<number> {
+): Promise<ResolvedTaxonomy> {
   const meta = (raw.META ?? {}) as Record<string, unknown>
   const subjectName = typeof meta.subject === 'string' ? meta.subject.trim() : ''
   const grade = typeof meta.grade === 'number' ? meta.grade : null
@@ -159,13 +171,7 @@ async function resolveSubjectGrade(
     req,
   })
   const subject = subjects.docs[0]
-  if (!subject) {
-    const all = await payload.find({ collection: 'subjects', limit: 200, depth: 0, req })
-    const names = all.docs.map((d) => `"${d.name}"`).join(', ') || '(none)'
-    throw new IngestError(
-      `No subject named "${subjectName}". Existing subjects: ${names}. Create the subject and its subject grade (Manage → Subjects and grades) before importing.`,
-    )
-  }
+  if (!subject) return { subject: subjectName, grade, subjectId: null, subjectGradeId: null }
 
   const sgs = await payload.find({
     collection: 'subject-grades',
@@ -174,13 +180,111 @@ async function resolveSubjectGrade(
     depth: 0,
     req,
   })
-  const sg = sgs.docs[0]
-  if (!sg) {
-    throw new IngestError(
-      `No subject grade for "${subjectName}" Grade ${grade}. Create it (Manage → Subjects and grades → Subject grades) before importing.`,
-    )
+  return {
+    subject: subjectName,
+    grade,
+    subjectId: subject.id,
+    subjectGradeId: sgs.docs[0]?.id ?? null,
   }
-  return sg.id
+}
+
+/** The CLI's hard failure for missing taxonomy (the web upload offers to create it instead). */
+async function missingTaxonomyMessage(
+  payload: Payload,
+  t: ResolvedTaxonomy,
+  req: IngestReq,
+): Promise<string> {
+  if (t.subjectId == null) {
+    const all = await payload.find({ collection: 'subjects', limit: 200, depth: 0, req })
+    const names = all.docs.map((d) => `"${d.name}"`).join(', ') || '(none)'
+    return `No subject named "${t.subject}". Existing subjects: ${names}. Create the subject and its subject grade (Manage → Subjects and grades) before importing.`
+  }
+  return `No subject grade for "${t.subject}" Grade ${t.grade}. Create it (Manage → Subjects and grades → Subject grades) before importing.`
+}
+
+/** What a declined (unticked) item's files are rejected with. */
+const declinedMessage = (item: MissingTaxonomy): string =>
+  item.similarTo.length > 0
+    ? `Not created: "${item.subject}" is similar to "${item.similarTo.join('", "')}". If it is a misspelling, correct META.subject in the file and upload again.`
+    : `Not created: you chose not to create ${item.subject} — Grade ${item.grade}.`
+
+/** A Subject or SubjectGrade this upload created. */
+export type CreatedTaxonomy = TaxonomyKey & { newSubject: boolean }
+
+/**
+ * Create the approved taxonomy inside the upload's write transaction (SPEC §7, amended 2026-10-21).
+ * Runs under the `taxonomyCreate` advisory lock, so two uploads approving the same new subject
+ * serialise: the second finds the first's rows instead of tripping the unique index (which would abort
+ * the whole transaction). Re-checks the case/spacing rule against subjects added since pre-flight.
+ */
+async function createApprovedTaxonomy(
+  payload: Payload,
+  req: IngestReq,
+  keys: TaxonomyKey[],
+): Promise<{ ids: Map<string, number>; created: CreatedTaxonomy[] }> {
+  await takeAdvisoryLock(req, 'taxonomyCreate')
+  const ids = new Map<string, number>()
+  const created: CreatedTaxonomy[] = []
+  const subjectIds = new Map<string, { id: number; isNew: boolean }>()
+  for (const key of keys) {
+    let subject = subjectIds.get(key.subject)
+    if (!subject) {
+      const found = await payload.find({
+        collection: 'subjects',
+        where: { name: { equals: key.subject } },
+        limit: 1,
+        depth: 0,
+        req,
+      })
+      if (found.docs[0]) {
+        subject = { id: found.docs[0].id, isNew: false }
+      } else {
+        const all = await payload.find({
+          collection: 'subjects',
+          pagination: false,
+          depth: 0,
+          select: { name: true },
+          req,
+        })
+        const clash = all.docs.find(
+          (d) => normalizeSubjectName(d.name) === normalizeSubjectName(key.subject),
+        )
+        if (clash) {
+          throw new IngestError(
+            `Subject "${clash.name}" was added while this upload was waiting, and "${key.subject}" differs from it only in capitals or spacing. Nothing was imported; upload again.`,
+          )
+        }
+        const doc = await payload.create({
+          collection: 'subjects',
+          data: { name: key.subject },
+          overrideAccess: true, // trusted system path: the endpoint authorized a Site Administrator
+          req,
+        })
+        subject = { id: doc.id, isNew: true }
+      }
+      subjectIds.set(key.subject, subject)
+    }
+    const sgs = await payload.find({
+      collection: 'subject-grades',
+      where: { and: [{ subject: { equals: subject.id } }, { grade: { equals: key.grade } }] },
+      limit: 1,
+      depth: 0,
+      req,
+    })
+    let sgId = sgs.docs[0]?.id
+    if (sgId == null) {
+      const doc = await payload.create({
+        collection: 'subject-grades',
+        data: { subject: subject.id, grade: key.grade },
+        overrideAccess: true, // trusted system path, as above
+        req,
+      })
+      sgId = doc.id
+      created.push({ subject: key.subject, grade: key.grade, newSubject: subject.isNew })
+    }
+    ids.set(taxonomyKey(key), sgId)
+  }
+  return { ids, created }
 }
 
 /** A recognised ARES data file: a `.js` module or a `.json` export. */
@@ -212,7 +316,9 @@ const extractDataFile = (file: string, source: string): Record<string, unknown> 
 type Prepared = {
   name: string
   data: IngestBundleData
-  subjectGrade: number
+  /** Null = approved new taxonomy, created and filled in by `writePrepared`. */
+  subjectGrade: number | null
+  taxonomy: TaxonomyKey
   /** The sub-strand identity, for intra-batch duplicate detection. */
   substrandId: string
   /** Existing plan to attach to as the next major (SPEC §7 re-ingest), or null to create a new one. */
@@ -238,6 +344,11 @@ export type IngestReport = {
   bundles: IngestResult[]
   rejected: IngestRejection[]
   skipped: IngestRejection[]
+  /** Subjects/SubjectGrades this upload created on the Site Administrator's approval. */
+  created: CreatedTaxonomy[]
+  /** True when nothing was written because missing taxonomy awaits approval (`missing`). */
+  needsConfirmation: boolean
+  missing: MissingTaxonomy[]
 }
 
 /** Fetch only the highest numeric semver's content, using the locked write transaction. */
@@ -266,25 +377,42 @@ async function latestVersionForPlan(payload: Payload, planId: number, req: Inges
     : null
 }
 
-/** Read-only validation shared by the atomic CLI and partial web upload. */
+/**
+ * Read-only validation shared by the atomic CLI and partial web upload.
+ *
+ * `approvals` (web only): undefined = the Site Administrator has not been asked yet, so any offerable
+ * missing taxonomy sets `needsConfirmation` and the caller must write nothing. An array = their
+ * answer: approved items' files are prepared with `subjectGrade: null` (created at write time), the
+ * rest are rejected, and an approval the files do not need is refused outright.
+ */
 async function prepareItems(
   payload: Payload,
   items: IngestItem[],
   partial: boolean,
-): Promise<{ prepared: Prepared[]; rejected: IngestRejection[] }> {
+  approvals?: TaxonomyKey[],
+): Promise<{
+  prepared: Prepared[]
+  rejected: IngestRejection[]
+  missing: MissingTaxonomy[]
+  needsConfirmation: boolean
+}> {
   // Phase 1 — pre-flight (read-only).
   const preflightReq: IngestReq = { payload }
   const prepared: Prepared[] = []
   const rejected: IngestRejection[] = []
+  /** Web upload: validated files whose taxonomy is missing, held until classification below. */
+  const pending: (Omit<Prepared, 'subjectGrade' | 'existingPlanId'> & {
+    subjectExists: boolean
+  })[] = []
   // Memoize taxonomy resolution across the batch: a directory of sub-strands is typically all one
-  // subject-grade, so without this `resolveSubjectGrade` re-runs its 2 finds for every file.
-  const sgCache = new Map<string, Promise<number>>()
-  const resolveSubjectGradeCached = (raw: Record<string, unknown>): Promise<number> => {
+  // subject-grade, so without this `resolveTaxonomy` re-runs its 2 finds for every file.
+  const sgCache = new Map<string, Promise<ResolvedTaxonomy>>()
+  const resolveTaxonomyCached = (raw: Record<string, unknown>): Promise<ResolvedTaxonomy> => {
     const meta = (raw.META ?? {}) as Record<string, unknown>
     const cacheKey = `${typeof meta.subject === 'string' ? meta.subject.trim() : ''}::${meta.grade}`
     let hit = sgCache.get(cacheKey)
     if (!hit) {
-      hit = resolveSubjectGrade(payload, raw, preflightReq)
+      hit = resolveTaxonomy(payload, raw, preflightReq)
       sgCache.set(cacheKey, hit)
     }
     return hit
@@ -306,8 +434,25 @@ async function prepareItems(
         throw new IngestError(`contract drift:\n    - ${drift.join('\n    - ')}`)
       }
       inputValidated = true
-      const subjectGrade = await resolveSubjectGradeCached(raw)
+      const resolved = await resolveTaxonomyCached(raw)
+      const taxonomy = { subject: resolved.subject, grade: resolved.grade }
       const substrandId = substrandIdOf(raw)
+      const subjectGrade = resolved.subjectGradeId
+      if (subjectGrade == null) {
+        if (!partial) {
+          throw new IngestError(await missingTaxonomyMessage(payload, resolved, preflightReq))
+        }
+        // A new subject-grade has no plans, so there is no re-ingest target to resolve here.
+        pending.push({
+          name,
+          data,
+          taxonomy,
+          substrandId,
+          warnings: deliverableWarnings(data),
+          subjectExists: resolved.subjectId != null,
+        })
+        continue
+      }
       // Re-ingest resolution (SPEC §7): the existing plan to attach to as a new major, or null to
       // create a new plan. >1 match (legacy duplicates) throws inside findExistingPlan.
       const existingPlanId = await findExistingPlan(
@@ -320,6 +465,7 @@ async function prepareItems(
         name,
         data,
         subjectGrade,
+        taxonomy,
         substrandId,
         existingPlanId,
         warnings: deliverableWarnings(data),
@@ -332,12 +478,92 @@ async function prepareItems(
     }
   }
 
+  // Missing taxonomy (web only): block what may never be created, then apply the approvals — or,
+  // before any were given, hold every offered item's files for the confirmation round.
+  let missing: MissingTaxonomy[] = []
+  let offeredByKey = new Map<string, MissingTaxonomy>()
+  if (pending.length > 0) {
+    const { docs: subjects } = await payload.find({
+      collection: 'subjects',
+      pagination: false,
+      depth: 0,
+      select: { name: true },
+      req: preflightReq,
+    })
+    // Reconcile with taxonomy created since each file was resolved (a concurrent upload or Manage):
+    // a file whose exact subject now exists is looked up again, so it either resolves normally or
+    // waits only on its grade — never "differs from itself only in capitals or spacing".
+    const subjectNames = new Set(subjects.map((s) => s.name))
+    for (const p of pending.splice(0)) {
+      if (p.subjectExists || !subjectNames.has(p.taxonomy.subject)) {
+        pending.push(p)
+        continue
+      }
+      try {
+        const again = await resolveTaxonomy(payload, { META: { ...p.taxonomy } }, preflightReq)
+        if (again.subjectGradeId == null) {
+          pending.push({ ...p, subjectExists: true })
+          continue
+        }
+        const { subjectExists: _, ...rest } = p
+        prepared.push({
+          ...rest,
+          subjectGrade: again.subjectGradeId,
+          existingPlanId: await findExistingPlan(
+            payload,
+            again.subjectGradeId,
+            p.substrandId,
+            preflightReq,
+          ),
+        })
+      } catch (e) {
+        if (!(e instanceof IngestError)) throw e
+        rejected.push({ file: p.name, error: e.message })
+      }
+    }
+    const { offered, blocked } = classifyMissingTaxonomy(
+      pending.map((p) => ({ ...p.taxonomy, file: p.name, subjectExists: p.subjectExists })),
+      subjects.map((s) => s.name),
+    )
+    rejected.push(...blocked)
+    missing = offered
+    offeredByKey = new Map(offered.map((o) => [taxonomyKey(o), o]))
+  }
+  if (approvals) {
+    // An approval must name something these files need. One for an item that has come to exist
+    // since the question was asked creates nothing, so it is harmless and passes.
+    const existing = new Set(prepared.map((p) => taxonomyKey(p.taxonomy)))
+    const stray = approvals.filter(
+      (a) => !offeredByKey.has(taxonomyKey(a)) && !existing.has(taxonomyKey(a)),
+    )
+    if (stray.length > 0) {
+      throw new IngestError(
+        `Approved items not needed by these files: ${stray.map((a) => `${a.subject} — Grade ${a.grade}`).join(', ')}. Nothing was imported; upload again.`,
+      )
+    }
+  }
+  if (pending.length > 0) {
+    const approved = new Set(approvals?.map(taxonomyKey))
+    for (const { subjectExists: _, ...p } of pending) {
+      const item = offeredByKey.get(taxonomyKey(p.taxonomy))
+      if (!item) continue // blocked, already rejected
+      if (approvals && !approved.has(taxonomyKey(item))) {
+        rejected.push({ file: p.name, error: declinedMessage(item) })
+        continue
+      }
+      prepared.push({ ...p, subjectGrade: null, existingPlanId: null })
+    }
+  }
+  const needsConfirmation = !approvals && missing.length > 0
+
   // Reject every member of an ambiguous group on web uploads; never choose an arbitrary winner.
+  // Keyed by the exact (subject, grade) names, which map 1:1 to a subject-grade, so files awaiting
+  // new taxonomy are checked too.
   const seen = new Map<string, Prepared>()
   const duplicates = new Set<Prepared>()
   for (const p of prepared) {
     if (!p.substrandId) continue
-    const key = `${p.subjectGrade}::${p.substrandId}`
+    const key = `${taxonomyKey(p.taxonomy)}::${p.substrandId}`
     const prior = seen.get(key)
     if (prior) {
       const error =
@@ -356,7 +582,20 @@ async function prepareItems(
       seen.set(key, p)
     }
   }
-  return { prepared: prepared.filter((p) => !duplicates.has(p)), rejected }
+  const kept = prepared.filter((p) => !duplicates.has(p))
+  if (needsConfirmation) {
+    // Ask only about what surviving files still need.
+    const keptNames = new Set(kept.map((p) => p.name))
+    missing = missing
+      .map((m) => ({ ...m, files: m.files.filter((f) => keptNames.has(f)) }))
+      .filter((m) => m.files.length > 0)
+  }
+  return {
+    prepared: kept,
+    rejected,
+    missing,
+    needsConfirmation: needsConfirmation && missing.length > 0,
+  }
 }
 
 /** Atomic CLI entry: any pre-flight failure prevents all writes. Trusted callers only. */
@@ -375,29 +614,57 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
 /**
  * Web upload: reject invalid files, then commit all valid files together. Database/write failures
  * still roll back the transaction and propagate; a malformed input cannot prevent valid imports.
+ * Missing taxonomy: see `prepareItems` — without `approvals`, an upload that needs any returns
+ * `needsConfirmation` and writes nothing at all.
  * TRUSTED system path: the endpoint must authorize the caller before invoking this function.
  */
 export async function ingestUploadItems(
   payload: Payload,
   items: IngestItem[],
+  approvals?: TaxonomyKey[],
 ): Promise<IngestReport> {
-  const { prepared, rejected } = await prepareItems(payload, items, true)
+  const { prepared, rejected, missing, needsConfirmation } = await prepareItems(
+    payload,
+    items,
+    true,
+    approvals,
+  )
+  if (needsConfirmation) {
+    return { bundles: [], skipped: [], created: [], rejected, missing, needsConfirmation }
+  }
   const written =
     prepared.length > 0
       ? await writePrepared(payload, prepared, true)
-      : { bundles: [], skipped: [] }
-  return { ...written, rejected }
+      : { bundles: [], skipped: [], created: [] }
+  return { ...written, rejected, missing: [], needsConfirmation: false }
 }
 
 async function writePrepared(
   payload: Payload,
-  prepared: Prepared[],
+  preparedIn: Prepared[],
   skipUnchanged = false,
-): Promise<Pick<IngestReport, 'bundles' | 'skipped'>> {
+): Promise<Pick<IngestReport, 'bundles' | 'skipped' | 'created'>> {
   // Phase 2 — write all bundles in one transaction.
   const req: IngestReq = { payload }
   await initTransaction(req)
   try {
+    // Approved new taxonomy first, so a failed write below leaves no orphan Subject/SubjectGrade.
+    // Its advisory lock precedes the row locks below (LOCK ORDER, `lib/txDb.ts`).
+    const toCreate = [
+      ...new Map(
+        preparedIn
+          .filter((p) => p.subjectGrade == null)
+          .map((p) => [taxonomyKey(p.taxonomy), p.taxonomy]),
+      ).values(),
+    ]
+    const { ids, created } =
+      toCreate.length > 0
+        ? await createApprovedTaxonomy(payload, req, toCreate)
+        : { ids: new Map<string, number>(), created: [] }
+    const prepared = preparedIn.map((p) => ({
+      ...p,
+      subjectGrade: p.subjectGrade ?? ids.get(taxonomyKey(p.taxonomy))!,
+    }))
     // Serialize against concurrent ingests of the same subject-grade BEFORE any read/write, then
     // re-resolve each file's plan inside the transaction: the preflight lookup above ran outside
     // it, so a concurrent upload committing between preflight and here could otherwise duplicate a
@@ -541,7 +808,7 @@ async function writePrepared(
       })
     }
     await commitTransaction(req)
-    return { bundles: results, skipped }
+    return { bundles: results, skipped, created }
   } catch (e) {
     await killTransaction(req)
     throw e

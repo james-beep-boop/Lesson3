@@ -181,10 +181,14 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   a Not Official revision for review. For plans with no Official version, use **Set an Official
   version** at the bottom of Lesson plans. You can also delete selected lesson plans (with all their versions) under **Delete a plan (all versions)**, or remove
   individual non-Official versions under **Delete individual versions**.
-- **Prepare subjects and grades before upload:** use *Manage → Subjects and grades* to add the
-  subject first, then tick its grade. Use *+ Grade* to add a grade column from 1–12. The subject name
-  and grade must match each lesson file;
-  uploads reject files whose subject or subject grade is missing.
+- **Subjects and grades on upload:** if an upload names a subject or grade that does not exist yet,
+  nothing is imported until you answer: the upload lists every missing subject and grade across all
+  the files, and you tick which to create. If a new subject's name looks like an existing one (for
+  example _Maths_ and _Mathematics_), you are asked whether it is a new subject or a misspelling; a
+  misspelling is not created and its files are rejected so you can correct them. A name that differs
+  from an existing subject only in capital letters or spacing is never created. You can also add
+  subjects and grades yourself under *Manage → Subjects and grades*: add the subject first, then tick
+  its grade (*+ Grade* adds a grade column from 1–12).
 - **Approve accounts on a site without email:** teachers who sign up cannot sign in until you approve
   them. _Manage_ shows how many are waiting; choose _Review them in Accounts_, open each account and
   choose _Approve_. You can also create an account yourself with _Manage → Users → Accounts → Create
@@ -257,7 +261,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   application itself, and keeps the previous database until you discard it, so the restore can be
   undone until then. Work saved after the restore is lost if you undo it. Recovery is deliberately not
   a browser button; the full runbook is `docs/OPS.md`.
-- **Set up subjects and grades:** add subjects and grades before uploading lesson plans.
+- **Set up subjects and grades:** add subjects and grades, or create them when an upload asks.
 - **Manage all lesson plans:** open, edit, download, mark Official, or delete plans across all
   subjects and grades.
 
