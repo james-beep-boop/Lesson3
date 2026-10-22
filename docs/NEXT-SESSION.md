@@ -22,7 +22,19 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-22
 
-**Newest (2026-10-22): v1.02, and Phase A of backup and recovery is complete.** Tagged from the tip of
+**Newest (2026-10-22): #431 merged (`ff3bdc2`): an upload offers to create missing subjects and
+grades** (SPEC §7, amended 2026-10-21). A web upload naming a subject or grade that does not exist
+writes nothing and answers 409 with every missing item. The Site administrator ticks what to create,
+and the resubmission creates it in the plans' transaction under the `taxonomyCreate` advisory lock.
+- Names differing from an existing subject only in capitals or spaces are never created.
+- Similar names (`Maths`/`Mathematics`) must be answered "new subject or misspelling?".
+- The dev CLI is unchanged. No migration.
+
+Codex reviewed it, and both P2s were fixed before the merge: space-only variants, and a subject
+created by a concurrent upload. CI was green. Not yet released or deployed. See DECISIONS 2026-10-21
+(the feature, and the `test:http` `NODE_ENV` lesson).
+
+**Earlier (2026-10-22): v1.02, and Phase A of backup and recovery is complete.** Tagged from the tip of
 `main`. It carries A2–A6 (#430): per-stream backup records in `out/ops/backup/<stream>.json` (last
 success with `coversUntil`, last failure with its stage, a 31-entry history, an attempt number), one
 backup at a time under an `flock`, and **Manage → System → Backups**. That box is a set of factual
