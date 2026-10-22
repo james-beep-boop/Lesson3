@@ -111,6 +111,14 @@ body {
   height: 100%;
 }
 
+/* iOS Safari's landscape text autosizing (2026-10-22): without this, phone landscape inflated the
+   wrapping text blocks (discussion titles, meta lines) on first load and after a tap, but not after a
+   rotation. `100%`, not `none` — `none` blocked zoom in older Safari; `100%` only stops the boost. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   /* Shared with the admin surface (app-tokens) — one font stack, one body size, one line-height. */
   font-family: var(--app-ui-font);

@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — `text-size-adjust: 100%` on both surfaces (iOS landscape text inflation)
+
+On an iPhone in landscape, the discussion titles and meta lines rendered oversized on first load and
+again after a tap, but correctly after a rotation. Headings, buttons and the search field were
+unaffected. Neither `styles.css`, `custom.scss` nor Payload's admin CSS set `text-size-adjust`, so
+iOS Safari's text autosizing was free to boost wrapping text blocks. Both stylesheets' `html` rules now
+set `-webkit-text-size-adjust: 100%; text-size-adjust: 100%`. Use `100%`, never `none`: `none`
+disabled zoom in older Safari. Acceptance is on a real iPhone: landscape → portrait → landscape →
+tap, on Discussions and on Manage, and pinch zoom must still work.
+
+**Lesson (Codex review correction):** state a diagnosis no more firmly than the evidence allows.
+Claude argued that "if our CSS were wrong, everything would scale together", but CSS can resize
+individual blocks. The screenshots pointed strongly to autosizing without proving it, and the
+"keeps portrait sizes, recalculates on touch" mechanism was plausible but unverified. Desktop
+emulation often misses autosizing, so a real device is the acceptance test. That does not make the
+bug iOS-only.
+
 ## 2026-10-22 — Merge #432 and tag v1.03; no deployment
 
 The operator explicitly requested merge, repository cleanup and a new tag. Waited for the revised

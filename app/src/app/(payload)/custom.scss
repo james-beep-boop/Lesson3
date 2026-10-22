@@ -24,6 +24,13 @@ body {
   font-size: 16px;
 }
 
+// iOS Safari's landscape text autosizing — same rule and reasoning as the frontend's styles.css
+// (2026-10-22). Without it Manage would still inflate in phone landscape after the frontend stopped.
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 // The product font, on every admin page (2026-07-31). `--app-ui-font` is the frontend's stack; until
 // now the admin only applied it to `.btn`, so body copy fell through to Payload's own stack and the
 // two surfaces rendered in different typefaces. Global rather than scoped to our custom views: the
