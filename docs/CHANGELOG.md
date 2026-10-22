@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Node 24 LTS moves from 24.22.0 to the 24.22.1 security patch. Production, browser tests and restore
+  probes use the same patch, pinned by multi-architecture image digest. Development requires
+  Node >=24.22.1 <25. No application packages or database schema change.
+
 - Generated documents now name "SeaVuria and ARES Education" in the copyright block and lesson
   footer, matching upstream ARES. Stored lesson versions are unchanged. Renderer revision 10
   makes DOCX/PDF downloads and HTML previews regenerate automatically.

@@ -11,6 +11,47 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — Node 24.22.1 security patch, all runtime pins together
+
+Update the app's Alpine base, the Bookworm browser runner and the Alpine restore-probe tools to
+24.22.1. Both `.nvmrc` files and both manifest floors require `>=24.22.1 <25`; current engineering
+guidance and script comments follow. Historical release records stay unchanged. The lockfile's
+only change is its root Node engine floor; no dependency package is upgraded.
+
+The Docker Hub multi-architecture index digests, resolved 2026-10-22, are:
+- Alpine 3.24: `sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53`;
+- Debian Bookworm: `sha256:6449e19d8184d84062525b6a7524def03146c2cb04a7f08b076680d0e8e4240a`.
+Both list linux/amd64 and linux/arm64/v8. The OS release families are unchanged.
+
+Node identifies this as a security release, including high-severity TLS/IP normalization, DNS-input
+and Brotli fixes, plus updated root certificates, OpenSSL 3.5.9 and Undici 7.30.1. Exercise outbound
+HTTP and authentication through the real production runner rather than assuming patch releases
+cannot change behavior. Reference: https://nodejs.org/en/blog/release/v24.22.1.
+
+**Local verification (isolated `lesson3-codex-probe`, localhost:3103):** native ARM64 production
+build and empty-database migrations pass; the running app reports v24.22.1. Unit 1,771/1,771,
+integration 327/327, TypeScript, ESLint, formatting and the contract gate pass. The wire run passed
+431 tests and failed six resource-library cases because this fresh checkout's PDF fixture directory
+was mode 0700. Making only that synthetic fixture readable by the app's non-root user fixes the
+setup; the affected file then passes 119 tests (four existing no-SMTP skips). All other wire files,
+including the 12 teacher-key/attribution/export cases, pass. No application fix was needed.
+
+The installed Payload email adapter also delivered one synthetic message over certificate-verified,
+authenticated TLS into a local sink in a network-isolated container. This exercises Node/Nodemailer
+TLS without contacting a real recipient or claiming a check of the production SMTP provider.
+
+Deploy-sidecar 15/15, backup-status 98/98, restore-script 95/95 and the real restore stack 104/104
+pass, as do bundle, manifest, updater and publisher checks. Production audit passes its high/critical
+threshold with the same eight moderate findings. Every locked dependency package entry is unchanged.
+
+**Export evidence:** `docs/evidence/attribution-node-24.22.1-comparison.json` records all 12 document
+pairs from Physics, Essential Mathematics Indices and Trigonometry I. All 264 DOCX parts match after
+normalizing random relationship IDs (while retaining targets), core timestamps and only the intended
+copyright wording. The PDFs retain page counts 50/7/4/4, 56/7/4/4 and 69/7/4/4 respectively, with no
+other extracted-text change. The updated attribution block was inspected for wrapping/clipping.
+The evidence records a temporary fixture-name collision and the regenerated Indices baseline so it
+does not overstate the Node-before/after coverage. No oracle files or fidelity comparison rules change.
+
 ## 2026-10-22 — Approved pause exception: attribution correction and Node security patch
 
 The operator explicitly approved these two maintenance changes as a narrow exception to the

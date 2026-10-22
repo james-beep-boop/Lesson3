@@ -22,6 +22,14 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-22
 
+**Maintenance scope approved (2026-10-22):** the operator explicitly approved attribution and Node
+24.22.1 as exceptions to the pause. Work is prepared on `codex/attribution-node-24-22-1`: upstream
+attribution config `d3d2b87`, renderer revision 10, all Node pins including restore tools. Renderer
+libraries stay at `f83db61`; no dependency-package upgrade, schema change or cache purge. See the
+new DECISIONS entries and `docs/evidence/attribution-node-24.22.1-comparison.json` for validation.
+Release, merge and deployment remain separate. A release from current main also carries the lesson
+filters and #431 below. Phase B stays paused.
+
 **Newest (2026-10-22): #431 merged (`ff3bdc2`): an upload offers to create missing subjects and
 grades** (SPEC §7, amended 2026-10-21). A web upload naming a subject or grade that does not exist
 writes nothing and answers 409 with every missing item. The Site administrator ticks what to create,
@@ -48,10 +56,11 @@ recovers, where the key is kept, and an open restore. It adds four optional serv
 - records are written only by the run that holds the backup lock;
 - "history incomplete" now expires.
 
-Also in v1.02: Playwright 1.64.1 (#429, test-only). **Deployed:** v1.00's code (build `9b6aac5`, which differs from the tag only in docs) went to the Rock
-(test.kenyalessons.org) on 2026-10-21 and was checked there. v1.01 and v1.02 are not deployed yet. When the
-Rock is updated, set `BACKUP_RECOVERY_CONTACT` (the operator, and how to reach him; he has yet to
-give the contact line) and `BACKUP_KEY_HELD_BY` (the operator's password manager) in its `.env`.
+Also in v1.02: Playwright 1.64.1 (#429, test-only). **Deployed:** the operator reports v1.02 is now
+on the Rock (2026-10-22); this supersedes the earlier v1.00-only handoff. The deployed build hash has
+not been independently re-measured in this maintenance session. Still confirm whether
+`BACKUP_RECOVERY_CONTACT` (the operator and how to reach him) and `BACKUP_KEY_HELD_BY` (the operator's
+password manager) are set in its `.env`; the contact line has not been recorded here.
 
 **Earlier (2026-10-21): v1.01** is tagged from the tip of `main`, so a deploy shows "Version 1.01".
 It carries A1, the staged, reversible restore (#426; operators now finish a live restore with
