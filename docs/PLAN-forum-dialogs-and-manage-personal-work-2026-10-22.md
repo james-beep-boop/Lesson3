@@ -1,8 +1,9 @@
 # Plan — forum dialogs and links, and personal work in Manage (Proposal B)
 
-**Status:** proposed 2026-10-22, for Codex review before any code. Operator decisions from this session
-are marked **(decided)**. Questions still open are numbered **Q1–Q6** at the end, each with a
-recommendation.
+**Status:** revised 2026-10-22 after Codex's review of `77a5cd75` (one P2, one P3, views on Q1–Q6;
+all folded in below — see "Review log" at the end). Operator decisions from this session are marked
+**(decided)**. Two answers changed from the first draft's recommendation and one new question arose; the operator
+confirms **Q1**, **Q6** and **Q7** (table at the end).
 
 Two independent PRs, each reviewed separately:
 
@@ -43,8 +44,9 @@ substring, and the 44px tap-height check still applies).
 - Title **"Delete entire thread and all replies"**.
 - Body **"This cannot be undone."** (kept, operator decision).
 - Two equal buttons spanning the dialog: **Cancel** and **Delete** (danger style). The confirm button
-  currently reads "Delete thread"; it becomes "Delete". The page's own trigger button also becomes
-  "Delete" (it sits next to Pin/Redact on the thread, where "thread" is implied — see Q6).
+  currently reads "Delete thread"; it becomes "Delete", since the title now states the scope. The
+  page's own trigger button **keeps "Delete thread"**, so the destructive scope is stated before the
+  dialog opens (Q6, revised on Codex's view).
 
 The Redact dialog keeps its title ("Redact"), body (permanent removal + backups ageing out) and the
 Title / Opening post checkboxes; it gets the same two-button row.
@@ -84,8 +86,8 @@ alike. (A `ConfirmDialog` component is worth it only if the native prompts are e
 
 ### 5. Moderation button order and names (decided)
 
-On a thread: **Pin · Delete · Redact** (Redact moves after Delete). Trigger names: "Pin"/"Unpin",
-"Delete", "Redact". On a reply (no Pin or Delete): "Redact" (was "Redact reply"). The accessible group
+On a thread: **Pin · Delete thread · Redact** (Redact moves after Delete). Trigger names:
+"Pin"/"Unpin", "Delete thread", "Redact". On a reply (no Pin or Delete): "Redact" (was "Redact reply"). The accessible group
 names ("Thread moderation" / "Reply moderation") already say which post is meant.
 
 ### PR 1 updates and proof
@@ -93,7 +95,7 @@ names ("Thread moderation" / "Reply moderation") already say which post is meant
 - Guide (`app/(frontend)/guide/page.tsx`) and `USER_GUIDE.md`: the button names and dialog titles.
 - SPEC §16 only if it names these buttons (checked during implementation).
 - Tests: `tests/unit/discussionModerationControls.spec.tsx` (titles, no pin body, "This cannot be
-  undone.", order Pin/Delete/Redact, "Redact" on replies); `tests/e2e/discussionsModeration.e2e.spec.ts`
+  undone.", trigger order Pin/Delete thread/Redact, "Redact" on replies); `tests/e2e/discussionsModeration.e2e.spec.ts`
   (renamed buttons; one screenshot each of the three dialogs at 360px and desktop, light and dark,
   reviewed by eye); `manage.e2e` Delete lesson plans and Features still pass.
 - Types, lint, format, unit, integration, wire, browser on an isolated stack.
@@ -127,16 +129,19 @@ Lesson plans, in render order:
 | `plans.versions` | Delete individual versions | administrators with candidates | unchanged cleanup queue |
 | `plans.repair` | Set an Official version | Site Admin, when needed | unchanged |
 
-**`plans.versions` becomes administrator-only; a teacher's list moves to `plans.mine`** (see Q2 — this
-departs from the 2026-10-20 recommendation to keep `plans.versions` as the teacher's list). One id, one
-meaning, every role: the role-dependent title (`savedTitle`/`savedDesc`/`showSaved` for teachers) goes,
-and `PANEL_IDS` render order works for all roles. A teacher's old bookmark `?open=plans.versions` is
-dropped by `parseOpen` like any retired id and lands on the normal page; record it in `panelState.ts`'s
-retired-ids comment. No code in `src` links to `plans.versions`.
+**`plans.versions` becomes unavailable to teachers; a teacher's list moves to `plans.mine`** (Q2 —
+this departs from the 2026-10-20 recommendation to keep `plans.versions` as the teacher's list). One
+id, one meaning, every role: the role-dependent title (`savedTitle`/`savedDesc`/`showSaved` for
+teachers) goes, and `PANEL_IDS` render order works for all roles. `plans.versions` is NOT retired — it
+stays valid for administrators. For a teacher it is now an unavailable id: `parseOpen` drops it, so an
+old teacher bookmark `?open=plans.versions` falls back to the default landing (§6.3). Note this in
+`panelState.ts` beside the other id history. No code in `src` links to `plans.versions`.
 
 `UnsavedWorkList` stops being a `<section>` above the accordion and becomes the body of `plans.drafts`
 (its own `h2` goes; the panel heading replaces it). Its description, rows, Continue editing / Open to
-copy, Discard (native confirm, unchanged) and expiry dates are unchanged. An empty state is added (Q3).
+copy, Discard (native confirm, unchanged) and expiry dates are unchanged. An empty state is added
+(§6.5). Its read stays separate and owner-only (`listUnsavedWork`, keyed on the session user); nothing
+in this plan merges it with the versions read.
 
 ### 6.2 My saved versions — the query and the per-row actions
 
@@ -145,15 +150,21 @@ A new wave-1 read, alongside the existing ones in `AdminDashboard/index.tsx`:
 ```
 lesson-bundle-versions, overrideAccess: false, user, depth: 0, pagination: false,
 where: { author: { equals: user.id } }, sort: '-createdAt',
-select: title, semver, subjectGrade, lessonPlan, meta.substrand_name, createdAt
+select: title, semver, subjectGrade, lessonPlan, author, meta.substrand_name, createdAt
 ```
 
+- **`author` is selected** (Codex P2): `canDeleteVersionDoc` grants a teacher with editing access only
+  when `version.author === user.id`, so a projection without it would hide Delete on every teacher's
+  own versions while administrators — who pass on subject-grade alone — would mask the defect.
+  **Permission flags are computed on the server document, before the client row is projected**; the
+  client row carries flags, not `author`.
 - **Separate from the cleanup query** (`deletableVersionsWhere`), which excludes Officials and encodes
   delete authority, not ownership.
 - `author` is stamped only by save-as-new; uploaded ARES versions have none, so a Site Administrator's
   list is their own edits, not the catalogue.
 - Spans every subject-grade where the version is still readable, including ones where the caller no
-  longer has editing access.
+  longer has editing access. Authenticated users can already read numbered versions; the server-built
+  author predicate is what limits this list to the caller (Codex: no authorization gap).
 - Never another person's versions: the `where` is the caller's id, built server-side from the session.
 
 Each row carries flags computed server-side with the existing per-document helpers, so the list never
@@ -161,35 +172,55 @@ offers what the server would refuse:
 
 | Flag | Rule | Effect |
 |---|---|---|
-| `isOfficial` | the plan's `officialVersion` is this id | "Official" badge; no Delete; no Compare to Official |
-| `canDelete` | `!isOfficial && canDeleteVersionDoc(user, row)` | Delete button (existing confirm + unsaved-draft warning) |
-| `canEdit` | `isEditorFor(user, row.subjectGrade)` | Continue editing; otherwise the title opens the version to view |
+| `official` | `'yes'` / `'no'` / `'unknown'` from the plan's `officialVersion` | `'yes'`: "Official" badge |
+| `canDelete` | `official === 'no' && canDeleteVersionDoc(user, doc)` | Delete button (existing confirm + unsaved-draft warning) |
+| `canCompare` | `official === 'no'` and the plan has an Official | Compare to Official |
+| `canEdit` | `isEditorFor(user, doc.subjectGrade)` | Continue editing, and the title links with `?edit=1`; otherwise the title opens the version to view, without `?edit=1` |
+
+**Fails closed on an unresolved plan pointer**, as the cleanup list does today: an Official state that
+cannot be determined is `'unknown'`, never `'no'`, so the row is still listed (it is the caller's work)
+but offers neither Delete nor Compare. An own Official row keeps Continue editing where `canEdit` holds
+(editing an Official saves a new version, as everywhere else).
 
 The Official pointers come from the existing `exclusionPlans` read, widened to cover the plan ids of the
 new rows (for a Site Admin, `planDocs` already has every plan). Subject-grade labels ride the existing
 `sgIds` lookup.
 
-`CandidateList` takes these per-row flags instead of the role booleans `showContinueEditing`; the cleanup
-list passes `canDelete: true`, `canEdit: false`, `isOfficial: false` for its rows (exactly today's
-behaviour). Each instance gets a distinct search label ("Search my saved versions" / "Search versions to
-delete") so the two lists on an administrator's page are distinguishable to a screen reader and to tests.
+`CandidateList` takes these per-row flags instead of the role boolean `showContinueEditing`; the
+cleanup list's rows are built with `canDelete: true`, `canEdit: false`, `official: 'no'` (exactly
+today's behaviour). Each instance gets a distinct search label ("Search my saved versions" / "Search
+versions to delete") so the two lists on an administrator's page are distinguishable to a screen reader
+and to tests.
 
 ### 6.3 Opening behaviour
 
-`initialOpen` is unchanged: with no `?open=`, a lone top-level box opens, and its child too only if it
-has exactly one. Consequences:
+Today's mechanics, stated precisely (Codex P3) — open state lives only in the URL's `?open=`:
 
-- **Teacher with editing access:** the page's only box is Lesson plans, which opens; it now has two
-  children, so both stay closed. The teacher sees two headings, each with its count (Q1, Q4). This is
-  one more click to reach saved versions than today — the cost the 2026-10-17 entry named.
-- **Administrators:** several top-level boxes; nothing opens by default, as today.
-- Deep links and remembered open state are respected as today. Nothing opens on the strength of drafts
-  existing (decided).
+- With no `?open=`, the page applies a **default** on every load. Closing every panel removes `open`
+  from the URL, so a reload applies the default again; an explicitly all-closed page is not remembered.
+- A `?open=` whose ids are all unavailable to the caller parses to nothing and also falls back to the
+  default (this is what a teacher's old `?open=plans.versions` bookmark will do).
+- Any available id in `?open=` (deep links, Back/Forward, reload of a page with panels open) is honoured
+  exactly, as today.
+
+**The default changes in one place (Q1, revised on Codex's view):** rule 2's one-level-down exception
+becomes "when a role's single top-level box opens, its **first** available child opens too" (today:
+"its child, if it has exactly one"). It is structural, not a role check, and for every existing case it
+gives the same result (one child = first child). Consequences:
+
+- **Teacher with editing access:** Lesson plans and My saved versions open; Your Drafts stays closed
+  with its count. Same zero-click landing as today. Nothing opens because drafts exist (decided).
+- **Site Administrator:** several top-level boxes; nothing opens, as today.
+- **Subject-grade administrator — a change to flag (Q7):** they always see two top-level boxes now
+  (Users, for Roles & Access, and Lesson plans, for their personal sections), so nothing opens by
+  default. Today a Subject Administrator with no cleanup candidates lands with Roles & Access open; one
+  with candidates already lands all-closed.
 
 ### 6.4 Counts on headings
 
 `AccordionPanel` gets an optional `count` prop rendered after the title as " (n)", included in the
-button's accessible name. Used on `plans.mine` and `plans.drafts`, shown only when non-zero (Q4).
+button's accessible name. Used on `plans.mine` and `plans.drafts`, shown only when non-zero. The count
+is the **complete list**, computed on the server, independent of the search box (Q4).
 
 ### 6.5 Strings
 
@@ -213,41 +244,61 @@ New strings, to approve:
 
 ### 6.7 Proof
 
-- **Integration** (real database): the personal-versions read returns only the caller's authored versions
-  for each role; includes their own Official; excludes another user's versions in the same
-  subject-grade; flags are right for a revoked-access version (readable, `canEdit` false, `canDelete`
-  false), an Official (no delete) and an ordinary one.
-- **Unit:** `panelState` (new ids, render order, `plans.versions` dropped for a teacher, lone-child
-  behaviour with two children); `CandidateList` per-row actions; `AccordionPanel` count in the name.
-- **Browser** (`manage.e2e`): a teacher sees Lesson plans open with both children closed and counts; a
-  Subject Administrator and a Site Administrator see My saved versions and Your Drafts before the
-  administration panels; an own Official row has no Delete; Discard and Continue editing still work from
-  inside the panel; drafts never auto-open.
+- **Integration, through the production path** (Codex): extract the personal-versions read + row mapping
+  into one server function (e.g. `lib/personalVersions.ts`) that `AdminDashboard` calls, and test THAT
+  function against a real database with its exact `select` — never the helpers with hand-built full
+  documents, which would have missed the P2. Cases:
+  - a teacher with editing access: own ordinary version → `canDelete`, `canEdit`; another user's
+    version in the same subject-grade → absent; own Official → listed, badge, no Delete, no Compare,
+    Continue editing kept;
+  - **one Subject Administrator who administers A, edits B and has lost access to C** (keeping another
+    grant so they can still reach Manage): their authored versions get different flags in each scope —
+    A delete + edit, B delete (own) + edit, C neither, still listed;
+  - an unresolvable plan pointer → `official: 'unknown'`, no Delete, no Compare;
+  - a Site Administrator: their own authored versions only, no uploaded 1.0.0s.
+- **Unit:** `panelState` (new ids and render order; the first-child default for a teacher; Site Admin
+  and Subject Administrator defaults; `plans.versions` unavailable to a teacher falls back to the
+  default); `CandidateList` per-row actions and links (`?edit=1` only when `canEdit`); `AccordionPanel`
+  count in the accessible name; the count ignores the search filter.
+- **Browser** (`manage.e2e`):
+  - teacher lands with Lesson plans + My saved versions open, Your Drafts closed with its count; drafts
+    never auto-open;
+  - Subject and Site Administrators see My saved versions and Your Drafts before the administration
+    panels; actual links checked — revoked-access rows have no `?edit=1`, an own Official row has no
+    Delete and no Compare but keeps permitted editing;
+  - Delete from My saved versions: both administrator lists refresh, the personal count updates, and a
+    draft on that source disappears from Your Drafts (existing cascade); Discard: the draft count
+    updates and the empty state appears at zero;
+  - `?open=plans.mine` and `?open=plans,plans.drafts` deep links, reload, Back/Forward; the teacher's
+    retired `?open=plans.versions` bookmark;
+  - another user's drafts and versions affect neither rows nor counts.
 - Guide, `USER_GUIDE.md` and SPEC §5 ("Your Drafts on Manage") and §13 updated to say where the lists live.
 - DECISIONS entry superseding the 2026-10-17 placement and settling the 2026-10-20 open choices.
 - Full gate on an isolated stack.
 
 ---
 
-## Open questions (recommendation first)
+## Questions — resolved by review, and two for the operator
 
-- **Q1 — teacher landing.** Recommended: Lesson plans opens, both children closed, counts visible.
-  Alternative: special-case "My saved versions" open by default for a teacher (keeps today's zero-click
-  path, but adds a role rule to `initialOpen`).
-- **Q2 — ids.** Recommended: `plans.mine` for everyone, `plans.versions` administrator-only (one id, one
-  meaning). Alternative (2026-10-20 recommendation): keep `plans.versions` as a teacher's personal list and
-  give administrators `plans.mine` — preserves teacher bookmarks but keeps the role-dependent meaning.
-- **Q3 — names.** Recommended: keep the approved "My saved versions" and "Your Drafts" (five messages
-  point to "Your Drafts"). Alternative: unify to "My saved versions" / "My drafts" and update those
-  messages, SPEC and the Guide.
-- **Q4 — counts.** Recommended: on both personal headings, non-zero only. Alternative: drafts only, as in
-  the 2026-10-20 note.
-- **Q5 — `↗` on lesson links.** Recommended: yes, matching Compare to Official. Alternative: new tab with
-  no visible marker (accessible name still says so).
-- **Q6 — Delete trigger label.** Recommended: "Delete" on the thread page (operator asked for "Delete" in
-  the dialog; the trigger sits among thread-only controls). Alternative: keep "Delete thread" on the
-  trigger only.
+| Q | Resolution | Status |
+|---|---|---|
+| **Q1** teacher landing | My saved versions opens for a teacher; drafts stay closed (§6.3). Done structurally ("first child of a lone box"), not as a role rule. | **Changed from the first draft — operator to confirm** |
+| **Q2** ids | `plans.mine` for everyone; `plans.versions` administrator-only (unavailable to teachers, not retired). | Agreed |
+| **Q3** names | Keep "My saved versions" / "Your Drafts" and the existing messages. | Agreed |
+| **Q4** counts | Both headings, non-zero only, complete list independent of search. | Agreed |
+| **Q5** `↗` | Keep, with the accessible new-tab announcement. | Agreed |
+| **Q6** delete label | Trigger "Delete thread"; "Delete" inside the titled confirmation (§3). | **Changed from the first draft — operator to confirm** |
+| **Q7** Subject Administrator landing | Accept all-closed (§6.3): the same landing an administrator with cleanup candidates already gets. | New — operator to confirm |
 
-Also for review: an administrator's own non-Official versions appear in both My saved versions and the
-Delete individual versions queue. Recommended: accept the overlap — the cleanup queue must stay complete,
-and filtering it by author would make it disagree with `deletableVersionsWhere`.
+The administrator-list overlap (own non-Official versions in both My saved versions and Delete
+individual versions) is accepted: the cleanup queue must stay complete and agree with
+`deletableVersionsWhere`.
+
+## Review log
+
+- **Codex, `77a5cd75`.** P2: the personal-version projection omitted `author`, which
+  `canDeleteVersionDoc` needs for a teacher — fixed in §6.2 (select it; compute flags before projecting).
+  P3: §6.3 promised remembered state that `initialOpen` does not provide — rewritten to describe the
+  actual URL-only mechanics. No authorization gap in the authored read; keep the draft read separate;
+  keep fail-closed Official handling; accept the overlap. Proof additions folded into §6.7. Views on
+  Q1–Q6 adopted.
