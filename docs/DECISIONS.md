@@ -11,6 +11,27 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — Approved pause exception: attribution correction and Node security patch
+
+The operator explicitly approved these two maintenance changes as a narrow exception to the
+Phase B pause, then instructed implementation after planning. Phase B remains paused. Prepare a
+reviewable branch and validate it; release, merge and deployment are separate steps, not authorized
+by this maintenance instruction.
+
+Sync upstream attribution configuration at `d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e`, preserving
+only Lesson3's fixed `year: 2026` line. Only the two copyright occurrences change to "SeaVuria and
+ARES Education"; keep the technical-implementation wording and retain the unused `slide_footer`.
+The vendored renderer libraries stay at `f83db61`. Renderer revision 10 invalidates derived DOCX,
+PDF and HTML-preview cache keys; no cache deletion or lesson-data mutation is needed.
+
+**Regression lesson:** substring assertions for "SeaVuria and ARES" accept both wordings. Require
+"SeaVuria and ARES Education." and reject "SeaVuria and ARES.". The strengthened unit tests fail
+three attribution cases before the config sync; the footer count also checks every lesson.
+
+The operator reports v1.02 is deployed on the Rock. That is an operator report, not a fresh
+telemetry check. Current main also includes lesson filters and upload-taxonomy creation after
+v1.02, so a future v1.03 release from main would include those changes too.
+
 ## 2026-10-22 — Lesson filters must validate URL subjects before rendering a dropdown
 
 Claude's review of the compact lesson filters caught an unavailable URL subject filtering out every

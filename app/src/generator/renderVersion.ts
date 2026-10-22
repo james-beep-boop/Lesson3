@@ -4,6 +4,10 @@
  * Increment whenever a fixed immutable lesson snapshot would produce different DOCX/PDF/preview
  * bytes because the pinned generator or rendering pipeline changed.
  *
+ * 10 (2026-10): sync upstream d3d2b87 attribution config — the copyright block and lesson footer
+ * name SeaVuria and ARES Education. Vendored renderer libraries stay at f83db61. Every DOCX/PDF/preview
+ * must regenerate so old cached attribution cannot be served.
+ *
  * 9 (2026-10): re-pinned to upstream f83db61 — a Markdown table in a lesson-framework column now prints
  * full-width in its own row under the phase (a "(table below)" pointer stays in the cell) instead of nested in
  * the narrow column, and a lone `|x| = 3` line is no longer mistaken for a table. Lesson-plan DOCX/PDF/preview
@@ -21,4 +25,4 @@
  * copyright year is FIXED (generator/config/attribution.yaml) so this output does not change in January;
  * changing that year is a deliberate act that must accompany a bump here.
  */
-export const GENERATOR_RENDER_VERSION = 9
+export const GENERATOR_RENDER_VERSION = 10

@@ -22,6 +22,17 @@ commit label alone, are the acceptance proof for this pin.
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
 
+## Attribution configuration pin — 2026-10-22
+
+- **Configuration commit:** `d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e` (upstream 2026-10-21).
+- Only `config/attribution.yaml` is synced from this revision. The four vendored `lib/` files
+  remain byte-identical to Lesson3's `f83db61` pin above; this is not a renderer-library re-pin.
+- The copyright paragraph and lesson footer now name **SeaVuria and ARES Education**. The
+  Production & Layout text and "technical implementation by ARES" remain unchanged. The upstream
+  `slide_footer` key is retained verbatim but is not consumed by the lesson renderer.
+- Renderer revision **10** regenerates DOCX, PDF and HTML previews with the corrected attribution.
+  The old cache entries are unreachable and age out normally; no manual cache purge is required.
+
 ## Licence — MIT, resolved 2026-09-19
 
 The upstream `markknit/cbe-generation-system` repository adopted the MIT License in commit
@@ -41,7 +52,7 @@ gap without changing the authorship or provenance of the three byte-pristine fil
 | `lib/sections.js` | `generators/lib/sections.js` | `55b431ab1760606ea1a6ac666c26122744393fe045ff1a9a29a841548d6c82a3` |
 | `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `3359cf217a07975b276907ecb2628970ef0b8981b509c67e1bc37a686486cfbd` |
 | `lib/attribution.js` | `generators/lib/attribution.js` | `7ac867b861ea1be8f6cfe8590cf7171c94b5536cc828c4d29983bd6abe6f9288` |
-| `vendor/config/attribution.upstream.yaml` | `config/attribution.yaml` | `950f68dbceee79d12de4dc49e9b5827434dca5fb81ddf4bfd188c173041f4104` |
+| `vendor/config/attribution.upstream.yaml` | `config/attribution.yaml` | `0f20f7dba14508f7eeb74b78bf82d4b38657d06801f97a33109669d8ebe4649c` |
 
 `tests/unit/vendorProvenance.spec.ts` recomputes these hashes from the files on disk, so this table cannot
 silently drift from the vendored bytes.
@@ -54,7 +65,7 @@ file says `year: auto`, which stamps the **render-time** year: the same immutabl
 January would change bytes, contradicting the byte-stability contract in `renderVersion.ts`.
 
 Lesson3 therefore ships `generator/config/attribution.yaml` (SHA-256
-`4203befb96b6a9a0546f5cf79a4080b23252e5389fda5c124b560ab82b30b183`) whose **only** difference from the pristine
+`4650f3e27ccbecad9737c4c8f3a5a9676774635bb43cb8823e7d84fb77975f89`) whose **only** difference from the pristine
 copy is `year: 2026` — the **configured copyright year for this generator release**. It is not a claim about
 when any particular lesson was first published, and it says nothing about future lessons. `scripts/
 vendor-generator.sh` produces it and aborts unless that is the only changed line. Changing the year later is
@@ -97,7 +108,11 @@ From the Lesson3 repository root:
 scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <commit-sha>
 ```
 
-The script copies the four lib files and derives the fixed-year attribution config. Re-check upstream's
+For the configuration-only update recorded above, copy `config/attribution.yaml` from its separate
+configuration commit into `vendor/config/attribution.upstream.yaml`, then derive the runtime copy by
+replacing only `year: auto` with the recorded fixed-year line. Keep `vendor/lib/` at its recorded pin.
+
+The full re-sync script copies the four lib files and derives the fixed-year attribution config. Re-check upstream's
 `sections.js` resource path and `build_docs.js` imports against the bridge before trusting a new pin.
 
 Then update this record and run, from `app/`:

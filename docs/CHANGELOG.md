@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Generated documents now name "SeaVuria and ARES Education" in the copyright block and lesson
+  footer, matching upstream ARES. Stored lesson versions are unchanged. Renderer revision 10
+  makes DOCX/PDF downloads and HTML previews regenerate automatically.
+
 - Lessons uses grade checkboxes and a subject dropdown below the search bar. Select multiple grades,
   or All; search and subject filtering work together. Shared links with an unavailable subject or
   grade fall back to All for that filter.

@@ -38,7 +38,7 @@ substrand_header:
       with lesson drafting and compilation assisted by AI (Claude, Anthropic).
   - label: "Licensing & Copyright"
     text: >-
-      © {YEAR} SeaVuria and ARES. This work is licensed under a Creative
+      © {YEAR} SeaVuria and ARES Education. This work is licensed under a Creative
       Commons Attribution-NonCommercial 4.0 International License
       (CC BY-NC 4.0). To view a copy of this license, visit
       https://creativecommons.org/licenses/by-nc/4.0/. You are free to copy,
@@ -54,6 +54,16 @@ substrand_header:
 # Render the license name as a hyperlink AND print the URL visibly
 # (printed copies lose hyperlinks; schools are offline).
 lesson_footer: >-
-  © {YEAR} SeaVuria and ARES. Aligned with KICD objectives. Developed by
+  © {YEAR} SeaVuria and ARES Education. Aligned with KICD objectives. Developed by
   SeaVuria; technical implementation by ARES (with AI assistance from Claude).
   Licensed under CC BY-NC 4.0 (https://creativecommons.org/licenses/by-nc/4.0/).
+
+# Short line for EVERY slide of a lesson presentation deck (the full
+# lesson_footer above goes on the title slide and the last slide instead).
+# The presentation builder appends the generated part:
+#   [Subject] G[grade] . [SoW name] . Lesson [#]
+# plus the ARES and SeaVuria logos. Added 2026-10-21 (Mark); read by the
+# presentation generator on the `presentations` branch, not by the lesson-plan
+# renderer. Never hardcode this text.
+slide_footer: >-
+  © {YEAR} SeaVuria and ARES Education · CC BY-NC 4.0

@@ -155,7 +155,8 @@ describe('a version with a final explanation exports four documents', () => {
     for (const name of Object.keys(zip.files)) {
       const xml = await xmlOf(zip, name)
       expect(xml, `${name} carries the licence block`).toContain('This work is licensed under a')
-      expect(xml, `${name} carries the fixed year`).toContain('© 2026 SeaVuria and ARES')
+      expect(xml, `${name} carries the fixed year`).toContain('© 2026 SeaVuria and ARES Education.')
+      expect(xml, `${name} has no old copyright wording`).not.toContain('SeaVuria and ARES.')
     }
   }, 200_000)
 })
