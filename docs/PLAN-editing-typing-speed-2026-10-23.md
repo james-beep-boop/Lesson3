@@ -134,6 +134,31 @@ costs, so only the combination gives the large drop.
   access sees fewer fields (structural fields are hidden by `structureCondition`), so their absolute
   cost is somewhat lower; the shape is the same.
 
+### 3.4 Reproducing
+
+The benchmark is `app/scripts/bench-typing.mjs`; its header lists the settings. It needs a throwaway
+stack: a production image of the commit under test, its own Postgres, the local seed accounts and one
+full-size ARES bundle (the numbers above used *Animal Transport* from the ARES JSON corpus, which is not
+in the repo). From the repo root, building images one at a time:
+
+```bash
+docker build --target builder -t lesson3-bench-builder ./app
+docker build -t lesson3-bench-app ./app
+docker build --target e2e -t lesson3-e2e ./app
+docker run -d --name lesson3-bench-pg -e POSTGRES_USER=lesson3 -e POSTGRES_PASSWORD=bench -e POSTGRES_DB=lesson3 postgres:16.15-alpine
+# bench.env: DATABASE_URI=postgres://lesson3:bench@localhost:5432/lesson3, PAYLOAD_SECRET=<anything>, NODE_ENV=production
+docker run --rm --network container:lesson3-bench-pg --env-file bench.env lesson3-bench-builder npx payload migrate
+docker run --rm --network container:lesson3-bench-pg --env-file bench.env lesson3-bench-builder npx payload run scripts/seed-local-dev.ts
+docker run --rm --network container:lesson3-bench-pg --env-file bench.env -v /path/to/bundle.json:/data/plan.json:ro lesson3-bench-builder npx payload run scripts/ingest.ts -- /data/plan.json
+docker run -d --name lesson3-bench-app --network container:lesson3-bench-pg --env-file bench.env lesson3-bench-app
+docker run --rm --network container:lesson3-bench-app -v "$PWD/app/scripts:/app/scripts:ro" -w /app lesson3-e2e node scripts/bench-typing.mjs
+```
+
+The ingested plan is version 2, the script's default. Every container shares Postgres's network
+namespace, so `localhost` works for the seed script's guard and for the benchmark, and nothing is
+published on a host port. Clear drafts between runs (see the script header). To compare builds, run
+each build's app container against its own copy of the database and alternate between them.
+
 ---
 
 ## 4. Proposed fix
@@ -210,9 +235,8 @@ fixes them, delete the local patch on the upgrade that includes the fix.
   draft, Combine (conflict choices and overlay), adding / removing / reordering array rows, fields shown
   or hidden by `admin.condition`, validation messages, Insert link, and the jump navigation.
 - `test:unit`, `test:int` and type-check as usual; the new patch-marker test in the gate.
-- Re-run the typing benchmark (§3.2) on the final branch and record the numbers in DECISIONS.
-- Consider committing the benchmark as a repeatable script so the next Payload upgrade can be checked
-  the same way.
+- Re-run the typing benchmark (§3.4) on `main` and on the final branch, and record the numbers in
+  DECISIONS. Re-run it on each Payload upgrade too.
 
 ---
 
@@ -233,8 +257,8 @@ school laptop, plus real server round-trips. It does not measure a teacher's own
 2. Start a separate Compose project (for example `lesson3-perf`) with its own Postgres, restored from
    the 12-lesson test dump, **no published ports**, and memory caps so the co-tenant (nanoclaw) is not
    starved.
-3. Run the typing benchmark against each build, alternating, at 1× (the Rock's own CPU is the
-   "slow laptop").
+3. Run `app/scripts/bench-typing.mjs` (§3.4) against each build, alternating, with `BENCH_RATES=1`
+   (the Rock's own CPU is the "slow laptop").
 4. Tear down the project, its volumes and the copied images.
 
 The live `lesson3` containers, volumes and database are never touched. This step needs the operator's
