@@ -318,7 +318,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 </ol>
                 <p>
                   Find your saved versions in <em>Manage → Lesson plans → My saved versions</em>.
-                  Choose one to continue editing, or delete one you no longer need.
+                  Choose one to continue editing, or delete one you no longer need. Versions of
+                  yours that are Official are listed too, marked Official; they cannot be deleted.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -349,10 +350,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   To stop for now, choose <em>Save as draft</em>. Lesson3 checks that your draft is
                   saved, then closes the editor. A draft is kept for 30 days after you last worked
                   on it. The <strong>Manage</strong> tab lists your drafts under{' '}
-                  <em>Your Drafts</em>, with <em>Continue editing</em> and <em>Discard</em>. To
-                  throw your changes away instead, choose <em>Discard changes</em>. Administrators:
-                  a draft holds only wording, not changes to lessons, phases, durations, rubrics or
-                  answer keys.
+                  <em>Lesson plans → Your Drafts</em>, with <em>Continue editing</em> and{' '}
+                  <em>Discard</em>; the heading shows how many you have. To throw your changes away
+                  instead, choose <em>Discard changes</em>. Administrators: a draft holds only
+                  wording, not changes to lessons, phases, durations, rubrics or answer keys.
                 </p>
                 <ol className="guide-steps">
                   <li>

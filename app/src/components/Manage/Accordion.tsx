@@ -106,10 +106,14 @@ export function AccordionProvider({
 export function AccordionPanel({
   id,
   title,
+  count,
   children,
 }: {
   id: PanelId
   title: string
+  /** Shown after the title as " (n)" when non-zero, so a closed panel still says how much it holds
+   *  (Proposal B: a person's own versions and drafts). Part of the button's accessible name. */
+  count?: number
   children: React.ReactNode
 }) {
   // ⚑ Rank is DERIVED from the id, never passed in. The id grammar already IS the nesting grammar
@@ -142,7 +146,7 @@ export function AccordionPanel({
           {/* Decorative: the disclosure state is already carried by aria-expanded, so the marker is
               hidden from the accessibility tree rather than announced a second time as a character. */}
           <span className="lp-accordion__marker" aria-hidden="true" />
-          {title}
+          {count ? `${title} (${count})` : title}
         </button>
       </Heading>
       {/* `hidden` rather than conditional rendering — see the ⚑ in this file's header. */}

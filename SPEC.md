@@ -505,9 +505,17 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
   nightly expiry honours), plus Continue editing (opens the editor, where the restore prompt takes
   over) and Discard (the existing discard endpoint, with the rendered precondition). Rows are listed
   only where the restore path would accept them: the version is readable and the caller still has
-  editing access. Shown above the accordion and only when non-empty — not a panel, so a teacher's
-  Manage page still opens straight onto "My saved versions" (numbered versions). Server-rendered from
-  the session user; no listing endpoint.
+  editing access. Server-rendered from the session user; no listing endpoint.
+  **Placement (Proposal B, operator decisions 2026-10-22, superseding "above the accordion"):** a
+  panel inside Manage → Lesson plans (`plans.drafts`), after "My saved versions" (`plans.mine`), for
+  every role, present even when empty (with an empty state). Drafts never open on their own; the
+  closed heading shows the count ("Your Drafts (2)"). A teacher's Manage page still opens straight
+  onto "My saved versions". **"My saved versions"** lists every numbered version the caller saved
+  (authored), in every subject-grade where it is still readable, including their own Official
+  versions (marked Official, never deletable); each row offers only what the server would accept
+  (Delete, Continue editing, Compare to Official). Subject-grade and Site administrators get the same
+  two panels; their administrative lists follow. Design:
+  `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`.
 - **Bringing an ordinary draft together with newer work (2026-10-18):** a restorable ordinary
   draft's restore prompt may name a readable newer version in the same plan sharing a surviving,
   readable common ancestor, proved by recorded lineage. Prefer the highest numeric newer ingested
@@ -1134,7 +1142,8 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
 ## 13. Conventions & constraints
 
 - Manage calls the subject/grade setup area Subjects and grades, and retains at most two accordion
-  levels. Under Lesson plans, Upload comes first, Delete a plan (all versions) removes selected plans
+  levels. Under Lesson plans, every role's own My saved versions and Your Drafts come first (2026-10-22),
+  then Upload, Delete a plan (all versions) removes selected plans
   and all their versions, and Delete individual versions handles administrators' non-Official-version
   cleanup. Set an Official version comes last, visible to Site administrators only when a plan has
   no Official version selected. Before upload, explain that a matching subject and subject grade

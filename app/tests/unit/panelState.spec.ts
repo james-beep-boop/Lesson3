@@ -232,14 +232,43 @@ describe('initialOpen', () => {
    * they came for, inside a box named for operations they cannot perform — the same demotion the
    * exception was written to prevent for the Subject Administrator. This pins that it covers them too.
    */
-  it('a teacher with editing access still lands on their saved versions, not a closed box', () => {
-    expect(initialOpen('', ['plans', 'plans.versions'])).toEqual(['plans', 'plans.versions'])
+  it('a teacher with editing access lands on their saved versions, with drafts closed', () => {
+    // Proposal B (operator decisions 2026-10-22): saved versions open, drafts never open by default.
+    expect(initialOpen('', ['plans', 'plans.mine', 'plans.drafts'])).toEqual([
+      'plans',
+      'plans.mine',
+    ])
   })
 
-  /** ⚑ THE `: topLevel` BRANCH — one box with SEVERAL children opens the box alone. Easy to lose:
-   *  repointing a fixture onto the one-child path leaves this untested and nothing goes red. */
-  it('one top-level box with SEVERAL children opens the box only, not a child', () => {
-    expect(initialOpen('', ['plans', 'plans.upload', 'plans.delete'])).toEqual(['plans'])
+  it('"first" is first on the page, whatever order `available` arrives in', () => {
+    expect(initialOpen('', ['plans.drafts', 'plans', 'plans.mine'])).toEqual([
+      'plans',
+      'plans.mine',
+    ])
+  })
+
+  /**
+   * A teacher's bookmark from before Proposal B. `plans.versions` is now administrator-only, so for a
+   * teacher it is an unavailable id: dropped, and the page falls back to the default landing.
+   */
+  it("a teacher's old ?open=plans.versions bookmark falls back to their saved versions", () => {
+    expect(initialOpen('?open=plans.versions', ['plans', 'plans.mine', 'plans.drafts'])).toEqual([
+      'plans',
+      'plans.mine',
+    ])
+  })
+
+  /** ⚑ ONE box with SEVERAL children opens its FIRST child (2026-10-22; until then it opened the box
+   *  alone). Pinned against a fixture that is not the teacher's, so the rule is structural. */
+  it('one top-level box with SEVERAL children opens its first child', () => {
+    expect(initialOpen('', ['plans', 'plans.upload', 'plans.delete'])).toEqual([
+      'plans',
+      'plans.upload',
+    ])
+  })
+
+  it('a top-level box with no children opens alone', () => {
+    expect(initialOpen('', ['curriculum'])).toEqual(['curriculum'])
   })
 
   it('a role with several sections starts fully collapsed', () => {
@@ -261,17 +290,12 @@ describe('initialOpen', () => {
     expect(initialOpen('', ['users', 'users.access'])).toEqual(['users', 'users.access'])
   })
 
-  it('…but two top-level boxes still start collapsed, even when each holds one child', () => {
-    // The same Subject Admin once they have candidate versions to review: two sections is the
-    // multi-section case, and the exception above must not leak into it.
-    expect(initialOpen('', ['users', 'users.access', 'plans', 'plans.versions'])).toEqual([])
-  })
-
-  it('nested panels do not count toward "only one section"', () => {
-    // A Site Admin whose only top-level panel is `plans` still has three children; the auto-expand
-    // rule is about SECTIONS, and counting children would open a subtree nobody asked for. This is
-    // also the boundary of the lone-child exception above: TWO children is not one.
-    expect(initialOpen('', ['plans', 'plans.upload', 'plans.delete'])).toEqual(['plans'])
+  it('…but two top-level boxes still start collapsed (every Subject Administrator since Proposal B)', () => {
+    // Users (Roles & Access) plus Lesson plans (their own work): the multi-section case, and the
+    // exception above must not leak into it (operator decision 2026-10-22, the plan's Q7).
+    expect(
+      initialOpen('', ['users', 'users.access', 'plans', 'plans.mine', 'plans.drafts']),
+    ).toEqual([])
   })
 
   it('an entirely stale deep link falls back to the default rather than erroring', () => {

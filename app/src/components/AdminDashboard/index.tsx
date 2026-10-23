@@ -35,6 +35,7 @@ import { UsersPanel } from '../Manage/UsersPanel'
 import { UnsavedWorkList, type UnsavedWorkItem } from '../Manage/UnsavedWorkList'
 import { ClockCheck } from '../Manage/ClockCheck'
 import { listUnsavedWork } from '../../lib/editRecovery/unsavedWork'
+import { listPersonalVersions } from '../../lib/personalVersions'
 import { captureKeptUntil } from '../../lib/editRecovery/ttl'
 import { formatDay } from '../../lib/formatDate'
 import { countAwaitingApproval } from '../../lib/awaitingApproval'
@@ -52,10 +53,10 @@ import { readInstallationId } from '../../lib/identity/installationId'
  * `AccordionProvider` is the one account of the shape, and it deliberately gives no box COUNT —
  * availability is data-dependent, so every count written here has gone stale. Two claims worth keeping out of the JSX:
  *
- *   - The candidates scope mirrors `lessonBundleVersionDelete` EXACTLY, because both come from
- *     `deletableVersionsWhere` — no row is shown that the server would refuse to delete. Teachers with editing access see
- *     only versions THEY authored; Subject/Site Admins see every candidate in scope, union'd with
- *     their own drafts (so an admin who also edits elsewhere misses nothing).
+ *   - The cleanup queue's scope mirrors `lessonBundleVersionDelete` EXACTLY, because both come from
+ *     `deletableVersionsWhere` — no row is shown that the server would refuse to delete. It is read
+ *     for administrators only. A person's OWN versions are a separate query
+ *     (`lib/personalVersions.ts`, Proposal B 2026-10-22): ownership, not delete authority.
  *   - The editors widget is deliberately NOT the native Users table (decided); the server-side
  *     `enforceAssignmentScope` hook remains the write authority regardless of what it renders.
  *
@@ -108,12 +109,14 @@ export default async function AdminDashboard({
     backupStatus,
     systemSettings,
     unsavedWork,
+    personalVersions,
     awaitingApproval,
     installationId,
   ] = await Promise.all([
     t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
-    // ---- Saved versions (deletable candidates) ----
-    deletable === false
+    // ---- Delete individual versions (an administrator's cleanup queue) ----
+    // Administrators only since Proposal B: a teacher's own versions are `personalVersions` below.
+    deletable === false || !isAdmin
       ? null
       : t.time('versions', () =>
           payload.find({
@@ -209,6 +212,8 @@ export default async function AdminDashboard({
     // The CALLER's own captures only — `listUnsavedWork` keys on `user.id` and re-applies the read
     // and editing-access gates the restore path would. See `lib/editRecovery/unsavedWork.ts`.
     user ? t.time('unsavedWork', () => listUnsavedWork(req, user)) : [],
+    // ---- My saved versions (every role): the caller's own, with per-row actions ----
+    user ? t.time('personalVersions', () => listPersonalVersions(req, user)) : [],
     // ---- Accounts awaiting approval (Site-Admin only) ----
     // A count, no identities. Only an email-less site needs it surfaced: elsewhere a new account
     // confirms its own emailed link, and nothing is waiting on an administrator.
@@ -239,8 +244,9 @@ export default async function AdminDashboard({
   const sgIds = distinctIds([
     ...versionDocs.map((v) => relId(v.subjectGrade)),
     ...planDocs.map((p) => relId(p.subjectGrade)),
-    // Labels for "Your Drafts" ride this lookup rather than a query of their own.
+    // Labels for "Your Drafts" and "My saved versions" ride this lookup rather than queries of their own.
     ...unsavedWork.map((w) => w.subjectGradeId),
+    ...personalVersions.map((v) => v.subjectGradeId),
   ])
   const authorIds = distinctIds(versionDocs.map((v) => relId(v.author)))
   const officialIds = distinctIds(planDocs.map((p) => relId(p.officialVersion)))
@@ -394,9 +400,29 @@ export default async function AdminDashboard({
         sgLabel: (sgId != null ? sgById.get(sgId)?.label : undefined) ?? '',
         authorName: (authorId != null ? authorNameById.get(authorId) : undefined) ?? null,
         savedAt: v.createdAt ? formatDay(v.createdAt) : '',
+        // By construction: `deletableVersionsWhere` scoped the query, Officials were excluded above,
+        // and only administrators read this queue — every row is in a subject-grade they administer,
+        // or one where they hold editing access and wrote the version.
+        official: 'no' as const,
+        canDelete: true,
+        canEdit: true,
       },
     ]
   })
+  // The caller's own versions; every action decided on the server (`lib/personalVersions.ts`).
+  const personalRows: CandidateRow[] = personalVersions.map((v) => ({
+    id: v.id,
+    lessonPlanId: v.lessonPlanId,
+    officialVersionId: v.officialVersionId,
+    label: v.label,
+    semver: v.semver,
+    sgLabel: (v.subjectGradeId != null ? sgById.get(v.subjectGradeId)?.label : undefined) ?? '',
+    authorName: null,
+    savedAt: v.createdAt ? formatDay(v.createdAt) : '',
+    official: v.official,
+    canDelete: v.canDelete,
+    canEdit: v.canEdit,
+  }))
 
   // ---- Site-Admin panels: repair (pointerless plans) + delete lesson plans (one shared fetch) ----
   const repairPlans: { id: number; label: string }[] = []
@@ -430,10 +456,6 @@ export default async function AdminDashboard({
   // indistinguishable from a fast render on a small one.
   t.report(payload.logger, { candidates: candidates.length, plans: planRows.length })
 
-  const savedTitle = isAdmin ? 'Delete individual versions' : 'My saved versions'
-  const savedDesc = isAdmin
-    ? 'Open a saved version to review it, or delete one that is not currently Official.'
-    : 'Continue working on versions you have saved.'
   // Empty state carries the explanation the list would otherwise have to: what belongs here and how
   // something gets here. A bare "You have no saved versions." tells a teacher new to editing access nothing.
   //
@@ -442,15 +464,13 @@ export default async function AdminDashboard({
   // that stops at Edit describes a step that leaves the list exactly as empty as before, and reads as
   // a broken promise to the person waiting for a row.
   //
-  // Non-admin only: `showSaved` gives an ADMIN no section at all when the list is empty, so the admin
-  // variant of this string ("No saved candidates yet…") became unreachable and is gone.
+  // "My saved versions" is shown to every role, empty or not (Proposal B), so this is everyone's copy.
   const savedEmpty =
     'You have no saved versions yet. Open a lesson plan, choose Edit, then save your changes. Your saved work will appear here.'
-  // An administrator with nothing to tidy gets no section at all (2026-08-04, page-length request):
-  // heading + description + empty state spent three rows saying "nothing here" to someone who already
-  // knows what the list is. A teacher with editing access still sees it empty — for them the copy above is instructional,
-  // and this list is their only route back to unfinished work.
-  const showSaved = candidates.length > 0 || !isAdmin
+  // An administrator with nothing to tidy gets no cleanup section at all (2026-08-04, page-length
+  // request): heading + description + empty state spent three rows saying "nothing here" to someone
+  // who already knows what the list is.
+  const showCleanup = isAdmin && candidates.length > 0
 
   /**
    * The panel ids this caller's page ACTUALLY renders, in render order — the role gate for the
@@ -463,7 +483,7 @@ export default async function AdminDashboard({
    * direction to prefer — but it is still a defect, so keep the two in step.
    *
    * ⚑ Note this is DATA-dependent, not only role-dependent: `versions` is absent for an administrator
-   * with nothing to tidy (`showSaved`), and `plans.repair` only exists while some plan has no Official
+   * with nothing to tidy (`showCleanup`), and `plans.repair` only exists while some plan has no Official
    * pointer. "A Site Admin has N panels" is not a true statement about this page.
    */
   /**
@@ -526,9 +546,13 @@ export default async function AdminDashboard({
         siteAdmin && 'users.accounts',
         canSeeRolesAccess && 'users.access',
         siteAdmin && 'curriculum',
+        // Every Manage user can edit somewhere (`canUseAdminPanel`), so both personal panels are
+        // always present, empty or not (Proposal B).
+        !!user && 'plans.mine',
+        !!user && 'plans.drafts',
         siteAdmin && 'plans.upload',
-        showSaved && 'plans.versions',
         siteAdmin && 'plans.delete',
+        showCleanup && 'plans.versions',
         siteAdmin && repairPlans.length > 0 && 'plans.repair',
         // `systemFacts &&`, the same clause the JSX uses — the ⚑ above asks for one spelling so the
         // list can be diffed against the render by eye. It is non-null exactly when `siteAdmin` is.
@@ -572,24 +596,21 @@ export default async function AdminDashboard({
       )}
 
       {/* SECTION ORDER: people and access work first, lesson-plan operations next. One order for every
-          role; a role simply sees fewer sections (a Subject Admin gets Roles & Access plus their
-          candidate versions, a teacher with editing access only their saved versions).
+          role; a role simply sees fewer sections (a Subject Admin gets Roles & Access plus Lesson
+          plans, a teacher with editing access only Lesson plans).
 
           ⚑ GROUPS, NOT FLAT SECTIONS: Accounts + Roles & Access are one concern, Subjects + Subject
-          grades another, and Lesson plans holds the operations on a plan — including its saved and
-          candidate versions, which live at `plans.versions` (they were top-level until the operator
-          moved them; `docs/DECISIONS.md` 2026-08-27 supersedes the 2026-08-18 entry, and
-          `panelState.ts` records the retired id).
+          grades another, and Lesson plans holds everything about plans — the caller's own saved
+          versions and drafts first (`plans.mine`, `plans.drafts`, Proposal B 2026-10-22), then the
+          administrators' operations, including the cleanup queue at `plans.versions` (top-level until
+          the operator moved it; `docs/DECISIONS.md` 2026-08-27, and `panelState.ts` records the ids).
 
           ⚑ DO NOT WRITE A BOX COUNT HERE. How many top-level boxes exist is DATA-dependent, not just
           role-dependent: a Site Admin sees Users, Curriculum, Lesson plans and System, and previously
-          also saw a Candidate versions box — but only while candidates existed (`showSaved`). Every
+          also saw a Candidate versions box — but only while candidates existed (`showCleanup`). Every
           fixed count this comment has carried has gone stale, most recently by forgetting System. */}
-      {/* Above the accordion, and only when non-empty — see the ⚑ in UnsavedWorkList for why this is
-          not a panel. */}
       {/* Site Administrators only: an offline server's clock can drift years after a power cut. */}
       {siteAdmin && <ClockCheck />}
-      <UnsavedWorkList rows={unsavedRows} />
       {awaitingApproval > 0 && (
         <section className="lp-manage__awaiting" aria-labelledby="lp-awaiting-heading">
           <h2 id="lp-awaiting-heading" className="lp-manage__awaiting-title">
@@ -676,17 +697,39 @@ export default async function AdminDashboard({
 
             ⚑ THE PARENT IS NOT SITE-ADMIN-GATED ANY MORE, and that is the whole point of this shape.
             It renders for anyone with at least one child available, so a teacher with editing access
-            sees "Lesson plans" containing only "My saved versions" — auto-opened, because
-            `initialOpen`'s lone-child rule opens a single top-level panel AND its single available
-            child. Same click count as when it was top-level. Each ADMIN child is therefore gated
-            individually below; the box being open to a teacher must not open the operations in it. */}
+            sees "Lesson plans" containing "My saved versions" and "Your Drafts" — the box and My saved
+            versions auto-opened by `initialOpen`'s first-child rule, drafts closed with their count
+            (operator decisions 2026-10-22). Each ADMIN child is therefore gated individually below;
+            the box being open to a teacher must not open the operations in it. */}
         {/* ⚑ DERIVED FROM `availablePanels`, NOT RESTATED. `withAncestors` puts `plans` in that list
             exactly when one of its children is present, so deriving the gate means the box and the
             open-state vocabulary cannot disagree. `plans` has children with three different gates
-            (`siteAdmin`, `showSaved`, `siteAdmin && repairPlans.length > 0`); hand-writing that
+            (`siteAdmin`, `showCleanup`, `siteAdmin && repairPlans.length > 0`); hand-writing that
             disjunction would need two edits per new child, silently required to match. */}
         {availablePanels.includes('plans') && (
           <AccordionPanel id="plans" title="Lesson plans">
+            {/* The caller's OWN work, first, for every role (Proposal B). Subject and Site
+                Administrators get exactly what a teacher gets here; their administrative lists
+                follow. Counts are of the whole list, independent of its search box. */}
+            {user && (
+              <AccordionPanel id="plans.mine" title="My saved versions" count={personalRows.length}>
+                <p className="lp-manage__desc">Versions you have saved, newest first.</p>
+                <CandidateList
+                  rows={personalRows}
+                  emptyText={savedEmpty}
+                  showAuthor={false}
+                  showContinueEditing
+                  searchLabel="Search my saved versions"
+                />
+              </AccordionPanel>
+            )}
+
+            {user && (
+              <AccordionPanel id="plans.drafts" title="Your Drafts" count={unsavedRows.length}>
+                <UnsavedWorkList rows={unsavedRows} />
+              </AccordionPanel>
+            )}
+
             {siteAdmin && (
               <AccordionPanel id="plans.upload" title="Upload lesson plans">
                 <UploadBundles />
@@ -703,25 +746,21 @@ export default async function AdminDashboard({
               </AccordionPanel>
             )}
 
-            {/* ⚑ TITLE AND EMPTY-STATE DIFFER BY ROLE, LOCATION DOES NOT. "Delete individual versions" for an
-                administrator tidying other people's work; "My saved versions" for a teacher returning
-                to their own. An administrator with nothing to tidy gets no row at all (`showSaved`),
-                which is why this stays conditional rather than becoming a permanent empty section. */}
-            {showSaved && (
-              <AccordionPanel id="plans.versions" title={savedTitle}>
-                <p className="lp-manage__desc">{savedDesc}</p>
-                {/* ⚑ `isAdmin`, NOT `siteAdmin`. Both administrator roles get the same list under
-                    the same "Delete individual versions" title — other people's unfinished work, shown to
-                    be tidied — so both get the same actions. #306 named Site Administrators and
-                    teachers and simply omitted the Subject Administrator, who then had a "Continue
-                    editing" button on a cleanup queue while the Site Administrator beside them did
-                    not. The gate is the role split that already decides the title, not a second
-                    one that happens to agree for two roles out of three. */}
+            {/* Administrators only (both kinds — `isAdmin`, the same gate for the same queue; #306
+                once omitted the Subject Administrator). Other people's versions, to be tidied, so no
+                "Continue editing" button. An administrator with nothing to tidy gets no row at all
+                (`showCleanup`), which is why this stays conditional. */}
+            {showCleanup && (
+              <AccordionPanel id="plans.versions" title="Delete individual versions">
+                <p className="lp-manage__desc">
+                  Open a saved version to review it, or delete one that is not currently Official.
+                </p>
                 <CandidateList
                   rows={candidates}
                   emptyText={savedEmpty}
-                  showAuthor={isAdmin}
-                  showContinueEditing={!isAdmin}
+                  showAuthor
+                  showContinueEditing={false}
+                  searchLabel="Search versions to delete"
                 />
               </AccordionPanel>
             )}

@@ -75,7 +75,16 @@ async function keepSomething(page: Page, versionId: number, text: string) {
   )
 }
 
-const unsavedSection = (page: Page) => page.locator('.lp-manage__unsaved')
+/** Manage → Lesson plans → Your Drafts heading (Proposal B: a panel, closed by default). */
+const draftsHeading = (page: Page) => page.getByRole('button', { name: /^Your Drafts/ })
+
+/** Open Your Drafts if it is closed, and return its panel region. */
+async function openDrafts(page: Page) {
+  const heading = draftsHeading(page)
+  if ((await heading.getAttribute('aria-expanded')) !== 'true') await heading.click()
+  await expect(heading).toHaveAttribute('aria-expanded', 'true')
+  return page.locator(`[id="${await heading.getAttribute('aria-controls')}"]`)
+}
 
 test('J1 a saved draft is listed under Your Drafts and Continue editing reopens it', async ({
   page,
@@ -94,8 +103,15 @@ test('J1 a saved draft is listed under Your Drafts and Continue editing reopens 
   await expect(page.getByRole('button', { name: 'Continue editing' })).toBeVisible()
 
   await page.goto(`${BASE}/admin`)
-  const section = unsavedSection(page)
-  await expect(section.getByRole('heading', { name: 'Your Drafts' })).toBeVisible()
+  // Drafts never open on their own (operator decision 2026-10-22): the closed heading carries the
+  // count, while the teacher lands on My saved versions.
+  await expect(draftsHeading(page)).toHaveAccessibleName('Your Drafts (1)')
+  await expect(draftsHeading(page)).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('button', { name: /^My saved versions/ })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
+  const section = await openDrafts(page)
   const row = section.locator('li').filter({ hasText: 'Based on version 7.1.0' })
   await expect(row).toContainText('Kept until')
 
@@ -111,12 +127,14 @@ test('J2 Discard on Manage removes the draft', async ({ page }) => {
   await keepSomething(page, versionId, 'about to be discarded')
 
   await page.goto(`${BASE}/admin`)
-  const row = unsavedSection(page).locator('li').filter({ hasText: 'Based on version 7.2.0' })
+  const section = await openDrafts(page)
+  const row = section.locator('li').filter({ hasText: 'Based on version 7.2.0' })
   page.once('dialog', (d) => void d.accept())
   await row.getByRole('button', { name: 'Discard' }).click()
 
-  // The section renders only when non-empty, and this was the only kept work.
-  await expect(unsavedSection(page)).toHaveCount(0, { timeout: 15_000 })
+  // This was the only kept work: the count goes and the empty state says where drafts come from.
+  await expect(section).toContainText('You have no drafts.', { timeout: 15_000 })
+  await expect(draftsHeading(page)).toHaveAccessibleName('Your Drafts')
 })
 
 test('J3 deleting a version warns that someone’s draft goes with it', async ({ page: admin }) => {

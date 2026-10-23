@@ -103,7 +103,8 @@ Lesson3, not in a Word file.
   leaves the version you opened unchanged. A Subject-grade or Site administrator marks a saved
   version Official when it is ready.
 - **Find your saved versions:** *Manage → Lesson plans → My saved versions* lists versions you
-  saved. Choose one to continue editing, or delete one you no longer need.
+  saved. Choose one to continue editing, or delete one you no longer need. Versions of yours that
+  are Official are listed too, marked Official; they cannot be deleted.
 - **Post about these changes:** after saving a version, choose this button beside **Compare to
   Official** on your saved version. It opens a discussion with that version attached. Explain what
   changed and invite colleagues’ suggestions. Starting a discussion that references someone else’s
@@ -114,7 +115,8 @@ Lesson3, not in a Word file.
   draft unless you choose to.
 - **Save as draft:** to stop for now, choose *Save as draft*. Lesson3 checks that your draft is
   saved, then closes the editor. A draft is kept for 30 days after you last worked on it. The
-  **Manage** tab lists your drafts under *Your Drafts*, with *Continue editing* and *Discard*. To
+  **Manage** tab lists your drafts under *Lesson plans → Your Drafts*, with *Continue editing* and
+  *Discard*; the heading shows how many you have. To
   throw your changes away instead, choose *Discard changes*. Administrators: a draft holds only
   wording, not changes to lessons, phases, durations, rubrics or answer keys.
 - **Continue a draft:** when you have a draft, the *Edit* button says *Continue editing*. Lesson3
