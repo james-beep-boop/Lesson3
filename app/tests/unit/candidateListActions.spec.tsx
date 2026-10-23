@@ -36,7 +36,7 @@ describe('candidate-version actions by role', () => {
         emptyText="No versions"
         showAuthor={false}
         showContinueEditing
-        searchLabel="Search my saved versions"
+        searchLabel="Search your saved versions"
       />,
     )
 
@@ -98,9 +98,9 @@ describe('candidate-version actions by role', () => {
   })
 })
 
-// Proposal B (2026-10-22): "My saved versions" mixes rows the caller may act on differently, so every
+// Proposal B (2026-10-22): "Your saved versions" mixes rows the caller may act on differently, so every
 // action follows the row's own server-made decision (`lib/personalVersions.ts`).
-describe('per-row actions in My saved versions', () => {
+describe('per-row actions in Your saved versions', () => {
   const renderMine = (row: CandidateRow) =>
     render(
       <CandidateList
@@ -108,7 +108,7 @@ describe('per-row actions in My saved versions', () => {
         emptyText="No versions"
         showAuthor={false}
         showContinueEditing
-        searchLabel="Search my saved versions"
+        searchLabel="Search your saved versions"
       />,
     )
 
@@ -147,6 +147,6 @@ describe('per-row actions in My saved versions', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Continue editing' })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Compare to Official/ })).toBeTruthy()
-    expect(screen.getByRole('searchbox', { name: 'Search my saved versions' })).toBeTruthy()
+    expect(screen.getByRole('searchbox', { name: 'Search your saved versions' })).toBeTruthy()
   })
 })

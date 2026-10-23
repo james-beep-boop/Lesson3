@@ -212,11 +212,11 @@ export default async function AdminDashboard({
     siteAdmin ? t.time('backupStatus', () => collectBackupStatus()) : null,
     // Never throws: a failed read renders Features as "unavailable" (`readFeaturesSettings`).
     siteAdmin ? t.time('systemSettings', () => readFeaturesSettings(payload, { user, req })) : null,
-    // ---- Your Drafts (every role that can edit; empty for everyone else) ----
+    // ---- Your drafts (every role that can edit; empty for everyone else) ----
     // The CALLER's own captures only — `listUnsavedWork` keys on `user.id` and re-applies the read
     // and editing-access gates the restore path would. See `lib/editRecovery/unsavedWork.ts`.
     user ? t.time('unsavedWork', () => listUnsavedWork(req, user)) : [],
-    // ---- My saved versions (every role): the caller's own, with per-row actions ----
+    // ---- Your saved versions (every role): the caller's own, with per-row actions ----
     user ? t.time('personalVersions', () => listPersonalVersions(req, user)) : [],
     // ---- Accounts awaiting approval (Site-Admin only) ----
     // A count, no identities. Only an email-less site needs it surfaced: elsewhere a new account
@@ -248,7 +248,7 @@ export default async function AdminDashboard({
   const sgIds = distinctIds([
     ...versionDocs.map((v) => relId(v.subjectGrade)),
     ...planDocs.map((p) => relId(p.subjectGrade)),
-    // Labels for "Your Drafts" and "My saved versions" ride this lookup rather than queries of their own.
+    // Labels for "Your drafts" and "Your saved versions" ride this lookup rather than queries of their own.
     ...unsavedWork.map((w) => w.subjectGradeId),
     ...personalVersions.map((v) => v.subjectGradeId),
   ])
@@ -465,7 +465,7 @@ export default async function AdminDashboard({
   // that stops at Edit describes a step that leaves the list exactly as empty as before, and reads as
   // a broken promise to the person waiting for a row.
   //
-  // "My saved versions" is shown to every role, empty or not (Proposal B), so this is everyone's copy.
+  // "Your saved versions" is shown to every role, empty or not (Proposal B), so this is everyone's copy.
   const savedEmpty =
     'You have no saved versions yet. Open a lesson plan, choose Edit, then save your changes. Your saved work will appear here.'
   // An administrator with nothing to tidy gets no cleanup section at all (2026-08-04, page-length
@@ -698,7 +698,7 @@ export default async function AdminDashboard({
 
             ⚑ THE PARENT IS NOT SITE-ADMIN-GATED ANY MORE, and that is the whole point of this shape.
             It renders for anyone with at least one child available, so a teacher with editing access
-            sees "Lesson plans" containing "My saved versions" and "Your Drafts" — the box and My saved
+            sees "Lesson plans" containing "Your saved versions" and "Your drafts" — the box and saved
             versions auto-opened by `initialOpen`'s first-child rule, drafts closed with their count
             (operator decisions 2026-10-22). Each ADMIN child is therefore gated individually below;
             the box being open to a teacher must not open the operations in it. */}
@@ -713,20 +713,24 @@ export default async function AdminDashboard({
                 Administrators get exactly what a teacher gets here; their administrative lists
                 follow. Counts are of the whole list, independent of its search box. */}
             {user && (
-              <AccordionPanel id="plans.mine" title="My saved versions" count={personalRows.length}>
+              <AccordionPanel
+                id="plans.mine"
+                title="Your saved versions"
+                count={personalRows.length}
+              >
                 <p className="lp-manage__desc">Versions you have saved, newest first.</p>
                 <CandidateList
                   rows={personalRows}
                   emptyText={savedEmpty}
                   showAuthor={false}
                   showContinueEditing
-                  searchLabel="Search my saved versions"
+                  searchLabel="Search your saved versions"
                 />
               </AccordionPanel>
             )}
 
             {user && (
-              <AccordionPanel id="plans.drafts" title="Your Drafts" count={unsavedRows.length}>
+              <AccordionPanel id="plans.drafts" title="Your drafts" count={unsavedRows.length}>
                 <UnsavedWorkList rows={unsavedRows} />
               </AccordionPanel>
             )}

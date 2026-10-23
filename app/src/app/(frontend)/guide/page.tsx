@@ -100,6 +100,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   Each lesson opens at its Official version — the version currently approved for
                   use.
                 </p>
+                <p>
+                  Below the version information, choose <em>Show details</em> to see who saved it,
+                  its source version, and when it was created and last modified. Choose{' '}
+                  <em>Hide details</em> to close the panel. You can inspect details without editing
+                  access, including in Standard mode. Missing provenance says <em>Not recorded</em>;
+                  a referenced record you cannot read says <em>Unavailable</em>.
+                </p>
               </GuideAccordionPanel>
             )}
 
@@ -317,7 +324,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Find your saved versions in <em>Manage → Lesson plans → My saved versions</em>.
+                  Find your saved versions in <em>Manage → Lesson plans → Your saved versions</em>.
                   Choose one to continue editing, or delete one you no longer need. Versions of
                   yours that are Official are listed too, marked Official; they cannot be deleted.
                 </p>
@@ -350,7 +357,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   To stop for now, choose <em>Save as draft</em>. Lesson3 checks that your draft is
                   saved, then closes the editor. A draft is kept for 30 days after you last worked
                   on it. The <strong>Manage</strong> tab lists your drafts under{' '}
-                  <em>Lesson plans → Your Drafts</em>, with <em>Continue editing</em> and{' '}
+                  <em>Lesson plans → Your drafts</em>, with <em>Continue editing</em> and{' '}
                   <em>Discard</em>; the heading shows how many you have. To throw your changes away
                   instead, choose <em>Discard changes</em>. Administrators: a draft holds only
                   wording, not changes to lessons, phases, durations, rubrics or answer keys.
@@ -398,9 +405,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   automatically.
                 </p>
                 <p>
-                  Combine versions and Show details appear when Advanced tools is switched on. Ask
-                  your Site Administrator if you need them. An unfinished combination can still be
-                  restored and saved when Advanced tools is off.
+                  In the editor, Combine versions and Show details appear when Advanced tools is
+                  switched on. Ask your Site Administrator if you need them. An unfinished
+                  combination can still be restored and saved when Advanced tools is off.
                 </p>
                 <p>
                   An unfinished combination is captured as a private draft. Restoring reruns the
@@ -539,6 +546,12 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <ul className="guide-list">
                   <li>Add a lesson by duplicating an existing lesson row, then edit the copy.</li>
                   <li>Add, remove, and reorder lessons and instructional phases.</li>
+                  <li>
+                    When you add a phase row, choose its phase name from the dropdown. Save checks
+                    required fields first and takes you to the first field needing attention. The
+                    message identifies its lesson and phase number; your edits stay on screen while
+                    you correct it.
+                  </li>
                   <li>
                     Change document settings, the Sub-strand overview, lesson duration, ARES
                     keywords, lesson phases, assessment examples, and rubric rows.

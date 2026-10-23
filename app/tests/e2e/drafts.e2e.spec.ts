@@ -6,7 +6,7 @@
  * teacher actually takes, end to end against the real server:
  *
  *   J1  type → Save as draft → the editor closes, says until when, and Edit reads "Continue
- *       editing" → Manage lists it under Your Drafts → Continue editing reopens it with the offer
+ *       editing" → Manage lists it under Your drafts → Continue editing reopens it with the offer
  *   J2  Discard on Manage removes the draft for good
  *   J3  an administrator deleting that version is told someone's draft goes with it
  *   J4  Discard changes in the editor asks, then deletes the draft — nothing is offered back
@@ -76,16 +76,16 @@ async function keepSomething(page: Page, versionId: number, text: string) {
   )
 }
 
-/** Manage → Lesson plans → Your Drafts heading (Proposal B: a panel, closed by default). */
-const draftsHeading = (page: Page) => panelTrigger(page, 'Your Drafts')
+/** Manage → Lesson plans → Your drafts heading (Proposal B: a panel, closed by default). */
+const draftsHeading = (page: Page) => panelTrigger(page, 'Your drafts')
 
-/** Open Your Drafts if it is closed, and return its panel region. */
+/** Open Your drafts if it is closed, and return its panel region. */
 async function openDrafts(page: Page) {
-  await openPanel(page, 'Your Drafts')
-  return panelRegion(page, 'Your Drafts')
+  await openPanel(page, 'Your drafts')
+  return panelRegion(page, 'Your drafts')
 }
 
-test('J1 a saved draft is listed under Your Drafts and Continue editing reopens it', async ({
+test('J1 a saved draft is listed under Your drafts and Continue editing reopens it', async ({
   page,
 }) => {
   await loginAsRole(page, fx, 'editor')
@@ -103,10 +103,10 @@ test('J1 a saved draft is listed under Your Drafts and Continue editing reopens 
 
   await page.goto(`${BASE}/admin`)
   // Drafts never open on their own (operator decision 2026-10-22): the closed heading carries the
-  // count, while the teacher lands on My saved versions.
-  await expect(draftsHeading(page)).toHaveAccessibleName('Your Drafts (1)')
+  // count, while the teacher lands on Your saved versions.
+  await expect(draftsHeading(page)).toHaveAccessibleName('Your drafts (1)')
   await expect(draftsHeading(page)).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByRole('button', { name: /^My saved versions/ })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: /^Your saved versions/ })).toHaveAttribute(
     'aria-expanded',
     'true',
   )
@@ -133,7 +133,7 @@ test('J2 Discard on Manage removes the draft', async ({ page }) => {
 
   // This was the only kept work: the count goes and the empty state says where drafts come from.
   await expect(section).toContainText('You have no drafts.', { timeout: 15_000 })
-  await expect(draftsHeading(page)).toHaveAccessibleName('Your Drafts')
+  await expect(draftsHeading(page)).toHaveAccessibleName('Your drafts')
 })
 
 test('J3 deleting a version warns that someone’s draft goes with it', async ({ page: admin }) => {

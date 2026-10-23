@@ -37,6 +37,10 @@ _Compare_ button.
   Lesson3 marks it `vX (pinned)`. Favorites are private.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
+- **Show details:** below the version information on a lesson page, choose *Show details* to see
+  who saved it, its source version, and when it was created and last modified. Choose *Hide details*
+  to close the panel. You can inspect details without editing access, including in Standard mode.
+  Missing provenance says *Not recorded*; a referenced record you cannot read says *Unavailable*.
 - **Student document and Teacher key:** the _Final explanation_ you download has blank answer space
   and no answers, so it is the one to give to students. The _Teacher key — not for students_ has the
   same questions with the exemplar answers: the Teacher key has the exemplar answers and is not for
@@ -102,7 +106,7 @@ Lesson3, not in a Word file.
 - **Saving makes a new version:** *Save as new version* stores your edits as a new version and
   leaves the version you opened unchanged. A Subject-grade or Site administrator marks a saved
   version Official when it is ready.
-- **Find your saved versions:** *Manage → Lesson plans → My saved versions* lists versions you
+- **Find your saved versions:** *Manage → Lesson plans → Your saved versions* lists versions you
   saved. Choose one to continue editing, or delete one you no longer need. Versions of yours that
   are Official are listed too, marked Official; they cannot be deleted.
 - **Post about these changes:** after saving a version, choose this button beside **Compare to
@@ -115,7 +119,7 @@ Lesson3, not in a Word file.
   draft unless you choose to.
 - **Save as draft:** to stop for now, choose *Save as draft*. Lesson3 checks that your draft is
   saved, then closes the editor. A draft is kept for 30 days after you last worked on it. The
-  **Manage** tab lists your drafts under *Lesson plans → Your Drafts*, with *Continue editing* and
+  **Manage** tab lists your drafts under *Lesson plans → Your drafts*, with *Continue editing* and
   *Discard*; the heading shows how many you have. To
   throw your changes away instead, choose *Discard changes*. Administrators: a draft holds only
   wording, not changes to lessons, phases, durations, rubrics or answer keys.
@@ -138,7 +142,7 @@ Lesson3, not in a Word file.
   numbered version automatically. An unfinished combination is captured as a private draft; restoring
   it reruns the comparison and keeps your text. If the other version has gone, it becomes an ordinary
   draft. If the comparison cannot load for another reason, choose *Retry combination*.
-  Combine versions and Show details appear when Advanced tools is switched on. Ask your Site
+  In the editor, Combine versions and Show details appear when Advanced tools is switched on. Ask your Site
   Administrator if you need them. An unfinished combination can still be restored and saved when
   Advanced tools is off.
   Deleting the version you were editing deletes its draft too. If that happens while the
@@ -155,6 +159,9 @@ structure, and choose which version is Official for their subjects and grades.
 
 - **Manage lesson structure:** add, remove, and reorder lessons and lesson phases. To add a lesson,
   copy an existing lesson, then edit the copy.
+  When you add a phase row, choose its phase name from the dropdown. Save checks required fields
+  first and takes you to the first field needing attention. The message identifies its lesson
+  and phase number; your edits stay on screen while you correct it.
 - **Change lesson settings:** update Document settings, the Sub-strand overview, lesson duration,
   ARES keywords, lesson phases, assessment examples, and rubric rows.
 - **Make Official:** on a lesson page, promote a saved version to the Official one Teachers see —

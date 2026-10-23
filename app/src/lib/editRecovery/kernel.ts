@@ -619,7 +619,7 @@ export type OwnCapture = {
 }
 
 /**
- * Every capture holding unsaved work for ONE user, newest first — "Your Drafts" on Manage.
+ * Every capture holding unsaved work for ONE user, newest first — "Your drafts" on Manage.
  *
  * ⚑ The user id is a parameter the CALLER must take from the session, exactly as the endpoints do;
  * there is no variant that lists anyone else's. The content column is not selected: the list shows

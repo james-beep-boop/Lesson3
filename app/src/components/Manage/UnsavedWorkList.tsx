@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Manage — "Your Drafts" (SPEC §5, "Drafts", 2026-10-17).
+ * Manage — "Your drafts" (SPEC §5, "Drafts", 2026-10-17).
  *
  * The caller's own drafts (edit-recovery captures), so a draft can be found again without
  * remembering which version it was based on. Continue editing opens the editor with edit intent,
@@ -13,7 +13,7 @@
  * ⚑ NOW THE BODY OF `plans.drafts` (Proposal B, operator decisions 2026-10-22), superseding the
  * 2026-10-17 placement above the accordion. That placement had two reasons: a second child under
  * Lesson plans would close a teacher's saved versions (fixed by `initialOpen`'s first-child rule, which
- * opens "My saved versions"), and drafts expire (answered by the count on the closed heading). The
+ * opens "Your saved versions"), and drafts expire (answered by the count on the closed heading). The
  * operator decided drafts never open on their own. Present for every role, with an empty state, so
  * the place a draft goes is visible before there is one.
  *

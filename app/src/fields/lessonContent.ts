@@ -356,6 +356,7 @@ export const lessonEditableContentFields: Field[] = [
             type: 'select',
             required: true,
             options: PHASE_OPTIONS,
+            admin: { components: { Field: '@/components/PhaseSelectField#default' } },
             access: { update: canEditStructure },
           }),
           ...Object.entries(FRAMEWORK_PROSE_LABELS).map(([name, label]) =>

@@ -67,7 +67,7 @@ export const LessonBundleVersions: CollectionConfig = {
     // stated once in LessonControls' "Help" modal — a passive banner here duplicated it.
     components: {
       // IA redesign PR ③: no admin versions LIST — versions are reached from a lesson page (Edit)
-      // or Manage (My saved versions), so the list route redirects to Manage. The DOCUMENT view is
+      // or Manage (Your saved versions), so the list route redirects to Manage. The DOCUMENT view is
       // the editor and stays. Nav entry hidden in custom.scss (`nav-group-Lesson plans`).
       views: {
         list: { Component: '@/components/RedirectToManage#default' },
@@ -202,7 +202,7 @@ export const LessonBundleVersions: CollectionConfig = {
     {
       // Who saved this candidate — stamped by save-as-new from the authenticated caller; empty for
       // uploaded 1.0.0 / system-created versions. Drives the teacher with editing access delete scope (IA redesign
-      // 2026-07-01): a teacher with editing access may delete only versions they authored ("My saved versions" on Manage).
+      // 2026-07-01): a teacher with editing access may delete only versions they authored ("Your saved versions" on Manage).
       // System-set only: direct create/update cannot forge it (save-as-new writes via overrideAccess).
       name: 'author',
       type: 'relationship',

@@ -10,7 +10,7 @@ import { toId } from '../access'
 import { applyEditorFieldSplit } from './fieldSplit'
 import { lockRows } from '../lib/txDb'
 import { DELETING_LESSON_PLAN_IDS } from './lessonPlan'
-import { validateGeneratable } from '../ingest/validateGeneratable'
+import { generatableFieldErrors } from '../ingest/validateGeneratable'
 
 const LESSON_PLANS = 'lesson-plans' as CollectionSlug
 
@@ -189,12 +189,12 @@ export const enforceBundleVersionGeneratable: CollectionBeforeValidateHook = ({
   if (!data) return data
 
   const merged = { ...originalDoc, ...data }
-  const problems = validateGeneratable(merged)
+  const problems = generatableFieldErrors(merged)
   if (problems.length > 0) {
     throw new ValidationError(
       {
         collection: 'lesson-bundle-versions',
-        errors: problems.map((message) => ({ message, path: '' })),
+        errors: problems,
       },
       req.t,
     )

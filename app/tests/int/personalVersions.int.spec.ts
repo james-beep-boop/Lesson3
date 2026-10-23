@@ -1,5 +1,5 @@
 /**
- * "My saved versions" (Proposal B, 2026-10-22) against a real database, through the PRODUCTION read
+ * "Your saved versions" (Proposal B, 2026-10-22) against a real database, through the PRODUCTION read
  * and row mapping (`listPersonalVersions`) with its exact `select` — Codex's condition on the plan.
  * Testing `canDeleteVersionDoc` with hand-built full documents would have missed the plan's P2: a
  * projection without `author` hides Delete on a teacher's own versions while administrators, who

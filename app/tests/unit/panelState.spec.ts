@@ -253,7 +253,7 @@ describe('initialOpen', () => {
    *
    * ⚑ THE CANONICAL FORM IS THE ONE THAT MATTERS (Codex review of #434). The old accordion wrote the
    * teacher's page as `?open=plans,plans.versions`. Dropping the child kept `plans`, so the URL won
-   * and they landed on a bare box with My saved versions closed. Both forms are pinned.
+   * and they landed on a bare box with Your saved versions closed. Both forms are pinned.
    */
   const TEACHER = ['plans', 'plans.mine', 'plans.drafts']
   it("a teacher's old ?open=plans,plans.versions bookmark lands on their saved versions", () => {
@@ -268,7 +268,7 @@ describe('initialOpen', () => {
     expect(parseOpen('?open=plans,plans.versions', SITE_ADMIN)).toEqual(['plans', 'plans.versions'])
   })
 
-  it('a deliberately closed My saved versions stays closed (?open=plans alone)', () => {
+  it('a deliberately closed Your saved versions stays closed (?open=plans alone)', () => {
     expect(initialOpen('?open=plans', TEACHER)).toEqual(['plans'])
   })
 

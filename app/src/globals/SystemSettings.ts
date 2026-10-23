@@ -22,7 +22,7 @@ import type { User } from '../payload-types'
  *   - `versions: false`, deliberately. Enabling them would give a free change history, and if that is
  *     ever wanted `drafts` MUST stay false: `draft` is RESERVED in this project (SPEC §13) — it
  *     already means an unofficial saved version, and the Guide tells users their drafts live in
- *     Manage → My saved versions.
+ *     Manage → Your saved versions.
  *
  * ⚑ WHO READS AND WRITES THESE (2026-10-09, discussions PR 2). The ONE writer is the Save endpoint,
  * `endpoints/systemSettingsSave.ts`, mounted below; it may change only `SAVEABLE_FLAGS`

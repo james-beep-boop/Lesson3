@@ -104,7 +104,7 @@ describe('Save as draft', () => {
     // A status, not an alert: success must not render in the error colour.
     const status = await screen.findByRole('status')
     expect(status.textContent).toBe(
-      'Your draft is saved until 16 Nov 2026. Find it in Manage tab, under Your Drafts.',
+      'Your draft is saved until 16 Nov 2026. Find it in Manage tab, under Your drafts.',
     )
     // "Manage" is bold — the word to look for in the navigation.
     expect(status.querySelector('strong')?.textContent).toBe('Manage')
@@ -216,7 +216,7 @@ describe('Discard changes', () => {
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('could not be deleted')
-    expect(alert.textContent).toContain('Your Drafts')
+    expect(alert.textContent).toContain('Your drafts')
     expect(screen.getByRole('button', { name: 'Continue editing' })).toBeTruthy()
   })
 

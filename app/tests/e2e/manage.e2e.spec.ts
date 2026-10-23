@@ -5,7 +5,7 @@
  * coverage. This spec drives the REAL rendered page and asserts what each role sees and the two
  * interactive flows:
  *
- *   1. Role scoping — editing-access user: a "Lesson plans" box holding ONLY "My saved versions";
+ *   1. Role scoping — editing-access user: a "Lesson plans" box holding ONLY "Your saved versions";
  *      Subject Admin: the same box holding "Delete individual versions", plus "Users" holding "Roles &
  *      Access"; Site Admin: "Users" (Accounts / Roles & Access), "Curriculum" (Subjects / Subject
  *      grades), "Lesson plans" (Upload / Delete / Repair / Delete individual versions) and "System".
@@ -258,15 +258,15 @@ test.describe('Manage page', () => {
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
     // ⚑ A "Lesson plans" box renders around their panels (`plans.mine`, `plans.drafts`), and
-    // `initialOpen`'s first-child rule opens the box AND My saved versions — VISIBLE on arrival rather
-    // than behind a click — while Your Drafts stays closed (operator decisions 2026-10-22). That
+    // `initialOpen`'s first-child rule opens the box AND Your saved versions — VISIBLE on arrival rather
+    // than behind a click — while Your drafts stays closed (operator decisions 2026-10-22). That
     // property is what makes nesting acceptable for this role; assert it, do not assume it.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'My saved versions (1)' })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: 'Your saved versions (1)' })).toHaveAttribute(
       'aria-expanded',
       'true',
     )
-    await expect(page.getByRole('button', { name: /^Your Drafts/ })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: /^Your drafts/ })).toHaveAttribute(
       'aria-expanded',
       'false',
     )
@@ -298,7 +298,7 @@ test.describe('Manage page', () => {
     // administrative queue.
     await expect(
       (await panelRegion(page, 'Lesson plans')).locator('.lp-accordion__trigger'),
-    ).toHaveText(['My saved versions', 'Your Drafts', 'Delete individual versions'])
+    ).toHaveText(['Your saved versions', 'Your drafts', 'Delete individual versions'])
     await openPanel(page, 'Delete individual versions')
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
     // an empty list. Selector note: `.lp-manage__row` alone would ALSO match the editors widget's
@@ -352,7 +352,7 @@ test.describe('Manage page', () => {
    * removed in `afterAll`: versions there would join other administrators' cleanup queues and the
    * account would join the fixture's Roles & Access group, both of which other tests here count.
    */
-  test.describe('My saved versions and Your Drafts', () => {
+  test.describe('Your saved versions and Your drafts', () => {
     const { startFor, captureFor } = recoveryHarness(() => fx)
     let scoped: User
     let ordinaryA: LessonBundleVersion
@@ -475,10 +475,10 @@ test.describe('Manage page', () => {
       await openPanel(page, 'Lesson plans')
       await expect(
         (await panelRegion(page, 'Lesson plans')).locator('.lp-accordion__trigger'),
-      ).toHaveText(['My saved versions (3)', 'Your Drafts', 'Delete individual versions'])
+      ).toHaveText(['Your saved versions (3)', 'Your drafts', 'Delete individual versions'])
 
-      await openPanel(page, 'My saved versions (3)')
-      const mine = await panelRegion(page, 'My saved versions')
+      await openPanel(page, 'Your saved versions (3)')
+      const mine = await panelRegion(page, 'Your saved versions')
       // Their three, and not the editor's candidate in the same subject-grade.
       await expect(mine.locator('li')).toHaveCount(3)
       await expect(mine).not.toContainText('Version 1.1.0')
@@ -511,39 +511,39 @@ test.describe('Manage page', () => {
       await expect(row('3.0.0').getByRole('button', { name: 'Delete' })).toHaveCount(0)
 
       // The editor's draft on A is theirs alone: no count here, and the empty state.
-      await openPanel(page, 'Your Drafts')
-      await expect(await panelRegion(page, 'Your Drafts')).toContainText('You have no drafts.')
+      await openPanel(page, 'Your drafts')
+      await expect(await panelRegion(page, 'Your drafts')).toContainText('You have no drafts.')
       await page.screenshot({
         path: testInfo.outputPath('scoped-admin-lesson-plans.png'),
         fullPage: true,
       })
     })
 
-    test('deleting from My saved versions refreshes both lists, the count, and the draft on it', async ({
+    test('deleting from Your saved versions refreshes both lists, the count, and the draft on it', async ({
       page,
     }) => {
       const doomed = await saveAs(scoped.id, planA, sgA, `1.6.${++semverSeq}`)
       await keepDraft(doomed.id, scoped.id)
       await loginScoped(page)
       await page.goto(`${BASE}/admin?open=plans,plans.mine,plans.drafts,plans.versions`)
-      await expect(page.getByRole('button', { name: 'My saved versions (4)' })).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Your Drafts (1)' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Your saved versions (4)' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Your drafts (1)' })).toBeVisible()
       const queue = await panelRegion(page, 'Delete individual versions')
       await expect(queue).toContainText(`Version ${doomed.semver}`)
 
       // The confirmation (with its draft warning) is the browser's own, and stays so (decided).
       page.once('dialog', (d) => void d.accept())
-      const mine = await panelRegion(page, 'My saved versions')
+      const mine = await panelRegion(page, 'Your saved versions')
       await mine
         .locator('li', { hasText: `Version ${doomed.semver}` })
         .getByRole('button', { name: 'Delete' })
         .click()
 
-      await expect(page.getByRole('button', { name: 'My saved versions (3)' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Your saved versions (3)' })).toBeVisible()
       await expect(queue).not.toContainText(`Version ${doomed.semver}`)
       // The draft went with its version (the existing cascade): the count and the row are gone.
-      await expect(page.getByRole('button', { name: 'Your Drafts', exact: true })).toBeVisible()
-      await expect(await panelRegion(page, 'Your Drafts')).toContainText('You have no drafts.')
+      await expect(page.getByRole('button', { name: 'Your drafts', exact: true })).toBeVisible()
+      await expect(await panelRegion(page, 'Your drafts')).toContainText('You have no drafts.')
     })
 
     test('deep links, reload, Back/Forward, and a teacher’s old plans.versions bookmark', async ({
@@ -554,20 +554,20 @@ test.describe('Manage page', () => {
         expect(page.getByRole('button', { name })).toHaveAttribute('aria-expanded', value)
 
       await page.goto(`${BASE}/admin?open=plans,plans.drafts`)
-      await expanded(/^Your Drafts/, 'true')
-      await expanded(/^My saved versions/, 'false')
+      await expanded(/^Your drafts/, 'true')
+      await expanded(/^Your saved versions/, 'false')
       await page.reload()
-      await expanded(/^Your Drafts/, 'true')
-      await expanded(/^My saved versions/, 'false')
+      await expanded(/^Your drafts/, 'true')
+      await expanded(/^Your saved versions/, 'false')
 
       await page.goto(`${BASE}/admin?open=plans,plans.mine`)
-      await expanded(/^My saved versions/, 'true')
-      await expanded(/^Your Drafts/, 'false')
+      await expanded(/^Your saved versions/, 'true')
+      await expanded(/^Your drafts/, 'false')
       await page.goBack()
-      await expanded(/^Your Drafts/, 'true')
-      await expanded(/^My saved versions/, 'false')
+      await expanded(/^Your drafts/, 'true')
+      await expanded(/^Your saved versions/, 'false')
       await page.goForward()
-      await expanded(/^My saved versions/, 'true')
+      await expanded(/^Your saved versions/, 'true')
 
       // `plans.versions` is administrators' only now; a teacher's saved versions moved to `plans.mine`
       // and their old bookmark follows them. Both forms: the canonical one the old accordion wrote
@@ -575,8 +575,8 @@ test.describe('Manage page', () => {
       // URL is rewritten to what the page shows and stops advertising the old id.
       for (const open of ['plans%2Cplans.versions', 'plans.versions']) {
         await page.goto(`${BASE}/admin?open=${open}`)
-        await expanded(/^My saved versions/, 'true')
-        await expanded(/^Your Drafts/, 'false')
+        await expanded(/^Your saved versions/, 'true')
+        await expanded(/^Your drafts/, 'false')
         await expect(page).toHaveURL(/[?&]open=plans%2Cplans\.mine(&|$)/)
       }
     })
@@ -650,8 +650,8 @@ test.describe('Manage page', () => {
     // The Site Administrator's own work first, like every role's (Proposal B, 2026-10-22). No counts:
     // this fixture's Site Administrator has saved no versions and kept no drafts.
     await expect(lessonPlansPanel.locator(':scope > .lp-accordion > h3 button')).toHaveText([
-      'My saved versions',
-      'Your Drafts',
+      'Your saved versions',
+      'Your drafts',
       'Upload lesson plans',
       'Delete a plan (all versions)',
       'Delete individual versions',
@@ -1038,10 +1038,10 @@ test.describe('Manage page', () => {
      * covered both roles in a single test and failed in CI for exactly that reason.
      */
     test('a Teacher with editing access has their only section expanded', async ({ page }) => {
-      // Lesson plans is their whole page; its first child, My saved versions, opens with it.
+      // Lesson plans is their whole page; its first child, Your saved versions, opens with it.
       await loginAs(page, 'editor')
       await page.goto(`${BASE}/admin`)
-      await expect(page.getByRole('button', { name: /^My saved versions/ })).toHaveAttribute(
+      await expect(page.getByRole('button', { name: /^Your saved versions/ })).toHaveAttribute(
         'aria-expanded',
         'true',
       )
@@ -1207,7 +1207,7 @@ test.describe('Manage page', () => {
       // Scoped to the panel's own region (`panelRegion`'s ⚑): since Proposal B the sibling panels
       // hold lists and empty states of their own.
       const region = await panelRegion(page, 'Delete individual versions')
-      // Its own accessible name: an administrator's page has a second list (My saved versions).
+      // Its own accessible name: an administrator's page has a second list (Your saved versions).
       const search = region.getByLabel('Search versions to delete')
       await expect(search).toBeVisible()
 

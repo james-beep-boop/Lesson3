@@ -61,6 +61,9 @@ vi.mock('@payloadcms/ui', () => ({
     },
   }),
   useForm: () => ({
+    validateForm: vi.fn().mockResolvedValue(true),
+    getFields: () => ({}),
+    setSubmitted: vi.fn(),
     setDisabled: vi.fn(),
     reset: vi.fn(),
     setModified: vi.fn(),

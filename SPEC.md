@@ -289,6 +289,15 @@ Lesson-content editing is offered only at **viewport width > 640px** (i.e. block
 - **Behaviour:** at 640px or narrower, **new edit intent is neutralised on initial load** (a mount-time JS guard; needed because `?edit=1` seeds `editing` during SSR, so CSS alone can't decide the mode without a hydration mismatch). **An edit session already underway is not cancelled when the viewport is resized** — the guard evaluates once on load, never on resize, so a user who narrows the window mid-edit keeps Save/Cancel. The CSS button↔notice swap is cosmetic; the guard is what decides edit mode.
 
 ### Field-level edit permissions (maps directly to Payload field access control)
+
+Save as new version runs native form validation before recovery preparation, source-deletion
+consent or the save request. Incomplete fields are identified by lesson/phase position, marked inline
+and the first is revealed and focused. Phase names use a fixed dropdown over the existing controlled
+vocabulary; typing is not a separate search/selection step. Adding a sixth phase is permitted once its
+name is selected; this does not impose a five-row maximum. The server retains its validation gate and
+returns actual field paths and labels; the editor displays the detailed reasons rather than only the
+generic validation heading (operator correction 2026-10-23).
+
 - **Teacher with editing access for the subject-grade:** prose values — `slo.*`, `overview`, `framework[].{learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment}`, `teacherReflection`, `summaryTablePrompt.*`, `SUMMARY_TABLE.lessons[].{observed, learned, explained}`, lesson `title`, `FINAL_EXPLANATION.instructions`, `sections[].prompt`.
 - **Subject Admin only:** `META.*` (except the identity fields below and the no-op fields in *System*), `framework[].phase`, `duration`, structural changes (add/remove/reorder lessons & phases), and **assessment answer keys** — `sections[].exemplar`, `rubric[*]`.
 - **Site Admin only (amended 2026-07-05):** `META.subject`, `META.grade`, `META.substrand_id` — corruption-repair fields, not curation. Subject/grade only label the printed document (the plan's `subjectGrade` relationship is the categorization truth, fixed at ingest), and `substrand_id` is the re-ingest matching key (§7) — a wrong edit silently redirects future re-uploads. A Subject Admin's submitted values are preserved from the source (`hooks/fieldSplit.ts`); the fields render read-only for them.
@@ -328,7 +337,7 @@ Guide sentence ("Your drafts live in Manage → My saved versions") that no long
 2026-10-17 no screen or Guide text used the word for versions. Its worry was that calling an
 automatic backup a "draft" would tell a teacher a VERSION had been saved; with an explicit "Save as
 draft" beside "Save as new version", the two are named apart instead. ⚑ **Never call a numbered
-version a draft**, in UI text or Guide: "My saved versions" lists versions; "Your Drafts" lists
+version a draft**, in UI text or Guide: "Your saved versions" lists versions; "Your drafts" lists
 drafts, each "Based on version 1.0.4".
 *(A `Draft` status pill also exists in `LibraryBrowser.tsx`, but it is dead code — catalogue rows are
 built with `status: 'published'` hardcoded. If `status` ever goes dynamic, that pill would call a
@@ -476,7 +485,7 @@ observable contract, and a failed or backed-off capture must say so rather than 
   retirement/cleanup operation (for "this teacher's capture is stuck"), served by the same
   content-free endpoint. There is no admin read bypass for capture content.
 
-#### Drafts — Save as draft, Discard changes, Your Drafts (decided 2026-10-17)
+#### Drafts — Save as draft, Discard changes, Your drafts (decided 2026-10-17)
 
 Operator question: can a teacher put work aside without saving a version each time? Edit recovery
 already keeps unsaved work on the server, across devices, for 30 days — so the answer is to make
@@ -491,7 +500,7 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
     transport failure is not tolerated — there is no other copy. The form is locked during the
     flush. Disabled on a pristine form. An administrator is asked first, because only prose is
     captured and structural or answer-key changes would be discarded. Afterwards: "Your draft is
-    saved until <date>. Find it in **Manage** tab, under Your Drafts."
+    saved until <date>. Find it in **Manage** tab, under Your drafts."
   - *Discard changes* replaced Cancel, which reverted the screen but left the automatic draft on
     the server — a less reliable Save as draft under a misleading name. It now confirms ("Discard
     your unsaved changes? This cannot be undone."), retires the draft, and reverts. A pristine form
@@ -499,7 +508,7 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
 - **"Continue editing"** replaces the Edit label (editor and lesson page) whenever the signed-in
   user has a draft on that version — a server-side existence check (`hasUnsavedWork`) at page load,
   updated in the editor by Save as draft and Discard.
-- **"Your Drafts" on Manage**: the caller's own drafts (active, non-empty captures), each row with
+- **"Your drafts" on Manage**: the caller's own drafts (active, non-empty captures), each row with
   its subject-grade, **"Based on version 1.0.4"** (never "Version 1.0.4" — the number belongs to the
   version, not the draft), saved date and **kept-until date** (last write + 30 days, the date the
   nightly expiry honours), plus Continue editing (opens the editor, where the restore prompt takes
@@ -507,10 +516,10 @@ section forbids. The user-facing word is **draft** (vocabulary note above). No s
   only where the restore path would accept them: the version is readable and the caller still has
   editing access. Server-rendered from the session user; no listing endpoint.
   **Placement (Proposal B, operator decisions 2026-10-22, superseding "above the accordion"):** a
-  panel inside Manage → Lesson plans (`plans.drafts`), after "My saved versions" (`plans.mine`), for
+  panel inside Manage → Lesson plans (`plans.drafts`), after "Your saved versions" (`plans.mine`), for
   every role, present even when empty (with an empty state). Drafts never open on their own; the
-  closed heading shows the count ("Your Drafts (2)"). A teacher's Manage page still opens straight
-  onto "My saved versions". **"My saved versions"** lists every numbered version the caller saved
+  closed heading shows the count ("Your drafts (2)"). A teacher's Manage page still opens straight
+  onto "Your saved versions". **"Your saved versions"** lists every numbered version the caller saved
   (authored), in every subject-grade where it is still readable, including their own Official
   versions (marked Official, never deletable); each row offers only what the server would accept
   (Delete, Continue editing, Compare to Official). Subject-grade and Site administrators get the same
@@ -573,6 +582,13 @@ resolver (`resolveMode`, today the site switch alone) decides the mode.
 
 - **Advanced adds** the editor's **More ▾** menu, holding **Combine versions** and **Show details**,
   and, in the lesson page's **Share ▾**, **Download as JSON** and **Email all**.
+- **Lesson reading details are everyday** (operator decision 2026-10-23): every signed-in reader,
+  including teachers without editing access, can choose **Show details / Hide details** below the
+  version information. Closed on arrival, it displays Saved by (display name), Based on version,
+  Created and Last modified for the selected saved version. Reads retain the caller's access;
+  source labels resolve only within the plan's readable versions. Missing provenance is
+  **Not recorded**; inaccessible related records are **Unavailable**. The editor sidebar's existing
+  Advanced toggle is unchanged.
 - **Insert link is everyday**, never advanced.
 - **Advanced never reveals what the person cannot use:** no Email all without email set up, no
   Combine without editing access and two versions. More ▾ is absent when it would be empty.
@@ -1142,12 +1158,12 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
 ## 13. Conventions & constraints
 
 - Manage calls the subject/grade setup area Subjects and grades, and retains at most two accordion
-  levels. Under Lesson plans, every role's own My saved versions and Your Drafts come first (2026-10-22),
+  levels. Under Lesson plans, "Your saved versions" and "Your drafts" come first for every role,
   then Upload, Delete a plan (all versions) removes selected plans
   and all their versions, and Delete individual versions handles administrators' non-Official-version
   cleanup. Set an Official version comes last, visible to Site administrators only when a plan has
   no Official version selected. Before upload, explain that a matching subject and subject grade
-  must already exist and match the lesson file. Teachers retain My saved versions.
+  must already exist and match the lesson file. Teachers retain Your saved versions.
   System shows Features before Installation status. Existing panel ids and deep links remain stable.
 
 - Login and the Guide footer show the installed application version, supplied automatically by the
