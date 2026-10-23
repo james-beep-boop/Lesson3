@@ -944,6 +944,34 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     }
   }
 
+  it('an incomplete phase returns its field path and explanation without saving a version', async () => {
+    const incomplete = structuredClone(fx.version)
+    incomplete.lessons![0].framework!.push({ phase: null } as never)
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('siteAdmin'),
+      body: dataForm(incomplete),
+    })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({
+      errors: [
+        {
+          data: {
+            errors: [
+              {
+                path: 'lessons.0.framework.1.phase',
+                label: 'Lesson 1, phase 2',
+                message: 'Lesson 1, phase 2: Choose a phase from the list.',
+              },
+            ],
+          },
+        },
+      ],
+    })
+    expect(await fx.payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
+  })
+
   it('A teacher with editing access saves a new candidate — Official pointer unchanged, source unchanged', async () => {
     const before = await fx.payload.findByID({
       collection: 'lesson-plans',

@@ -33,6 +33,7 @@ import { lockRows } from '../lib/txDb'
 import { relId } from '../lib/relId'
 import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
+import { generatableFieldErrors } from '../ingest/validateGeneratable'
 // `comparableContent` is the no-op guard's canonical form: applied identically to the merged
 // submission and the source, so ONE definition decides what counts as "the same content".
 import { comparableContent, DROP_KEYS } from '../lib/versionContent'
@@ -203,6 +204,16 @@ export const saveAsNewEndpoint: Endpoint = {
     const content = stripIds(
       Object.fromEntries(Object.entries(merged).filter(([k]) => !DROP_KEYS.has(k))),
     ) as Record<string, unknown>
+
+    // Own this response: production Payload error formatting can omit a thrown error's data.
+    // The collection hook retains the same authoritative check for every other creation path.
+    const problems = generatableFieldErrors(content)
+    if (problems.length) {
+      return json(
+        { errors: [{ message: 'Fix the following before saving.', data: { errors: problems } }] },
+        400,
+      )
+    }
 
     // No-op guard (user decision 2026-07-17): identical content must not mint a new version — there
     // is no reason for two byte-identical snapshots. `comparableContent` normalizes the merged

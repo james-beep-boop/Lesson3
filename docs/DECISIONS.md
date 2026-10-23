@@ -30,6 +30,13 @@ the control, and keep its required-choice explanation tied to its actual value a
 Revealing a collapsed row can refresh native field state, temporarily resetting its validation flag;
 that must not remove the explanation while the phase is still unselected.
 
+The first PR #435 CI run caught a production-only response difference: the local development
+server retained a thrown validation error's nested data, while the production build omitted it.
+The save endpoint now returns its own 400 JSON with the shared completeness validator's paths and
+messages, before starting a write transaction; the collection hook remains the backstop for every
+other creation path. Pin the wire shape against a production build rather than inferring it from
+the development server. The HTTP regression also proves that refusal creates no version.
+
 ## 2026-10-23 — Let teachers inspect version details from the lesson reading page
 
 The operator approved a closed-by-default **Show details / Hide details** disclosure below the

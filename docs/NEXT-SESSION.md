@@ -22,7 +22,7 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-23
 
-**Current change set (2026-10-23):** personal Manage headings now say "Your saved versions" and
+**#435 (2026-10-23):** personal Manage headings now say "Your saved versions" and
 "Your drafts". The lesson reading page also has a closed **Show details / Hide details** disclosure
 for every signed-in reader in Standard mode. The operator asked to keep these changes together.
 Validation: 123 focused unit tests, two browser tests (teachers with and without editing access,
@@ -32,8 +32,10 @@ sixth-phase error. Save identifies the incomplete field, reveals it and preserve
 the server reports actual field paths and the client retains nested validation explanations.
 Validated by a real browser/wire test: empty sixth phase returns its actual path, local validation
 sends no save request and focuses the field, and selecting a valid name saves six phases while the
-source retains five. Unit checks, lint, types and formatting passed; slow unrelated UI unit checks
-passed with reduced concurrency after the broad run exceeded their default timeouts.
+source retains five. All 1,803 unit tests passed with one worker, as did lint, types and formatting.
+The first CI run exposed production formatting dropping nested validation data; the save endpoint
+now owns the validation response. A production-build HTTP regression proves it includes the field
+path and explanation and creates no version on refusal. The full CI gate must pass before merge.
 
 **Newest (2026-10-23): #433 and #434 merged** (`fbedfea`, `ceade3d`), each only after green CI, at the
 operator's "merge when green". Plan, review log and Q1–Q7 decisions:
