@@ -2732,6 +2732,13 @@ a.btn.lp-btn {
       margin: 0;
       justify-content: center;
     }
+
+    // ⚑ The danger button's `margin-left: 0.5rem` (`.lp-modal .btn.btn--style-error`, 0-3-0) outranks
+    // `> *` above (0-2-0) and pushed Delete 8px past the row's right edge (Codex, #433). In a pair the
+    // grid gap is the only spacing, so reset it at 0-4-0.
+    > .btn.btn--style-error {
+      margin-left: 0;
+    }
   }
 }
 

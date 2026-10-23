@@ -30,6 +30,7 @@
  */
 import { test, expect, type Locator, type Page } from '@playwright/test'
 
+import { expectPairedActions } from '../helpers/dialogs'
 import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
 import {
   createUserVerified,
@@ -720,9 +721,12 @@ test.describe('Manage page', () => {
     await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toBeChecked()
   })
 
-  test('Site Admin can delete a plan from the Delete panel', async ({ page }) => {
+  test('Site Admin can delete a plan from the Delete panel', async ({ page }, testInfo) => {
+    // Dark, so the admin's paired-button row is proved in both themes (Save settings covers light).
+    await page.emulateMedia({ colorScheme: 'dark' })
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await openDeletePanel(page)
 
     await page.getByLabel('Search lesson plans to delete').fill(DELETABLE_TITLE)
@@ -736,6 +740,13 @@ test.describe('Manage page', () => {
     await expect(dialog).toContainText('Delete 1 lesson plan, including all of its saved versions.')
     await expect(dialog).toContainText('This cannot be undone.')
     await expect(dialog.getByLabel('Type DELETE to confirm')).toHaveCount(0)
+    // The admin surface's danger button once carried an extra margin past the row (Codex, #433).
+    await expectPairedActions(dialog, 'Delete')
+    await page.screenshot({ path: testInfo.outputPath('delete-plans-dark-desktop.png') })
+    await page.setViewportSize({ width: 360, height: 780 })
+    await expectPairedActions(dialog, 'Delete')
+    await page.screenshot({ path: testInfo.outputPath('delete-plans-dark-mobile.png') })
+    await page.setViewportSize({ width: 1280, height: 720 })
     await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
     // After the sequential by-ID delete + router.refresh(), the row is gone.

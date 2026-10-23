@@ -152,6 +152,52 @@ describe('moderation controls', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('while a request is pending it cannot be sent twice, and the dialog cannot be dismissed', async () => {
+    let answer!: (response: Response) => void
+    const fetch = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    )
+    vi.stubGlobal('fetch', fetch)
+    render(<ModerationControls target={openTopic} bodyRemoved={false} />)
+    fireEvent.click(trigger('Delete thread'))
+    fireEvent.click(confirmButton('Delete'))
+    const working = confirmButton('Working…')
+    expect(working.disabled).toBe(true)
+    // A disabled button fires nothing, so submit the form directly: the in-flight guard must hold.
+    fireEvent.submit(working.closest('form')!)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(confirmButton('Cancel').disabled).toBe(true)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.mouseDown(document.querySelector('.modal-backdrop')!)
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    answer(Response.json({ ok: true }))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/discuss'))
+  })
+
+  it('a server error turns the confirmation into Reload, and closing keeps every control locked', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ errors: [{ message: 'Something went wrong.' }] }, { status: 500 }),
+      ),
+    )
+    render(<ModerationControls target={openTopic} bodyRemoved={false} />)
+    fireEvent.click(trigger('Pin'))
+    fireEvent.click(confirmButton('Pin'))
+    await waitFor(() => expect(confirmButton('Reload')).toBeTruthy())
+    expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Pin' })).toBeNull()
+    expect(screen.getByRole('alert').textContent).toContain('Something went wrong.')
+    // A 500 can follow a committed write: after closing, nothing may be retried without a reload.
+    fireEvent.click(confirmButton('Cancel'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    for (const name of ['Pin', 'Delete thread', 'Redact']) expect(trigger(name).disabled).toBe(true)
+    expect(trigger('Reload')).toBeTruthy()
+    expect(router.refresh).not.toHaveBeenCalled()
+  })
+
   it('other refusals keep the dialog and its message so the administrator can act on them', async () => {
     vi.stubGlobal(
       'fetch',

@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { sql } from '@payloadcms/db-postgres'
 
 import { drizzleOf } from '../helpers/db'
+import { expectPairedActions } from '../helpers/dialogs'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { clearPostingCaps, createTopicAs, testSubmissionKey } from '../helpers/discussions'
 import { MARK, setForumEnabled, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
@@ -126,6 +127,45 @@ test.describe('Discussion administration', () => {
     await fx?.teardown()
   })
 
+  // The visual matrix (§PR 1 proof): every forum confirmation at desktop and phone width, with the
+  // paired-row geometry asserted in each — screenshots for review by eye. Light only: the frontend has
+  // no dark theme (`styles.css` defines one palette); the admin dialogs are checked in both
+  // (Save settings below in light, Delete lesson plans in manage.e2e in dark).
+  test('every moderation dialog keeps its paired buttons at desktop and phone width', async ({
+    page,
+  }, testInfo) => {
+    const topic = await createTopicAs(fx.payload, fx.users.teacher, {
+      title: `${MARK}Dialog matrix`,
+    })
+    await loginAs(page, fx, 'siteAdmin')
+    const dialogs = [
+      { trigger: 'Pin', title: 'Pin this discussion', action: 'Pin', slug: 'pin' },
+      {
+        trigger: 'Delete thread',
+        title: 'Delete entire thread and all replies',
+        action: 'Delete',
+        slug: 'delete',
+      },
+      { trigger: 'Redact', title: 'Redact', action: 'Redact', slug: 'redact' },
+    ]
+    await page.goto(`${BASE}/discuss/${topic.id}`)
+    const moderation = page.getByRole('group', { name: 'Thread moderation' })
+    for (const d of dialogs) {
+      for (const viewport of [
+        { width: 1280, height: 720, name: 'desktop' },
+        { width: 360, height: 780, name: 'mobile' },
+      ]) {
+        await page.setViewportSize(viewport)
+        await moderation.getByRole('button', { name: d.trigger, exact: true }).click()
+        const dialog = page.getByRole('dialog', { name: d.title, exact: true })
+        await expectPairedActions(dialog, d.action)
+        await page.screenshot({ path: testInfo.outputPath(`${d.slug}-${viewport.name}.png`) })
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+        await expect(dialog).toHaveCount(0)
+      }
+    }
+  })
+
   test('pin and unpin require confirmation and update the pinned block', async ({ page }) => {
     const title = `${MARK}Pin controls`
     const topic = await createTopicAs(fx.payload, fx.users.teacher, { title })
@@ -226,18 +266,6 @@ test.describe('Discussion administration', () => {
       exact: true,
     })
     await expect(deletion).toContainText('This cannot be undone.')
-    // Two equal buttons, Cancel first (operator decision 2026-10-22).
-    const [cancelBox, deleteBox] = await Promise.all(
-      ['Cancel', 'Delete'].map((name) =>
-        deletion.getByRole('button', { name, exact: true }).boundingBox(),
-      ),
-    )
-    expect(cancelBox!.x).toBeLessThan(deleteBox!.x)
-    expect(Math.abs(cancelBox!.width - deleteBox!.width)).toBeLessThan(1)
-    await page.screenshot({ path: testInfo.outputPath('delete-thread-desktop.png') })
-    await page.setViewportSize({ width: 360, height: 780 })
-    await page.screenshot({ path: testInfo.outputPath('delete-thread-mobile.png') })
-    await page.setViewportSize({ width: 1280, height: 720 })
     await deletion.getByRole('button', { name: 'Cancel' }).click()
     expect(
       await fx.payload.count({
@@ -298,7 +326,12 @@ test.describe('Discussion administration', () => {
         .getByRole('button', { name: 'Save', exact: true })
         .click()
       const save = page.getByRole('dialog', { name: 'Save settings', exact: true })
+      await expectPairedActions(save, 'Save settings')
       await page.screenshot({ path: testInfo.outputPath('system-save-desktop.png') })
+      await page.setViewportSize({ width: 360, height: 780 })
+      await expectPairedActions(save, 'Save settings')
+      await page.screenshot({ path: testInfo.outputPath('system-save-mobile.png') })
+      await page.setViewportSize({ width: 1280, height: 720 })
       await save.getByLabel('Your password').fill('not-the-password')
       await save.getByRole('button', { name: 'Save settings', exact: true }).click()
       await expect(save.getByRole('alert')).toContainText('password')
