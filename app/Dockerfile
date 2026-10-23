@@ -20,6 +20,10 @@ WORKDIR /app
 # it MUST be present so `npm ci` resolves the same tree the lockfile was authored with —
 # otherwise npm ci runs strict-peer and rejects the lock ("Missing yjs/monaco/... from lock file").
 COPY package.json package-lock.json* .npmrc* yarn.lock* pnpm-lock.yaml* ./
+# `postinstall` patches Payload's pre-built admin bundle (scripts/patch-payload-ui.mjs; typing speed,
+# docs/PLAN-editing-typing-speed-2026-10-23.md §4.4), so the script must be here before `npm ci`.
+# It fails the install if the bundle's shape moved. `builder` and `runner` inherit the patched tree.
+COPY scripts/patch-payload-ui.mjs ./scripts/
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
@@ -38,6 +42,8 @@ RUN \
 FROM node:24.22.1-bookworm@sha256:6449e19d8184d84062525b6a7524def03146c2cb04a7f08b076680d0e8e4240a AS e2e
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc* ./
+# Same `postinstall` patch as `deps` above.
+COPY scripts/patch-payload-ui.mjs ./scripts/
 RUN npm ci --include=dev
 RUN npx playwright install --with-deps chromium
 

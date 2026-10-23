@@ -50,7 +50,9 @@ dev_env_value() {
 # `.npmrc` is optional in the Dockerfile's COPY (`.npmrc*`), so it is included only when present
 # rather than making `cat` fail the script under `set -e`.
 dev_deps_hash() {
-  local inputs=(app/package.json app/package-lock.json app/Dockerfile)
+  # The postinstall patch script changes what `npm ci` installs, so it is an input too: a fix to the
+  # script alone must rebuild the image and its node_modules volume (Codex review, typing-speed plan).
+  local inputs=(app/package.json app/package-lock.json app/Dockerfile app/scripts/patch-payload-ui.mjs)
   [ -f app/.npmrc ] && inputs+=(app/.npmrc)
   cat "${inputs[@]}" | shasum | cut -d' ' -f1
 }

@@ -28,8 +28,12 @@
  *   BENCH_PROFILE   directory for <label>.cpuprofile (1× pass)   default none
  *   BENCH_LABEL     name printed with the result                 default "bench"
  *
- * Prints one JSON line. Latencies are in ms; Event Timing only reports events of 16 ms or more, so a
- * pass where few keys are reported was mostly below that threshold.
+ * Prints one JSON line. Latencies are in ms. Event Timing only reports events of 16 ms or more, so a
+ * key with no timing entry was faster than that, but only if it actually arrived (plan §4.5). Each pass
+ * therefore counts the keydowns the textarea received and checks the typed text appears exactly at
+ * the caret; if either check fails it prints the pass and exits 1 with no percentiles. Otherwise the
+ * median and p90 are over ALL typed keys, with unreported keys counted as below the threshold; a
+ * percentile that lands on one prints as "<16", never 0. `maxMs` is null when no key was reported.
  */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
@@ -52,8 +56,12 @@ if (!['localhost', '127.0.0.1', process.env.BENCH_ALLOW_HOST].includes(host)) {
   process.exit(2)
 }
 
-const quantile = (sorted, p) =>
-  sorted.length ? Math.round(sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]) : 0
+// `sorted` holds one entry per typed key; BELOW marks a key with no Event Timing entry.
+const BELOW = -1
+const quantile = (sorted, p) => {
+  const v = sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
+  return v === BELOW ? '<16' : Math.round(v)
+}
 
 const browser = await chromium.launch()
 try {
@@ -93,8 +101,20 @@ try {
   for (const rate of RATES) {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate })
     await page.waitForTimeout(8_000)
-    await page.evaluate(() => {
-      window.__bench = { keys: [], longTasks: [], observers: [] }
+    await page.evaluate((id) => {
+      const textarea = document.querySelector(id)
+      window.__bench = {
+        keys: [],
+        longTasks: [],
+        observers: [],
+        received: 0,
+        before: textarea.value,
+        // `End` moves to the end of the caret's LINE in a multi-line textarea, so the keys land at
+        // the caret, not necessarily at the end of the text.
+        caret: textarea.selectionStart,
+        onKey: () => window.__bench.received++,
+      }
+      textarea.addEventListener('keydown', window.__bench.onKey)
       const keys = new PerformanceObserver((list) => {
         for (const e of list.getEntries())
           if (e.name === 'keydown') window.__bench.keys.push(e.duration)
@@ -105,7 +125,7 @@ try {
       })
       tasks.observe({ type: 'longtask' })
       window.__bench.observers.push(keys, tasks)
-    })
+    }, fieldId)
     const profiling = PROFILE_DIR && rate === 1
     if (profiling) {
       await cdp.send('Profiler.enable')
@@ -121,16 +141,42 @@ try {
       fs.mkdirSync(PROFILE_DIR, { recursive: true })
       fs.writeFileSync(path.join(PROFILE_DIR, `${LABEL}.cpuprofile`), JSON.stringify(profile))
     }
-    const { keys, longTasks } = await page.evaluate(() => {
+    const { keys, longTasks, received, before, caret, after } = await page.evaluate((id) => {
+      const textarea = document.querySelector(id)
+      textarea.removeEventListener('keydown', window.__bench.onKey)
       window.__bench.observers.forEach((o) => o.disconnect())
-      return { keys: window.__bench.keys, longTasks: window.__bench.longTasks }
-    })
-    const sorted = [...keys].sort((a, b) => a - b)
+      const { keys, longTasks, received, before, caret } = window.__bench
+      return { keys, longTasks, received, before, caret, after: textarea.value }
+    }, fieldId)
+    const pass = {
+      keysTyped: TEXT.length,
+      keysReceived: received,
+      keysReported: keys.length,
+      keysBelowThreshold: TEXT.length - keys.length,
+    }
+    const delivered =
+      received === TEXT.length &&
+      after === before.slice(0, caret) + TEXT + before.slice(caret) &&
+      keys.length <= TEXT.length
+    if (!delivered) {
+      result[`cpu${rate}x`] = {
+        ...pass,
+        error: 'input not delivered as typed',
+        // What arrived at the caret, against what was typed there.
+        atCaret: after.slice(Math.max(0, caret - 20), caret + TEXT.length + 20),
+        expected:
+          before.slice(Math.max(0, caret - 20), caret) + TEXT + before.slice(caret, caret + 20),
+        lengthDelta: after.length - before.length,
+      }
+      process.exitCode = 1
+      break
+    }
+    const sorted = [...keys, ...Array(TEXT.length - keys.length).fill(BELOW)].sort((a, b) => a - b)
     result[`cpu${rate}x`] = {
-      keysReported: sorted.length,
+      ...pass,
       medianMs: quantile(sorted, 0.5),
       p90Ms: quantile(sorted, 0.9),
-      maxMs: quantile(sorted, 1),
+      maxMs: keys.length ? Math.round(Math.max(...keys)) : null,
       longTaskTotalMs: Math.round(longTasks.reduce((a, b) => a + b, 0)),
       typingWallMs,
     }
