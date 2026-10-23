@@ -132,18 +132,15 @@ test.describe('Discussion administration', () => {
     await loginAs(page, fx, 'siteAdmin')
     await page.goto(`${BASE}/discuss/${topic.id}`)
     await page.getByRole('button', { name: 'Pin', exact: true }).click()
-    await page
-      .getByRole('dialog', { name: 'Pin', exact: true })
-      .getByRole('button', { name: 'Cancel' })
-      .click()
+    const pinDialog = page.getByRole('dialog', { name: 'Pin this discussion', exact: true })
+    // The title is the whole question (operator decision 2026-10-22): no body paragraph.
+    await expect(pinDialog.locator('.modal__body')).toHaveCount(0)
+    await pinDialog.getByRole('button', { name: 'Cancel' }).click()
     expect(
       (await fx.payload.findByID({ collection: 'discussion-topics', id: topic.id })).pinnedAt,
     ).toBeFalsy()
     await page.getByRole('button', { name: 'Pin', exact: true }).click()
-    await page
-      .getByRole('dialog', { name: 'Pin', exact: true })
-      .getByRole('button', { name: 'Pin', exact: true })
-      .click()
+    await pinDialog.getByRole('button', { name: 'Pin', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Unpin', exact: true })).toBeVisible()
     await page.goto(`${BASE}/discuss`)
     await expect(
@@ -152,7 +149,7 @@ test.describe('Discussion administration', () => {
     await page.getByRole('link', { name: title }).click()
     await page.getByRole('button', { name: 'Unpin', exact: true }).click()
     await page
-      .getByRole('dialog', { name: 'Unpin', exact: true })
+      .getByRole('dialog', { name: 'Unpin this discussion', exact: true })
       .getByRole('button', { name: 'Unpin', exact: true })
       .click()
     await expect(page.getByRole('button', { name: 'Pin', exact: true })).toBeVisible()
@@ -183,7 +180,16 @@ test.describe('Discussion administration', () => {
     })
     await loginAs(page, fx, 'siteAdmin')
     await page.goto(`${BASE}/discuss/${topic.id}`)
-    await page.getByRole('button', { name: 'Redact topic' }).click()
+    // Trigger buttons are scoped to their moderation group: the dialog's confirm button is also
+    // called "Redact".
+    const threadModeration = page.getByRole('group', { name: 'Thread moderation' })
+    // Order Pin · Delete thread · Redact (operator decision 2026-10-22).
+    await expect(threadModeration.getByRole('button')).toHaveText([
+      'Pin',
+      'Delete thread',
+      'Redact',
+    ])
+    await threadModeration.getByRole('button', { name: 'Redact', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Redact', exact: true })
     await expect(dialog).toContainText('Existing backups keep the text until they age out.')
     await page.screenshot({ path: testInfo.outputPath('redaction-desktop.png') })
@@ -197,23 +203,41 @@ test.describe('Discussion administration', () => {
       page.getByRole('heading', { name: 'Title removed by the administrator' }),
     ).toBeVisible()
     await expect(page.getByText('Opening text to remove', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Redact topic' }).click()
+    await threadModeration.getByRole('button', { name: 'Redact', exact: true }).click()
     await expect(dialog.getByLabel('Title', { exact: true })).toHaveCount(0)
     await dialog.getByLabel('Opening post').check()
     await dialog.getByRole('button', { name: 'Redact', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Opening post', exact: true })).toContainText(
       'Removed by the administrator',
     )
-    await expect(page.getByRole('button', { name: 'Redact topic' })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Redact reply' }).click()
+    await expect(threadModeration.getByRole('button', { name: 'Redact' })).toHaveCount(0)
+    await page
+      .getByRole('group', { name: 'Reply moderation' })
+      .getByRole('button', { name: 'Redact', exact: true })
+      .click()
     await dialog.getByRole('button', { name: 'Redact', exact: true }).click()
     await expect(page.locator('#reply-1')).toContainText('Removed by the administrator')
     expect(
       (await fx.payload.findByID({ collection: 'discussion-replies', id: reply.id })).body,
     ).toBe('')
     await page.getByRole('button', { name: 'Delete thread' }).click()
-    const deletion = page.getByRole('dialog', { name: 'Delete thread', exact: true })
+    const deletion = page.getByRole('dialog', {
+      name: 'Delete entire thread and all replies',
+      exact: true,
+    })
     await expect(deletion).toContainText('This cannot be undone.')
+    // Two equal buttons, Cancel first (operator decision 2026-10-22).
+    const [cancelBox, deleteBox] = await Promise.all(
+      ['Cancel', 'Delete'].map((name) =>
+        deletion.getByRole('button', { name, exact: true }).boundingBox(),
+      ),
+    )
+    expect(cancelBox!.x).toBeLessThan(deleteBox!.x)
+    expect(Math.abs(cancelBox!.width - deleteBox!.width)).toBeLessThan(1)
+    await page.screenshot({ path: testInfo.outputPath('delete-thread-desktop.png') })
+    await page.setViewportSize({ width: 360, height: 780 })
+    await page.screenshot({ path: testInfo.outputPath('delete-thread-mobile.png') })
+    await page.setViewportSize({ width: 1280, height: 720 })
     await deletion.getByRole('button', { name: 'Cancel' }).click()
     expect(
       await fx.payload.count({
@@ -222,7 +246,7 @@ test.describe('Discussion administration', () => {
       }),
     ).toMatchObject({ totalDocs: 1 })
     await page.getByRole('button', { name: 'Delete thread' }).click()
-    await deletion.getByRole('button', { name: 'Delete thread', exact: true }).click()
+    await deletion.getByRole('button', { name: 'Delete', exact: true }).click()
     await page.waitForURL(`${BASE}/discuss`)
     expect(
       await fx.payload.count({
@@ -300,17 +324,17 @@ test.describe('Discussion administration', () => {
       await expect(
         page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: /^Discuss/ }),
       ).toHaveCount(0)
-      await page.getByRole('button', { name: 'Redact topic' }).click()
+      await page
+        .getByRole('group', { name: 'Thread moderation' })
+        .getByRole('button', { name: 'Redact', exact: true })
+        .click()
       await page.getByRole('dialog').getByLabel('Opening post').check()
       await page.getByRole('dialog').getByRole('button', { name: 'Redact', exact: true }).click()
       await expect(page.getByRole('region', { name: 'Opening post', exact: true })).toContainText(
         'Removed by the administrator',
       )
       await page.getByRole('button', { name: 'Delete thread' }).click()
-      await page
-        .getByRole('dialog')
-        .getByRole('button', { name: 'Delete thread', exact: true })
-        .click()
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click()
       await page.waitForURL(`${BASE}/discuss`)
       expect(
         await fx.payload.count({

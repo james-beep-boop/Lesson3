@@ -221,10 +221,11 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   on **Advanced tools** and choose **Save** to show *Combine versions* and *Show details* in the editor,
   and *Download as JSON* and *Email all* in a lesson page's *Share* menu. It does not change anyone's
   permissions.
-- **Moderate discussions:** on a thread, use **Pin** or **Unpin** to change its position. **Redact
-  topic** lets you remove the title, opening post, or both; **Redact reply** removes one reply’s text.
-  Redaction cannot be undone. Existing backups keep the text until they age out. **Delete thread**
-  removes the entire thread and every reply, and cannot be undone. Each action asks for confirmation.
+- **Moderate discussions:** on a thread, use **Pin** or **Unpin** to change its position. **Delete
+  thread** removes the entire thread and every reply, and cannot be undone. **Redact** on a thread lets
+  you remove the title, opening post, or both; on a reply it removes that reply’s text. Redaction
+  cannot be undone. Existing backups keep the text until they age out. Each action asks for
+  confirmation.
   While the forum is off, follow **Moderate discussions** beside the switch to read, redact or
   delete. This view has no search, posting, pinning or unread tracking.
 - **Backups and recovery for server operators:** Site Administrator access in Lesson3 is an

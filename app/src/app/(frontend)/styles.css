@@ -101,6 +101,17 @@
   align-items: center;
   gap: 0.6rem;
 }
+/* A two-button confirmation (Cancel, then the action): two equal buttons spanning the dialog
+   (operator decision 2026-10-22). Cancel stays on the left, as in every other dialog here. The same
+   modifier is restated in the admin's `custom.scss`, which has its own copy of the Modal chrome. */
+.modal__actions--pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.modal__actions--pair > * {
+  width: 100%;
+  justify-content: center;
+}
 * {
   box-sizing: border-box;
 }

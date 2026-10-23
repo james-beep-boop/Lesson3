@@ -413,7 +413,7 @@ function ConfirmDelete({
           />
         </label>
       )}
-      <div className="modal__actions lp-confirm__actions">
+      <div className="modal__actions modal__actions--pair">
         <Button className="lp-btn" buttonStyle="secondary" size="small" onClick={onCancel}>
           Cancel
         </Button>

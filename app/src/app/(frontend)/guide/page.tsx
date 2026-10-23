@@ -846,10 +846,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 </p>
                 <p>
                   On a thread, use <em>Pin</em> or <em>Unpin</em> to change its position.{' '}
-                  <em>Redact topic</em> lets you remove the title, opening post, or both;{' '}
-                  <em>Redact reply</em> removes one reply’s text. Redaction cannot be undone.
-                  Existing backups keep the text until they age out. <em>Delete thread</em> removes
-                  the entire thread and every reply, and cannot be undone. Each action asks for
+                  <em>Delete thread</em> removes the entire thread and every reply, and cannot be
+                  undone. <em>Redact</em> on a thread lets you remove the title, opening post, or
+                  both; on a reply it removes that reply’s text. Redaction cannot be undone.
+                  Existing backups keep the text until they age out. Each action asks for
                   confirmation.
                 </p>
                 <p>

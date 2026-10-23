@@ -29,7 +29,16 @@ export default function ModerationControls({
   const [uncertain, setUncertain] = useState(false)
   const topic = target.kind === 'topic' ? target : null
   const pinLabel = topic?.pinned ? 'Unpin' : 'Pin'
-  const label = action === 'pin' ? pinLabel : action === 'delete' ? 'Delete thread' : 'Redact'
+  // ⚑ The dialog TITLE states the scope, so the confirm button is one word (operator decision
+  // 2026-10-22). The thread's own Delete trigger keeps "Delete thread": it is the only place the
+  // destructive scope can be read before the dialog opens.
+  const dialogTitle =
+    action === 'pin'
+      ? `${pinLabel} this discussion`
+      : action === 'delete'
+        ? 'Delete entire thread and all replies'
+        : 'Redact'
+  const label = action === 'pin' ? pinLabel : action === 'delete' ? 'Delete' : 'Redact'
   const destructive = action === 'redact' || action === 'delete'
   const canRedact = !bodyRemoved || (topic != null && !topic.titleRemoved)
 
@@ -112,16 +121,7 @@ export default function ModerationControls({
           {pinLabel}
         </button>
       )}
-      {canRedact && (
-        <button
-          type="button"
-          className="btn btn--quiet"
-          disabled={busy || uncertain}
-          onClick={() => open('redact')}
-        >
-          {topic ? 'Redact topic' : 'Redact reply'}
-        </button>
-      )}
+      {/* Order Pin · Delete thread · Redact (operator decision 2026-10-22). */}
       {topic && (
         <button
           type="button"
@@ -130,6 +130,16 @@ export default function ModerationControls({
           onClick={() => open('delete')}
         >
           Delete thread
+        </button>
+      )}
+      {canRedact && (
+        <button
+          type="button"
+          className="btn btn--quiet"
+          disabled={busy || uncertain}
+          onClick={() => open('redact')}
+        >
+          Redact
         </button>
       )}
       {uncertain && !action && (
@@ -144,7 +154,7 @@ export default function ModerationControls({
       )}
       {action && (
         <Modal
-          title={label}
+          title={dialogTitle}
           onClose={() => {
             if (!inFlight.current) setAction(null)
           }}
@@ -156,13 +166,14 @@ export default function ModerationControls({
               void confirm()
             }}
           >
-            <p className="modal__body">
-              {action === 'pin'
-                ? `${pinLabel} this discussion?`
-                : action === 'delete'
-                  ? 'Delete this entire thread and every reply? This cannot be undone.'
-                  : 'Remove the selected text permanently? This cannot be undone. Existing backups keep the text until they age out.'}
-            </p>
+            {/* Pin needs no body: its title is the whole question. */}
+            {action === 'delete' && <p className="modal__body">This cannot be undone.</p>}
+            {action === 'redact' && (
+              <p className="modal__body">
+                Remove the selected text permanently? This cannot be undone. Existing backups keep
+                the text until they age out.
+              </p>
+            )}
             {action === 'redact' && topic && (
               <fieldset disabled={busy || uncertain} className="disc-redact-options">
                 <legend>Text to remove</legend>
@@ -194,7 +205,7 @@ export default function ModerationControls({
                 {error}
               </p>
             )}
-            <div className="modal__actions">
+            <div className="modal__actions modal__actions--pair">
               <button type="button" className="btn" disabled={busy} onClick={() => setAction(null)}>
                 Cancel
               </button>

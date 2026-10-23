@@ -2,8 +2,8 @@
 
 **Status:** revised 2026-10-22 after Codex's review of `77a5cd75` (one P2, one P3, views on Q1–Q6;
 all folded in below — see "Review log" at the end). Operator decisions from this session are marked
-**(decided)**. Two answers changed from the first draft's recommendation and one new question arose; the operator
-confirms **Q1**, **Q6** and **Q7** (table at the end).
+**(decided)**. **Approved by the operator 2026-10-22:** Q1, Q6 and Q7 as resolved below, and the three new strings
+in §6.5. Implementation may start.
 
 Two independent PRs, each reviewed separately:
 
@@ -228,7 +228,7 @@ Existing, approved, unchanged: "My saved versions", "Your Drafts", the drafts de
 saved-versions empty text, "Continue editing", "Open to copy", "Discard", "Delete individual versions".
 The five messages that say "in the Manage tab, under Your Drafts" stay true and are unchanged.
 
-New strings, to approve:
+New strings (approved 2026-10-22):
 
 - Drafts empty state: "You have no drafts. While editing, choose Save as draft to put work aside without
   saving a new version."
@@ -278,17 +278,17 @@ New strings, to approve:
 
 ---
 
-## Questions — resolved by review, and two for the operator
+## Questions — all resolved
 
 | Q | Resolution | Status |
 |---|---|---|
-| **Q1** teacher landing | My saved versions opens for a teacher; drafts stay closed (§6.3). Done structurally ("first child of a lone box"), not as a role rule. | **Changed from the first draft — operator to confirm** |
+| **Q1** teacher landing | My saved versions opens for a teacher; drafts stay closed (§6.3). Done structurally ("first child of a lone box"), not as a role rule. | **Approved** (changed from the first draft) |
 | **Q2** ids | `plans.mine` for everyone; `plans.versions` administrator-only (unavailable to teachers, not retired). | Agreed |
 | **Q3** names | Keep "My saved versions" / "Your Drafts" and the existing messages. | Agreed |
 | **Q4** counts | Both headings, non-zero only, complete list independent of search. | Agreed |
 | **Q5** `↗` | Keep, with the accessible new-tab announcement. | Agreed |
-| **Q6** delete label | Trigger "Delete thread"; "Delete" inside the titled confirmation (§3). | **Changed from the first draft — operator to confirm** |
-| **Q7** Subject Administrator landing | Accept all-closed (§6.3): the same landing an administrator with cleanup candidates already gets. | New — operator to confirm |
+| **Q6** delete label | Trigger "Delete thread"; "Delete" inside the titled confirmation (§3). | **Approved** (changed from the first draft) |
+| **Q7** Subject Administrator landing | Accept all-closed (§6.3): the same landing an administrator with cleanup candidates already gets. | **Approved** |
 
 The administrator-list overlap (own non-Official versions in both My saved versions and Delete
 individual versions) is accepted: the cleanup queue must stay complete and agree with
