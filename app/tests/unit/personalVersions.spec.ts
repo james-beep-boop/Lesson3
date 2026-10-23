@@ -60,9 +60,17 @@ describe('listPersonalVersions', () => {
     })
   })
 
-  it('a version that IS its plan’s Official is marked and not deletable', async () => {
+  it('a version that IS its plan’s Official is marked, not deletable, with no Compare baseline', async () => {
     const { req } = reqWith([{ id: 9, officialVersion: 40 }])
     const [row] = await listPersonalVersions(req, user)
-    expect(row).toMatchObject({ official: 'yes', canDelete: false })
+    expect(row).toMatchObject({ official: 'yes', officialVersionId: null, canDelete: false })
+  })
+
+  // ⚑ Distinct from `unknown` (Codex, /simplify review): the plan WAS read and simply has no Official
+  // pointer, so the version is known non-Official — deletable — but there is nothing to compare with.
+  it('a readable plan with no Official: deletable, no Compare baseline', async () => {
+    const { req } = reqWith([{ id: 9, officialVersion: null }])
+    const [row] = await listPersonalVersions(req, user)
+    expect(row).toMatchObject({ official: 'no', officialVersionId: null, canDelete: true })
   })
 })

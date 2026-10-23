@@ -31,13 +31,13 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
 
 import { expectPairedAtBothWidths } from '../helpers/dialogs'
-import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
+import { E2E_BASE as BASE, loginAs as loginAsRole, loginUser } from '../helpers/e2e'
+import { openPanel, panelRegion } from '../helpers/manageUi'
 import { formDoc, recoveryHarness } from '../helpers/editRecovery'
-import { login } from '../helpers/login'
-import { welcomeDismissedKey } from '../../src/lib/welcomeDismissal'
 import type { LessonBundleVersion, User } from '../../src/payload-types'
 import {
   createUserVerified,
+  createVersionFixture,
   deleteUserFixture,
   MARK,
   minimalBundleContent,
@@ -87,33 +87,6 @@ const strandPick = (page: Page, strand: string, sgLabel: string) =>
 
 /** Thin wrapper so the many call sites below keep reading `loginAs(page, 'editor')`. */
 const loginAs = (page: Page, key: RoleKey): Promise<void> => loginAsRole(page, fx, key)
-
-/**
- * Open one disclosure panel by its heading (the accordion redesign, D7).
- *
- * ⚑ Sections are now COLLAPSED by default for any role that sees more than one of them, so a test
- * that wants a panel's contents must say so. That is a deliberate behaviour change, not a
- * regression: the operator's brief was that Manage grows long and unwieldy.
- *
- * Idempotent, and it asserts the post-condition rather than assuming the click landed — a disclosure
- * that silently failed to open would otherwise surface as a confusing failure in the assertion after
- * it, several lines from the cause.
- */
-const openPanel = async (page: Page, name: string) => {
-  const trigger = page.getByRole('button', { name, exact: true })
-  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
-  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
-}
-
-/**
- * A panel's own region, via `aria-controls` on its trigger — never an ancestor's (see the ⚑ in the
- * Delete individual versions search test). `name` matches the trigger's start, so a count suffix
- * ("Your Drafts (2)") still finds it.
- */
-const panelRegion = async (page: Page, name: string) => {
-  const trigger = page.getByRole('button', { name: new RegExp(`^${name}( \\(\\d+\\))?$`) })
-  return page.locator(`[id="${await trigger.getAttribute('aria-controls')}"]`)
-}
 
 /** Open "Lesson plans" → "Delete a plan (all versions)", the two-step most tests below need. */
 const openDeletePanel = async (page: Page) => {
@@ -390,19 +363,8 @@ test.describe('Manage page', () => {
     let planB: number
     let semverSeq = 0
 
-    const saveAs = async (authorId: number, planId: number, sgId: number, semver: string) =>
-      (await fx.payload.create({
-        collection: 'lesson-bundle-versions',
-        data: {
-          lessonPlan: planId,
-          subjectGrade: sgId,
-          semver,
-          title: `${MARK}Scoped v${semver}`,
-          author: authorId,
-          ...minimalBundleContent(),
-        } as never,
-        overrideAccess: true,
-      })) as LessonBundleVersion
+    const saveAs = (authorId: number, planId: number, subjectGradeId: number, semver: string) =>
+      createVersionFixture(fx.payload, { planId, subjectGradeId, semver, authorId })
 
     /** A real draft by `userId`, taken through the kernel the endpoints use. */
     const keepDraft = async (versionId: number, userId: number) => {
@@ -411,16 +373,7 @@ test.describe('Manage page', () => {
       expect(res.ok, 'fixture: the draft must land').toBe(true)
     }
 
-    const loginScoped = async (page: Page) => {
-      await page.addInitScript((key) => {
-        try {
-          window.localStorage.setItem(key, '1')
-        } catch {
-          // Storage disabled: the Welcome dialog would show and the first click would say so.
-        }
-      }, welcomeDismissedKey(scoped.id))
-      await login({ page, serverURL: BASE, user: { email: scoped.email, password: fx.password } })
-    }
+    const loginScoped = (page: Page) => loginUser(page, fx, scoped)
 
     test.beforeAll(async () => {
       const subject = await fx.payload.create({
@@ -460,17 +413,11 @@ test.describe('Manage page', () => {
         ],
       })
       // A's uploaded 1.0.0 (no author) is its Official, so A's own versions have a baseline to compare.
-      const uploadedA = (await fx.payload.create({
-        collection: 'lesson-bundle-versions',
-        data: {
-          lessonPlan: planA,
-          subjectGrade: sgA,
-          semver: '1.0.0',
-          title: `${MARK}Scoped Plan A v1.0.0`,
-          ...minimalBundleContent(),
-        } as never,
-        overrideAccess: true,
-      })) as LessonBundleVersion
+      const uploadedA = await createVersionFixture(fx.payload, {
+        planId: planA,
+        subjectGradeId: sgA,
+        semver: '1.0.0',
+      })
       await fx.payload.update({
         collection: 'lesson-plans',
         id: planA,
@@ -698,10 +645,7 @@ test.describe('Manage page', () => {
         exact: false,
       }),
     ).toBeVisible()
-    const plansId = await page
-      .getByRole('button', { name: 'Lesson plans', exact: true })
-      .getAttribute('aria-controls')
-    const lessonPlansPanel = page.locator(`[id="${plansId}"]`)
+    const lessonPlansPanel = await panelRegion(page, 'Lesson plans')
     // Query the direct child headers so controls inside an expanded operation don't affect ordering.
     // The Site Administrator's own work first, like every role's (Proposal B, 2026-10-22). No counts:
     // this fixture's Site Administrator has saved no versions and kept no drafts.
@@ -714,14 +658,9 @@ test.describe('Manage page', () => {
       'Set an Official version',
     ])
     await openPanel(page, 'System')
-    const systemId = await page
-      .getByRole('button', { name: 'System', exact: true })
-      .getAttribute('aria-controls')
-    await expect(page.locator(`[id="${systemId}"] > .lp-accordion > h3 button`)).toHaveText([
-      'Features',
-      'Installation status',
-      'Backups',
-    ])
+    await expect(
+      (await panelRegion(page, 'System')).locator(':scope > .lp-accordion > h3 button'),
+    ).toHaveText(['Features', 'Installation status', 'Backups'])
     await expect(page.locator('.lp-accordion .lp-accordion .lp-accordion')).toHaveCount(0)
     await test.info().attach('manage-headings', {
       body: await page.screenshot({ fullPage: true }),
@@ -1265,17 +1204,9 @@ test.describe('Manage page', () => {
       await page.goto(`${BASE}/admin`)
       await openPanel(page, 'Lesson plans')
       await openPanel(page, 'Delete individual versions')
-      /**
-       * ⚑ SCOPED BY `aria-controls`, NOT BY A `section` FILTER. `locator('section.lp-accordion')
-       * .filter({ has: <this panel's button> })` also matches the ANCESTOR section once a panel is
-       * nested, so the count silently picks up sibling panels' lists. A panel's own region is
-       * `aria-controls` on its trigger, which cannot match an ancestor. Since Proposal B the sibling
-       * panels hold lists and empty states of their own, so every assertion here is scoped.
-       */
-      const trigger = page.getByRole('button', { name: 'Delete individual versions', exact: true })
-      const regionId = await trigger.getAttribute('aria-controls')
-      expect(regionId, 'the Delete individual versions trigger must control a region').toBeTruthy()
-      const region = page.locator(`[id="${regionId}"]`)
+      // Scoped to the panel's own region (`panelRegion`'s ⚑): since Proposal B the sibling panels
+      // hold lists and empty states of their own.
+      const region = await panelRegion(page, 'Delete individual versions')
       // Its own accessible name: an administrator's page has a second list (My saved versions).
       const search = region.getByLabel('Search versions to delete')
       await expect(search).toBeVisible()

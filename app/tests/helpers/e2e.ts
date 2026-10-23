@@ -41,7 +41,20 @@ export async function loginAs(
   key: RoleKey,
   opts: { showWelcome?: boolean } = {},
 ): Promise<void> {
-  await clearRateLimitBuckets(fx.payload, `login:${fx.users[key].email.toLowerCase()}`)
+  await loginUser(page, fx, fx.users[key], opts)
+}
+
+/**
+ * `loginAs` for an account a spec created itself rather than one of the fixture's four roles. Same
+ * budget clearing and Welcome suppression (both ⚑ above); the password is the fixture's.
+ */
+export async function loginUser(
+  page: Page,
+  fx: RoleFixture,
+  user: { id: number; email: string },
+  opts: { showWelcome?: boolean } = {},
+): Promise<void> {
+  await clearRateLimitBuckets(fx.payload, `login:${user.email.toLowerCase()}`)
   // ⚑ THE WELCOME DIALOG IS PRE-DISMISSED. Fixture accounts are brand new every run, so the first-login
   // dialog — a modal over the whole page — appeared on every page these specs open and intercepted
   // their clicks: 28 failures across Discussions, Manage and Messages (2026-10-17). These specs test
@@ -54,11 +67,7 @@ export async function loginAs(
       } catch {
         // Storage disabled: the dialog would show, and the spec will say so on its first click.
       }
-    }, welcomeDismissedKey(fx.users[key].id))
+    }, welcomeDismissedKey(user.id))
   }
-  await login({
-    page,
-    serverURL: E2E_BASE,
-    user: { email: fx.users[key].email, password: fx.password },
-  })
+  await login({ page, serverURL: E2E_BASE, user: { email: user.email, password: fx.password } })
 }

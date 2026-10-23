@@ -21,7 +21,7 @@ const candidate: CandidateRow = {
   sgLabel: 'Chemistry — Grade 10',
   authorName: 'Teacher',
   savedAt: '28 Aug 2026',
-  official: 'no',
+  isOfficial: false,
   canDelete: true,
   canEdit: true,
 }
@@ -113,7 +113,7 @@ describe('per-row actions in My saved versions', () => {
     )
 
   it('an own Official version: says Official, keeps editing, offers no Delete and no Compare', () => {
-    renderMine({ ...candidate, official: 'yes', officialVersionId: 12, canDelete: false })
+    renderMine({ ...candidate, isOfficial: true, officialVersionId: null, canDelete: false })
     expect(screen.getByText(/Version 1\.0\.1 · Official/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Continue editing' }).getAttribute('href')).toBe(
       '/admin/collections/lesson-bundle-versions/12?edit=1',
@@ -133,8 +133,10 @@ describe('per-row actions in My saved versions', () => {
     expect(screen.getByRole('link', { name: /Compare to Official/ })).toBeTruthy()
   })
 
-  it('an unknown Official state fails closed: no Delete, no Compare, no Official label', () => {
-    renderMine({ ...candidate, official: 'unknown', officialVersionId: null, canDelete: false })
+  // The fail-closed decision itself is the server's (`versionActions`, tests/unit/personalVersions.spec.ts);
+  // here, a row it gave no baseline and no Delete must offer neither and claim nothing.
+  it('a row the server gave no baseline and no Delete offers neither, and is not called Official', () => {
+    renderMine({ ...candidate, isOfficial: false, officialVersionId: null, canDelete: false })
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
     expect(screen.queryByRole('link', { name: /Compare to Official/ })).toBeNull()
     expect(screen.queryByText(/Official$/)).toBeNull()

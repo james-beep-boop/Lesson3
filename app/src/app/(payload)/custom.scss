@@ -460,17 +460,6 @@ body {
     max-width: 46rem;
   }
 
-  // "Your unsaved work" (2026-10-17) sits above the accordion and renders only when non-empty, so it
-  // needs its own spacing rather than a panel's. Same row idiom as the candidate list below it.
-  &__unsaved {
-    margin: var(--app-space-3) 0 var(--app-space-4);
-  }
-
-  &__unsaved-title {
-    font-size: 1.15rem;
-    margin: 0;
-  }
-
   // The wrong-clock warning (2026-10-19): same placement and weight as the notices below it.
   &__clock {
     margin: var(--app-space-3) 0 var(--app-space-4);
@@ -482,7 +471,7 @@ body {
   }
 
   // Accounts awaiting approval (2026-10-19): the email-less site's queue, above the accordion and
-  // only when non-empty — the same placement and weight as "Your unsaved work".
+  // only when non-empty — the same placement and weight as the wrong-clock warning above.
   &__awaiting {
     margin: var(--app-space-3) 0 var(--app-space-4);
   }

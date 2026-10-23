@@ -12,17 +12,17 @@
  *   P5  a Site Administrator sees their own saves, never the uploaded (authorless) versions
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { PayloadRequest } from 'payload'
 
 import {
   MARK,
   createUserVerified,
-  minimalBundleContent,
+  createVersionFixture,
   setupRoleFixture,
   type RoleFixture,
 } from '../helpers/fixtures.js'
+import { recoveryHarness } from '../helpers/editRecovery.js'
 import { listPersonalVersions } from '../../src/lib/personalVersions.js'
-import type { LessonBundleVersion, SubjectGrade, User } from '../../src/payload-types.js'
+import type { SubjectGrade, User } from '../../src/payload-types.js'
 
 let fx: RoleFixture
 let sgB: SubjectGrade
@@ -31,27 +31,17 @@ let planB: number
 let planC: number
 let admin: User
 
-const req = () => ({ payload: fx.payload, transactionID: undefined }) as unknown as PayloadRequest
+const { poolReq: req } = recoveryHarness(() => fx)
 
 let semverSeq = 0
-/** A saved version authored by `authorId`, written the way save-as-new stamps it (system path). */
-const saveAs = async (
-  authorId: number,
-  planId: number,
-  subjectGradeId: number,
-): Promise<LessonBundleVersion> =>
-  (await fx.payload.create({
-    collection: 'lesson-bundle-versions',
-    data: {
-      lessonPlan: planId,
-      subjectGrade: subjectGradeId,
-      semver: `1.0.${++semverSeq}`,
-      title: `${MARK}Personal v1.0.${semverSeq}`,
-      author: authorId,
-      ...minimalBundleContent(),
-    } as never,
-    overrideAccess: true,
-  })) as LessonBundleVersion
+/** A saved version authored by `authorId`, as save-as-new stamps it. */
+const saveAs = (authorId: number, planId: number, subjectGradeId: number) =>
+  createVersionFixture(fx.payload, {
+    planId,
+    subjectGradeId,
+    semver: `1.0.${++semverSeq}`,
+    authorId,
+  })
 
 const rowFor = async (user: User, id: number) =>
   (await listPersonalVersions(req(), user)).find((r) => r.id === id)

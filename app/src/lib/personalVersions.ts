@@ -34,7 +34,43 @@ import type { User } from '../payload-types'
 import { distinctIds, relId } from './relId'
 import { lessonDisplayName } from './substrand'
 
-export interface PersonalVersionRow {
+/**
+ * What a person may do with one saved version, decided on the server document. Shared by both of
+ * Manage's version lists — "My saved versions" and the administrators' cleanup queue — so the
+ * fail-closed Official rule and the access helpers live in one place (/simplify, 2026-10-23).
+ */
+export interface VersionActions {
+  /** Whether this version is its plan's Official one; `'unknown'` when the plan could not be read. */
+  official: 'yes' | 'no' | 'unknown'
+  /** The baseline for Compare to Official — only for a KNOWN non-Official row whose plan has one. */
+  officialVersionId: number | null
+  /** Delete would be accepted: not Official (known), and `canDeleteVersionDoc` holds. */
+  canDelete: boolean
+  /** Editing access for the version's subject-grade: Continue editing and the `?edit=1` link. */
+  canEdit: boolean
+}
+
+/** plan id → its Official version id, or null for a plan with no Official pointer. */
+export type OfficialByPlan = ReadonlyMap<number, number | null>
+
+/** `v` must carry `author` and `subjectGrade` — see the ⚑ on projection in this file's header. */
+export function versionActions(
+  user: User,
+  v: { id: number; lessonPlan?: unknown; subjectGrade?: unknown; author?: unknown },
+  officialByPlan: OfficialByPlan,
+): VersionActions {
+  const planId = relId(v.lessonPlan)
+  const officialId = planId == null ? undefined : officialByPlan.get(planId)
+  const official = officialId === undefined ? 'unknown' : officialId === v.id ? 'yes' : 'no'
+  return {
+    official,
+    officialVersionId: official === 'no' ? officialId! : null,
+    canDelete: official === 'no' && canDeleteVersionDoc(user, v),
+    canEdit: isEditorFor(user, relId(v.subjectGrade) ?? undefined),
+  }
+}
+
+export interface PersonalVersionRow extends VersionActions {
   id: number
   lessonPlanId: number | null
   label: string
@@ -42,14 +78,6 @@ export interface PersonalVersionRow {
   subjectGradeId: number | null
   /** ISO timestamp of the save, or null if the row has none. */
   createdAt: string | null
-  /** Whether this version is its plan's Official one; `'unknown'` when the plan could not be read. */
-  official: 'yes' | 'no' | 'unknown'
-  /** The plan's Official version, the baseline for Compare to Official; null when there is none. */
-  officialVersionId: number | null
-  /** Delete would be accepted: not Official (known), and `canDeleteVersionDoc` holds. */
-  canDelete: boolean
-  /** Editing access for the version's subject-grade: Continue editing and the `?edit=1` link. */
-  canEdit: boolean
 }
 
 export async function listPersonalVersions(
@@ -92,27 +120,15 @@ export async function listPersonalVersions(
           where: { id: { in: planIds } },
           select: { officialVersion: true },
         })
-  // plan id → its Official version id, or null for a plan with no Official pointer.
-  const officialByPlan = new Map<number, number | null>()
-  for (const p of plans) officialByPlan.set(p.id, relId(p.officialVersion))
+  const officialByPlan = new Map(plans.map((p) => [p.id, relId(p.officialVersion)]))
 
-  return versions.map((v) => {
-    const lessonPlanId = relId(v.lessonPlan)
-    const subjectGradeId = relId(v.subjectGrade)
-    const officialId = lessonPlanId == null ? undefined : officialByPlan.get(lessonPlanId)
-    const official: PersonalVersionRow['official'] =
-      officialId === undefined ? 'unknown' : officialId === v.id ? 'yes' : 'no'
-    return {
-      id: v.id,
-      lessonPlanId,
-      label: lessonDisplayName(v.meta?.substrand_name, v.title),
-      semver: v.semver ?? '',
-      subjectGradeId,
-      createdAt: v.createdAt ?? null,
-      official,
-      officialVersionId: officialId ?? null,
-      canDelete: official === 'no' && canDeleteVersionDoc(user, v),
-      canEdit: isEditorFor(user, subjectGradeId ?? undefined),
-    }
-  })
+  return versions.map((v) => ({
+    id: v.id,
+    lessonPlanId: relId(v.lessonPlan),
+    label: lessonDisplayName(v.meta?.substrand_name, v.title),
+    semver: v.semver ?? '',
+    subjectGradeId: relId(v.subjectGrade),
+    createdAt: v.createdAt ?? null,
+    ...versionActions(user, v, officialByPlan),
+  }))
 }

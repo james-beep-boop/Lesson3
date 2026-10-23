@@ -17,6 +17,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
+import { openPanel, panelRegion, panelTrigger } from '../helpers/manageUi'
 import {
   formDoc,
   makeRecoveryVersion,
@@ -76,14 +77,12 @@ async function keepSomething(page: Page, versionId: number, text: string) {
 }
 
 /** Manage → Lesson plans → Your Drafts heading (Proposal B: a panel, closed by default). */
-const draftsHeading = (page: Page) => page.getByRole('button', { name: /^Your Drafts/ })
+const draftsHeading = (page: Page) => panelTrigger(page, 'Your Drafts')
 
 /** Open Your Drafts if it is closed, and return its panel region. */
 async function openDrafts(page: Page) {
-  const heading = draftsHeading(page)
-  if ((await heading.getAttribute('aria-expanded')) !== 'true') await heading.click()
-  await expect(heading).toHaveAttribute('aria-expanded', 'true')
-  return page.locator(`[id="${await heading.getAttribute('aria-controls')}"]`)
+  await openPanel(page, 'Your Drafts')
+  return panelRegion(page, 'Your Drafts')
 }
 
 test('J1 a saved draft is listed under Your Drafts and Continue editing reopens it', async ({

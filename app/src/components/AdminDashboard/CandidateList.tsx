@@ -27,14 +27,17 @@ import { withUnsavedWarning } from '../EditRecovery/unsavedWarning'
 export interface CandidateRow {
   id: number
   lessonPlanId: number | null
+  /** The Compare to Official baseline, set by the server only for a KNOWN non-Official row
+   *  (`versionActions`); null means no Compare. */
   officialVersionId: number | null
   label: string
   semver: string
   sgLabel: string
   authorName: string | null
   savedAt: string
-  /** Whether this row is its plan's Official version; `'unknown'` offers neither Delete nor Compare. */
-  official: 'yes' | 'no' | 'unknown'
+  /** Display only ("Official" in the details line). Never derive an action from it: the server
+   *  decided `canDelete` and the baseline above with an unresolved plan permitting neither. */
+  isOfficial: boolean
   canDelete: boolean
   canEdit: boolean
 }
@@ -144,7 +147,7 @@ export function CandidateList({
             const meta = [
               row.sgLabel,
               `Version ${row.semver}`,
-              row.official === 'yes' ? 'Official' : null,
+              row.isOfficial ? 'Official' : null,
               showAuthor ? (row.authorName ?? 'Unknown author') : null,
               row.savedAt ? `Saved ${row.savedAt}` : null,
             ].filter(Boolean)
@@ -160,18 +163,16 @@ export function CandidateList({
                 queue — other people's versions — omits that duplicate action; its title remains a
                 quiet link to the same editor if an exceptional inspection is needed. */}
                 <div className="lp-manage__row-actions">
-                  {/* Only against a KNOWN non-Official row: an Official compared with itself says
-                      nothing, and an unknown state must not be guessed (fails closed). */}
-                  {row.official === 'no' &&
-                    row.officialVersionId != null &&
-                    row.lessonPlanId != null && (
-                      <CompareToOfficialLink
-                        className="btn lp-btn"
-                        planId={row.lessonPlanId}
-                        officialVersionId={row.officialVersionId}
-                        candidateVersionId={row.id}
-                      />
-                    )}
+                  {/* The server sets a baseline only for a KNOWN non-Official row: an Official
+                      compared with itself says nothing, and an unknown state must not be guessed. */}
+                  {row.officialVersionId != null && row.lessonPlanId != null && (
+                    <CompareToOfficialLink
+                      className="btn lp-btn"
+                      planId={row.lessonPlanId}
+                      officialVersionId={row.officialVersionId}
+                      candidateVersionId={row.id}
+                    />
+                  )}
                   {showContinueEditing && row.canEdit && (
                     <Link className="btn lp-btn" href={href}>
                       Continue editing

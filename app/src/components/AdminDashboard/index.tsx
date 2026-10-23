@@ -35,7 +35,11 @@ import { UsersPanel } from '../Manage/UsersPanel'
 import { UnsavedWorkList, type UnsavedWorkItem } from '../Manage/UnsavedWorkList'
 import { ClockCheck } from '../Manage/ClockCheck'
 import { listUnsavedWork } from '../../lib/editRecovery/unsavedWork'
-import { listPersonalVersions } from '../../lib/personalVersions'
+import {
+  listPersonalVersions,
+  versionActions,
+  type VersionActions,
+} from '../../lib/personalVersions'
 import { captureKeptUntil } from '../../lib/editRecovery/ttl'
 import { formatDay } from '../../lib/formatDate'
 import { countAwaitingApproval } from '../../lib/awaitingApproval'
@@ -367,62 +371,59 @@ export default async function AdminDashboard({
   // plan id → its Official version id (null for a pointerless plan, which Repair lists).
   const officialByPlan = new Map<number, number | null>()
   for (const p of exclusionRes?.docs ?? planDocs) officialByPlan.set(p.id, relId(p.officialVersion))
+  const sgLabelOf = (id: number | null) => (id != null ? sgById.get(id)?.label : undefined) ?? ''
+  /** The client row's action fields from the server's decision (`versionActions`). */
+  const actionFields = ({ official, officialVersionId, canDelete, canEdit }: VersionActions) => ({
+    isOfficial: official === 'yes',
+    officialVersionId,
+    canDelete,
+    canEdit,
+  })
 
   const unsavedRows: UnsavedWorkItem[] = unsavedWork.map(
     ({ capturedAt, subjectGradeId, ...rest }) => ({
       ...rest,
-      sgLabel: (subjectGradeId != null ? sgById.get(subjectGradeId)?.label : undefined) ?? '',
+      sgLabel: sgLabelOf(subjectGradeId),
       capturedOn: formatDay(capturedAt),
       keptUntil: formatDay(captureKeptUntil(capturedAt)),
     }),
   )
   const candidates: CandidateRow[] = versionDocs.flatMap((v) => {
-    // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
-    // ⚑ Fails CLOSED on an unresolvable plan. The previous version read the POPULATED plan and
-    // returned `plan == null || …`, i.e. KEEP when it could not tell — which at depth 0 would have
-    // listed every Official as deletable, breaking this module's "no row the server would refuse"
+    // Officials are not candidates (and are undeletable): only rows KNOWN to be non-Official.
+    // ⚑ Fails CLOSED on an unresolvable plan (`'unknown'`). The previous version read the POPULATED
+    // plan and returned `plan == null || …`, i.e. KEEP when it could not tell — which at depth 0 would
+    // have listed every Official as deletable, breaking this module's "no row the server would refuse"
     // contract. `lessonPlanRead` is `Boolean(user)`, so every plan behind a visible version is
     // readable and this map is always complete; an absent id is a can't-happen, not a routine case
-    // being quietly dropped. Pinned by manage.e2e.spec.ts.
-    const planId = relId(v.lessonPlan)
-    if (planId == null) return []
-    const official = officialByPlan.get(planId)
-    if (official === undefined || official === v.id) return []
-    const sgId = relId(v.subjectGrade)
+    // being quietly dropped. Pinned by manage.e2e.spec.ts. The same `versionActions` decides the
+    // personal list's rows, so the two lists cannot disagree about a version.
+    if (!user) return []
+    const actions = versionActions(user, v, officialByPlan)
+    if (actions.official !== 'no') return []
     const authorId = relId(v.author)
     return [
       {
         id: v.id,
-        lessonPlanId: planId,
-        officialVersionId: official,
+        lessonPlanId: relId(v.lessonPlan),
         label: lessonDisplayName(v.meta?.substrand_name, v.title),
         semver: v.semver ?? '',
-        sgLabel: (sgId != null ? sgById.get(sgId)?.label : undefined) ?? '',
+        sgLabel: sgLabelOf(relId(v.subjectGrade)),
         authorName: (authorId != null ? authorNameById.get(authorId) : undefined) ?? null,
         savedAt: v.createdAt ? formatDay(v.createdAt) : '',
-        // By construction: `deletableVersionsWhere` scoped the query, Officials were excluded above,
-        // and only administrators read this queue — every row is in a subject-grade they administer,
-        // or one where they hold editing access and wrote the version.
-        official: 'no' as const,
-        canDelete: true,
-        canEdit: true,
+        ...actionFields(actions),
       },
     ]
   })
   // The caller's own versions; every action decided on the server (`lib/personalVersions.ts`).
-  const personalRows: CandidateRow[] = personalVersions.map((v) => ({
-    id: v.id,
-    lessonPlanId: v.lessonPlanId,
-    officialVersionId: v.officialVersionId,
-    label: v.label,
-    semver: v.semver,
-    sgLabel: (v.subjectGradeId != null ? sgById.get(v.subjectGradeId)?.label : undefined) ?? '',
-    authorName: null,
-    savedAt: v.createdAt ? formatDay(v.createdAt) : '',
-    official: v.official,
-    canDelete: v.canDelete,
-    canEdit: v.canEdit,
-  }))
+  const personalRows: CandidateRow[] = personalVersions.map(
+    ({ subjectGradeId, createdAt, official, officialVersionId, canDelete, canEdit, ...v }) => ({
+      ...v,
+      sgLabel: sgLabelOf(subjectGradeId),
+      authorName: null,
+      savedAt: createdAt ? formatDay(createdAt) : '',
+      ...actionFields({ official, officialVersionId, canDelete, canEdit }),
+    }),
+  )
 
   // ---- Site-Admin panels: repair (pointerless plans) + delete lesson plans (one shared fetch) ----
   const repairPlans: { id: number; label: string }[] = []

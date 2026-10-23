@@ -194,8 +194,8 @@ export function parseOpen(search: string, available: readonly string[]): PanelId
   const allowed = new Set(available)
   const wanted = raw
     .flatMap((part) => part.split(','))
-    .map((s) => s.trim())
-    .map((id) => {
+    .map((part) => {
+      const id = part.trim()
       const moved = MOVED_FOR_CALLERS_WITHOUT[id]
       return moved && !allowed.has(id) && allowed.has(moved) ? moved : id
     })

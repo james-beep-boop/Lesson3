@@ -81,13 +81,12 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
         Changes you have not saved as a new version yet. Only you can see them. Each draft is kept
         for {CAPTURE_TTL_DAYS} days after you last worked on it.
       </p>
-      {rows.length === 0 && (
+      {rows.length === 0 ? (
         <p className="lp-manage__empty">
           You have no drafts. While editing, choose Save as draft to put work aside without saving a
           new version.
         </p>
-      )}
-      {rows.length > 0 && (
+      ) : (
         <ul className="lp-manage__list">
           {rows.map((row) => {
             const href = `/admin/collections/lesson-bundle-versions/${row.versionId}?edit=1`
