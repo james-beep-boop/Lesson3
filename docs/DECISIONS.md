@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — Forum dialogs, confirmation buttons, and Proposal B approved (plan for review)
+
+Operator decisions, planned in `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`
+(Codex reviews before code):
+
+- Lesson links in posts open in a new tab, on the forum **and** in Messages (one shared component).
+- Pin dialog: title "Pin this discussion", no body. Delete dialog: title "Delete entire thread and all
+  replies", keeps "This cannot be undone.". Both get two equal-width buttons; the same style applies to
+  every in-app two-button confirmation.
+- **Cancel left, action right**, for consistency: the browser's own `confirm()` has no single order
+  (Windows puts OK first; macOS, iOS, Android and ChromeOS put Cancel first), and every in-app dialog
+  already puts Cancel first.
+- **The 16 browser-native `window.confirm()` prompts stay as they are.** Restyling them means
+  converting each to an in-app dialog with new wording, which the operator saw no need for now.
+- Moderation order Pin · Delete · Redact; "Redact topic" becomes "Redact".
+- **Proposal B (2026-10-20) is approved**: personal versions and drafts inside Manage → Lesson plans,
+  for every role. Subject-grade administrators get the same personal sections as Site Administrators;
+  a person's own Official versions are listed; **the drafts section does not open automatically**.
+  This supersedes the 2026-10-17 placement of Your Drafts above the accordion once built. The operator
+  had forgotten why that placement was chosen; the reasons (the lone-child open rule, and drafts
+  expiring) are in the 2026-10-17 entry and are weighed in the plan.
+
 ## 2026-10-22 — `text-size-adjust: 100%` on both surfaces (iOS landscape text inflation)
 
 On an iPhone in landscape, the discussion titles and meta lines rendered oversized on first load and

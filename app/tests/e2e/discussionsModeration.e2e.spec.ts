@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { sql } from '@payloadcms/db-postgres'
 
 import { drizzleOf } from '../helpers/db'
+import { expectPairedAtBothWidths } from '../helpers/dialogs'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { clearPostingCaps, createTopicAs, testSubmissionKey } from '../helpers/discussions'
 import { MARK, setForumEnabled, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
@@ -126,24 +127,55 @@ test.describe('Discussion administration', () => {
     await fx?.teardown()
   })
 
+  // The visual matrix (§PR 1 proof): every forum confirmation at desktop and phone width, with the
+  // paired-row geometry asserted in each — screenshots for review by eye. Light only: the frontend has
+  // no dark theme (`styles.css` defines one palette); the admin dialogs are checked in both
+  // (Save settings below in light, Delete lesson plans in manage.e2e in dark).
+  test('every moderation dialog keeps its paired buttons at desktop and phone width', async ({
+    page,
+  }, testInfo) => {
+    const topic = await createTopicAs(fx.payload, fx.users.teacher, {
+      title: `${MARK}Dialog matrix`,
+    })
+    await loginAs(page, fx, 'siteAdmin')
+    const dialogs = [
+      { trigger: 'Pin', title: 'Pin this discussion', action: 'Pin', slug: 'pin' },
+      {
+        trigger: 'Delete thread',
+        title: 'Delete entire thread and all replies',
+        action: 'Delete',
+        slug: 'delete',
+      },
+      { trigger: 'Redact', title: 'Redact', action: 'Redact', slug: 'redact' },
+    ]
+    await page.goto(`${BASE}/discuss/${topic.id}`)
+    const moderation = page.getByRole('group', { name: 'Thread moderation' })
+    for (const d of dialogs) {
+      await moderation.getByRole('button', { name: d.trigger, exact: true }).click()
+      const dialog = page.getByRole('dialog', { name: d.title, exact: true })
+      await expectPairedAtBothWidths(page, dialog, d.action, (w) =>
+        testInfo.outputPath(`${d.slug}-${w}.png`),
+      )
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(dialog).toHaveCount(0)
+    }
+  })
+
   test('pin and unpin require confirmation and update the pinned block', async ({ page }) => {
     const title = `${MARK}Pin controls`
     const topic = await createTopicAs(fx.payload, fx.users.teacher, { title })
     await loginAs(page, fx, 'siteAdmin')
     await page.goto(`${BASE}/discuss/${topic.id}`)
     await page.getByRole('button', { name: 'Pin', exact: true }).click()
-    await page
-      .getByRole('dialog', { name: 'Pin', exact: true })
-      .getByRole('button', { name: 'Cancel' })
-      .click()
+    const pinDialog = page.getByRole('dialog', { name: 'Pin this discussion', exact: true })
+    // The title is the whole question (operator decision 2026-10-22): no body paragraph.
+    await expect(pinDialog.locator('.modal__body')).toHaveCount(0)
+    await pinDialog.getByRole('button', { name: 'Cancel' }).click()
     expect(
       (await fx.payload.findByID({ collection: 'discussion-topics', id: topic.id })).pinnedAt,
     ).toBeFalsy()
     await page.getByRole('button', { name: 'Pin', exact: true }).click()
-    await page
-      .getByRole('dialog', { name: 'Pin', exact: true })
-      .getByRole('button', { name: 'Pin', exact: true })
-      .click()
+    await pinDialog.getByRole('button', { name: 'Pin', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Unpin', exact: true })).toBeVisible()
     await page.goto(`${BASE}/discuss`)
     await expect(
@@ -152,7 +184,7 @@ test.describe('Discussion administration', () => {
     await page.getByRole('link', { name: title }).click()
     await page.getByRole('button', { name: 'Unpin', exact: true }).click()
     await page
-      .getByRole('dialog', { name: 'Unpin', exact: true })
+      .getByRole('dialog', { name: 'Unpin this discussion', exact: true })
       .getByRole('button', { name: 'Unpin', exact: true })
       .click()
     await expect(page.getByRole('button', { name: 'Pin', exact: true })).toBeVisible()
@@ -183,7 +215,16 @@ test.describe('Discussion administration', () => {
     })
     await loginAs(page, fx, 'siteAdmin')
     await page.goto(`${BASE}/discuss/${topic.id}`)
-    await page.getByRole('button', { name: 'Redact topic' }).click()
+    // Trigger buttons are scoped to their moderation group: the dialog's confirm button is also
+    // called "Redact".
+    const threadModeration = page.getByRole('group', { name: 'Thread moderation' })
+    // Order Pin · Delete thread · Redact (operator decision 2026-10-22).
+    await expect(threadModeration.getByRole('button')).toHaveText([
+      'Pin',
+      'Delete thread',
+      'Redact',
+    ])
+    await threadModeration.getByRole('button', { name: 'Redact', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Redact', exact: true })
     await expect(dialog).toContainText('Existing backups keep the text until they age out.')
     await page.screenshot({ path: testInfo.outputPath('redaction-desktop.png') })
@@ -197,22 +238,28 @@ test.describe('Discussion administration', () => {
       page.getByRole('heading', { name: 'Title removed by the administrator' }),
     ).toBeVisible()
     await expect(page.getByText('Opening text to remove', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Redact topic' }).click()
+    await threadModeration.getByRole('button', { name: 'Redact', exact: true }).click()
     await expect(dialog.getByLabel('Title', { exact: true })).toHaveCount(0)
     await dialog.getByLabel('Opening post').check()
     await dialog.getByRole('button', { name: 'Redact', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Opening post', exact: true })).toContainText(
       'Removed by the administrator',
     )
-    await expect(page.getByRole('button', { name: 'Redact topic' })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Redact reply' }).click()
+    await expect(threadModeration.getByRole('button', { name: 'Redact' })).toHaveCount(0)
+    await page
+      .getByRole('group', { name: 'Reply moderation' })
+      .getByRole('button', { name: 'Redact', exact: true })
+      .click()
     await dialog.getByRole('button', { name: 'Redact', exact: true }).click()
     await expect(page.locator('#reply-1')).toContainText('Removed by the administrator')
     expect(
       (await fx.payload.findByID({ collection: 'discussion-replies', id: reply.id })).body,
     ).toBe('')
     await page.getByRole('button', { name: 'Delete thread' }).click()
-    const deletion = page.getByRole('dialog', { name: 'Delete thread', exact: true })
+    const deletion = page.getByRole('dialog', {
+      name: 'Delete entire thread and all replies',
+      exact: true,
+    })
     await expect(deletion).toContainText('This cannot be undone.')
     await deletion.getByRole('button', { name: 'Cancel' }).click()
     expect(
@@ -222,7 +269,7 @@ test.describe('Discussion administration', () => {
       }),
     ).toMatchObject({ totalDocs: 1 })
     await page.getByRole('button', { name: 'Delete thread' }).click()
-    await deletion.getByRole('button', { name: 'Delete thread', exact: true }).click()
+    await deletion.getByRole('button', { name: 'Delete', exact: true }).click()
     await page.waitForURL(`${BASE}/discuss`)
     expect(
       await fx.payload.count({
@@ -274,7 +321,9 @@ test.describe('Discussion administration', () => {
         .getByRole('button', { name: 'Save', exact: true })
         .click()
       const save = page.getByRole('dialog', { name: 'Save settings', exact: true })
-      await page.screenshot({ path: testInfo.outputPath('system-save-desktop.png') })
+      await expectPairedAtBothWidths(page, save, 'Save settings', (w) =>
+        testInfo.outputPath(`system-save-${w}.png`),
+      )
       await save.getByLabel('Your password').fill('not-the-password')
       await save.getByRole('button', { name: 'Save settings', exact: true }).click()
       await expect(save.getByRole('alert')).toContainText('password')
@@ -300,17 +349,17 @@ test.describe('Discussion administration', () => {
       await expect(
         page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: /^Discuss/ }),
       ).toHaveCount(0)
-      await page.getByRole('button', { name: 'Redact topic' }).click()
+      await page
+        .getByRole('group', { name: 'Thread moderation' })
+        .getByRole('button', { name: 'Redact', exact: true })
+        .click()
       await page.getByRole('dialog').getByLabel('Opening post').check()
       await page.getByRole('dialog').getByRole('button', { name: 'Redact', exact: true }).click()
       await expect(page.getByRole('region', { name: 'Opening post', exact: true })).toContainText(
         'Removed by the administrator',
       )
       await page.getByRole('button', { name: 'Delete thread' }).click()
-      await page
-        .getByRole('dialog')
-        .getByRole('button', { name: 'Delete thread', exact: true })
-        .click()
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click()
       await page.waitForURL(`${BASE}/discuss`)
       expect(
         await fx.payload.count({

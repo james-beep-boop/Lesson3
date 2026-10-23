@@ -29,7 +29,25 @@ export default function ModerationControls({
   const [uncertain, setUncertain] = useState(false)
   const topic = target.kind === 'topic' ? target : null
   const pinLabel = topic?.pinned ? 'Unpin' : 'Pin'
-  const label = action === 'pin' ? pinLabel : action === 'delete' ? 'Delete thread' : 'Redact'
+  // Each action's dialog in one place. ⚑ The TITLE states the scope, so the confirm button is one word
+  // (operator decision 2026-10-22). The thread's own Delete trigger keeps "Delete thread": it is the
+  // only place the destructive scope can be read before the dialog opens. Pin needs no body: its
+  // title is the whole question.
+  const dialog = action
+    ? {
+        pin: { title: `${pinLabel} this discussion`, confirm: pinLabel, body: null },
+        delete: {
+          title: 'Delete entire thread and all replies',
+          confirm: 'Delete',
+          body: 'This cannot be undone.',
+        },
+        redact: {
+          title: 'Redact',
+          confirm: 'Redact',
+          body: 'Remove the selected text permanently? This cannot be undone. Existing backups keep the text until they age out.',
+        },
+      }[action]
+    : null
   const destructive = action === 'redact' || action === 'delete'
   const canRedact = !bodyRemoved || (topic != null && !topic.titleRemoved)
 
@@ -112,16 +130,7 @@ export default function ModerationControls({
           {pinLabel}
         </button>
       )}
-      {canRedact && (
-        <button
-          type="button"
-          className="btn btn--quiet"
-          disabled={busy || uncertain}
-          onClick={() => open('redact')}
-        >
-          {topic ? 'Redact topic' : 'Redact reply'}
-        </button>
-      )}
+      {/* Order Pin · Delete thread · Redact (operator decision 2026-10-22). */}
       {topic && (
         <button
           type="button"
@@ -130,6 +139,16 @@ export default function ModerationControls({
           onClick={() => open('delete')}
         >
           Delete thread
+        </button>
+      )}
+      {canRedact && (
+        <button
+          type="button"
+          className="btn btn--quiet"
+          disabled={busy || uncertain}
+          onClick={() => open('redact')}
+        >
+          Redact
         </button>
       )}
       {uncertain && !action && (
@@ -142,9 +161,9 @@ export default function ModerationControls({
           </button>
         </>
       )}
-      {action && (
+      {dialog && (
         <Modal
-          title={label}
+          title={dialog.title}
           onClose={() => {
             if (!inFlight.current) setAction(null)
           }}
@@ -156,13 +175,7 @@ export default function ModerationControls({
               void confirm()
             }}
           >
-            <p className="modal__body">
-              {action === 'pin'
-                ? `${pinLabel} this discussion?`
-                : action === 'delete'
-                  ? 'Delete this entire thread and every reply? This cannot be undone.'
-                  : 'Remove the selected text permanently? This cannot be undone. Existing backups keep the text until they age out.'}
-            </p>
+            {dialog.body && <p className="modal__body">{dialog.body}</p>}
             {action === 'redact' && topic && (
               <fieldset disabled={busy || uncertain} className="disc-redact-options">
                 <legend>Text to remove</legend>
@@ -194,7 +207,7 @@ export default function ModerationControls({
                 {error}
               </p>
             )}
-            <div className="modal__actions">
+            <div className="modal__actions modal__actions--pair">
               <button type="button" className="btn" disabled={busy} onClick={() => setAction(null)}>
                 Cancel
               </button>
@@ -213,7 +226,7 @@ export default function ModerationControls({
                   disabled={busy || (action === 'redact' && !!topic && !title && !body)}
                   aria-busy={busy}
                 >
-                  {busy ? 'Working…' : label}
+                  {busy ? 'Working…' : dialog.confirm}
                 </button>
               )}
             </div>

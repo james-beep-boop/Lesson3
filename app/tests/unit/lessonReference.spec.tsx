@@ -76,7 +76,31 @@ describe('shared lesson references', () => {
         className="msg-link"
       />,
     )
-    expect(screen.getByRole('link', { name: 'Fractions' }).getAttribute('href')).toBe('/lessons/3')
+    expect(
+      screen.getByRole('link', { name: 'Fractions, opens in a new tab' }).getAttribute('href'),
+    ).toBe('/lessons/3')
     expect(screen.queryByText('(this version is no longer available)')).toBeNull()
+  })
+
+  // Operator decision 2026-10-22: on the forum and in Messages a reference keeps the reader's place.
+  it('opens the lesson and the comparison in a new tab, without a handle back to this page', () => {
+    render(
+      <LessonReference
+        reference={{
+          label: 'Fractions · v1.0.1',
+          lessonHref: '/lessons/3?version=7',
+          compareHref: '/lessons/3/compare?from=6&to=7',
+        }}
+      />,
+    )
+    const links = screen.getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('aria-label'))).toEqual([
+      'Fractions · v1.0.1, opens in a new tab',
+      'Compare changes, opens in a new tab',
+    ])
+    for (const a of links) {
+      expect(a.getAttribute('target')).toBe('_blank')
+      expect(a.getAttribute('rel')).toBe('noopener noreferrer')
+    }
   })
 })

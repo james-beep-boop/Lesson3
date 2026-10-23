@@ -208,7 +208,7 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
                 {error}
               </p>
             )}
-            <div className="modal__actions">
+            <div className="modal__actions modal__actions--pair">
               <button type="button" className="btn" disabled={busy} onClick={close}>
                 Cancel
               </button>
