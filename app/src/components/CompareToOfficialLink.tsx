@@ -1,5 +1,7 @@
 import React from 'react'
 
+import NewTabLink from './NewTabLink'
+
 /**
  * The shared inspection step beside candidate-version deletion controls.
  *
@@ -20,14 +22,10 @@ export default function CompareToOfficialLink({
   className?: string
 }) {
   return (
-    <a
+    <NewTabLink
       className={className}
       href={`/lessons/${planId}/compare?from=${officialVersionId}&to=${candidateVersionId}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Compare to Official, opens in a new tab"
-    >
-      Compare to Official <span aria-hidden="true">↗</span>
-    </a>
+      name="Compare to Official"
+    />
   )
 }
