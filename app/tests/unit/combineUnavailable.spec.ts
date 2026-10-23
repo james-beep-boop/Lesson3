@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { PayloadRequest } from 'payload'
+import { PHASE_VALUES } from '../../src/fields/phases'
+import { RESOURCE_PHASE_KEYS } from '../../src/ingest/resourceLinks'
 
 const mock = vi.hoisted(() => ({
   lock: vi.fn(),
@@ -25,6 +27,20 @@ const source = {
   subjectGrade: 5,
   title: 'Original',
   updatedAt: '2026-10-18T00:00:00.000Z',
+  meta: {},
+  lessons: [
+    {
+      slo: {},
+      summaryTablePrompt: {},
+      framework: [{ phase: PHASE_VALUES[0] }],
+      resourceLinks: RESOURCE_PHASE_KEYS.map((phase) => ({
+        phase,
+        video: {},
+        reading: {},
+        fallback_search_url: 'https://example.com/resources',
+      })),
+    },
+  ],
 }
 const caller = { id: 3, roles: ['siteAdmin'] }
 const request = (findByID: ReturnType<typeof vi.fn>, combine = true) => {

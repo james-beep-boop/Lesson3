@@ -36,6 +36,9 @@ The save endpoint now returns its own 400 JSON with the shared completeness vali
 messages, before starting a write transaction; the collection hook remains the backstop for every
 other creation path. Pin the wire shape against a production build rather than inferring it from
 the development server. The HTTP regression also proves that refusal creates no version.
+Moving completeness validation into the endpoint also means its authorization unit tests need a
+complete lesson fixture to reach their lock/re-read cases; an ids-only stub is now refused earlier.
+Rerun the whole unit suite after changing endpoint control flow, including a production-only fix.
 
 ## 2026-10-23 — Let teachers inspect version details from the lesson reading page
 
