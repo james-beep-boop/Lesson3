@@ -28,15 +28,12 @@
  * Usage: node scripts/patch-payload-ui.mjs [path/to/index.js]
  */
 import { readFileSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 
-// Built with `path`, not `new URL(…, import.meta.url)`: under a jsdom test environment the global
-// `URL` is jsdom's, which Node's `fileURLToPath` rejects.
-export const DEFAULT_TARGET = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../node_modules/@payloadcms/ui/dist/exports/client/index.js',
-)
+// The file the app actually imports (`@payloadcms/ui`'s `.` export), resolved rather than assumed,
+// so a changed exports map or install layout cannot leave the patch on a file nothing loads.
+export const DEFAULT_TARGET = createRequire(import.meta.url).resolve('@payloadcms/ui')
 
 /** Strings that must each occur exactly once before anything is written. */
 export const NAME_CHECKS = [
@@ -73,12 +70,12 @@ const count = (haystack, needle) => haystack.split(needle).length - 1
  * Pure core: returns `{ source, applied }` where `applied` lists the patches written this call (empty
  * when the bundle was already fully patched). Throws with a reason on any unexpected shape.
  */
-export function patchSource(source, patches = PATCHES, nameChecks = NAME_CHECKS) {
-  for (const check of nameChecks) {
+export function patchSource(source) {
+  for (const check of NAME_CHECKS) {
     const n = count(source, check)
     if (n !== 1) throw new Error(`name check expected once, found ${n}: ${check.slice(0, 80)}`)
   }
-  const states = patches.map((p) => {
+  const states = PATCHES.map((p) => {
     const from = count(source, p.from)
     const to = count(source, p.to)
     if (from === 1 && to === 0) {
@@ -96,11 +93,11 @@ export function patchSource(source, patches = PATCHES, nameChecks = NAME_CHECKS)
     throw new Error(`${p.name}: expected the original once or the patch once; found ${from}/${to}`)
   })
   if (states.includes('applied') && states.includes('pending')) {
-    throw new Error(`partially patched (${patches.map((p, i) => `${p.name}=${states[i]}`)})`)
+    throw new Error(`partially patched (${PATCHES.map((p, i) => `${p.name}=${states[i]}`)})`)
   }
   let out = source
   const applied = []
-  patches.forEach((p, i) => {
+  PATCHES.forEach((p, i) => {
     if (states[i] === 'pending') {
       out = out.replace(p.from, () => p.to)
       applied.push(p.name)

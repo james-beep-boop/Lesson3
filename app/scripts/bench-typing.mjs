@@ -103,12 +103,17 @@ try {
     await page.waitForTimeout(8_000)
     await page.evaluate((id) => {
       const textarea = document.querySelector(id)
-      window.__bench = { keys: [], longTasks: [], observers: [], received: 0 }
-      window.__bench.before = textarea.value
-      // `End` moves to the end of the caret's LINE in a multi-line textarea, so the keys land at
-      // the caret, not necessarily at the end of the text.
-      window.__bench.caret = textarea.selectionStart
-      window.__bench.onKey = () => window.__bench.received++
+      window.__bench = {
+        keys: [],
+        longTasks: [],
+        observers: [],
+        received: 0,
+        before: textarea.value,
+        // `End` moves to the end of the caret's LINE in a multi-line textarea, so the keys land at
+        // the caret, not necessarily at the end of the text.
+        caret: textarea.selectionStart,
+        onKey: () => window.__bench.received++,
+      }
       textarea.addEventListener('keydown', window.__bench.onKey)
       const keys = new PerformanceObserver((list) => {
         for (const e of list.getEntries())
@@ -163,7 +168,6 @@ try {
           before.slice(Math.max(0, caret - 20), caret) + TEXT + before.slice(caret, caret + 20),
         lengthDelta: after.length - before.length,
       }
-      console.log(JSON.stringify(result))
       process.exitCode = 1
       break
     }
@@ -177,7 +181,7 @@ try {
       typingWallMs,
     }
   }
-  if (!process.exitCode) console.log(JSON.stringify(result))
+  console.log(JSON.stringify(result))
 } finally {
   await browser.close()
 }

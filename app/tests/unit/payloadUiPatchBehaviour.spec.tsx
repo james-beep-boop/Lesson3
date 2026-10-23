@@ -54,12 +54,13 @@ const PROTOTYPE_TO =
 
 const scheduler = createRequire(import.meta.url)('scheduler')
 
+// `import{createElement as vL,…}from"react";` → `createElement:vL,…`, destructured from React below.
+const REACT_BINDINGS = IMPORT_LINE.slice('import{'.length, IMPORT_LINE.indexOf('}from'))
+  .split(',')
+  .map((pair) => pair.split(' as ').join(':'))
+  .join(',')
+
 function load(span: string): Impl {
-  // `import{createElement as vL,…}from"react";` → `const{createElement:vL,…}=React;`
-  const bindings = IMPORT_LINE.slice('import{'.length, IMPORT_LINE.indexOf('}from'))
-    .split(',')
-    .map((pair) => pair.split(' as ').join(':'))
-    .join(',')
   const name = (re: RegExp) => {
     const m = re.exec(span)
     if (!m) throw new Error(`anchor ${re} not found in the lifted span`)
@@ -69,15 +70,20 @@ function load(span: string): Impl {
   const createContext = name(/function ([\w$]+)\(t\)\{let e=yL\(/)
   const useContextSelector = name(/function ([\w$]+)\(t,e\)\{let o=CL\(t\)\[/)
   const uf = name(/^var ([\w$]+)=Symbol\(\)/)
-  const body = `const{${bindings}}=React;${span};return{createContext:${createContext},useContextSelector:${useContextSelector},uf:${uf}}`
+  const body = `const{${REACT_BINDINGS}}=React;${span};return{createContext:${createContext},useContextSelector:${useContextSelector},uf:${uf}}`
   return new Function('React', schedulerName, body)(React, scheduler) as Impl
 }
 
-const IMPLS: [string, Impl][] = [
-  ['patched', load(patchedSpan)],
-  ['original', load(patchedSpan.replace(ucs.to, () => ucs.from))],
-]
+const patched = load(patchedSpan)
+const original = load(patchedSpan.replace(ucs.to, () => ucs.from))
 const prototype = load(patchedSpan.replace(ucs.to, () => PROTOTYPE_TO))
+const IMPLS: [string, Impl][] = [
+  ['patched', patched],
+  ['original', original],
+]
+
+/** The provider's internals, which the library keeps under its private symbol on the context value. */
+const handleOf = (impl: Impl, holder: unknown) => (holder as Record<symbol, Handle>)[impl.uf]!
 
 // --- Harness -----------------------------------------------------------------------------------
 
@@ -98,8 +104,6 @@ function harness(impl: Impl, initial: Val = V(0, 0)) {
     handle?: Handle
   } = {}
 
-  const handleOf = (holder: unknown) => (holder as Record<symbol, Handle>)[impl.uf]!
-
   function Sub({ sel, id = 'sub' }: { sel: Sel; id?: string }) {
     const x = impl.useContextSelector(Ctx, sel)
     renders.count++
@@ -111,7 +115,7 @@ function harness(impl: Impl, initial: Val = V(0, 0)) {
 
   /** Simulates a provider commit between the subscriber's render and its layout effects. */
   function Notifier() {
-    const handle = handleOf(React.useContext(Ctx))
+    const handle = handleOf(impl, React.useContext(Ctx))
     ctl.handle = handle
     React.useLayoutEffect(() => {
       if (!('value' in armed)) return
@@ -143,7 +147,7 @@ function harness(impl: Impl, initial: Val = V(0, 0)) {
 
   const shown = () => JSON.parse(screen.getByTestId('sub').textContent!)
   const live = () => ctl.handle!.v.current as Val
-  return { Ctx, App, Sub, Notifier, armed, ctl, renders, shown, live, handleOf }
+  return { App, Sub, armed, ctl, renders, shown, live }
 }
 
 afterEach(cleanup)
@@ -210,9 +214,10 @@ describe.each(IMPLS)('use-context-selector (%s)', (label, impl) => {
       if (on) React.use(gate)
       return null
     }
+    const gateCtl: { setOn?: (on: boolean) => void } = {}
     function Host() {
       const [on, setOn] = React.useState(false)
-      ;(h.ctl as { setOn?: (b: boolean) => void }).setOn = setOn
+      gateCtl.setOn = setOn
       return (
         <h.App sel={selA}>
           <React.Suspense fallback={<i>waiting</i>}>
@@ -222,11 +227,10 @@ describe.each(IMPLS)('use-context-selector (%s)', (label, impl) => {
       )
     }
     render(<Host />)
-    const setOn = (h.ctl as { setOn?: (b: boolean) => void }).setOn!
     await act(async () =>
       React.startTransition(() => {
         h.ctl.setValue!(V(1, 0))
-        setOn(true)
+        gateCtl.setOn!(true)
       }),
     )
     await act(async () => h.ctl.setValue!(V(2, 0))) // an urgent change while the transition is held
@@ -247,8 +251,8 @@ describe.each(IMPLS)('use-context-selector (%s)', (label, impl) => {
       return <span data-testid="sub">{String(impl.useContextSelector(ctx, selA))}</span>
     })
     function Probe() {
-      handles.A = (React.useContext(A) as unknown as Record<symbol, Handle>)[impl.uf]!
-      handles.B = (React.useContext(B) as unknown as Record<symbol, Handle>)[impl.uf]!
+      handles.A = handleOf(impl, React.useContext(A))
+      handles.B = handleOf(impl, React.useContext(B))
       return null
     }
     function Host() {
@@ -381,8 +385,8 @@ describe('the render-to-commit window needs the catch-up check (Codex P1)', () =
   // commit before the subscriber's listener is registered. (Mounting provider and subscriber together
   // would not test this: the provider's own mount effect runs last and re-publishes its prop.)
   it.each([
-    ['patched', IMPLS[0]![1], 5],
-    ['original', IMPLS[1]![1], 0],
+    ['patched', patched, 5],
+    ['original', original, 0],
     ['§3.2 prototype', prototype, 0],
   ] as const)('a notification while subscribing: %s', (_, impl, expected) => {
     const h = harness(impl)

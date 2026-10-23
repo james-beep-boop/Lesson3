@@ -44,9 +44,10 @@ delivered and reported, so the medians are over every key.
 **Verified** before the PR:
 
 - **Unit:** `test:unit` 1,853 of 1,854; the failure is the known `usersPanelPaging` load timeout,
-  which passes alone (3 of 3). The new tests account for 51 of the passes: patch rules and the
-  installed bundle (15), the patched hook against the original and the §3.2 prototype (32), and live
-  `RowLabel` rules (4).
+  which passes alone (3 of 3). The new tests account for 49 of the passes: patch rules and the
+  installed bundle (13), the patched hook against the original and the §3.2 prototype (32), and live
+  `RowLabel` rules (4). (51 before the `/simplify` pass folded the installed-bundle checks into one
+  call to the script's own rule.)
 - **Integration:** `test:int` 333 of 333.
 - **Browser:** the full existing `test:e2e` suite passed 142 of 142 against a production build with
   the patch, run CI-style in an isolated Compose project. The new `liveRowLabels` spec (2 tests)

@@ -3,8 +3,8 @@
  * docs/PLAN-editing-typing-speed-2026-10-23.md §4.4 and §5 part 1).
  *
  * Two halves. The script's rules are pinned against small fixture strings, so a refusal path is
- * proven without a broken bundle. Then the INSTALLED bundle must carry each exact patched text once
- * and neither original: a skipped `postinstall` (including one skipped by `ignore-scripts`) fails
+ * proven without a broken bundle. Then the INSTALLED bundle must pass the script's own check as
+ * already patched: a skipped `postinstall` (including one skipped by `ignore-scripts`) fails
  * here rather than shipping an unpatched, slow edit page.
  */
 import { readFileSync } from 'node:fs'
@@ -79,17 +79,9 @@ describe('patch-payload-ui: the rules', () => {
 })
 
 describe('patch-payload-ui: the installed bundle', () => {
-  const bundle = readFileSync(DEFAULT_TARGET, 'utf8')
-
-  it.each(PATCHES.map((p) => [p.name, p]))(
-    '%s: the exact patched text is present once and the original is gone',
-    (_, p) => {
-      expect(bundle.split(p.to).length - 1).toBe(1)
-      expect(bundle.includes(p.from)).toBe(false)
-    },
-  )
-
-  it('the name checks still hold, so the patched code means what it was written to mean', () => {
-    for (const check of NAME_CHECKS) expect(bundle.split(check).length - 1).toBe(1)
+  // The script's own rule, not a second copy of it: this passes only when every name check holds and
+  // every patch's exact text is present once with its original gone; anything else throws, naming it.
+  it('is fully patched, so the patched code means what it was written to mean', () => {
+    expect(patchSource(readFileSync(DEFAULT_TARGET, 'utf8')).applied).toEqual([])
   })
 })
