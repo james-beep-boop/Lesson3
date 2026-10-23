@@ -297,8 +297,9 @@ applied to the latest value, with no update scheduled. Two mechanisms rule that 
 
 **Why the catch-up check is gated on the value.** Codex's sign-off proposed comparing the selection
 alone. That would loop forever for any selector that returns a new object on every call: the check would
-fail, dispatch, re-render, fail again. Payload has such a selector: an array field's
-`useFormFields(([fields]) => rows.map(…))`. With the gate, the re-render reads the live value, so at
+fail, dispatch, re-render, fail again. Payload has such a selector: the Tabs field's
+`useFormFields(([fields]) => tabs.map(…))` (corrected per Codex's sign-off; an earlier draft said an
+Array field's `rows.map`). With the gate, the re-render reads the live value, so at
 the next commit `r` equals `o.v.current` and the check does nothing. It costs one `Object.is` per
 rendered subscriber per commit, plus a selector call only in the rare case that the value moved.
 **This deviates from Codex's wording; Codex to confirm.**
