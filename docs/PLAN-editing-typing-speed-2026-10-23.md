@@ -1,10 +1,21 @@
 # Plan — typing speed on the version edit page
 
-**Status:** revised 2026-10-23 after Codex's review; **awaiting Codex's sign-off** before
-implementation. No application code has changed. Everything below was measured against throwaway
-production builds in a scratch directory; nothing was deployed. The operator's decisions are in §7.
+**Status:** **approved for implementation** by Codex's sign-off review (2026-10-23, on `c5d4df3`),
+subject to four named changes, all folded in by the second revision below. The one place this
+revision goes beyond Codex's wording is the loop guard on §4.1's catch-up check; it needs Codex's
+confirmation before implementation. No application code has changed. Everything below was measured
+against throwaway production builds in a scratch directory; nothing was deployed. Decisions are in §7.
 
-**Revision (2026-10-23, after Codex's review):** §4.1 now gives the full replacement code and the
+**Second revision (2026-10-23, Codex's sign-off findings):**
+
+- **P1, §4.1:** the patch adds a commit-time catch-up check. Selector notifications are no longer
+  trusted to arrive after the selector is published.
+- **P2, §5:** the behavioural tests now force a notification between render and commit.
+- **P2, §4.4:** the idempotency check now requires the exact patched text.
+- **P2, §4.5:** the benchmark confirms the keys were delivered before it counts a missing timing as
+  fast.
+
+**First revision (2026-10-23, after Codex's first review):** §4.1 now gives the full replacement code and the
 argument for its safety under React 19; §4.3 gives the exact component change and how a cleared
 value behaves; §4.4 adds the patch script to the dependency-cache hash; §4.5 fixes how the benchmark
 reports keys below the Event Timing threshold; §5 adds behavioural checks beyond the patch markers;
@@ -229,18 +240,26 @@ that 2,389 of them are unchanged.
 return Object.is(l[1],i)||a(),e2(()=>(s.add(a),()=>{s.delete(a)}),[s]),l[1]}
 ```
 
-**Replacement**, inserted exactly as written (the comment is the marker the unit test looks for;
-`Ub` is the bundle's alias for `useRef`):
+**Replacement**, inserted exactly as written. The comment is the marker the unit test looks for;
+`Ub` is the bundle's alias for `useRef`, and `o` is the hook's own handle on the provider (`o.v.current`
+is the provider's live value):
 
 ```
-/*lesson3-patch:ucs*/let R=Ub(null);e2(()=>{R.current={e,s:l[1]}});return Object.is(l[1],i)||a(),e2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}
+/*lesson3-patch:ucs*/let R=Ub(null);e2(()=>{R.current={e,s:l[1]};let v=o.v.current;if(!Object.is(v,r))try{Object.is(l[1],e(v))||a()}catch{a()}});return Object.is(l[1],i)||a(),e2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}
 ```
 
 The same code, readably:
 
 ```js
 const R = useRef(null)
-useLayoutEffect(() => { R.current = { e, s: l[1] } })   // after every commit: selector + committed selection
+useLayoutEffect(() => {                                  // after every commit:
+  R.current = { e, s: l[1] }                             //   publish the selector and committed selection
+  const v = o.v.current                                  //   catch-up check (Codex P1): if the provider's
+  if (!Object.is(v, r)) {                                //   value moved since this render read it,
+    try { if (!Object.is(l[1], e(v))) a() }              //   re-check with THIS selector and render
+    catch { a() }                                        //   if the selection differs or throws
+  }
+})
 if (!Object.is(l[1], i)) a()                             // unchanged from the original
 useLayoutEffect(() => {
   const L = (u) => {
@@ -263,14 +282,34 @@ render that does happen still runs the original reducer and the original render-
 the provider's *current* value, and if they differ it dispatches during render, which makes React
 re-run the component before committing. So a committed render can never show a stale selection. The
 only possible failure is a **missed** render: a committed selection that differs from the selector
-applied to the latest value, with no update scheduled. A listener skips only when the selector applied
-to the new value equals the last committed selection, which is exactly the case where a render would
-produce what is already on screen. Case by case:
+applied to the latest value, with no update scheduled. Two mechanisms rule that out:
+
+- **Notifications after the commit** are judged against the *published* selector and selection. A
+  listener skips only when the selector applied to the new value equals the committed selection: the
+  case where a render would produce what is already on screen.
+- **Notifications between render and commit** (Codex P1) are judged by a listener that still holds the
+  *previous* commit's selector. A change visible only to the new selector would be skipped. The
+  catch-up check closes this window without relying on React's scheduling. At commit, the layout effect
+  compares the value the render read (`r`) with the provider's live value. If they differ, it applies
+  this render's selector to the live value and dispatches when the result differs from what was
+  committed, or when the selector throws. This is the same idea as `useSyncExternalStore`'s post-commit
+  consistency check, which this hook does not otherwise get.
+
+**Why the catch-up check is gated on the value.** Codex's sign-off proposed comparing the selection
+alone. That would loop forever for any selector that returns a new object on every call: the check would
+fail, dispatch, re-render, fail again. Payload has such a selector: an array field's
+`useFormFields(([fields]) => rows.map(…))`. With the gate, the re-render reads the live value, so at
+the next commit `r` equals `o.v.current` and the check does nothing. It costs one `Object.is` per
+rendered subscriber per commit, plus a selector call only in the rare case that the value moved.
+**This deviates from Codex's wording; Codex to confirm.**
+
+Case by case:
 
 | Case | Behaviour |
 |---|---|
 | Rapid successive updates (A → B → A′ while B's render is pending) | B dispatches. A′ is skipped if its selection equals the committed one. The pending render reads the provider's value ref, which already holds A′ (the provider updates the ref before notifying), so the render-time check corrects it to A′'s selection before commit. |
-| Selector depends on props (for example `path`) | A props change re-renders the component through its parent anyway, using the new selector; `R` follows after that commit. A notification arriving between that render and its commit is judged with the previous selector against its own committed result. **Codex: scrutinise this window.** The argument for safety is that React restarts in-progress concurrent work after an intervening commit, so the render re-reads the value ref, and a synchronous render cannot interleave with a listener. §5's behavioural test covers it directly. |
+| Selector depends on props (for example `path`) | A props change re-renders the component through its parent, using the new selector. Codex's example: the selector switches from `a` to `b` and renders `b = 0`. Before the commit, a notification changes only `b`, to 1. The listener still holds `a`, sees no change, and skips. At commit, the catch-up check sees that the live value is not the one the render read, computes `b = 1`, and dispatches. §5 forces exactly this sequence. |
+| Notification while subscribing (mount) | The listener is registered in a layout effect. A value change between the first render and that effect never reaches the listener, but the catch-up check in the same commit sees the moved value and dispatches. |
 | Before the first commit | `R.current` is null, so the listener dispatches (original behaviour). |
 | Unmount | The cleanup removes `L`, as the original removed `a`. |
 | Suspense (`useContextUpdate(…, { suspense: true })`) | The action carries `p`, so it falls through to dispatch and the reducer throws the promise, as before. |
@@ -279,8 +318,12 @@ produce what is already on screen. Case by case:
 | Selector returns a new object every call | `Object.is` fails, so it dispatches: no change, and no benefit. |
 | StrictMode double effects | The effect re-registers `L`; the `Set` holds one entry. |
 
-**Cost.** One layout effect per *rendered* subscriber per commit, and one selector call per subscriber
-per notification. The original already made that call, inside the reducer, during render.
+**Cost.** One layout effect per *rendered* subscriber per commit (one `Object.is`, and a selector call
+only when the value moved), and one selector call per subscriber per notification. The original already
+made that call, inside the reducer, during render.
+
+The prototype measured in §3.2 did not have the catch-up check. It adds work only for subscribers that
+render, so the §3.2 figures should hold; the §5 benchmark re-run confirms this.
 
 ### 4.2 Row labels stop subscribing to the whole form
 
@@ -323,7 +366,9 @@ The selector returns the field's state object, which Payload replaces only when 
 so under §4.1 each row re-renders only when its own label field changes. Reordering, adding or
 removing rows changes `path`, and the row re-renders through its parent with the new path.
 `formatRowLabel` already maps an empty or whitespace-only value to "<noun> N". This restores live
-labels for every Lesson3 array and cancels §4.2's side effect. Payload's default label ("Row 01")
+labels for every Lesson3 array and cancels §4.2's side effect. Only the value each label displays is
+made live. The rest of the provider's `data` still updates only on the server round-trip, and no
+Lesson3 label reads it for anything else. Payload's default label ("Row 01")
 does not read row data, so it is unaffected.
 
 ### 4.4 How the patch is applied and guarded
@@ -334,8 +379,16 @@ does not read row data, so it is unaffected.
     that moves the code then fails the install loudly instead of shipping unpatched.
   - Before replacing, it checks that the minified names mean what the replacements assume:
     `useRef as Ub`, `useLayoutEffect as wL`, `e2=RL?xL:wL`, `Ge as useForm`, `bf as useWatchForm`.
-  - **Idempotent:** if both markers are present and neither search string is, it exits 0 without
-    writing. A file with exactly one patch applied is an error.
+  - **Idempotent, by exact content (Codex P2).** The script holds each patch as a `{ from, to }` pair.
+    For each pair:
+    - `from` once and `to` absent: apply the patch;
+    - `to` once and `from` absent: already applied, so leave it;
+    - anything else is an error and the script exits non-zero.
+
+    Anything else includes a marker present without the exact `to` text: an older revision of this
+    patch, or a damaged one. Both pairs must end up applied; one applied and one not is an error. A
+    future revision of the patch text therefore never silently accepts an earlier one that carries the
+    same marker.
 - **Run from `postinstall`** (`"postinstall": "node scripts/patch-payload-ui.mjs"`), so every `npm ci`
   applies it:
   - Dockerfile **`deps`** stage: `COPY scripts/patch-payload-ui.mjs ./scripts/` before `npm ci` (today
@@ -347,9 +400,11 @@ does not read row data, so it is unaffected.
   `package.json`, the lockfile, the Dockerfile and `.npmrc`. Add `app/scripts/patch-payload-ui.mjs`
   to its inputs. Otherwise a later fix to the script alone would leave the `lesson3-deps` image and its
   `node_modules` volume unpatched or stale.
-- **Marker test:** a fast unit test, in the style of `tests/unit/vendorProvenance.spec.ts`, asserts that
-  the installed bundle contains both markers and neither search string. A skipped `postinstall` then
-  fails the gate. §5 adds the behavioural test.
+- **Patched-content test:** a fast unit test, in the style of `tests/unit/vendorProvenance.spec.ts`,
+  imports the script's `{ from, to }` pairs. It asserts that the installed bundle contains each exact
+  `to` text once and neither `from`. A skipped `postinstall` then fails the gate, including one skipped
+  by `ignore-scripts`: no install path in the repo sets that today, but npm configuration can. §5 adds
+  the behavioural test.
 - **Stale host packages.** On the operator's Mac, `app/node_modules` holds `@payloadcms/ui` **3.90.2**,
   but the repo pins 3.91.0; the search strings do not match 3.90.2. All checks run on freshly installed
   pinned dependencies (the refreshed deps container, or `npm ci`), never on that tree.
@@ -363,10 +418,27 @@ does not read row data, so it is unaffected.
 ### 4.5 Benchmark reporting below the threshold (Codex P2)
 
 `app/scripts/bench-typing.mjs` computes the median and p90 from reported keys only, and prints `0`
-when none were reported. Change each pass's output to:
+when none were reported.
 
-- `keysTyped` (the number of keys sent), `keysReported`, and `keysBelowThreshold`
-  (`keysTyped − keysReported`);
+**First, confirm the input arrived (Codex P2).** A missing timing may mean a fast key, or a key that
+never arrived. Before the typing, each pass:
+
+- attaches a `keydown` listener to the target textarea that counts the keys received;
+- records the textarea's value.
+
+After the typing it checks two things:
+
+- the count equals the number of keys sent;
+- the textarea's value is the recorded value followed by exactly the typed text.
+
+If either check fails, the pass reports the failure and the script exits non-zero, with no
+percentiles.
+
+**Then report.** Only after both checks pass may an unreported key count as below the threshold. Each
+pass's output becomes:
+
+- `keysTyped` (sent), `keysReceived` (counted by the listener), `keysReported` (Event Timing), and
+  `keysBelowThreshold` (`keysTyped − keysReported`);
 - `medianMs` and `p90Ms` over **all typed keys**, counting each unreported key as below 16 ms. A
   percentile that lands on an unreported key prints as the string `"<16"`, never `0`;
 - `maxMs` as `null` when no key was reported.
@@ -396,7 +468,8 @@ Patch markers prove the patch was applied, not that it is correct, so verificati
 
 - It exits non-zero on zero matches and on two matches of either search string.
 - It exits non-zero when a name check fails (for example `useRef as Ub` absent).
-- A second run is a no-op; a half-patched file is an error.
+- A second run is a no-op. It is an error when only one patch is applied, and when a marker is present
+  without the exact `to` text (for example, an earlier revision of the patch).
 
 **2. The patched hook's behaviour** (`tests/unit/payloadUiPatch.spec.tsx`; jsdom and
 `@testing-library/react` are already dev dependencies):
@@ -404,16 +477,34 @@ Patch markers prove the patch was applied, not that it is correct, so verificati
 - Load the inlined `use-context-selector` span from the **installed, patched** bundle, anchored by the
   same strings the patch script checks, and evaluate it with React 19.2.9.
 - Run every case twice: against the patched span, and against the original (rebuilt by reversing the
-  replacement). The committed output must be identical in both; only render counts may differ.
+  replacement). The settled visible values and the cleanup behaviour (listeners left registered,
+  warnings) must be identical in both; only render counts may differ.
+- **Forcing the render-to-commit window (Codex P2).** An ordinary `act()` batch that changes props and
+  value together may never open this window, so the tests open it deliberately. A *notifier* component
+  is placed as an earlier sibling of the subscriber. Earlier siblings' layout effects run first, so its
+  layout effect runs after the subscriber has rendered but before the subscriber's own layout effects.
+  That effect simulates a provider commit: it sets the provider's value ref to a new value and calls
+  every registered listener with `{ n, v }`, as the provider does. The test arms the notifier only
+  for the commit under test.
 - Cases:
   - an update that leaves a subscriber's selection unchanged does not re-render it; one that changes it
     does;
   - rapid successive updates, in one batch and across batches (A → B → A, A → B → C), end with the
     correct committed selection;
-  - a selector that depends on a prop, changed together with or just before a value change, ends
-    correct (the window flagged in §4.1);
+  - **Codex's P1 sequence, forced:** the selector prop switches from `a` to `b`, and in the same commit
+    the notifier changes only `b`, leaving `a` unchanged. The subscriber must settle on the new `b`.
+    This test must **fail against the §3.2 prototype**, which had no catch-up check, and pass with §4.1.
+  - the same with the notifier changing both `a` and `b`, and with it changing neither;
+  - **updates during subscription setup:** the notifier fires during the subscriber's first commit,
+    before its listener is registered;
+  - **interrupted or abandoned rendering:** a subscriber update inside `startTransition` that a
+    suspending sibling abandons, with a value change while it is pending; the settled value must match
+    the original;
+  - **switching context sources:** the subscriber moves from one provider of the context to another;
+    later updates on the old provider do not touch it, and those on the new one do;
   - unmounting a subscriber removes its listener, and later updates neither touch it nor warn;
   - a throwing selector, a plain `useContextUpdate`, and a `suspense: true` update behave as unpatched;
+  - a selector that returns a new object on every call settles without looping (the gate in §4.1);
   - under `<StrictMode>`, each subscriber has exactly one listener registered.
 
 **3. The application, end to end:** the full browser suite (`test:e2e`) against a production build with
@@ -477,15 +568,18 @@ This step needs the operator's go-ahead when it is scheduled, because it runs on
 
 ## 7. Decisions
 
-Recorded 2026-10-23, from the operator's draft answers and Codex's review:
+Recorded 2026-10-23, from the operator's draft answers and Codex's two reviews:
 
-- **Q1. Patch or wait?** Patch now, guarded as in §4.4, once the review gaps are closed (this
-  revision). Upstream fixes, if any, replace it later.
+- **Q1. Patch or wait?** Patch now, guarded as in §4.4. Codex approved implementation with four named
+  changes, now folded in; the unrevised §4.1 patch was **not** approved. Upstream fixes, if any,
+  replace the patch later.
 - **Q2. Live row labels?** Yes: implement §4.3 with the patch.
 - **Q3. Upstream issues?** The operator files them; not part of this work.
 - **Q4. When to run the Rock benchmark?** Later, once the candidate is ready: `main` and the finished
   branch together, under the same conditions (§6). Not in the implementation PR.
 - **Q5. Narrow `LessonControls` / `EditJumpNav`?** Deferred (§4.7).
 
-**Still open, for Codex's sign-off:** the §4.1 safety argument (especially the selector-change window),
-the §4.3 component change, and whether §5 is enough.
+- **Rock testing** is Claude's responsibility, with the operator's go-ahead when scheduled (§6).
+
+**Still open:** Codex to confirm the one deviation from its wording, the value gate on §4.1's catch-up
+check. Everything else is approved.
