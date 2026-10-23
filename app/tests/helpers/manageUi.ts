@@ -8,7 +8,7 @@ import { expect, type Locator, type Page } from '@playwright/test'
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /**
- * A panel's disclosure button by its title. A trailing count is allowed ("Your Drafts (2)",
+ * A panel's disclosure button by its title. A trailing count is allowed ("Your drafts (2)",
  * Proposal B), so callers name the panel, not today's number.
  */
 export const panelTrigger = (page: Page, name: string): Locator =>

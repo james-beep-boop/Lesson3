@@ -1,5 +1,5 @@
 /**
- * "My saved versions" on Manage (Proposal B, operator decisions 2026-10-22,
+ * "Your saved versions" on Manage (Proposal B, operator decisions 2026-10-22,
  * `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md` §6.2) — every numbered version the
  * caller saved, with what they may still do to each.
  *
@@ -36,7 +36,7 @@ import { lessonDisplayName } from './substrand'
 
 /**
  * What a person may do with one saved version, decided on the server document. Shared by both of
- * Manage's version lists — "My saved versions" and the administrators' cleanup queue — so the
+ * Manage's version lists — "Your saved versions" and the administrators' cleanup queue — so the
  * fail-closed Official rule and the access helpers live in one place (/simplify, 2026-10-23).
  */
 export interface VersionActions {

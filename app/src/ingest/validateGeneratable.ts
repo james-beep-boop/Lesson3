@@ -24,7 +24,7 @@
  * on version create — single source of truth. Operates on the stored camelCase content shape (or
  * the `rawToBundle` output, which is identical).
  */
-import { PHASE_VALUES, isPhase } from '../fields/phases'
+import { isPhase } from '../fields/phases'
 import { isObject, validateResourceLinks } from './resourceLinks'
 
 type Bundleish = {
@@ -34,46 +34,81 @@ type Bundleish = {
   summaryTable?: unknown
 }
 
-export function validateGeneratable(bundle: Bundleish): string[] {
-  const problems: string[] = []
+export interface GeneratableFieldError {
+  path: string
+  label: string
+  message: string
+}
+
+/** Retain field paths so save errors can identify the field needing attention. */
+export function generatableFieldErrors(bundle: Bundleish): GeneratableFieldError[] {
+  const problems: GeneratableFieldError[] = []
+  const problem = (path: string, label: string, message: string) => {
+    problems.push({ path, label, message })
+  }
 
   if (!isObject(bundle.meta)) {
-    problems.push('META group is missing (the generator reads META.titleDoc / col labels).')
+    problem(
+      'meta',
+      'Document settings',
+      'Document settings are missing. Reload the lesson plan before saving.',
+    )
   }
 
   const lessons = bundle.lessons
   if (!Array.isArray(lessons) || lessons.length === 0) {
-    problems.push('LESSONS is empty — a bundle must have at least one lesson.')
+    problem('lessons', 'Lessons', 'Keep at least one lesson in the lesson plan.')
     return problems // nothing further to check
   }
 
   lessons.forEach((lessonValue, i) => {
     const n = i + 1 // lesson numbers are 1-based (re-derived from order on save)
     if (!isObject(lessonValue)) {
-      problems.push(`Lesson ${n}: not a valid lesson object.`)
+      problem(
+        `lessons.${i}`,
+        `Lesson ${n}`,
+        `Lesson ${n}: This lesson is incomplete. Restore it or duplicate an existing lesson.`,
+      )
       return
     }
     const lesson = lessonValue
 
     if (!isObject(lesson.slo)) {
-      problems.push(`Lesson ${n}: missing SLO group (the generator reads slo.purpose).`)
-    }
-    if (!isObject(lesson.summaryTablePrompt)) {
-      problems.push(
-        `Lesson ${n}: missing summaryTablePrompt group (the generator reads .observed/.learned/.explained).`,
+      problem(
+        `lessons.${i}.slo`,
+        `Lesson ${n} — Specific learning outcomes`,
+        `Lesson ${n}: Specific learning outcomes are missing.`,
       )
     }
-    problems.push(...validateResourceLinks(lesson.resourceLinks, `Lesson ${n}.resourceLinks`))
+    if (!isObject(lesson.summaryTablePrompt)) {
+      problem(
+        `lessons.${i}.summaryTablePrompt`,
+        `Lesson ${n} — Lesson summary prompts`,
+        `Lesson ${n}: Lesson summary prompts are missing.`,
+      )
+    }
+    for (const message of validateResourceLinks(
+      lesson.resourceLinks,
+      `Lesson ${n}.resourceLinks`,
+    )) {
+      problem(`lessons.${i}.resourceLinks`, `Lesson ${n} — Resources`, message)
+    }
 
     const framework = lesson.framework
     if (!Array.isArray(framework) || framework.length === 0) {
-      problems.push(`Lesson ${n}: framework has no phases — at least one phase is required.`)
+      problem(
+        `lessons.${i}.framework`,
+        `Lesson ${n} — Instructional framework`,
+        `Lesson ${n}: Keep at least one instructional phase.`,
+      )
     } else {
       framework.forEach((phaseValue, j) => {
         const phase = isObject(phaseValue) ? phaseValue.phase : undefined
         if (!isPhase(phase)) {
-          problems.push(
-            `Lesson ${n}, phase ${j + 1}: invalid phase ${JSON.stringify(phase)} — must be one of: ${PHASE_VALUES.join(', ')}.`,
+          problem(
+            `lessons.${i}.framework.${j}.phase`,
+            `Lesson ${n}, phase ${j + 1}`,
+            `Lesson ${n}, phase ${j + 1}: Choose a phase from the list.`,
           )
         }
       })
@@ -81,6 +116,11 @@ export function validateGeneratable(bundle: Bundleish): string[] {
   })
 
   return problems
+}
+
+/** Ingest and preview use the same checks as readable messages. */
+export function validateGeneratable(bundle: Bundleish): string[] {
+  return generatableFieldErrors(bundle).map(({ message }) => message)
 }
 
 /**

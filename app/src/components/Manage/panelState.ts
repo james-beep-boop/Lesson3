@@ -64,7 +64,7 @@
  *
  * ⚑ AND `plans.versions` IS NOW ADMINISTRATOR-ONLY (Proposal B, 2026-10-22,
  * `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`). Every role's OWN work moved to
- * `plans.mine` ("My saved versions") and `plans.drafts` ("Your Drafts"), so each id now has one
+ * `plans.mine` ("Your saved versions") and `plans.drafts` ("Your drafts"), so each id now has one
  * meaning for everyone, and `plans.versions` is only ever "Delete individual versions". It is not
  * retired: it stays valid for administrators. For a teacher, `parseOpen` reads their old
  * `plans.versions` as `plans.mine` (`MOVED_FOR_CALLERS_WITHOUT`), so both bookmark forms —
@@ -167,7 +167,7 @@ export function withAncestors(open: readonly string[]): PanelId[] {
  * teacher's saved versions lived at `plans.versions`, and the accordion canonicalised their page to
  * `?open=plans,plans.versions` — the form their bookmarks actually hold. Simply dropping the obsolete
  * child left `plans` valid, so `initialOpen` honoured the URL and they landed on a bare Lesson plans
- * box with My saved versions closed: worse than the landing the bookmark was made from. Applied ONLY
+ * box with Your saved versions closed: worse than the landing the bookmark was made from. Applied ONLY
  * when the caller cannot see the old id and can see the new one, so an administrator's
  * `plans.versions` (their cleanup queue, a different panel) is untouched.
  */

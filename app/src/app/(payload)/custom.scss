@@ -1440,6 +1440,32 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   display: none;
 }
 
+.collection-edit--lesson-bundle-versions .lp-phase-select {
+  select {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: var(--style-radius-s);
+    background: var(--theme-input-bg);
+    color: var(--theme-text);
+    font: inherit;
+  }
+  select[aria-invalid='true'] {
+    border-color: var(--theme-error-500);
+  }
+  &__required,
+  &__error {
+    color: var(--theme-error-500);
+  }
+  &__error {
+    margin-top: 0.35rem;
+  }
+}
+.lesson-controls__msg {
+  white-space: pre-line;
+}
+
 // Teachers with editing access may change the prose fields the server whitelists, but structural
 // array mutations remain Subject/Site Administrator work. Payload's `readOnly` option would hide the
 // row controls, but it cascades into the array's child fields and would freeze the prose too. So

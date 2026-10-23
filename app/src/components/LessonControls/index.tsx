@@ -88,12 +88,13 @@ import EditJumpNav from './EditJumpNav'
 import { beginEntryPhase, endEntryPhaseOnFirstInput, isEntryPhaseOpen } from './entryPhase'
 import { initialCollapseActions } from './initialCollapse'
 import CompareToOfficialLink from '../CompareToOfficialLink'
+import { focusField, invalidFields, requestErrorMessage, rowsToReveal } from './validation'
 
 /** The server's error message from a failed Payload REST response, or a labelled status fallback.
  *  Shared by the Save (save-as-new) and Delete flows so their `!res.ok` branches stay in step. */
 async function errorMessage(res: Response, label: string): Promise<string> {
-  const body = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
-  return body.errors?.[0]?.message || `${label} failed (${res.status})`
+  const body: unknown = await res.json().catch(() => null)
+  return requestErrorMessage(body, `${label} failed (${res.status})`)
 }
 
 /** Why "Save as draft" stayed in the editor. Each names what the teacher can do next. */
@@ -120,8 +121,18 @@ export default function LessonControls({
   draftCombineSuggestion?: DraftCombineSuggestion | null
 }) {
   const { id, savedDocumentData } = useDocumentInfo()
-  const { dispatchFields, getData, initializing, setDisabled, setProcessing, reset, setModified } =
-    useForm()
+  const {
+    dispatchFields,
+    getData,
+    getFields,
+    validateForm,
+    setSubmitted,
+    initializing,
+    setDisabled,
+    setProcessing,
+    reset,
+    setModified,
+  } = useForm()
   // Pristine-form Save gate (user decision 2026-07-17, "disabled" variant): an untouched form has
   // nothing to save, so Save is disabled with a tooltip saying why. Payload's `modified` means
   // "touched", not "different" — type a char and delete it and the form counts as modified — so the
@@ -709,7 +720,7 @@ export default function LessonControls({
     setDraftOverride({ id, exists: !deleted })
     if (!deleted) {
       setMsg(
-        'Your changes were removed from this screen, but the saved draft could not be deleted. You can discard it in the Manage tab, under Your Drafts.',
+        'Your changes were removed from this screen, but the saved draft could not be deleted. You can discard it in the Manage tab, under Your drafts.',
       )
     }
   }
@@ -774,6 +785,25 @@ export default function LessonControls({
     })
     setMsg(null)
     try {
+      // Custom save bypasses Payload's submit handler: validate before recovery, consent or writes.
+      if (!(await validateForm())) {
+        const issues = invalidFields(getFields())
+        // Commit the unlock and row expansion before trying to focus a formerly hidden control.
+        flushSync(() => {
+          setSubmitted(true)
+          setSaving(false)
+          setProcessing(false)
+          setMsg(
+            `Fix the following before saving:\n${issues.map(({ message }) => message).join('\n') || 'Check the highlighted fields.'}`,
+          )
+          if (issues[0]) {
+            for (const action of rowsToReveal(issues[0].path, getFields())) dispatchFields(action)
+          }
+        })
+        saveInFlight.current = false
+        if (issues[0]) focusField(issues[0].path)
+        return
+      }
       const snapshot = JSON.stringify(currentContent())
       // A capture transport failure permits a tokenless save; a 409 stops the save. Resolve that
       // before asking about deletion, since a tokenless save must preserve the source's drafts.
@@ -1313,7 +1343,7 @@ export default function LessonControls({
         {draftKeptUntil ? (
           <span role="status" className="lesson-controls__status lesson-controls__notice">
             Your draft is saved until {draftKeptUntil}. Find it in <strong>Manage</strong> tab,
-            under Your Drafts.
+            under Your drafts.
           </span>
         ) : null}
         {msg ? (

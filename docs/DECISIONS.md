@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-23 — Identify unfinished phase rows before saving
+
+The operator added a sixth instructional phase and saw "The following field is invalid:" with
+nothing named. They confirmed that choosing the empty phase dropdown resolved it, and noted that
+the searchable control looked editable. Six rows are valid; the missing required choice was the
+problem. Keep that distinction: do not invent a five-row maximum from the five allowed phase names.
+
+The custom save bypassed Payload's native submit validation, the completeness hook supplied empty
+field paths, and the editor discarded the nested error messages. Save now validates first, opens and
+focuses the first invalid field, and names its lesson/phase position. The hook retains real paths and
+labels; REST failures show their detailed reasons. The phase control is a native fixed-choice
+dropdown, with no separate typed search that can be mistaken for a selection. Failed validation
+keeps the form dirty and does not prepare/retire recovery or offer source deletion.
+
+Browser checks also caught two timing details: commit the unlock and row expansion before focusing
+the control, and keep its required-choice explanation tied to its actual value after a save attempt.
+Revealing a collapsed row can refresh native field state, temporarily resetting its validation flag;
+that must not remove the explanation while the phase is still unselected.
+
+## 2026-10-23 — Let teachers inspect version details from the lesson reading page
+
+The operator approved a closed-by-default **Show details / Hide details** disclosure below the
+version information, available to every signed-in reader in Standard and Advanced modes. Saved by,
+Based on version, Created and Last modified help someone evaluate a lesson before deciding to edit;
+they should not need editing access or a trip to the editor. Version and Official status already
+appear in the header, so they are not repeated in the disclosure. Author reads request display names
+only with the caller's access; source labels come from the same plan's readable version list.
+The editor's existing Advanced sidebar toggle stays as it is. Keep this change together with the
+personal-work wording correction; the operator said merging can wait for this addition.
+
+## 2026-10-23 — Use parallel second-person headings for personal work
+
+The operator spotted mixed perspective in Manage → Lesson plans and chose **"Your saved versions"**
+and **"Your drafts"**, both in sentence case, for every role. This supersedes the labels retained in
+Proposal B's Q3. The guide, search label and notices naming these panels use the same wording.
+Keep parallel personal sections in the same grammatical person; the surrounding descriptions already
+address the user as "you". Internal panel ids and behaviour are unchanged.
+
 ## 2026-10-22 — Proposal B built: own versions and drafts inside Manage → Lesson plans
 
 Built as planned (`docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md` §6, Codex-reviewed,

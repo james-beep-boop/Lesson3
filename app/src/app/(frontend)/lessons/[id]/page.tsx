@@ -25,6 +25,8 @@ import { versionDeliverables } from '@/generator/adapter'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
 import { systemFlagsForRender } from '@/lib/systemFlags'
 import { resolveMode } from '@/lib/advancedTools'
+import LessonDetails from '@/components/LessonDetails'
+import { readLessonDetails } from '@/lib/lessonDetails'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -83,8 +85,9 @@ export default async function LessonView({
   if (!selected) notFound() // a plan with no Official version + no version asked for
 
   // The version list is already access-gated and scoped to this plan, so `selected` proves the user
-  // may read it — no second read needed; `generateForVersion` reads the content for rendering.
+  // may read its content for rendering. The separate details projection also retains caller access.
   const selectedId = selected.id
+  const details = await readLessonDetails(payload, { versionId: selectedId, user, versions })
   // Match the library: the heading shows the clean sub-strand name, not the shouty stored
   // "SUBJECT GRADE N:" title (which still appears, faithfully, inside the generated document
   // preview below). A muted context line carries the subject + grade.
@@ -184,6 +187,8 @@ export default async function LessonView({
           )}
         </p>
       </PageHeader>
+
+      {details && <LessonDetails key={selectedId} {...details} />}
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
           revising declutter L1) and have NOT come back. What returned on 2026-08-30 is the primary

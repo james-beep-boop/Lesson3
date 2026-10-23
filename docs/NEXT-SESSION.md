@@ -22,6 +22,19 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-23
 
+**Current change set (2026-10-23):** personal Manage headings now say "Your saved versions" and
+"Your drafts". The lesson reading page also has a closed **Show details / Hide details** disclosure
+for every signed-in reader in Standard mode. The operator asked to keep these changes together.
+Validation: 123 focused unit tests, two browser tests (teachers with and without editing access,
+keyboard toggling, 1280px/390px layouts and selected-version provenance), lint, types and formatting.
+Also included: explicit phase selection and pre-save validation, following the operator's unnamed
+sixth-phase error. Save identifies the incomplete field, reveals it and preserves the unsaved work;
+the server reports actual field paths and the client retains nested validation explanations.
+Validated by a real browser/wire test: empty sixth phase returns its actual path, local validation
+sends no save request and focuses the field, and selecting a valid name saves six phases while the
+source retains five. Unit checks, lint, types and formatting passed; slow unrelated UI unit checks
+passed with reduced concurrency after the broad run exceeded their default timeouts.
+
 **Newest (2026-10-23): #433 and #434 merged** (`fbedfea`, `ceade3d`), each only after green CI, at the
 operator's "merge when green". Plan, review log and Q1–Q7 decisions:
 `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`; DECISIONS 2026-10-22 (two entries).
@@ -33,11 +46,11 @@ operator's "merge when green". Plan, review log and Q1–Q7 decisions:
   - `.modal__actions--pair` (two equal buttons, Cancel first) on the five in-app yes/no dialogs.
   - The 16 native `window.confirm()` prompts are deliberately unchanged.
 - **#434 Proposal B.**
-  - `plans.mine` "My saved versions" (own authored versions, own Officials included) and `plans.drafts`
-    "Your Drafts" sit first in Manage → Lesson plans for every role.
+  - `plans.mine` "Your saved versions" (own authored versions, own Officials included) and `plans.drafts`
+    "Your drafts" sit first in Manage → Lesson plans for every role.
   - `plans.versions` is administrators' cleanup queue only; a teacher's old bookmark is carried to
     `plans.mine`.
-  - Teachers land on My saved versions; drafts never auto-open and show a count; Subject
+  - Teachers land on Your saved versions; drafts never auto-open and show a count; Subject
     administrators land all-closed.
   - Row actions come from `versionActions` (`lib/personalVersions.ts`) for both lists.
 - **Release and deployment:** not released or deployed; the next tag would carry both.

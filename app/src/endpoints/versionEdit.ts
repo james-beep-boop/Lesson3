@@ -278,7 +278,7 @@ export const saveAsNewEndpoint: Endpoint = {
             sourceVersion: source.id,
             mergedFrom: mergeParent,
             // Authorship stamp: the authenticated caller saved this candidate. Never taken from the
-            // submitted content (DROP_KEYS) — drives the teacher with editing access delete scope ("My saved versions").
+            // submitted content (DROP_KEYS) — drives the teacher with editing access delete scope ("Your saved versions").
             author: caller.id,
           } as never,
           req,

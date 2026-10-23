@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   fields: {},
   initializing: true,
   dispatchFields: vi.fn(),
+  validateForm: vi.fn(),
+  setSubmitted: vi.fn(),
 }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
@@ -35,6 +37,9 @@ vi.mock('@payloadcms/ui', () => ({
     initializing: mocks.initializing,
     dispatchFields: mocks.dispatchFields,
     getData: mocks.getData,
+    getFields: () => mocks.fields,
+    validateForm: mocks.validateForm,
+    setSubmitted: mocks.setSubmitted,
     setProcessing: mocks.setProcessing,
     setModified: mocks.setModified,
     setDisabled: vi.fn(),
@@ -70,6 +75,7 @@ beforeEach(() => {
   mocks.id = 1
   mocks.fields = {}
   mocks.initializing = true
+  mocks.validateForm.mockResolvedValue(true)
   mocks.getData.mockReturnValue({ overview: 'snapshot A' })
   mocks.prepareForSave.mockResolvedValue({ proceed: true, token: { generation: 1, revision: 2 } })
   vi.stubGlobal(
@@ -85,6 +91,26 @@ afterEach(() => {
 })
 
 describe('save snapshot lifecycle', () => {
+  it('stops an unnamed sixth phase before recovery or a save request, and identifies its position', async () => {
+    mocks.fields = {
+      'lessons.0.framework.5.phase': { valid: false, errorMessage: 'This field is required.' },
+    }
+    mocks.validateForm.mockResolvedValue(false)
+    vi.stubGlobal('requestAnimationFrame', vi.fn())
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ officialVersion: 99 }))
+    vi.stubGlobal('fetch', fetcher)
+    render(<LessonControls />)
+    fireEvent.click(screen.getByRole('button', { name: 'Save as new version' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('Lesson 1, phase 6: Choose a phase from the list.')
+    expect(mocks.setSubmitted).toHaveBeenCalledWith(true)
+    expect(mocks.prepareForSave).not.toHaveBeenCalled()
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes('save-as-new'))).toBe(false)
+    expect(mocks.setProcessing).toHaveBeenLastCalledWith(false)
+    expect(mocks.setModified).not.toHaveBeenCalledWith(false)
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
   it('a tokenless save preserves the source without offering deletion or querying draft counts', async () => {
     mocks.prepareForSave.mockResolvedValue({ proceed: true, token: null })
     const fetcher = vi.fn((url: string) =>

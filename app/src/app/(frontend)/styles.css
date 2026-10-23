@@ -585,7 +585,7 @@ button.user-menu__item {
   margin-top: 2.25rem;
 }
 /* List/GROUP heading (18px) — structure inside the catalogue list, one step below a page SECTION
-   heading (20px, e.g. Manage's "My saved versions"). See app-tokens.scss for the five-step scale. */
+   heading (20px, e.g. Manage's "Your saved versions"). See app-tokens.scss for the five-step scale. */
 .sg-head {
   font-size: var(--app-list-heading-size);
   font-weight: 600;
@@ -1110,6 +1110,39 @@ button.user-menu__item {
   margin: 0.15rem 0 0;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.lesson-details {
+  margin-top: 0.6rem;
+}
+.lesson-details summary {
+  list-style: none;
+}
+.lesson-details summary::-webkit-details-marker {
+  display: none;
+}
+.lesson-details__hide,
+.lesson-details[open] .lesson-details__show {
+  display: none;
+}
+.lesson-details[open] .lesson-details__hide {
+  display: inline;
+}
+.lesson-details__fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.4rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.lesson-details__fields dt {
+  font-weight: 600;
+}
+.lesson-details__fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* "· Official" trust marker — in the merged lesson meta line (declutter L3) and the versions

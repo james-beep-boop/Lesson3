@@ -88,7 +88,7 @@ a screen). Treat a new occurrence in any of those as a defect, not a style prefe
 
 `Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one — to a Teacher with editing access for that subject-grade — in one transaction. `class` is reserved — the entity is always `SubjectGrade`. **`draft` has one meaning** (SPEC §5/§13,
 operator decision 2026-10-17, superseding the earlier reservation): a user's private, *unnumbered*
-draft — edit recovery's user-facing name ("Save as draft", "Your Drafts"). A numbered save is a
+draft — edit recovery's user-facing name ("Save as draft", "Your drafts"). A numbered save is a
 *version* and is never called a draft. Internal names (`edit-recovery`, `/recovery`, "capture") stay. Non–Site-Admins never see others' emails —
 **with one carve-out (SPEC §8, amended 2026-08-02): Manage → Roles & Access shows addresses to Subject
 Administrators too**, so an administrator can tell two identical display names apart before granting or

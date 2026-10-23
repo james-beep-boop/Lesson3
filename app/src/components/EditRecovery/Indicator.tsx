@@ -88,7 +88,7 @@ export function EditRecoveryIndicator({ status }: { status: RecoveryStatus }) {
             // Names the way out: Manage lists every capture counted against the cap.
             return [
               'warn',
-              'Drafts unavailable: you have too many drafts. Save or discard some in the Manage tab, under Your Drafts.',
+              'Drafts unavailable: you have too many drafts. Save or discard some in the Manage tab, under Your drafts.',
             ]
           case 'failed':
             return ['warn', 'Drafts unavailable — your changes are not being saved automatically']

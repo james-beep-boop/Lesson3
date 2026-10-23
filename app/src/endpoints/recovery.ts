@@ -171,7 +171,7 @@ export const recoveryStartEndpoint: Endpoint = {
           errors: [
             {
               message:
-                'You have too many drafts. Save or discard one in the Manage tab, under Your Drafts, then try again.',
+                'You have too many drafts. Save or discard one in the Manage tab, under Your drafts, then try again.',
             },
           ],
           reason: result.reason,

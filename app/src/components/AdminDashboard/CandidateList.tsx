@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Manage — a list of saved versions, used twice: "My saved versions" (the caller's own, every role)
+ * Manage — a list of saved versions, used twice: "Your saved versions" (the caller's own, every role)
  * and "Delete individual versions" (an administrator's cleanup queue). The label opens the version in
  * the editor, with edit intent (`?edit=1` — click resumes editing, decided 2026-07-01) only where the
  * caller may edit; Compare to Official opens the existing saved-version comparison in a new tab; and
@@ -159,7 +159,7 @@ export function CandidateList({
                   </Link>
                   <p className="lp-manage__meta">{meta.join(' · ')}</p>
                 </div>
-                {/* "My saved versions" gets a named return path to the caller's own work. The cleanup
+                {/* "Your saved versions" gets a named return path to the caller's own work. The cleanup
                 queue — other people's versions — omits that duplicate action; its title remains a
                 quiet link to the same editor if an exceptional inspection is needed. */}
                 <div className="lp-manage__row-actions">
