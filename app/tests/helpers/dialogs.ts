@@ -7,7 +7,7 @@
  * the two widths still matched, but Delete ran past the row's right edge (Codex review). So each
  * button is checked against the row's edges, and the gap between them against the row's own.
  */
-import { expect, type Locator } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 /** Sub-pixel slack for layout rounding. */
 const SLACK = 1
@@ -37,4 +37,25 @@ export async function expectPairedActions(dialog: Locator, action: string): Prom
   // The row sits inside the dialog with a margin on both sides.
   expect(rowBox.x).toBeGreaterThan(panel.x)
   expect(rowBox.x + rowBox.width).toBeLessThan(panel.x + panel.width)
+}
+
+/**
+ * The same check at desktop width and at 360px, with a screenshot of each for review by eye, then
+ * back to desktop. `shot` names the file for each width (`'desktop'` / `'mobile'`).
+ */
+export async function expectPairedAtBothWidths(
+  page: Page,
+  dialog: Locator,
+  action: string,
+  shot: (width: 'desktop' | 'mobile') => string,
+): Promise<void> {
+  for (const [width, viewport] of [
+    ['desktop', { width: 1280, height: 720 }],
+    ['mobile', { width: 360, height: 780 }],
+  ] as const) {
+    await page.setViewportSize(viewport)
+    await expectPairedActions(dialog, action)
+    await page.screenshot({ path: shot(width) })
+  }
+  await page.setViewportSize({ width: 1280, height: 720 })
 }

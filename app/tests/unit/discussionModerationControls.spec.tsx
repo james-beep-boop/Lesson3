@@ -22,6 +22,12 @@ const trigger = (name: string) =>
 const confirmButton = (name: string) =>
   within(screen.getByRole('dialog')).getByRole('button', { name }) as HTMLButtonElement
 
+/** The visible labels of every button inside `el`, in order. */
+const buttonTexts = (el: HTMLElement) =>
+  within(el)
+    .getAllByRole('button')
+    .map((b) => b.textContent)
+
 const openTopic = {
   kind: 'topic',
   id: 12,
@@ -33,18 +39,14 @@ const openTopic = {
 describe('moderation controls', () => {
   it('orders a thread’s controls Pin · Delete thread · Redact, and a reply’s as Redact', () => {
     render(<ModerationControls target={openTopic} bodyRemoved={false} />)
-    expect(
-      within(screen.getByRole('group', { name: /moderation$/ }))
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['Pin', 'Delete thread', 'Redact'])
+    expect(buttonTexts(screen.getByRole('group', { name: /moderation$/ }))).toEqual([
+      'Pin',
+      'Delete thread',
+      'Redact',
+    ])
     cleanup()
     render(<ModerationControls target={{ kind: 'reply', id: 814 }} bodyRemoved={false} />)
-    expect(
-      within(screen.getByRole('group', { name: /moderation$/ }))
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['Redact'])
+    expect(buttonTexts(screen.getByRole('group', { name: /moderation$/ }))).toEqual(['Redact'])
   })
 
   it('titles the pin dialog with the whole question and gives it no body', () => {
@@ -53,11 +55,7 @@ describe('moderation controls', () => {
     const dialog = screen.getByRole('dialog', { name: 'Pin this discussion' })
     expect(dialog.querySelector('.modal__body')).toBeNull()
     expect(dialog.querySelector('.modal__actions--pair')).toBeTruthy()
-    expect(
-      within(dialog)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['Cancel', 'Pin'])
+    expect(buttonTexts(dialog)).toEqual(['Cancel', 'Pin'])
     cleanup()
     render(<ModerationControls target={{ ...openTopic, pinned: true }} bodyRemoved={false} />)
     fireEvent.click(trigger('Unpin'))
@@ -70,11 +68,7 @@ describe('moderation controls', () => {
     fireEvent.click(trigger('Delete thread'))
     const dialog = screen.getByRole('dialog', { name: 'Delete entire thread and all replies' })
     expect(within(dialog).getByText('This cannot be undone.')).toBeTruthy()
-    expect(
-      within(dialog)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['Cancel', 'Delete'])
+    expect(buttonTexts(dialog)).toEqual(['Cancel', 'Delete'])
   })
 
   it('redacts only the selected topic part through the moderation endpoint', async () => {

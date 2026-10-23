@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { sql } from '@payloadcms/db-postgres'
 
 import { drizzleOf } from '../helpers/db'
-import { expectPairedActions } from '../helpers/dialogs'
+import { expectPairedAtBothWidths } from '../helpers/dialogs'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { clearPostingCaps, createTopicAs, testSubmissionKey } from '../helpers/discussions'
 import { MARK, setForumEnabled, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
@@ -151,18 +151,13 @@ test.describe('Discussion administration', () => {
     await page.goto(`${BASE}/discuss/${topic.id}`)
     const moderation = page.getByRole('group', { name: 'Thread moderation' })
     for (const d of dialogs) {
-      for (const viewport of [
-        { width: 1280, height: 720, name: 'desktop' },
-        { width: 360, height: 780, name: 'mobile' },
-      ]) {
-        await page.setViewportSize(viewport)
-        await moderation.getByRole('button', { name: d.trigger, exact: true }).click()
-        const dialog = page.getByRole('dialog', { name: d.title, exact: true })
-        await expectPairedActions(dialog, d.action)
-        await page.screenshot({ path: testInfo.outputPath(`${d.slug}-${viewport.name}.png`) })
-        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
-        await expect(dialog).toHaveCount(0)
-      }
+      await moderation.getByRole('button', { name: d.trigger, exact: true }).click()
+      const dialog = page.getByRole('dialog', { name: d.title, exact: true })
+      await expectPairedAtBothWidths(page, dialog, d.action, (w) =>
+        testInfo.outputPath(`${d.slug}-${w}.png`),
+      )
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(dialog).toHaveCount(0)
     }
   })
 
@@ -326,12 +321,9 @@ test.describe('Discussion administration', () => {
         .getByRole('button', { name: 'Save', exact: true })
         .click()
       const save = page.getByRole('dialog', { name: 'Save settings', exact: true })
-      await expectPairedActions(save, 'Save settings')
-      await page.screenshot({ path: testInfo.outputPath('system-save-desktop.png') })
-      await page.setViewportSize({ width: 360, height: 780 })
-      await expectPairedActions(save, 'Save settings')
-      await page.screenshot({ path: testInfo.outputPath('system-save-mobile.png') })
-      await page.setViewportSize({ width: 1280, height: 720 })
+      await expectPairedAtBothWidths(page, save, 'Save settings', (w) =>
+        testInfo.outputPath(`system-save-${w}.png`),
+      )
       await save.getByLabel('Your password').fill('not-the-password')
       await save.getByRole('button', { name: 'Save settings', exact: true }).click()
       await expect(save.getByRole('alert')).toContainText('password')

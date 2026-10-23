@@ -30,7 +30,7 @@
  */
 import { test, expect, type Locator, type Page } from '@playwright/test'
 
-import { expectPairedActions } from '../helpers/dialogs'
+import { expectPairedAtBothWidths } from '../helpers/dialogs'
 import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
 import {
   createUserVerified,
@@ -741,12 +741,9 @@ test.describe('Manage page', () => {
     await expect(dialog).toContainText('This cannot be undone.')
     await expect(dialog.getByLabel('Type DELETE to confirm')).toHaveCount(0)
     // The admin surface's danger button once carried an extra margin past the row (Codex, #433).
-    await expectPairedActions(dialog, 'Delete')
-    await page.screenshot({ path: testInfo.outputPath('delete-plans-dark-desktop.png') })
-    await page.setViewportSize({ width: 360, height: 780 })
-    await expectPairedActions(dialog, 'Delete')
-    await page.screenshot({ path: testInfo.outputPath('delete-plans-dark-mobile.png') })
-    await page.setViewportSize({ width: 1280, height: 720 })
+    await expectPairedAtBothWidths(page, dialog, 'Delete', (w) =>
+      testInfo.outputPath(`delete-plans-dark-${w}.png`),
+    )
     await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
     // After the sequential by-ID delete + router.refresh(), the row is gone.
