@@ -20,7 +20,26 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# CURRENT STATE — 2026-10-23
+# CURRENT STATE — 2026-10-24
+
+**#436 merged (2026-10-24, `be573e9`): faster typing in the lesson editor.** A guarded `postinstall`
+patch to Payload's admin bundle (`app/scripts/patch-payload-ui.mjs`), plus live row labels. On the Mac,
+the 12-lesson plan went from ~64 ms to 16–24 ms per key (200 ms → 32 ms with the CPU 4× slower). Plan:
+`docs/PLAN-editing-typing-speed-2026-10-23.md`; results and lessons: DECISIONS 2026-10-23. Codex
+reviewed the plan and GPT the PR. Not yet deployed.
+
+- ⚑ **On each Payload upgrade:** the install fails loudly until the patch strings are re-derived
+  from the new bundle (plan §4.4). If Payload fixes either problem upstream, delete the patch then.
+- **Follow-up after the next Rock deploy (operator decision 2026-10-24: wait for the deploy):** run
+  the plan §6 comparison on the Rock. Compare `main` before the patch (`3f25375`) with the deployed
+  patched build, using `app/scripts/bench-typing.mjs` with `BENCH_RATES=1`.
+  - Use a separate throwaway stack with its own database and no published ports, loaded with
+    `~/Desktop/ares-json/biology__grade_10__ss_3_2__animal_transport.json`.
+  - Never touch the live `lesson3` or `onecli` containers.
+  - Record the numbers in DECISIONS, then tear down the stack and the copied images.
+  - Get the operator's go-ahead before starting, because it loads the demo server's CPU for
+    ~15 minutes.
+- **Upstream issues** (plan §4.6) are the operator's to file.
 
 **#435 (2026-10-23):** personal Manage headings now say "Your saved versions" and
 "Your drafts". The lesson reading page also has a closed **Show details / Hide details** disclosure
