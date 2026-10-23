@@ -21,6 +21,9 @@ const candidate: CandidateRow = {
   sgLabel: 'Chemistry — Grade 10',
   authorName: 'Teacher',
   savedAt: '28 Aug 2026',
+  isOfficial: false,
+  canDelete: true,
+  canEdit: true,
 }
 
 afterEach(cleanup)
@@ -33,6 +36,7 @@ describe('candidate-version actions by role', () => {
         emptyText="No versions"
         showAuthor={false}
         showContinueEditing
+        searchLabel="Search my saved versions"
       />,
     )
 
@@ -46,6 +50,7 @@ describe('candidate-version actions by role', () => {
         emptyText="No versions"
         showAuthor
         showContinueEditing={false}
+        searchLabel="Search versions to delete"
       />,
     )
 
@@ -68,6 +73,7 @@ describe('candidate-version actions by role', () => {
         emptyText="No versions"
         showAuthor
         showContinueEditing={false}
+        searchLabel="Search versions to delete"
       />,
     )
 
@@ -82,11 +88,65 @@ describe('candidate-version actions by role', () => {
         emptyText="No versions"
         showAuthor
         showContinueEditing={false}
+        searchLabel="Search versions to delete"
       />,
     )
 
     expect(screen.getByRole('link', { name: /Compare to Official/ }).getAttribute('href')).toBe(
       '/lessons/4/compare?from=11&to=12',
     )
+  })
+})
+
+// Proposal B (2026-10-22): "My saved versions" mixes rows the caller may act on differently, so every
+// action follows the row's own server-made decision (`lib/personalVersions.ts`).
+describe('per-row actions in My saved versions', () => {
+  const renderMine = (row: CandidateRow) =>
+    render(
+      <CandidateList
+        rows={[row]}
+        emptyText="No versions"
+        showAuthor={false}
+        showContinueEditing
+        searchLabel="Search my saved versions"
+      />,
+    )
+
+  it('an own Official version: says Official, keeps editing, offers no Delete and no Compare', () => {
+    renderMine({ ...candidate, isOfficial: true, officialVersionId: null, canDelete: false })
+    expect(screen.getByText(/Version 1\.0\.1 · Official/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Continue editing' }).getAttribute('href')).toBe(
+      '/admin/collections/lesson-bundle-versions/12?edit=1',
+    )
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Compare to Official/ })).toBeNull()
+  })
+
+  it('a version in a subject-grade the caller can no longer edit opens to read, without edit intent', () => {
+    renderMine({ ...candidate, canEdit: false, canDelete: false })
+    expect(screen.getByRole('link', { name: 'Chemical Bonding' }).getAttribute('href')).toBe(
+      '/admin/collections/lesson-bundle-versions/12',
+    )
+    expect(screen.queryByRole('link', { name: 'Continue editing' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+    // Comparing is reading, so it stays.
+    expect(screen.getByRole('link', { name: /Compare to Official/ })).toBeTruthy()
+  })
+
+  // The fail-closed decision itself is the server's (`versionActions`, tests/unit/personalVersions.spec.ts);
+  // here, a row it gave no baseline and no Delete must offer neither and claim nothing.
+  it('a row the server gave no baseline and no Delete offers neither, and is not called Official', () => {
+    renderMine({ ...candidate, isOfficial: false, officialVersionId: null, canDelete: false })
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Compare to Official/ })).toBeNull()
+    expect(screen.queryByText(/Official$/)).toBeNull()
+  })
+
+  it('an ordinary own version offers every action', () => {
+    renderMine(candidate)
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Continue editing' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Compare to Official/ })).toBeTruthy()
+    expect(screen.getByRole('searchbox', { name: 'Search my saved versions' })).toBeTruthy()
   })
 })

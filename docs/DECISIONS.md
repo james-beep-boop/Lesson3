@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-22 — Proposal B built: own versions and drafts inside Manage → Lesson plans
+
+Built as planned (`docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md` §6, Codex-reviewed,
+Q1–Q7 approved), superseding the 2026-10-17 placement of Your Drafts above the accordion. Departures
+from the plan's letter, each smaller than what it replaces:
+
+- **"Official" is a word in the row's details line**, as in the Versions list, not a badge: the
+  button system's rule is that status is not shaped like a control, and no new style was needed.
+- **`listPersonalVersions` reads plan Official pointers itself** rather than widening the dashboard's
+  `exclusionPlans` read, so the one function the integration test calls is the whole production path
+  (Codex's condition). One extra depth-0 query on Manage.
+- **`showContinueEditing` stays list-wide** beside the per-row `canEdit`. On the cleanup queue an
+  administrator can edit every row (so its titles keep `?edit=1`, as before) but the duplicate button
+  is deliberately omitted; per-row flags alone could not say both.
+- **The first-child rule is structural** (`initialOpen` opens the lone box's first available child),
+  not a teacher check. Consequence, approved as Q7: every Subject Administrator now has two boxes and
+  lands all-closed; teachers with editing access are the rule's only beneficiaries.
+- **Lesson link new-tab work (PR 1) found the frontend has no dark theme**, so the plan's light/dark
+  matrix applies to the admin dialogs only; the forum matrix is desktop and phone.
+
+Proof: the integration test fails when `author` is dropped from the projection (P2 and P4 go red),
+and the browser geometry check failed on #433's original CSS with the 8px overhang Codex found.
+
 ## 2026-10-22 — Forum dialogs, confirmation buttons, and Proposal B approved (plan for review)
 
 Operator decisions, planned in `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`

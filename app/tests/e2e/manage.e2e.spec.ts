@@ -31,9 +31,14 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
 
 import { expectPairedAtBothWidths } from '../helpers/dialogs'
-import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
+import { E2E_BASE as BASE, loginAs as loginAsRole, loginUser } from '../helpers/e2e'
+import { openPanel, panelRegion } from '../helpers/manageUi'
+import { formDoc, recoveryHarness } from '../helpers/editRecovery'
+import type { LessonBundleVersion, User } from '../../src/payload-types'
 import {
   createUserVerified,
+  createVersionFixture,
+  deleteUserFixture,
   MARK,
   minimalBundleContent,
   setupRoleFixture,
@@ -82,23 +87,6 @@ const strandPick = (page: Page, strand: string, sgLabel: string) =>
 
 /** Thin wrapper so the many call sites below keep reading `loginAs(page, 'editor')`. */
 const loginAs = (page: Page, key: RoleKey): Promise<void> => loginAsRole(page, fx, key)
-
-/**
- * Open one disclosure panel by its heading (the accordion redesign, D7).
- *
- * ⚑ Sections are now COLLAPSED by default for any role that sees more than one of them, so a test
- * that wants a panel's contents must say so. That is a deliberate behaviour change, not a
- * regression: the operator's brief was that Manage grows long and unwieldy.
- *
- * Idempotent, and it asserts the post-condition rather than assuming the click landed — a disclosure
- * that silently failed to open would otherwise surface as a confusing failure in the assertion after
- * it, several lines from the cause.
- */
-const openPanel = async (page: Page, name: string) => {
-  const trigger = page.getByRole('button', { name, exact: true })
-  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
-  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
-}
 
 /** Open "Lesson plans" → "Delete a plan (all versions)", the two-step most tests below need. */
 const openDeletePanel = async (page: Page) => {
@@ -266,18 +254,30 @@ test.describe('Manage page', () => {
 
   test('a Teacher with editing access sees only their saved versions, inside Lesson plans', async ({
     page,
-  }) => {
+  }, testInfo) => {
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
-    // ⚑ A "Lesson plans" box renders around their panel (`plans.versions`), and `initialOpen`'s
-    // lone-child rule opens both — so the heading is VISIBLE on arrival rather than behind a click.
-    // That property is what makes nesting acceptable for this role; assert it, do not assume it.
+    // ⚑ A "Lesson plans" box renders around their panels (`plans.mine`, `plans.drafts`), and
+    // `initialOpen`'s first-child rule opens the box AND My saved versions — VISIBLE on arrival rather
+    // than behind a click — while Your Drafts stays closed (operator decisions 2026-10-22). That
+    // property is what makes nesting acceptable for this role; assert it, do not assume it.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
-    // The named return path to unfinished work — the half of the role split the Subject Admin test
-    // below asserts the other side of. Together they pin `showContinueEditing`, which was gated on
-    // the wrong predicate and gave exactly one role a resume button on a cleanup queue.
+    await expect(page.getByRole('button', { name: 'My saved versions (1)' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    await expect(page.getByRole('button', { name: /^Your Drafts/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    // The named return path to their own work — the half of the role split the Subject Admin test
+    // below asserts the other side of. And Delete: the projection must carry `author`, or a teacher's
+    // own version would offer no Delete (Codex review of the plan, P2).
     await expect(page.getByRole('link', { name: 'Continue editing' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toBeVisible()
+    // The cleanup queue is administrators' only.
+    await expect(page.getByRole('heading', { name: 'Delete individual versions' })).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('teacher-landing.png'), fullPage: true })
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
@@ -294,7 +294,11 @@ test.describe('Manage page', () => {
     // auto-expands, and `plans.versions` sits inside a closed `[hidden]` panel — out of the
     // accessibility tree, so `getByRole` cannot see it until the parent opens.
     await openPanel(page, 'Lesson plans')
-    await expect(page.getByRole('heading', { name: 'Delete individual versions' })).toBeVisible()
+    // Their own work first, the same sections a teacher gets (operator decision 2026-10-22), then the
+    // administrative queue.
+    await expect(
+      (await panelRegion(page, 'Lesson plans')).locator('.lp-accordion__trigger'),
+    ).toHaveText(['My saved versions', 'Your Drafts', 'Delete individual versions'])
     await openPanel(page, 'Delete individual versions')
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
     // an empty list. Selector note: `.lp-manage__row` alone would ALSO match the editors widget's
@@ -335,6 +339,247 @@ test.describe('Manage page', () => {
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Subject grades', exact: true })).toHaveCount(0)
+  })
+
+  /**
+   * Proposal B (operator decisions 2026-10-22): every role's own versions and drafts inside Lesson
+   * plans. The browser cases Codex asked for on the plan: real links and actions per scope, the
+   * refresh after Delete, deep links / reload / Back-Forward, the teacher's retired bookmark, and
+   * other people's work never reaching rows or counts.
+   *
+   * One dedicated account, `scoped`: administers B, edits A, and has lost C — it saved a version there
+   * while it could. A, B and C hang off their own subject, NOT the fixture's subject-grade, and are
+   * removed in `afterAll`: versions there would join other administrators' cleanup queues and the
+   * account would join the fixture's Roles & Access group, both of which other tests here count.
+   */
+  test.describe('My saved versions and Your Drafts', () => {
+    const { startFor, captureFor } = recoveryHarness(() => fx)
+    let scoped: User
+    let ordinaryA: LessonBundleVersion
+    let officialB: LessonBundleVersion
+    let lostC: LessonBundleVersion
+    let planA: number
+    let sgA: number
+    let planB: number
+    let semverSeq = 0
+
+    const saveAs = (authorId: number, planId: number, subjectGradeId: number, semver: string) =>
+      createVersionFixture(fx.payload, { planId, subjectGradeId, semver, authorId })
+
+    /** A real draft by `userId`, taken through the kernel the endpoints use. */
+    const keepDraft = async (versionId: number, userId: number) => {
+      const t0 = await startFor(versionId, { userId })
+      const res = await captureFor(versionId, t0.generation, t0.revision, formDoc(MARK), userId)
+      expect(res.ok, 'fixture: the draft must land').toBe(true)
+    }
+
+    const loginScoped = (page: Page) => loginUser(page, fx, scoped)
+
+    test.beforeAll(async () => {
+      const subject = await fx.payload.create({
+        collection: 'subjects',
+        data: { name: `${MARK}Chemistry` },
+        overrideAccess: true,
+      })
+      const sg = async (grade: number) =>
+        (
+          await fx.payload.create({
+            collection: 'subject-grades',
+            data: { subject: subject.id, grade },
+            overrideAccess: true,
+          })
+        ).id
+      sgA = await sg(9)
+      const sgB = await sg(10)
+      const sgC = await sg(11)
+      const plan = async (sgId: number, name: string) =>
+        (
+          await fx.payload.create({
+            collection: 'lesson-plans',
+            data: { title: `${MARK}${name}`, subjectGrade: sgId },
+            overrideAccess: true,
+          })
+        ).id
+      planA = await plan(sgA, 'Scoped Plan A')
+      planB = await plan(sgB, 'Scoped Plan B')
+      const planC = await plan(sgC, 'Scoped Plan C')
+      scoped = await createUserVerified(fx.payload, {
+        name: `${MARK}Scoped Administrator`,
+        email: `${MARK.toLowerCase()}scoped_admin@example.com`,
+        password: fx.password,
+        assignments: [
+          { subjectGrade: sgB, role: 'subjectAdmin' },
+          { subjectGrade: sgA, role: 'editor' },
+        ],
+      })
+      // A's uploaded 1.0.0 (no author) is its Official, so A's own versions have a baseline to compare.
+      const uploadedA = await createVersionFixture(fx.payload, {
+        planId: planA,
+        subjectGradeId: sgA,
+        semver: '1.0.0',
+      })
+      await fx.payload.update({
+        collection: 'lesson-plans',
+        id: planA,
+        data: { officialVersion: uploadedA.id },
+        overrideAccess: true,
+      })
+      ordinaryA = await saveAs(scoped.id, planA, sgA, '1.5.1')
+      officialB = await saveAs(scoped.id, planB, sgB, '2.0.0')
+      await fx.payload.update({
+        collection: 'lesson-plans',
+        id: planB,
+        data: { officialVersion: officialB.id },
+        overrideAccess: true,
+      })
+      lostC = await saveAs(scoped.id, planC, sgC, '3.0.0')
+      // Someone else's draft on `scoped`'s own version: it must not reach `scoped`'s count or rows.
+      await keepDraft(ordinaryA.id, fx.users.editor.id)
+    })
+
+    test.afterAll(async () => {
+      // The plans (and with them their versions and drafts) and the account; the subject goes with
+      // the fixture's teardown. Officials first, so the Official-not-deletable guard lets them go.
+      const plans = { title: { like: `${MARK}Scoped Plan` } }
+      const { docs } = await fx.payload.find({
+        collection: 'lesson-plans',
+        where: plans,
+        depth: 0,
+        pagination: false,
+        overrideAccess: true,
+      })
+      for (const p of docs) {
+        await fx.payload.update({
+          collection: 'lesson-plans',
+          id: p.id,
+          data: { officialVersion: null },
+          overrideAccess: true,
+        })
+      }
+      await fx.payload.delete({ collection: 'lesson-plans', where: plans, overrideAccess: true })
+      if (scoped) await deleteUserFixture(fx.payload, scoped.id)
+    })
+
+    test('an administrator’s own work comes first, and each row offers only what it allows', async ({
+      page,
+    }, testInfo) => {
+      await loginScoped(page)
+      await page.goto(`${BASE}/admin`)
+      // Two top-level boxes, so nothing opens on arrival (operator decision 2026-10-22, Q7).
+      for (const name of ['Users', 'Lesson plans']) {
+        await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
+          'aria-expanded',
+          'false',
+        )
+      }
+      await openPanel(page, 'Lesson plans')
+      await expect(
+        (await panelRegion(page, 'Lesson plans')).locator('.lp-accordion__trigger'),
+      ).toHaveText(['My saved versions (3)', 'Your Drafts', 'Delete individual versions'])
+
+      await openPanel(page, 'My saved versions (3)')
+      const mine = await panelRegion(page, 'My saved versions')
+      // Their three, and not the editor's candidate in the same subject-grade.
+      await expect(mine.locator('li')).toHaveCount(3)
+      await expect(mine).not.toContainText('Version 1.1.0')
+      const row = (semver: string) => mine.locator('li', { hasText: `Version ${semver}` })
+      const base = '/admin/collections/lesson-bundle-versions'
+
+      // A: edits there and wrote it — every action, with edit intent.
+      await expect(row('1.5.1').locator('.lp-manage__link')).toHaveAttribute(
+        'href',
+        `${base}/${ordinaryA.id}?edit=1`,
+      )
+      await expect(row('1.5.1').getByRole('button', { name: 'Delete' })).toBeVisible()
+      await expect(row('1.5.1').getByRole('link', { name: /Compare to Official/ })).toBeVisible()
+
+      // B: their own Official — marked, editable, never deletable, nothing to compare against.
+      await expect(row('2.0.0')).toContainText('Version 2.0.0 · Official')
+      await expect(row('2.0.0').getByRole('link', { name: 'Continue editing' })).toHaveAttribute(
+        'href',
+        `${base}/${officialB.id}?edit=1`,
+      )
+      await expect(row('2.0.0').getByRole('button', { name: 'Delete' })).toHaveCount(0)
+      await expect(row('2.0.0').getByRole('link', { name: /Compare to Official/ })).toHaveCount(0)
+
+      // C: access lost — still listed, opens to read (no edit intent), nothing to change.
+      await expect(row('3.0.0').locator('.lp-manage__link')).toHaveAttribute(
+        'href',
+        `${base}/${lostC.id}`,
+      )
+      await expect(row('3.0.0').getByRole('link', { name: 'Continue editing' })).toHaveCount(0)
+      await expect(row('3.0.0').getByRole('button', { name: 'Delete' })).toHaveCount(0)
+
+      // The editor's draft on A is theirs alone: no count here, and the empty state.
+      await openPanel(page, 'Your Drafts')
+      await expect(await panelRegion(page, 'Your Drafts')).toContainText('You have no drafts.')
+      await page.screenshot({
+        path: testInfo.outputPath('scoped-admin-lesson-plans.png'),
+        fullPage: true,
+      })
+    })
+
+    test('deleting from My saved versions refreshes both lists, the count, and the draft on it', async ({
+      page,
+    }) => {
+      const doomed = await saveAs(scoped.id, planA, sgA, `1.6.${++semverSeq}`)
+      await keepDraft(doomed.id, scoped.id)
+      await loginScoped(page)
+      await page.goto(`${BASE}/admin?open=plans,plans.mine,plans.drafts,plans.versions`)
+      await expect(page.getByRole('button', { name: 'My saved versions (4)' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Your Drafts (1)' })).toBeVisible()
+      const queue = await panelRegion(page, 'Delete individual versions')
+      await expect(queue).toContainText(`Version ${doomed.semver}`)
+
+      // The confirmation (with its draft warning) is the browser's own, and stays so (decided).
+      page.once('dialog', (d) => void d.accept())
+      const mine = await panelRegion(page, 'My saved versions')
+      await mine
+        .locator('li', { hasText: `Version ${doomed.semver}` })
+        .getByRole('button', { name: 'Delete' })
+        .click()
+
+      await expect(page.getByRole('button', { name: 'My saved versions (3)' })).toBeVisible()
+      await expect(queue).not.toContainText(`Version ${doomed.semver}`)
+      // The draft went with its version (the existing cascade): the count and the row are gone.
+      await expect(page.getByRole('button', { name: 'Your Drafts', exact: true })).toBeVisible()
+      await expect(await panelRegion(page, 'Your Drafts')).toContainText('You have no drafts.')
+    })
+
+    test('deep links, reload, Back/Forward, and a teacher’s old plans.versions bookmark', async ({
+      page,
+    }) => {
+      await loginAs(page, 'editor')
+      const expanded = async (name: RegExp, value: 'true' | 'false') =>
+        expect(page.getByRole('button', { name })).toHaveAttribute('aria-expanded', value)
+
+      await page.goto(`${BASE}/admin?open=plans,plans.drafts`)
+      await expanded(/^Your Drafts/, 'true')
+      await expanded(/^My saved versions/, 'false')
+      await page.reload()
+      await expanded(/^Your Drafts/, 'true')
+      await expanded(/^My saved versions/, 'false')
+
+      await page.goto(`${BASE}/admin?open=plans,plans.mine`)
+      await expanded(/^My saved versions/, 'true')
+      await expanded(/^Your Drafts/, 'false')
+      await page.goBack()
+      await expanded(/^Your Drafts/, 'true')
+      await expanded(/^My saved versions/, 'false')
+      await page.goForward()
+      await expanded(/^My saved versions/, 'true')
+
+      // `plans.versions` is administrators' only now; a teacher's saved versions moved to `plans.mine`
+      // and their old bookmark follows them. Both forms: the canonical one the old accordion wrote
+      // (`plans,plans.versions` — the one that matters, Codex review of #434) and the short one. The
+      // URL is rewritten to what the page shows and stops advertising the old id.
+      for (const open of ['plans%2Cplans.versions', 'plans.versions']) {
+        await page.goto(`${BASE}/admin?open=${open}`)
+        await expanded(/^My saved versions/, 'true')
+        await expanded(/^Your Drafts/, 'false')
+        await expect(page).toHaveURL(/[?&]open=plans%2Cplans\.mine(&|$)/)
+      }
+    })
   })
 
   test('retired list routes redirect to Manage', async ({ page }) => {
@@ -400,26 +645,22 @@ test.describe('Manage page', () => {
         exact: false,
       }),
     ).toBeVisible()
-    const plansId = await page
-      .getByRole('button', { name: 'Lesson plans', exact: true })
-      .getAttribute('aria-controls')
-    const lessonPlansPanel = page.locator(`[id="${plansId}"]`)
+    const lessonPlansPanel = await panelRegion(page, 'Lesson plans')
     // Query the direct child headers so controls inside an expanded operation don't affect ordering.
+    // The Site Administrator's own work first, like every role's (Proposal B, 2026-10-22). No counts:
+    // this fixture's Site Administrator has saved no versions and kept no drafts.
     await expect(lessonPlansPanel.locator(':scope > .lp-accordion > h3 button')).toHaveText([
+      'My saved versions',
+      'Your Drafts',
       'Upload lesson plans',
       'Delete a plan (all versions)',
       'Delete individual versions',
       'Set an Official version',
     ])
     await openPanel(page, 'System')
-    const systemId = await page
-      .getByRole('button', { name: 'System', exact: true })
-      .getAttribute('aria-controls')
-    await expect(page.locator(`[id="${systemId}"] > .lp-accordion > h3 button`)).toHaveText([
-      'Features',
-      'Installation status',
-      'Backups',
-    ])
+    await expect(
+      (await panelRegion(page, 'System')).locator(':scope > .lp-accordion > h3 button'),
+    ).toHaveText(['Features', 'Installation status', 'Backups'])
     await expect(page.locator('.lp-accordion .lp-accordion .lp-accordion')).toHaveCount(0)
     await test.info().attach('manage-headings', {
       body: await page.screenshot({ fullPage: true }),
@@ -797,12 +1038,13 @@ test.describe('Manage page', () => {
      * covered both roles in a single test and failed in CI for exactly that reason.
      */
     test('a Teacher with editing access has their only section expanded', async ({ page }) => {
-      // Their saved versions are the whole page — nobody should click to reveal their only panel.
+      // Lesson plans is their whole page; its first child, My saved versions, opens with it.
       await loginAs(page, 'editor')
       await page.goto(`${BASE}/admin`)
-      await expect(
-        page.getByRole('button', { name: 'My saved versions', exact: true }),
-      ).toHaveAttribute('aria-expanded', 'true')
+      await expect(page.getByRole('button', { name: /^My saved versions/ })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
     })
 
     test('a Site Admin, who sees several sections, starts fully collapsed', async ({ page }) => {
@@ -962,29 +1204,24 @@ test.describe('Manage page', () => {
       await page.goto(`${BASE}/admin`)
       await openPanel(page, 'Lesson plans')
       await openPanel(page, 'Delete individual versions')
-      const search = page.getByLabel('Search saved versions')
+      // Scoped to the panel's own region (`panelRegion`'s ⚑): since Proposal B the sibling panels
+      // hold lists and empty states of their own.
+      const region = await panelRegion(page, 'Delete individual versions')
+      // Its own accessible name: an administrator's page has a second list (My saved versions).
+      const search = region.getByLabel('Search versions to delete')
       await expect(search).toBeVisible()
 
       await expect(
-        page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK }),
+        region.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK }),
       ).toHaveCount(1)
       await search.fill('definitely-no-such-version')
       await expect(
-        page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK }),
+        region.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK }),
       ).toHaveCount(0)
       // A query that matches nothing says so, rather than falling back to the instructional empty
       // state — which would read as "you have never saved anything".
-      await expect(page.locator('.lp-manage__empty')).toContainText('No saved versions match')
-      /**
-       * ⚑ SCOPED BY `aria-controls`, NOT BY A `section` FILTER. `locator('section.lp-accordion')
-       * .filter({ has: <this panel's button> })` also matches the ANCESTOR section once a panel is
-       * nested, so the count silently picks up sibling panels' lists. A panel's own region is
-       * `aria-controls` on its trigger, which cannot match an ancestor.
-       */
-      const trigger = page.getByRole('button', { name: 'Delete individual versions', exact: true })
-      const regionId = await trigger.getAttribute('aria-controls')
-      expect(regionId, 'the Delete individual versions trigger must control a region').toBeTruthy()
-      await expect(page.locator(`[id="${regionId}"] .lp-manage__list`)).toHaveCount(0)
+      await expect(region.locator('.lp-manage__empty')).toContainText('No saved versions match')
+      await expect(region.locator('.lp-manage__list')).toHaveCount(0)
     })
   })
 
@@ -1689,9 +1926,9 @@ test.describe('Manage page', () => {
 
     // ⚑ WAIT FOR THE ACCORDION'S MOUNT SCRUB BEFORE TOUCHING THE MENU, and note that this role is the
     // only one that has a scrub to wait for. `initialOpen` auto-opens the sole top-level panel when a
-    // role has exactly one — and ALSO its single available child — and a Teacher with editing access
-    // sees only their saved versions, so a bare `/admin` rewrites the address bar to
-    // `?open=plans,plans.versions` shortly after load, while a Site Admin (several panels) gets `[]`
+    // role has exactly one — and ALSO its first available child — and a Teacher with editing access
+    // sees only Lesson plans, so a bare `/admin` rewrites the address bar to
+    // `?open=plans,plans.mine` shortly after load, while a Site Admin (several panels) gets `[]`
     // and no rewrite at all.
     //
     // ⚑ THE ID APPEARS HERE AS A REGEX, so a grep for the quoted form will not find it. Retiring a
@@ -1703,8 +1940,9 @@ test.describe('Manage page', () => {
     // (`01417e4`) — green on that PR's own run minutes earlier, which is how a timing race presents.
     //
     // This asserts the product's intended behaviour rather than sleeping through it: the URL SHOULD
-    // become `?open=plans,plans.versions` for this role, so waiting for it is both the fix and a check.
-    await expect(page).toHaveURL(/[?&]open=plans%2Cplans\.versions/)
+    // become `?open=plans,plans.mine` for this role (the first-child rule, Proposal B 2026-10-22; it
+    // was `plans.versions` until then), so waiting for it is both the fix and a check.
+    await expect(page).toHaveURL(/[?&]open=plans%2Cplans\.mine/)
 
     const newName = `${MARK}renamed`
 

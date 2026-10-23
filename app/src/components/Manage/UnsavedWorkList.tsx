@@ -10,10 +10,12 @@
  * server rendered, so a capture that moved since the page loaded (another tab still typing) is
  * refused rather than destroyed.
  *
- * ⚑ NOT an accordion panel, deliberately. Every non-administrator's Manage page is one box with one
- * child that `initialOpen`'s lone-child rule opens for them; a second child would close both and put
- * their saved versions behind a click. A draft is also the one thing on this page that expires, so
- * drafts are shown above the accordion — and only when there are some, so nobody's page grows.
+ * ⚑ NOW THE BODY OF `plans.drafts` (Proposal B, operator decisions 2026-10-22), superseding the
+ * 2026-10-17 placement above the accordion. That placement had two reasons: a second child under
+ * Lesson plans would close a teacher's saved versions (fixed by `initialOpen`'s first-child rule, which
+ * opens "My saved versions"), and drafts expire (answered by the count on the closed heading). The
+ * operator decided drafts never open on their own. Present for every role, with an empty state, so
+ * the place a draft goes is visible before there is one.
  *
  * ⚑ Vocabulary (operator decision 2026-10-17, SPEC §13): a DRAFT is private, unnumbered work; a
  * VERSION is a numbered save. So rows say "Based on version 1.0.4", never "Version 1.0.4" — the
@@ -41,7 +43,6 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
   const { config } = useConfig()
   const [busyId, setBusyId] = useState<number | null>(null)
 
-  if (rows.length === 0) return null
   const apiBase = apiBaseFrom(config)
 
   const onDiscard = async (row: UnsavedWorkItem) => {
@@ -75,55 +76,59 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
   }
 
   return (
-    <section className="lp-manage__unsaved" aria-labelledby="lp-unsaved-heading">
-      <h2 id="lp-unsaved-heading" className="lp-manage__unsaved-title">
-        Your Drafts
-      </h2>
+    <>
       <p className="lp-manage__desc">
         Changes you have not saved as a new version yet. Only you can see them. Each draft is kept
         for {CAPTURE_TTL_DAYS} days after you last worked on it.
       </p>
-      <ul className="lp-manage__list">
-        {rows.map((row) => {
-          const href = `/admin/collections/lesson-bundle-versions/${row.versionId}?edit=1`
-          const meta = [
-            row.sgLabel,
-            `Based on version ${row.semver}`,
-            `Saved ${row.capturedOn}`,
-            `Kept until ${row.keptUntil}`,
-          ].filter(Boolean)
-          return (
-            <li key={row.versionId} className="lp-manage__row">
-              <div className="lp-manage__row-main">
-                <Link className="lp-manage__link" href={href}>
-                  {row.label}
-                </Link>
-                <p className="lp-manage__meta">{meta.join(' · ')}</p>
-                {!row.restorable && (
-                  <p className="lp-manage__meta">
-                    The version this draft is based on has changed, so the draft cannot be put back
-                    automatically. Open it to copy what you still need.
-                  </p>
-                )}
-              </div>
-              <div className="lp-manage__row-actions">
-                <Link className="btn lp-btn" href={href}>
-                  {row.restorable ? 'Continue editing' : 'Open to copy'}
-                </Link>
-                <Button
-                  className="lp-btn"
-                  buttonStyle="error"
-                  size="small"
-                  disabled={busyId != null}
-                  onClick={() => void onDiscard(row)}
-                >
-                  {busyId === row.versionId ? 'Discarding…' : 'Discard'}
-                </Button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+      {rows.length === 0 ? (
+        <p className="lp-manage__empty">
+          You have no drafts. While editing, choose Save as draft to put work aside without saving a
+          new version.
+        </p>
+      ) : (
+        <ul className="lp-manage__list">
+          {rows.map((row) => {
+            const href = `/admin/collections/lesson-bundle-versions/${row.versionId}?edit=1`
+            const meta = [
+              row.sgLabel,
+              `Based on version ${row.semver}`,
+              `Saved ${row.capturedOn}`,
+              `Kept until ${row.keptUntil}`,
+            ].filter(Boolean)
+            return (
+              <li key={row.versionId} className="lp-manage__row">
+                <div className="lp-manage__row-main">
+                  <Link className="lp-manage__link" href={href}>
+                    {row.label}
+                  </Link>
+                  <p className="lp-manage__meta">{meta.join(' · ')}</p>
+                  {!row.restorable && (
+                    <p className="lp-manage__meta">
+                      The version this draft is based on has changed, so the draft cannot be put
+                      back automatically. Open it to copy what you still need.
+                    </p>
+                  )}
+                </div>
+                <div className="lp-manage__row-actions">
+                  <Link className="btn lp-btn" href={href}>
+                    {row.restorable ? 'Continue editing' : 'Open to copy'}
+                  </Link>
+                  <Button
+                    className="lp-btn"
+                    buttonStyle="error"
+                    size="small"
+                    disabled={busyId != null}
+                    onClick={() => void onDiscard(row)}
+                  >
+                    {busyId === row.versionId ? 'Discarding…' : 'Discard'}
+                  </Button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </>
   )
 }

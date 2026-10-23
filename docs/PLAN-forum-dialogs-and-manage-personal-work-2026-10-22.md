@@ -302,3 +302,9 @@ individual versions) is accepted: the cleanup queue must stay complete and agree
   actual URL-only mechanics. No authorization gap in the authored read; keep the draft read separate;
   keep fail-closed Official handling; accept the overlap. Proof additions folded into §6.7. Views on
   Q1–Q6 adopted.
+- **Codex, #434 at `ef2f670f`.** P3: the bookmark test covered only `?open=plans.versions`, but the
+  old accordion wrote a teacher's page as `?open=plans,plans.versions`; with `plans` still valid the
+  URL won and they landed on a bare box with My saved versions closed. Migrated rather than accepted:
+  `parseOpen` reads `plans.versions` as `plans.mine` for a caller who has only the latter
+  (`MOVED_FOR_CALLERS_WITHOUT`); administrators' `plans.versions` is untouched. Both forms pinned in
+  unit and browser tests; the browser case failed on the unfixed build.

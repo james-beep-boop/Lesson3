@@ -212,6 +212,35 @@ export function minimalBundleContent() {
 }
 
 /**
+ * A numbered version written the way the system paths write one (`overrideAccess`, which also lets a
+ * spec set the system-only `author`). With `authorId` it is a person's save, as save-as-new stamps
+ * it; without, an upload. The title carries `MARK`, so teardown removes it.
+ */
+export async function createVersionFixture(
+  payload: Payload,
+  args: {
+    planId: number
+    subjectGradeId: number
+    semver: string
+    authorId?: number
+    title?: string
+  },
+): Promise<LessonBundleVersion> {
+  return (await payload.create({
+    collection: 'lesson-bundle-versions',
+    data: {
+      lessonPlan: args.planId,
+      subjectGrade: args.subjectGradeId,
+      semver: args.semver,
+      title: `${MARK}${args.title ?? `Version ${args.semver}`}`,
+      ...(args.authorId != null ? { author: args.authorId } : {}),
+      ...minimalBundleContent(),
+    } as never,
+    overrideAccess: true,
+  })) as LessonBundleVersion
+}
+
+/**
  * Seed the full role world + a plan with an Official version. Idempotent w.r.t. prior runs: any
  * leftover `MARK`-tagged records (from a crashed run) are cleared first.
  */

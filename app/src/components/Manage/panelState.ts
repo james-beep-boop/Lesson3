@@ -19,9 +19,8 @@
  * panel, it is a typo.
  *
  * ⚑ These are a URL CONTRACT, not internal names: they appear in bookmarks and shared links, so
- * renaming one silently breaks a link that used to work. `versions` is deliberately not `saved` —
- * the same panel is titled "Delete individual versions" for administrators and "My saved versions" for
- * Teachers with editing access, and an id must not encode one role's label.
+ * renaming one silently breaks a link that used to work. An id must not encode one role's label:
+ * `plans.versions` is not `plans.cleanup` because it once carried a teacher's list too (see below).
  *
  * ⚑ THE TOP LEVEL WAS REGROUPED (operator decision 2026-08-18) from six flat sections into groups of
  * nested panels, and again on 2026-08-27 when `versions` was folded in as `plans.versions`. Between
@@ -61,10 +60,16 @@
  * installation fact. Design: `docs/DESIGN-system-panel-2026-08-21.md`.
  *
  * ⚑ `versions` IS NOW `plans.versions` (2026-08-27, superseding the 2026-08-18 decision to keep it
- * top-level — `docs/DECISIONS.md`). Every non-administrator sees that panel and nothing else
- * (`showSaved` in `AdminDashboard`), which is why nesting it is only acceptable given `initialOpen`'s
- * lone-child rule: a teacher's sole box AND its sole child open together, so they land on their saved
- * versions without a click. Removing that rule would put their whole page behind a closed box.
+ * top-level — `docs/DECISIONS.md`).
+ *
+ * ⚑ AND `plans.versions` IS NOW ADMINISTRATOR-ONLY (Proposal B, 2026-10-22,
+ * `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`). Every role's OWN work moved to
+ * `plans.mine` ("My saved versions") and `plans.drafts` ("Your Drafts"), so each id now has one
+ * meaning for everyone, and `plans.versions` is only ever "Delete individual versions". It is not
+ * retired: it stays valid for administrators. For a teacher, `parseOpen` reads their old
+ * `plans.versions` as `plans.mine` (`MOVED_FOR_CALLERS_WITHOUT`), so both bookmark forms —
+ * `?open=plans.versions` and the canonical `?open=plans,plans.versions` — still land on their saved
+ * versions.
  */
 export const PANEL_IDS = [
   'users',
@@ -75,12 +80,13 @@ export const PANEL_IDS = [
   // silently dropped by `parseOpen` — they were valid as of 2026-08-18, retired 2026-10-16.
   'curriculum',
   'plans',
+  // The caller's own work, first in the box for every role (Proposal B, 2026-10-22). `plans.mine` is
+  // first on purpose: it is the child `initialOpen`'s first-child rule opens for a teacher.
+  'plans.mine',
+  'plans.drafts',
   'plans.upload',
   'plans.delete',
-  // ⚑ ONE id FOR EVERY ROLE. Role-dependent nesting was proposed and refused: the vocabulary is
-  // role-independent so a shared link means the same page for everyone. What differs by role is the
-  // TITLE ("Delete individual versions" for an administrator, "My saved versions" otherwise) and whether the
-  // row is available at all — never where it lives.
+  // Administrators only: other people's deletable versions, a cleanup queue ("Delete individual versions").
   'plans.versions',
   'plans.repair',
   'system',
@@ -155,6 +161,21 @@ export function withAncestors(open: readonly string[]): PanelId[] {
 }
 
 /**
+ * Ids whose CONTENT moved for callers who no longer have them, read as the panel that now holds it.
+ *
+ * ⚑ `plans.versions` → `plans.mine` (Proposal B, 2026-10-22; Codex review of #434). Until then a
+ * teacher's saved versions lived at `plans.versions`, and the accordion canonicalised their page to
+ * `?open=plans,plans.versions` — the form their bookmarks actually hold. Simply dropping the obsolete
+ * child left `plans` valid, so `initialOpen` honoured the URL and they landed on a bare Lesson plans
+ * box with My saved versions closed: worse than the landing the bookmark was made from. Applied ONLY
+ * when the caller cannot see the old id and can see the new one, so an administrator's
+ * `plans.versions` (their cleanup queue, a different panel) is untouched.
+ */
+const MOVED_FOR_CALLERS_WITHOUT: Readonly<Record<string, PanelId>> = {
+  'plans.versions': 'plans.mine',
+}
+
+/**
  * Read open state out of a query string, keeping only ids that are BOTH in the closed vocabulary and
  * available to this caller (the role gate — `available` is what the server actually rendered), and
  * opening the ancestors of anything nested.
@@ -170,8 +191,14 @@ export function parseOpen(search: string, available: readonly string[]): PanelId
   // sign anything was lost. Next hands the server `string[]` for exactly this case.
   const raw = new URLSearchParams(search).getAll(OPEN_PARAM)
   if (raw.length === 0) return []
-  const wanted = raw.flatMap((part) => part.split(',')).map((s) => s.trim())
   const allowed = new Set(available)
+  const wanted = raw
+    .flatMap((part) => part.split(','))
+    .map((part) => {
+      const id = part.trim()
+      const moved = MOVED_FOR_CALLERS_WITHOUT[id]
+      return moved && !allowed.has(id) && allowed.has(moved) ? moved : id
+    })
   const gated = inRenderOrder(wanted.filter((id) => allowed.has(id)))
   // A panel is only openable if its whole ancestry is too: a child lives INSIDE its parent's panel
   // element, so an id whose parent this caller cannot see could never appear on screen — keeping it
@@ -213,24 +240,33 @@ export function serialiseOpen(pathname: string, search: string, open: readonly s
  *
  *   1. A valid `?open=` wins outright: a deep link or a reload restores exactly what was open.
  *   2. Otherwise, a role seeing exactly ONE top-level section gets it expanded, so nobody clicks to
- *      reveal their only panel (a teacher with editing access's "My saved versions" is the whole page).
+ *      reveal their only panel (a teacher with editing access sees only Lesson plans).
  *   3. Otherwise nothing is open. Multi-section roles start collapsed — that IS the redesign; the
  *      operator's brief was that the page grows long and unwieldy.
  *
  * ⚑ Nested panels are NEVER auto-opened — with ONE exception, added 2026-08-18 when the top level was
- * regrouped into boxes, and it is rule 2 restated one level down rather than a new idea: if a role's
- * single top-level panel has exactly one child available to them, that child opens too.
+ * regrouped into boxes, and it is rule 2 restated one level down rather than a new idea: when a role's
+ * single top-level panel opens, its FIRST available child opens too.
+ *
+ * ⚑ "FIRST", NOT "ONLY" (Proposal B, operator decision 2026-10-22). Until then it read "if it has
+ * exactly one child". Bringing a teacher's drafts into Lesson plans gave their one box two children
+ * (`plans.mine`, `plans.drafts`), and "exactly one" would have closed both, putting their saved
+ * versions behind a click. The operator chose saved versions open and drafts closed. "First child"
+ * gives that structurally — `plans.mine` is first in `PANEL_IDS` — with no role check, and agrees with
+ * the old rule wherever there is one child. Drafts never open on the strength of existing (decided).
  *
  * Without it the regrouping quietly demoted the Subject Administrator. Their only panel is Roles &
  * Access; it used to be top-level, so rule 2 opened it and they landed on their work. Once it became
  * `users.access` their only top-level id is the GROUP, so rule 2 opened a box containing a single
  * collapsed row — one more click than before, to reveal the one thing they came for, inside a box
  * labelled for accounts they cannot administer. The general rule and the exception say the same thing:
- * nobody clicks to reveal their only panel.
+ * nobody clicks to reveal their only panel. (Since Proposal B a Subject Administrator always has two
+ * boxes, Users and Lesson plans with their own work, so they land all-closed — operator decision
+ * 2026-10-22, the plan's Q7. Teachers with editing access are now the rule's only beneficiaries.)
  *
- * It stays deliberately narrow. `plans` with three children still opens closed (asserted below), so a
- * Site Admin's subtrees are unchanged, and "exactly one" is checked against `available` — the role
- * gate — not against `PANEL_IDS`, because the question is what THIS caller can see.
+ * It stays deliberately narrow: it applies only when a role has ONE top-level box, which no
+ * administrator has, so their subtrees are unchanged. "First" is checked against `available` — the
+ * role gate — not against `PANEL_IDS`, because the question is what THIS caller can see.
  */
 export function initialOpen(search: string, available: readonly string[]): PanelId[] {
   const fromUrl = parseOpen(search, available)
@@ -238,7 +274,9 @@ export function initialOpen(search: string, available: readonly string[]): Panel
   const topLevel = available.filter((id) => parentOf(id) === null)
   if (topLevel.length !== 1) return []
   const children = available.filter((id) => parentOf(id) === topLevel[0])
-  return inRenderOrder(children.length === 1 ? [topLevel[0], children[0]] : topLevel)
+  // `inRenderOrder`, so "first" means first on the page whatever order `available` arrived in.
+  const [first] = inRenderOrder(children)
+  return inRenderOrder(first ? [topLevel[0], first] : topLevel)
 }
 
 /**

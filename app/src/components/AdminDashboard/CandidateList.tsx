@@ -1,12 +1,18 @@
 'use client'
 
 /**
- * Manage — the saved/candidate versions list. Each row is a draft the CALLER may delete (the server
- * component builds rows with the caller's access, mirroring `lessonBundleVersionDelete`): the label
- * opens the version in the editor with edit intent (`?edit=1` — click resumes editing, decided
- * 2026-07-01), Compare to Official opens the existing saved-version comparison in a new tab, and
+ * Manage — a list of saved versions, used twice: "My saved versions" (the caller's own, every role)
+ * and "Delete individual versions" (an administrator's cleanup queue). The label opens the version in
+ * the editor, with edit intent (`?edit=1` — click resumes editing, decided 2026-07-01) only where the
+ * caller may edit; Compare to Official opens the existing saved-version comparison in a new tab; and
  * Delete removes it after a confirm (`DELETE /api/lesson-bundle-versions/:id` — the server access +
  * Official guard remain the authority) before refreshing the server view.
+ *
+ * ⚑ EVERY ACTION IS A PER-ROW DECISION THE SERVER MADE (Proposal B, 2026-10-22). The cleanup queue's
+ * rows are all deletable, non-Official and editable by construction, but a person's own list mixes
+ * Officials, revoked subject-grades and ordinary versions (`lib/personalVersions.ts`), so a role-wide
+ * switch could not say what one row allows. `showContinueEditing` stays list-wide for one reason: on
+ * the cleanup queue an administrator can edit every row, yet the duplicate button is omitted there.
  */
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -20,13 +26,20 @@ import { withUnsavedWarning } from '../EditRecovery/unsavedWarning'
 
 export interface CandidateRow {
   id: number
-  lessonPlanId: number
+  lessonPlanId: number | null
+  /** The Compare to Official baseline, set by the server only for a KNOWN non-Official row
+   *  (`versionActions`); null means no Compare. */
   officialVersionId: number | null
   label: string
   semver: string
   sgLabel: string
   authorName: string | null
   savedAt: string
+  /** Display only ("Official" in the details line). Never derive an action from it: the server
+   *  decided `canDelete` and the baseline above with an unresolved plan permitting neither. */
+  isOfficial: boolean
+  canDelete: boolean
+  canEdit: boolean
 }
 
 export function CandidateList({
@@ -34,11 +47,14 @@ export function CandidateList({
   emptyText,
   showAuthor,
   showContinueEditing,
+  searchLabel,
 }: {
   rows: CandidateRow[]
   emptyText: string
   showAuthor: boolean
   showContinueEditing: boolean
+  /** The search box's accessible name — distinct per list, since an administrator's page has two. */
+  searchLabel: string
 }) {
   const router = useRouter()
   const { config } = useConfig()
@@ -109,8 +125,8 @@ export function CandidateList({
         <input
           className="lp-admin-list__search"
           type="search"
-          aria-label="Search saved versions"
-          placeholder="Search saved versions…"
+          aria-label={searchLabel}
+          placeholder={`${searchLabel}…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -121,13 +137,17 @@ export function CandidateList({
       {shown.length > 0 && (
         <ul className="lp-manage__list">
           {shown.map((row) => {
-            const href = `/admin/collections/lesson-bundle-versions/${row.id}?edit=1`
+            // Edit intent only where the caller may edit: elsewhere (a subject-grade whose editing
+            // access was revoked) the title opens the version to read.
+            const href = `/admin/collections/lesson-bundle-versions/${row.id}${row.canEdit ? '?edit=1' : ''}`
             // One metadata LINE, not a row of floating chips. The version is ordinary metadata here:
             // it used to render as `.lp-admin-list__badge`, which gave a piece of status the shape of a
-            // control — exactly what the button system's "status is not a variant" rule forbids.
+            // control — exactly what the button system's "status is not a variant" rule forbids. For
+            // the same reason "Official" is a word in that line, as in the Versions list, not a badge.
             const meta = [
               row.sgLabel,
               `Version ${row.semver}`,
+              row.isOfficial ? 'Official' : null,
               showAuthor ? (row.authorName ?? 'Unknown author') : null,
               row.savedAt ? `Saved ${row.savedAt}` : null,
             ].filter(Boolean)
@@ -139,12 +159,13 @@ export function CandidateList({
                   </Link>
                   <p className="lp-manage__meta">{meta.join(' · ')}</p>
                 </div>
-                {/* Teachers get a named return path to their unfinished work. An administrator's
-                panel — Site or Subject-grade — is a cleanup queue over other people's drafts, so the
-                duplicate action is omitted there; the title remains a quiet link to the same editor
-                if an exceptional inspection is needed. */}
+                {/* "My saved versions" gets a named return path to the caller's own work. The cleanup
+                queue — other people's versions — omits that duplicate action; its title remains a
+                quiet link to the same editor if an exceptional inspection is needed. */}
                 <div className="lp-manage__row-actions">
-                  {row.officialVersionId != null && (
+                  {/* The server sets a baseline only for a KNOWN non-Official row: an Official
+                      compared with itself says nothing, and an unknown state must not be guessed. */}
+                  {row.officialVersionId != null && row.lessonPlanId != null && (
                     <CompareToOfficialLink
                       className="btn lp-btn"
                       planId={row.lessonPlanId}
@@ -152,20 +173,22 @@ export function CandidateList({
                       candidateVersionId={row.id}
                     />
                   )}
-                  {showContinueEditing && (
+                  {showContinueEditing && row.canEdit && (
                     <Link className="btn lp-btn" href={href}>
                       Continue editing
                     </Link>
                   )}
-                  <Button
-                    className="lp-btn"
-                    buttonStyle="error"
-                    size="small"
-                    disabled={busyId != null}
-                    onClick={() => void onDelete(row)}
-                  >
-                    {busyId === row.id ? 'Deleting…' : 'Delete'}
-                  </Button>
+                  {row.canDelete && (
+                    <Button
+                      className="lp-btn"
+                      buttonStyle="error"
+                      size="small"
+                      disabled={busyId != null}
+                      onClick={() => void onDelete(row)}
+                    >
+                      {busyId === row.id ? 'Deleting…' : 'Delete'}
+                    </Button>
+                  )}
                 </div>
               </li>
             )
