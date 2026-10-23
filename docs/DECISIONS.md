@@ -11,6 +11,45 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — Typing benchmark on the Rock: 184 ms → 40 ms per key
+
+The operator deployed `cab5f2a` (the #436 merge plus docs) to the Rock and asked for the plan §6
+comparison. Before measuring, the deployed image's served client bundle was checked: it contains both
+patches and none of the original code.
+
+**Setup:**
+
+- **Pre-patch build:** `main` at `3f25375`, built on the Mac (ARM) and copied over.
+- **Patched build:** a pinned tag of the deployed `lesson3-app` image.
+- **Browser runner:** the `e2e`-stage image, built on the Rock from the deployed checkout. Copying the
+  4.6 GB image over the operator's cellular link ran at ~170 KB/s, so that copy was stopped and the
+  Rock built it in a few minutes.
+- **Stack:** each build had its own Postgres, migrated and seeded with the deployed `lesson3-migrate`
+  image and loaded with the 12-lesson *Animal Transport* plan. No ports were published and memory
+  was capped, under `lesson3-perf-*` names; the live `lesson3` and `onecli` containers were not
+  touched.
+- **Runs:** `bench-typing.mjs` with `BENCH_RATES=1`, so the Rock's own CPU (RK3588, 8 cores) is the
+  slow laptop. Five rounds alternated between the two builds, at a load average of about 1.
+
+All 370 keys were delivered and reported:
+
+| Rock, 1× | median | p90 | max | long tasks | wall time for 37 keys |
+|---|---|---|---|---|---|
+| pre-patch (`3f25375`) | 176–184 ms | 184–192 ms | 216–256 ms | 6.9–7.1 s | 11.0–11.2 s |
+| patched (`cab5f2a`) | 40 ms | 48 ms | 56–104 ms | 0.31–0.35 s | 5.9 s |
+
+**What this shows:**
+
+- On the Rock's CPU, the unpatched editor could not keep up with typing at 120 ms per key. The 37
+  keys took 11 s to process, against 4.4 s to type, so keystrokes queued up behind each other.
+- The patched editor keeps pace.
+- The Rock at 1× behaves like the Mac at 4× slower, so the Mac's throttled figures were a fair
+  stand-in for a modest machine.
+
+**Cleanup:** the containers, the three `lesson3-perf` images and the temporary files (including the
+copied plan) are removed from the Rock. It is back to its deployed state, with the live app on the
+same image throughout.
+
 ## 2026-10-23 — Patch Payload's admin bundle for typing speed
 
 Typing into a prose field on a full-size plan cost ~64 ms per key on a fast Mac and ~200 ms with the
