@@ -1,10 +1,9 @@
 # Plan — typing speed on the version edit page
 
-**Status:** **approved for implementation** by Codex's sign-off review (2026-10-23, on `c5d4df3`),
-subject to four named changes, all folded in by the second revision below. The one place this
-revision goes beyond Codex's wording is the loop guard on §4.1's catch-up check; it needs Codex's
-confirmation before implementation. No application code has changed. Everything below was measured
-against throwaway production builds in a scratch directory; nothing was deployed. Decisions are in §7.
+**Status:** **implemented** on branch `perf/typing-speed-payload-patch` (2026-10-23), after Codex
+approved this plan as written at `3f25375`, including the loop guard on §4.1's catch-up check. Results
+and the two places implementation refined the plan are in DECISIONS 2026-10-23 "Patch Payload's admin
+bundle for typing speed". Not deployed. Decisions are in §7.
 
 **Second revision (2026-10-23, Codex's sign-off findings):**
 
@@ -425,12 +424,13 @@ when none were reported.
 never arrived. Before the typing, each pass:
 
 - attaches a `keydown` listener to the target textarea that counts the keys received;
-- records the textarea's value.
+- records the textarea's value and its caret position.
 
 After the typing it checks two things:
 
 - the count equals the number of keys sent;
-- the textarea's value is the recorded value followed by exactly the typed text.
+- the textarea's value is the recorded value with exactly the typed text inserted at that caret.
+  (`End` moves to the end of the caret's line in a multi-line textarea, not of the text.)
 
 If either check fails, the pass reports the failure and the script exits non-zero, with no
 percentiles.

@@ -11,6 +11,79 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-23 — Patch Payload's admin bundle for typing speed
+
+Typing into a prose field on a full-size plan cost ~64 ms per key on a fast Mac and ~200 ms with the
+CPU throttled 4×, almost all of it inside Payload's admin form. The diagnosis and fix are
+`docs/PLAN-editing-typing-speed-2026-10-23.md`, reviewed twice by Codex and approved as written at
+`3f25375`. Branch `perf/typing-speed-payload-patch` implements it:
+
+- `app/scripts/patch-payload-ui.mjs`, run from `postinstall`, makes two exact replacements in
+  `@payloadcms/ui/dist/exports/client/index.js`.
+  - The inlined `use-context-selector` schedules a render only when a subscriber's own selection
+    changed. A commit-time catch-up check, gated on the provider's value having moved since render,
+    covers notifications between render and commit (Codex P1) without looping on selectors that
+    allocate.
+  - `RowLabelProvider` reads `useForm()` instead of `useWatchForm()`.
+- The script refuses anything but the exact expected shape: name checks, exactly-once matches, and
+  idempotency by exact patched content. The Dockerfile's `deps` and `e2e` stages copy it in before
+  `npm ci`, and `dev_deps_hash` includes it.
+- Lesson3's `RowLabel` subscribes to the one field it shows, so labels stay live. A field present in
+  form state wins even when empty.
+
+**Measured** with `app/scripts/bench-typing.mjs`: production builds of `main` (`3f25375`) and the
+branch, each with its own database holding the 12-lesson *Animal Transport* plan, signed in as Site
+Administrator. Runs alternated on the operator's Mac (load average 3–6 from other work). All keys were
+delivered and reported, so the medians are over every key.
+
+| | 1× median | 1× p90 | 1× long tasks | 4× median | 4× p90 | 4× long tasks |
+|---|---|---|---|---|---|---|
+| `main` (5 runs; 4 valid at 4×) | 64 ms | 64–72 ms | 2.5–2.6 s | 200 ms | 216–248 ms | 7.8–8.2 s |
+| branch (5 runs) | 16–24 ms | 24 ms | 134–148 ms | 32 ms | 40–56 ms | 0.40–0.57 s |
+
+**Verified** before the PR:
+
+- **Unit:** `test:unit` 1,853 of 1,854; the failure is the known `usersPanelPaging` load timeout,
+  which passes alone (3 of 3). The new tests account for 51 of the passes: patch rules and the
+  installed bundle (15), the patched hook against the original and the §3.2 prototype (32), and live
+  `RowLabel` rules (4).
+- **Integration:** `test:int` 333 of 333.
+- **Browser:** the full existing `test:e2e` suite passed 142 of 142 against a production build with
+  the patch, run CI-style in an isolated Compose project. The new `liveRowLabels` spec (2 tests)
+  passed 6 of 6 on repeat.
+- **Static checks:** lint, `format:check` and `tsc` are clean.
+- **Bundle:** the served chunk contains both patches and none of the original code.
+
+**Where implementation refined the plan:**
+
+- **Name checks.** They also pin `useContextSelector`'s head (`let o=CL(t)[uf],{v:{current:r},…`),
+  because the catch-up check uses `o` and `r` as well as the names §4.4 listed.
+- **Notification while subscribing.** The original library *also* misses this window, so the test
+  asserts that only the patched hook catches up; the original and the prototype stay stale. This
+  narrows §5's "identical settled values in both" for that one case, deliberately.
+- **Benchmark delivery check.** It now expects the typed text at the recorded caret. `End` goes to
+  the end of the caret's line in a multi-line textarea, so the plan's "followed by the typed text"
+  failed on correct input.
+
+**Lessons:**
+
+- Under a jsdom test environment the global `URL` is jsdom's, and Node's `fileURLToPath` rejects it.
+  Build module-relative paths with `node:path`.
+- Payload's `#<array>-row-N` wraps the whole row; a custom RowLabel sits in the first
+  `.array-field__row-header`, without the `.row-label` class the default label gets. Every row's
+  actions menu is in the DOM, hidden, so pick the visible item.
+- To open the render-to-commit window in a test, mount the subscriber under an *already-mounted*
+  provider. The provider's own mount effect runs last and re-publishes its prop, which hides the case.
+
+**Unexplained, recorded rather than chased:** one `main` 4× pass failed the delivery check. The
+field's tail read `…Kipchoge.blood around the body`, which looks like the field reverted to older
+content mid-typing. Three further `main` runs and all branch runs delivered every key exactly.
+
+**Not done:**
+
+- The Rock comparison (§6, Q4), after this lands, with the operator's go-ahead.
+- The upstream issues (Q3), which the operator files.
+
 ## 2026-10-23 — Identify unfinished phase rows before saving
 
 The operator added a sixth instructional phase and saw "The following field is invalid:" with

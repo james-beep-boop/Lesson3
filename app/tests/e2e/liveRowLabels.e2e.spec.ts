@@ -54,7 +54,10 @@ const label = (page: Page, row: number) =>
   page.locator(`#lessons-row-${row} .array-field__row-header`).first()
 
 async function rowAction(page: Page, row: number, action: string) {
-  await page.locator(`#lessons-row-${row} .array-actions__button`).first().click({ timeout: 10_000 })
+  await page
+    .locator(`#lessons-row-${row} .array-actions__button`)
+    .first()
+    .click({ timeout: 10_000 })
   // Every row's menu is in the DOM, hidden; only the one just opened is visible.
   await page
     .locator('.array-actions__action', { hasText: action })

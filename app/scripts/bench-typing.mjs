@@ -30,8 +30,8 @@
  *
  * Prints one JSON line. Latencies are in ms. Event Timing only reports events of 16 ms or more, so a
  * key with no timing entry was faster than that, but only if it actually arrived (plan §4.5). Each pass
- * therefore counts the keydowns the textarea received and checks its value grew by exactly the typed
- * text; if either check fails it prints the pass and exits 1 with no percentiles. Otherwise the
+ * therefore counts the keydowns the textarea received and checks the typed text appears exactly at
+ * the caret; if either check fails it prints the pass and exits 1 with no percentiles. Otherwise the
  * median and p90 are over ALL typed keys, with unreported keys counted as below the threshold; a
  * percentile that lands on one prints as "<16", never 0. `maxMs` is null when no key was reported.
  */
@@ -105,6 +105,9 @@ try {
       const textarea = document.querySelector(id)
       window.__bench = { keys: [], longTasks: [], observers: [], received: 0 }
       window.__bench.before = textarea.value
+      // `End` moves to the end of the caret's LINE in a multi-line textarea, so the keys land at
+      // the caret, not necessarily at the end of the text.
+      window.__bench.caret = textarea.selectionStart
       window.__bench.onKey = () => window.__bench.received++
       textarea.addEventListener('keydown', window.__bench.onKey)
       const keys = new PerformanceObserver((list) => {
@@ -133,12 +136,12 @@ try {
       fs.mkdirSync(PROFILE_DIR, { recursive: true })
       fs.writeFileSync(path.join(PROFILE_DIR, `${LABEL}.cpuprofile`), JSON.stringify(profile))
     }
-    const { keys, longTasks, received, before, after } = await page.evaluate((id) => {
+    const { keys, longTasks, received, before, caret, after } = await page.evaluate((id) => {
       const textarea = document.querySelector(id)
       textarea.removeEventListener('keydown', window.__bench.onKey)
       window.__bench.observers.forEach((o) => o.disconnect())
-      const { keys, longTasks, received, before } = window.__bench
-      return { keys, longTasks, received, before, after: textarea.value }
+      const { keys, longTasks, received, before, caret } = window.__bench
+      return { keys, longTasks, received, before, caret, after: textarea.value }
     }, fieldId)
     const pass = {
       keysTyped: TEXT.length,
@@ -147,12 +150,18 @@ try {
       keysBelowThreshold: TEXT.length - keys.length,
     }
     const delivered =
-      received === TEXT.length && after === before + TEXT && keys.length <= TEXT.length
+      received === TEXT.length &&
+      after === before.slice(0, caret) + TEXT + before.slice(caret) &&
+      keys.length <= TEXT.length
     if (!delivered) {
       result[`cpu${rate}x`] = {
         ...pass,
         error: 'input not delivered as typed',
-        valueTail: after.slice(-60),
+        // What arrived at the caret, against what was typed there.
+        atCaret: after.slice(Math.max(0, caret - 20), caret + TEXT.length + 20),
+        expected:
+          before.slice(Math.max(0, caret - 20), caret) + TEXT + before.slice(caret, caret + 20),
+        lengthDelta: after.length - before.length,
       }
       console.log(JSON.stringify(result))
       process.exitCode = 1

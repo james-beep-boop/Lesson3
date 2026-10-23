@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Typing in the lesson editor is faster on large plans: about 64 ms → 16–24 ms per key on a fast
+  laptop, and 200 ms → 32 ms on a CPU four times slower. Lesson row labels still follow a title as it
+  is typed. The change is a guarded install-time patch to Payload's admin bundle; no data, schema or
+  generated documents change.
+
 ## v1.03 (2026-10-22)
 
 - Node 24 LTS moves from 24.22.0 to the 24.22.1 security patch. Production, browser tests and restore
