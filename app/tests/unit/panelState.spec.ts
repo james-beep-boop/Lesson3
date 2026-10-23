@@ -248,14 +248,28 @@ describe('initialOpen', () => {
   })
 
   /**
-   * A teacher's bookmark from before Proposal B. `plans.versions` is now administrator-only, so for a
-   * teacher it is an unavailable id: dropped, and the page falls back to the default landing.
+   * A teacher's bookmark from before Proposal B. `plans.versions` is now administrator-only; for a
+   * teacher, `parseOpen` reads it as `plans.mine`, where their saved versions moved.
+   *
+   * ⚑ THE CANONICAL FORM IS THE ONE THAT MATTERS (Codex review of #434). The old accordion wrote the
+   * teacher's page as `?open=plans,plans.versions`. Dropping the child kept `plans`, so the URL won
+   * and they landed on a bare box with My saved versions closed. Both forms are pinned.
    */
-  it("a teacher's old ?open=plans.versions bookmark falls back to their saved versions", () => {
-    expect(initialOpen('?open=plans.versions', ['plans', 'plans.mine', 'plans.drafts'])).toEqual([
-      'plans',
-      'plans.mine',
-    ])
+  const TEACHER = ['plans', 'plans.mine', 'plans.drafts']
+  it("a teacher's old ?open=plans,plans.versions bookmark lands on their saved versions", () => {
+    expect(initialOpen('?open=plans,plans.versions', TEACHER)).toEqual(['plans', 'plans.mine'])
+  })
+
+  it('…and so does the short form, ?open=plans.versions', () => {
+    expect(initialOpen('?open=plans.versions', TEACHER)).toEqual(['plans', 'plans.mine'])
+  })
+
+  it("an administrator's plans.versions is their cleanup queue, and is not moved", () => {
+    expect(parseOpen('?open=plans,plans.versions', SITE_ADMIN)).toEqual(['plans', 'plans.versions'])
+  })
+
+  it('a deliberately closed My saved versions stays closed (?open=plans alone)', () => {
+    expect(initialOpen('?open=plans', TEACHER)).toEqual(['plans'])
   })
 
   /** ⚑ ONE box with SEVERAL children opens its FIRST child (2026-10-22; until then it opened the box

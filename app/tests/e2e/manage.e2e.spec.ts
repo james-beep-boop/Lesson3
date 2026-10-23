@@ -622,12 +622,16 @@ test.describe('Manage page', () => {
       await page.goForward()
       await expanded(/^My saved versions/, 'true')
 
-      // `plans.versions` is administrators' only now: for a teacher the bookmark names nothing, so
-      // they get the default landing, and the URL stops advertising the id.
-      await page.goto(`${BASE}/admin?open=plans.versions`)
-      await expanded(/^My saved versions/, 'true')
-      await expanded(/^Your Drafts/, 'false')
-      await expect(page).not.toHaveURL(/plans\.versions/)
+      // `plans.versions` is administrators' only now; a teacher's saved versions moved to `plans.mine`
+      // and their old bookmark follows them. Both forms: the canonical one the old accordion wrote
+      // (`plans,plans.versions` — the one that matters, Codex review of #434) and the short one. The
+      // URL is rewritten to what the page shows and stops advertising the old id.
+      for (const open of ['plans%2Cplans.versions', 'plans.versions']) {
+        await page.goto(`${BASE}/admin?open=${open}`)
+        await expanded(/^My saved versions/, 'true')
+        await expanded(/^Your Drafts/, 'false')
+        await expect(page).toHaveURL(/[?&]open=plans%2Cplans\.mine(&|$)/)
+      }
     })
   })
 

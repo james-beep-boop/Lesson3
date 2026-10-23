@@ -66,9 +66,10 @@
  * `docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`). Every role's OWN work moved to
  * `plans.mine` ("My saved versions") and `plans.drafts` ("Your Drafts"), so each id now has one
  * meaning for everyone, and `plans.versions` is only ever "Delete individual versions". It is not
- * retired: it stays valid for administrators. A teacher's old `?open=plans.versions` bookmark names a
- * panel they no longer have, so `parseOpen` drops it and they get the default landing — which
- * `initialOpen`'s first-child rule makes their saved versions anyway.
+ * retired: it stays valid for administrators. For a teacher, `parseOpen` reads their old
+ * `plans.versions` as `plans.mine` (`MOVED_FOR_CALLERS_WITHOUT`), so both bookmark forms —
+ * `?open=plans.versions` and the canonical `?open=plans,plans.versions` — still land on their saved
+ * versions.
  */
 export const PANEL_IDS = [
   'users',
@@ -160,6 +161,21 @@ export function withAncestors(open: readonly string[]): PanelId[] {
 }
 
 /**
+ * Ids whose CONTENT moved for callers who no longer have them, read as the panel that now holds it.
+ *
+ * ⚑ `plans.versions` → `plans.mine` (Proposal B, 2026-10-22; Codex review of #434). Until then a
+ * teacher's saved versions lived at `plans.versions`, and the accordion canonicalised their page to
+ * `?open=plans,plans.versions` — the form their bookmarks actually hold. Simply dropping the obsolete
+ * child left `plans` valid, so `initialOpen` honoured the URL and they landed on a bare Lesson plans
+ * box with My saved versions closed: worse than the landing the bookmark was made from. Applied ONLY
+ * when the caller cannot see the old id and can see the new one, so an administrator's
+ * `plans.versions` (their cleanup queue, a different panel) is untouched.
+ */
+const MOVED_FOR_CALLERS_WITHOUT: Readonly<Record<string, PanelId>> = {
+  'plans.versions': 'plans.mine',
+}
+
+/**
  * Read open state out of a query string, keeping only ids that are BOTH in the closed vocabulary and
  * available to this caller (the role gate — `available` is what the server actually rendered), and
  * opening the ancestors of anything nested.
@@ -175,8 +191,14 @@ export function parseOpen(search: string, available: readonly string[]): PanelId
   // sign anything was lost. Next hands the server `string[]` for exactly this case.
   const raw = new URLSearchParams(search).getAll(OPEN_PARAM)
   if (raw.length === 0) return []
-  const wanted = raw.flatMap((part) => part.split(',')).map((s) => s.trim())
   const allowed = new Set(available)
+  const wanted = raw
+    .flatMap((part) => part.split(','))
+    .map((s) => s.trim())
+    .map((id) => {
+      const moved = MOVED_FOR_CALLERS_WITHOUT[id]
+      return moved && !allowed.has(id) && allowed.has(moved) ? moved : id
+    })
   const gated = inRenderOrder(wanted.filter((id) => allowed.has(id)))
   // A panel is only openable if its whole ancestry is too: a child lives INSIDE its parent's panel
   // element, so an id whose parent this caller cannot see could never appear on screen — keeping it
