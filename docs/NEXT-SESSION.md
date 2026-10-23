@@ -20,7 +20,28 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# CURRENT STATE — 2026-10-22
+# CURRENT STATE — 2026-10-23
+
+**Newest (2026-10-23): #433 and #434 merged** (`fbedfea`, `ceade3d`), each only after green CI, at the
+operator's "merge when green". Plan, review log and Q1–Q7 decisions:
+`docs/PLAN-forum-dialogs-and-manage-personal-work-2026-10-22.md`; DECISIONS 2026-10-22 (two entries).
+- **#433 forum and dialogs.**
+  - Lesson references (forum and Messages) open in a new tab (`NewTabLink`).
+  - Pin dialog "Pin this discussion"; Delete dialog "Delete entire thread and all replies" with
+    "This cannot be undone.".
+  - Order Pin · Delete thread · Redact.
+  - `.modal__actions--pair` (two equal buttons, Cancel first) on the five in-app yes/no dialogs.
+  - The 16 native `window.confirm()` prompts are deliberately unchanged.
+- **#434 Proposal B.**
+  - `plans.mine` "My saved versions" (own authored versions, own Officials included) and `plans.drafts`
+    "Your Drafts" sit first in Manage → Lesson plans for every role.
+  - `plans.versions` is administrators' cleanup queue only; a teacher's old bookmark is carried to
+    `plans.mine`.
+  - Teachers land on My saved versions; drafts never auto-open and show a count; Subject
+    administrators land all-closed.
+  - Row actions come from `versionActions` (`lib/personalVersions.ts`) for both lists.
+- **Release and deployment:** not released or deployed; the next tag would carry both.
+- **Codex review:** reviewed the plan and both PRs; all findings fixed.
 
 **v1.03 tagged (2026-10-22):** #432 merged as `625a9d8` after the revised head
 `843ffa8` passed the full CI gate. The annotated tag triggers `publish-containers.yml`, which builds
