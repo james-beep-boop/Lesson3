@@ -40,12 +40,16 @@ the application audit cycle**, which is pinned to Payload 3.91.0. Checklist:
 
 **Application audit in progress** on branch `audit/2026-10-24-review` (PR #437, never meant to
 merge). Two authorization candidates are confirmed at runtime and await Codex's author response:
-F-C22-001, the job-statistics global (High), and F-C22-002, native locks (Medium). **F-C22-001 is fixed** on
-branch `fix/job-stats-global-access`: the job-statistics global refuses all API writes, and reads
-are Site-Admin-only. Plan: `docs/PLAN-job-stats-global-access-2026-10-24.md`; results: DECISIONS
-2026-10-24. After deploy, check the Rock's log has no "Error in job queue cron job handler" lines and
-that an export still completes. F-C22-002 (locks) is decided (DECISIONS 2026-10-24, "Native document
-locks") but not yet planned or built.
+F-C22-001, the job-statistics global (High), and F-C22-002, native locks (Medium). **F-C22-001 is fixed**
+(#439): the job-statistics global refuses all API writes, and reads are Site-Admin-only. Plan:
+`docs/PLAN-job-stats-global-access-2026-10-24.md`; results: DECISIONS 2026-10-24. After deploy, check
+the Rock's log has no "Error in job queue cron job handler" lines and that an export still completes.
+**F-C22-002 is fixed** on branch `claude/project-thread-xxw3c4`: no API lock creation, Take over only
+to yourself where you may edit, locking only on versions, plans, subjects and subject grades (one
+migration), and a plain "someone is editing" message on the three App deletes. Plan:
+`docs/PLAN-native-locks-2026-10-24.md`; results: DECISIONS 2026-10-24 "Native document locks
+enforced". **Open:** lead L-CL-002 (the `form-state` server function can lock a document the caller
+cannot edit) is recorded there and needs its own change.
 
 **#436 merged (2026-10-24, `be573e9`): faster typing in the lesson editor.** A guarded `postinstall`
 patch to Payload's admin bundle (`app/scripts/patch-payload-ui.mjs`), plus live row labels. On the Mac,

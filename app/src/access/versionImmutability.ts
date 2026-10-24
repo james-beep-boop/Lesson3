@@ -17,7 +17,10 @@
  *  - {@link versionUpdateGrantForFormRenderOnly} (`access.update`) answers "yes" for teachers with editing access and
  *    Subject Admins in their subject-grades — ONLY so Payload renders the form editable. IT IS NOT
  *    A WRITE GRANT: nothing may cite it as authorization to persist an update, and reusing it in
- *    another access decision is a bug.
+ *    another access decision is a bug. ⚑ ONE DOCUMENTED EXCEPTION: native editing locks
+ *    (access/lockedDocuments.ts, audit F-C22-002) ask "may this user hold the form open for editing?",
+ *    which is exactly what this grant answers. They reach it through the collection's `access.update`,
+ *    and a lock never authorizes a version write.
  *  - {@link enforceVersionImmutable} (`beforeChange`) is the actual guarantee: it REJECTS every
  *    AUTHENTICATED in-place `update` — whatever the access grant said, whichever role, including a
  *    stray/direct API PATCH. Trusted system paths (no `req.user`: migrations, data fixes via

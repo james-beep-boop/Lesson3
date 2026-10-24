@@ -16,6 +16,14 @@ import {
   applyGeneratedSurfacePolicy,
   noApiWrites,
 } from '../../src/access/generatedSurfaces'
+import {
+  LOCKABLE_COLLECTIONS,
+  LOCKED_DOCUMENTS_SLUG,
+  lockCreate,
+  lockDelete,
+  lockRead,
+  lockUpdate,
+} from '../../src/access/lockedDocuments'
 import { siteAdminOnly } from '../../src/access'
 
 // Synthetic users, one per user type plus the editing-access capability (SPEC §8).
@@ -74,7 +82,18 @@ describe('applyGeneratedSurfacePolicy', () => {
   const fakeConfig = (
     globals: { slug: string; access: Record<string, unknown> }[],
     scheduling = true,
-  ) => ({ globals, jobs: { scheduling } }) as unknown as SanitizedConfig
+    collections: { slug: string; access: Record<string, unknown> }[] = [
+      { slug: LOCKED_DOCUMENTS_SLUG, access: {} },
+    ],
+  ) => ({ collections, globals, jobs: { scheduling } }) as unknown as SanitizedConfig
+
+  it('fails closed when the lock collection is missing', () => {
+    expect(() =>
+      applyGeneratedSurfacePolicy(
+        fakeConfig([{ slug: JOB_STATS_GLOBAL_SLUG, access: {} }], true, []),
+      ),
+    ).toThrow(LOCKED_DOCUMENTS_SLUG)
+  })
 
   it('fails closed when scheduling is on but the global is missing', () => {
     expect(() => applyGeneratedSurfacePolicy(fakeConfig([]))).toThrow(JOB_STATS_GLOBAL_SLUG)
@@ -91,5 +110,58 @@ describe('applyGeneratedSurfacePolicy', () => {
     applyGeneratedSurfacePolicy(applyGeneratedSurfacePolicy(config))
     expect(config.globals[0].access).toMatchObject({ read: siteAdminOnly, update: noApiWrites })
     expect(other.access).toEqual({ read: siteAdminOnly })
+  })
+})
+
+// Audit F-C22-002; DECISIONS 2026-10-24 "Native document locks". The wire proof is
+// tests/http/lockedDocuments.http.spec.ts.
+describe('native lock collection on the built config', () => {
+  const built = async () => await (await import('../../src/payload.config')).default
+  const builtLocks = async () =>
+    (await built()).collections.find((collection) => collection.slug === LOCKED_DOCUMENTS_SLUG)
+
+  it('carries the lock rules', { timeout: 30_000 }, async () => {
+    const locks = await builtLocks()
+    expect(locks, 'missing ⇒ a Payload upgrade renamed it; boot would refuse').toBeDefined()
+    expect(locks?.access).toMatchObject({
+      create: lockCreate,
+      read: lockRead,
+      update: lockUpdate,
+      delete: lockDelete,
+    })
+  })
+
+  it('refuses every API create, Site Administrator included', { timeout: 30_000 }, async () => {
+    const locks = await builtLocks()
+    for (const [label, user] of Object.entries(ACTORS)) {
+      expect(call(locks?.access.create, user), `${label} must not create`).toBe(false)
+    }
+  })
+
+  it('lets every signed-in user read locks, so peer warnings keep working', async () => {
+    for (const [label, user] of Object.entries(ACTORS)) {
+      expect(Boolean(call(lockRead, user)), `${label} read`).toBe(label !== 'anonymous')
+    }
+  })
+
+  it(
+    'locks exactly the four collections edited in the admin form',
+    { timeout: 30_000 },
+    async () => {
+      const config = await built()
+      const lockable = config.collections
+        .filter((collection) => collection.lockDocuments !== false)
+        .map((collection) => collection.slug)
+      expect(lockable.sort()).toEqual([...LOCKABLE_COLLECTIONS].sort())
+      const document = (await builtLocks())?.fields.find(
+        (field) => 'name' in field && field.name === 'document',
+      ) as { relationTo?: string[] } | undefined
+      expect(document?.relationTo?.slice().sort()).toEqual([...LOCKABLE_COLLECTIONS].sort())
+    },
+  )
+
+  it('does not lock the system-settings global', { timeout: 30_000 }, async () => {
+    const settings = (await built()).globals.find((global) => global.slug === 'system-settings')
+    expect(settings?.lockDocuments).toBe(false)
   })
 })

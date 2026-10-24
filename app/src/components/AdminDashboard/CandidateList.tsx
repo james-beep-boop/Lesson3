@@ -21,6 +21,7 @@ import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
 import { matchesTokenAnd, tokenise } from '../../lib/substrand'
+import { documentLockedMessage } from '../../lib/wireError'
 import CompareToOfficialLink from '../CompareToOfficialLink'
 import { withUnsavedWarning } from '../EditRecovery/unsavedWarning'
 
@@ -105,6 +106,8 @@ export function CandidateList({
         credentials: 'include',
       })
       if (!res.ok) {
+        const locked = documentLockedMessage(res)
+        if (locked) throw new Error(locked)
         const json = (await res.json().catch(() => null)) as {
           errors?: { message: string }[]
         } | null

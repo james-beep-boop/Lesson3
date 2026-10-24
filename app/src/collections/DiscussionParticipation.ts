@@ -14,6 +14,9 @@ import { lockRows, rowsOf, txDb } from '../lib/txDb'
  */
 export const DiscussionParticipation: CollectionConfig = {
   slug: 'discussion-participation',
+  // No native editing locks: no Take over UI here, so a lock could only block App actions
+  // (DECISIONS 2026-10-24 "Native document locks"; access/lockedDocuments.ts).
+  lockDocuments: false,
   admin: { hidden: true },
   access: {
     read: ownParticipation,

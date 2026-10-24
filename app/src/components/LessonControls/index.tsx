@@ -48,6 +48,7 @@ import { DELIVERABLE_LABELS } from '../../generator/deliverables'
 import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
 import type { SystemFlags } from '../../lib/systemFlags'
+import { documentLockedMessage } from '../../lib/wireError'
 import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
@@ -922,7 +923,8 @@ export default function LessonControls({
         method: 'DELETE',
         credentials: 'same-origin',
       })
-      if (!res.ok) throw new Error(await errorMessage(res, 'Delete'))
+      if (!res.ok)
+        throw new Error(documentLockedMessage(res) ?? (await errorMessage(res, 'Delete')))
       // Cross-root-layout navigation (admin → frontend), so Next gives the shared Back Link a full
       // page load automatically.
       window.location.assign(planId != null ? `/lessons/${planId}` : '/')

@@ -11,6 +11,68 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — Native document locks enforced (audit F-C22-002)
+
+**Defect.** Payload generates a hidden `payload-locked-documents` collection with any-signed-in-user
+create/read/update/delete, and every collection in this app was lockable by default. Payload's REST
+update and delete answer 423 while another user's lock is fresh. So any Teacher could POST a lock in
+anyone's name, keep it fresh, and make an administrator's delete or user change fail with a raw
+"locked" error. The audit confirmed this at runtime and rated it Medium.
+
+**Fix,** exactly as decided in "Native document locks" below; plan
+`docs/PLAN-native-locks-2026-10-24.md`.
+
+- **`app/src/access/lockedDocuments.ts`** holds the rules. `generatedSurfaces.ts` (the #439 seam)
+  applies them to the **built** config, because Payload has no override for this generated
+  collection either. It fails closed if the slug disappears.
+  - **Create:** nobody over the API. The editing form creates locks through `payload.db.create`,
+    which never consults access.
+  - **Read:** every signed-in user (decision 1).
+  - **Update (Take over):** by id, the `user` field alone, naming the caller, on a document the
+    caller may edit. "May edit" is the target collection's own `access.update` for that one document.
+    For versions that is `versionUpdateGrantForFormRenderOnly`, now a documented exception in
+    `versionImmutability.ts`: a lock is form-session state, never a version write.
+  - **Delete (unlock on leave):** the holder's own lock only.
+- **`lockDocuments: false`** on `users`, `favorites`, `messages`, `edit-recovery`, the three discussion
+  collections and the `system-settings` global (decision 2). Migration
+  `20261024_094011_native_lock_scope` drops the six relationship columns and first deletes any lock
+  rows pointing at them, `users` included. `users_id` stays: it records who holds a lock.
+- **The three App deletes** (version, candidate, plan) show `DOCUMENT_LOCKED_MESSAGE` ("Someone is
+  editing this right now. Try again in a few minutes.") on a 423 (decision 3). The shared helper is in
+  `lib/wireError.ts`.
+
+**Two refinements made while building.**
+
+- **Unlock is own-lock-only.** The plan also let anyone who may edit the document delete a peer's
+  lock. Payload's UI never does that: it unlocks only the caller's own lock on leaving, and a peer uses
+  Take over. The narrower rule gives the UI everything it needs.
+- **Lead L-CL-002 is confirmed but not closed here.** Payload's `form-state` server function creates
+  a lock for the caller on any `collectionSlug`/`id` it is given, checking only admin-panel access
+  (`@payloadcms/ui` `buildFormState.js`, `handleFormStateLocking.js`). The editing UI never asks for a
+  read-only document, but a hand-crafted server-action call from a Teacher with editing access or a
+  Subject Administrator could lock a version or plan they cannot edit, in their own (true) name. The
+  effect is now bounded: only the four lockable collections; the holder is truthfully named; the App
+  shows the plain message; anyone who may edit can Take over. Closing it needs a `serverFunctions`
+  override in the Payload-generated `app/(payload)/layout.tsx`, which is its own reviewed change.
+
+**Verified** (local, Node 24.22.1, PostgreSQL 16, dev server):
+
+- **Wire** `tests/http/lockedDocuments.http.spec.ts`: **red before**, with the policy unwired: 11 of 18
+  fail (every role could create or forge a lock; foreign Take over and foreign unlock succeeded).
+  **Green after:** 18/18. The positive controls (Take over by a Teacher with editing access and by a
+  Subject Administrator, the holder's own unlock, a Teacher reading a real lock) pass both ways. The
+  423-then-200 delete case proves decision 3.
+- **Unit** `tests/unit/generatedSurfaces.spec.ts`: 3 of 12 red with the policy unwired, 12/12 green.
+  It pins the lockable set against the built config.
+- **Browser** `tests/e2e/documentLocks.e2e.spec.ts`: a teacher typing takes the lock, a Subject
+  Administrator sees "Document locked", and Take over moves the lock.
+- **Gate:** tsc, ESLint, Prettier, unit 1864/1864, int 334/334. Full `test:http` 456 passed with 10
+  environmental failures: no Gotenberg (PDF), no compose test stack (PDF library), dev-mode CSP
+  `unsafe-eval`, and dev `push` dropping a migration-only NOT NULL (`worldwideIds`). None touch
+  locks; CI runs the production-mode stack.
+- `migrate:create` after the migration reports no schema changes; `generate:types` removes the
+  dropped relations from `payload-types.ts`; `generate:importmap` is unchanged.
+
 ## 2026-10-24 — Job-statistics global closed to API writes (audit F-C22-001)
 
 **Defect.** Payload generates a hidden `payload-jobs-stats` global whenever a task has a `schedule`.

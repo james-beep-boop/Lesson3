@@ -132,6 +132,9 @@ export const cascadeDeleteUserMessages: CollectionBeforeDeleteHook = async ({ id
 
 export const Messages: CollectionConfig = {
   slug: 'messages',
+  // No native editing locks: no Take over UI here, so a lock could only block App actions
+  // (DECISIONS 2026-10-24 "Native document locks"; access/lockedDocuments.ts).
+  lockDocuments: false,
   admin: {
     hidden: true,
   },

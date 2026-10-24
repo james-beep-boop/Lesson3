@@ -65,6 +65,9 @@ import { worldwideIdField } from '../fields/identity'
  */
 export const Users: CollectionConfig = {
   slug: 'users',
+  // No native editing locks: no Take over UI here, so a lock could only block App actions
+  // (DECISIONS 2026-10-24 "Native document locks"; access/lockedDocuments.ts).
+  lockDocuments: false,
   auth: {
     // 2-hour inactivity window (a comfortable work session; was 15 min — too short in practice,
     // 2026-07-04). With admin.autoRefresh off (the default), the admin shows a "Stay logged in?"
