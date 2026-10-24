@@ -1,6 +1,7 @@
 # Lesson3 audit chunk catalog
 
 [Operating handbook](audit_plan.md)
+· [Current cycle and deferred acceptance checks](cycle-2026-10-24.md)
 
 ## Prior-work references
 
@@ -48,6 +49,10 @@ line below is the minimum that contract must include, not the whole of it.
 7. Inventory all required synthetic roles/capabilities, two subject-grade scopes, mixed assignments,
    second peer users and an unverified user. Provision missing fixtures on the disposable stack in
    C01 rather than treating operator-created shared-site users as a global prerequisite.
+8. Use the cycle's pinned SHA on every worker. Check heavy-worker resources and existing workloads;
+   prepare separate audit checkouts and a run-specific stack rather than repurposing an older probe.
+   Record runtime/tool/account readiness privately. Carry the cycle's newer-feature assignments and
+   deferred checks into the manifest and chunk contracts.
 
 **Exit:** source baseline, manifest/components/known/test outcomes and approved target readiness
 recorded. Pending environment tasks have exact next actions; eligible independent work can proceed.
@@ -145,7 +150,7 @@ Findings: `findings/C15-config-secrets.md`.
 ### Phase 2 — Live RBAC and auth (highest value)
 
 #### C20 — Audit harness and surface inventory · Light · M
-1. Build `app/tests/audit/` with `playwright.audit.config.ts` (base URL from `.env.audit`; Chromium +
+1. Build `app/tests/audit/` with `playwright.audit.config.ts` (base URL from explicit private environment; Chromium +
    WebKit projects), a role login helper with cached storage state per account, and an API client for
    Payload REST (`/api/<collection>`) and custom endpoints. GraphQL is disabled (`graphQL.disable` in
    `payload.config.ts` and its route files deleted; DECISIONS 2026-06-26): the harness only proves it
@@ -316,6 +321,10 @@ points. Every unit reads its own tests and scripts alongside the source (read te
 do C5.1 first and reuse its notes. Likewise C5.2↔C40 and C5.4↔C42. Where a live chunk already
 covered a file deeply, the unit records `covered by C<nn>` for it in Coverage instead of re-reading.
 
+The current cycle explicitly assigns Combine/draft lineage, Standard/Advanced tools, upload-time
+taxonomy creation, backup/restore and the Payload postinstall patch. These are mandatory scope even
+where this older sizing table does not name them; C00 remeasures and splits the actual pinned tree.
+
 | Unit | Scope (source + its tests/scripts) | ~LOC | Exec | Focus |
 |---|---|---|---|---|
 | **C5.1 Authorization core** | `src/access/*`; `scripts/verify-rbac.ts`; access int tests | ~440 | Strong | The whole RBAC model: per-subject-grade scoping, field-level perms, version immutability. Highest stakes. Pair with C5.12 if budget allows. |
@@ -364,6 +373,9 @@ messaging; heading structure; screen-reader names on icon buttons. Findings: `fi
   degrades; monitor CPU, RAM, and swap on the approved test target through private monitoring. Record the knee and the resource that
   saturates first.
 - Note the `--max-old-space-size=8000` build flag against target hardware.
+- Distinguish heavy-worker capacity measurements from the shared deployment host's behavior. Any
+  load pass on the shared host has a separate agreed window, finite caps and monitoring; faster
+  worker results cannot establish a school machine's latency or capacity.
 
 Findings: `findings/C62-performance.md`.
 
@@ -386,6 +398,9 @@ read-only filesystem, capabilities, resource limits, healthchecks), secrets hand
 **Edge headers:** inspect `Strict-Transport-Security`, any `x-powered-by` disclosure and the actual
 Content-Security-Policy; check whether it allows `'unsafe-inline'` styles, assess impact and recommend.
 Findings: `findings/C70-ops.md`.
+Review code/runbooks and perform eligible disposable-stack drills now. Fresh-machine installation
+and replacement-machine recovery acceptance are deferred under D01–D03 in the current cycle, with
+their own evidence requirements; neither blocks eligible application checks nor counts as passed.
 
 #### C71 — Documentation drift · Light · M
 Compare `SPEC.md`, `CLAUDE.md`, `AGENTS.md`, `USER_GUIDE.md`, `README.md`, `docs/OPS.md`, and
@@ -460,6 +475,38 @@ handbook; this blind missing-issue pass supplements finding validation.
 4. List audit checks worth adopting permanently (scans for CI, audit specs to promote).
 5. Remind the operator to rotate all audit account passwords, remove extra accounts if unwanted, and
    remove Mailpit or point SMTP back if it was added only for the audit.
+6. Publish an interim milestone if eligible application work is complete while D01–D03 remain open.
+   Carry their exact status and next actions into SUMMARY; do not call the whole audit complete.
+   When hardware arrives, execute the deferred checks and review, then perform the change sweep.
+7. Incorporate C84's reviewed `IMPROVEMENTS.md` separately from defect totals. Prioritize concrete
+   simplifications and architecture work into PR-sized batches, including dependencies and validation.
+   Identify quick low-risk improvements, larger justified changes and designs worth keeping. Actual
+   fixes/refactors follow as separate changes; do not alter the baseline to make audit checks pass.
+
+#### C84 — Architecture and simplification assessment · Strong · M
+
+Use component understanding, unit reviews, C12/C13/C72 evidence and C81 vertical flows to assess the
+system as a whole. Reopen specific source where needed; scanner scores alone cannot settle a proposal.
+Review module boundaries and responsibility ownership; repeated authz/validation/transaction logic;
+dependency direction; state duplication and lifecycle coupling; cache/queue failure behavior;
+unnecessary abstractions/configuration; and testability. Check whether important rules have one
+clear enforcement point and whether exceptional paths have accumulated avoidable complexity.
+
+For each candidate, record current code and concrete maintenance/runtime cost, a before/after design
+sketch, benefit, alternatives and tradeoffs, invariants to preserve, migration risk, PR-sized scope,
+and tests or measurements that would establish success. Reuse behavior already decided in SPEC;
+identify product decisions explicitly rather than presenting a preference as a defect. Preserve native
+content fields, server-side authorization, immutable snapshots and generator provenance/fidelity.
+Also record justified keep-as-is decisions, so the assessment does not reward churn for its own sake.
+
+Write `IMPROVEMENTS.md` with stable `I-C84-<nnn>` proposal IDs, separate from `F-*` defects. Apply the
+handbook's opposite-family review tiers to semantic claims and recommendations: security/integrity
+consequences require a full cycle; major architecture proposals get at least one opposite-family
+challenge and author response. This deliverable is required even if defect totals are zero.
+
+**Exit:** major boundaries and simplification candidates have an evidenced improve/keep/defer outcome;
+proposals have the fields above, review status and implementation dependencies. Unreviewed proposals
+remain explicitly unreviewed; C83 carries accepted proposals into the improvement roadmap.
 
 **Re-running later.** Reset chunks to `todo` only after a substantial feature lands, and then only the
 chunks and units whose files changed (use `manifest.md` to find them). The scans (C10) and audit specs
@@ -518,21 +565,22 @@ Each finding records these separately; none implies another.
 
 ## Progress table
 
-Cycle base SHA: `<sha>` · Started: `<date>`
+Cycle base SHA: `d3714a5b210e1bac7bfa8884f4fce9a34add37b5` · Selected: `2026-10-24`
+· Execution started: `2026-10-24`. Deferred acceptance status is in the current cycle.
 
 | Chunk | Title | Exec | Size | Status | Agent | HEAD SHA | Accepted findings (C/H/M/L/I) | Notes / resume point |
 |---|---|---|---|---|---|---|---|---|
-| C00 | Environment, parity, baseline | Light | M | todo | | | | |
-| C01 | Reseed drill + mail capture | Light | S | todo | | | | exclusive |
+| C00 | Environment, parity, baseline | Light | M | in-progress | coordinator (Codex) | d3714a5 | — | C00-environment.md; qualified baseline, 44 source units and private author profiles recorded; allowance/actor assignment next |
+| C01 | Reseed drill + mail capture | Light | S | done | coordinator (Codex) | d3714a5 | — | C01-isolation.md; roles/mail/lock/reset/reseed/synthetic restore proof passed |
 | C10 | Run all scans | Hand | S | todo | | | | |
 | C11 | Triage: dependencies | Strong | S | todo | | | | |
 | C12 | Triage: dead code + duplication | Light→Strong | M | todo | | | | |
 | C13 | Triage: lint/types/complexity | Strong | M | todo | | | | |
 | C14 | Triage: CSS static | Light | S | todo | | | | |
 | C15 | Triage: secrets/shell/Docker/CI | Light | S | todo | | | | |
-| C20 | Audit harness + surface inventory | Light | M | todo | | | | |
-| C21 | Expected permission matrix | Strong | M | todo | | | | |
-| C22 | Actual permission matrix | Strong | L | todo | | | | split a/b/c |
+| C20 | Audit harness + surface inventory | Light | M | done | coordinator (Codex) | d3714a5 | — | C20-surface.md; source inventory and two-browser role/Manage crawl complete; bounded coverage in scans/crawl.md |
+| C21 | Expected permission matrix | Strong | M | in-progress | coordinator (Codex) | d3714a5 | — | C21-permissions.md; 52 policy rows; framework cases narrow Q01/Q02; full expansion/Q04/review pending |
+| C22 | Actual permission matrix | Strong | L | in-progress | coordinator (Codex) | d3714a5 | — | C22-core.md + C22-framework.md; 19/20 framework cases, red lock UI repro; F-C22-001/002 candidates, zero accepted; full matrix pending |
 | C23 | Auth flows | Strong | M | todo | | | | |
 | C24 | Discussions/messages/favorites/recovery | Strong | M | todo | | | | |
 | C30 | Version write-path analysis | Strong | M | todo | | | | |
@@ -564,4 +612,5 @@ Cycle base SHA: `<sha>` · Started: `<date>`
 | C80 | Cross-cutting reconciliation | Strong | M | todo | | | | promotes/discards all leads |
 | C81 | Vertical-flow pass | Strong | M | todo | | | | capstone |
 | C82 | Blind cross-model review | Cross | M | todo | | | | different model family; first wave; record sealed commit/hash |
+| C84 | Architecture + simplification assessment | Strong | M | in-progress | coordinator (Codex) | d3714a5 | — | IMPROVEMENTS.md; I-C84-001 improve/I-C84-002 keep drafts; broad assessment and review pending |
 | C83 | Synthesis + change sweep + roadmap | Strong | M | todo | | | | |

@@ -66,6 +66,26 @@ migration), and a plain "someone is editing" message on the three App deletes. P
 enforced". **Open:** lead L-CL-002 (the `form-state` server function can lock a document the caller
 cannot edit) is recorded there and needs its own change.
 
+**Audit preparation:** the operator agreed to a staged application audit now, with clean-machine
+installation/recovery acceptance deferred until hardware is available. Baseline:
+`d3714a5b210e1bac7bfa8884f4fce9a34add37b5`. Start from `docs/audit/cycle-2026-10-24.md` and the
+handbook: heavy-worker first, isolated targets, C00/C01 proof, blind C82 before finding validation,
+then the measured author/reviewer pilot. C01 is now proved and seeded; C00 baseline results are
+recorded with CLI/SMTP qualifications. Author profiles and reported allowances are recorded privately;
+actor assignment and the model pilot remain pending. C20 inventory and Chromium/WebKit role/Manage
+crawls are complete with qualified original/follow-up outcomes. C21 has a 52-row policy draft plus an
+independent implemented-guard map. The first bounded C22 part covers ten actor scenarios, 115 probes
+and 80 attempted writes with unchanged content/pointer/settings fingerprints; full C22 remains pending.
+C22's framework follow-up found two unreviewed candidates: Teacher job-statistics mutation and forged
+editing-lock warnings. Repro/cleanup evidence: `docs/audit/C22-framework.md`; candidates:
+`docs/audit/findings/C22-rbac.md`. Accepted totals remain zero. C84's opening improve/keep proposals
+are in `docs/audit/IMPROVEMENTS.md`; broader architecture work and review remain pending. Keep
+D01–D03 explicit. The Phase B recovery-kit pause remains in effect.
+
+**Claude review handoff:** the operator requested a pushed review package. Start at
+`docs/audit/CLAUDE-REVIEW.md` on `audit/2026-10-24-review`; it names the two finding IDs, two proposal
+IDs, supporting evidence and requested review output. Product source remains pinned to `d3714a5`.
+
 **#436 merged (2026-10-24, `be573e9`): faster typing in the lesson editor.** A guarded `postinstall`
 patch to Payload's admin bundle (`app/scripts/patch-payload-ui.mjs`), plus live row labels. On the Mac,
 the 12-lesson plan went from ~64 ms to 16–24 ms per key (200 ms → 32 ms with the CPU 4× slower). Plan:

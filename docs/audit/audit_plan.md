@@ -1,7 +1,8 @@
 # Lesson3 audit operating handbook
 
-**Status:** planning; audit execution has not started. Revised 2026-10-22.
+**Status:** C00 qualified baseline; C01 ready; C20 inventory complete; C21/C22/C84 in progress; two unreviewed candidates; author/review pilot pending. Revised 2026-10-24.
 Read this handbook plus only your assigned section of [the chunk catalog](catalog.md).
+The [current cycle](cycle-2026-10-24.md) records the immutable baseline, execution stages and deferred checks.
 Machine identities, access details, account status and raw evidence belong in private operations notes
 outside Git. Public documentation uses roles: coordinator, author-a, author-b, heavy-worker, test-target.
 
@@ -10,6 +11,10 @@ outside Git. Public documentation uses roles: coordinator, author-a, author-b, h
 Audit the complete codebase and exercised system: authorization, integrity, ingest/export, logic,
 dependencies, accessibility, performance, operations and documentation. Live/destructive testing
 remains required scope; static review alone is a partial audit.
+The audit also assesses maintainability and architecture, not only defects: identify simplifications,
+unnecessary abstraction, duplicated responsibilities, awkward boundaries and better data/control flow.
+Deliver concrete improvement proposals with benefits, tradeoffs and preservation/validation criteria;
+clean scanner output or the absence of bugs does not complete this part of the audit.
 Follow direct user instructions and existing authorizations. This handbook neither grants new access
 nor revokes an existing approval. Record approved targets/operations privately; do not ask repeatedly
 for routine work already authorized. Publishing documentation does not launch the audit.
@@ -17,11 +22,11 @@ Read applicable `CLAUDE.md`, `AGENTS.md` and relevant specification/decisions be
 
 ## Budget and allocation
 
-The user reports three $20/month subscriptions: two Claude Pro accounts and one ChatGPT Plus account.
+The allocation uses two Claude accounts (one Team and one Pro) and one ChatGPT Plus account.
 Do not call the OpenAI subscription Pro or apply Pro-specific limits to it.
 Check the actual authenticated account/workspace, included allowance and reset signals privately.
 For Plus, plan for five-hour limits and possible weekly limits; use actual account reset signals.
-Equal prices do not imply equal capacity; do not assume either provider has more.
+Subscription prices do not establish capacity; do not assume either provider has more.
 Initial user preference: both Claude accounts author most findings; Codex reviews them and returns
 critiques to the original author. Codex-origin exceptions receive Claude review.
 Measure original-audit, review and response costs in a small pilot before increasing backlog.
@@ -49,6 +54,13 @@ lockfile, exact versions recorded); never add them to the product lockfile. A to
 from the app (e.g. a Vitest coverage provider matching the pinned `vitest`) runs in a throwaway copy
 whose lockfile change is discarded. The pilot smoke-tests every scan command before C10 relies on it.
 
+Prefer the faster heavy-worker for builds, scans, unit/integration/HTTP/browser suites, fidelity checks
+and an isolated full-stack target. Keep coordination and report review on the coordinator. Each writer
+or reviewer uses its own checkout; shared compute does not mean a shared mutable test database.
+Measure the worker's available resources and other workloads before setting caps. Use the pinned
+container runtime even when the host Node major differs; a CLI being installed does not prove account
+authentication or allowance. Deterministic tests need no additional model session or paid API.
+
 ## Targets, isolation and prerequisites
 
 Prefer an approved disposable full stack for destructive runtime checks, with synthetic accounts/mail
@@ -68,6 +80,26 @@ require process/outcome reconciliation. C01 implements acquisition/release for t
 Set finite request/concurrency/time caps; health or monitoring failure stops load before access is lost.
 Never send mail outside operator-controlled recipients/capture, or retry an uncertain mutation blindly.
 Private target/account readiness is recorded privately, not as a public checklist of weaknesses.
+
+The shared deployment host is for deployment parity and bounded hardware-specific checks, with a
+separate disposable stack wherever fixtures are written. Heavy-worker performance is evidence for
+that worker only; report hardware, caps and competing load with every performance result. Load on the
+shared service host needs its own agreed window and limits. Build a separate audit stack rather than
+resetting an existing development/probe stack whose ownership and purpose have not been reconciled.
+
+## Staged acceptance
+
+Proceed now with the application audit, container-stack initialization, synthetic-data upgrade and
+restore drills, and cross-family review. A spare clean machine is not a prerequisite for this stage.
+Fresh-machine installation following the school runbook, replacement-machine recovery acceptance,
+and any unavailable architecture coverage remain required but deferred until suitable hardware is
+available (operator estimate: about two weeks, not a deadline or an automation).
+
+The cycle keeps each deferral's scope, prerequisite, owner role and acceptance evidence. A fresh
+database or container stack on an existing worker does not satisfy a clean-machine installation or
+replacement-machine recovery check. Container restore drills do not complete the separately paused
+recovery-kit implementation. Report an interim application-audit milestone with these qualifications;
+claim full completion only after required deferred checks and review are finished.
 
 ## First execution wave
 
@@ -116,6 +148,12 @@ Rerun for a concrete repro, changed conditions or reliability concern, not to fi
 Use privacy-reviewed snippets; raw sensitive artifacts remain outside repository and public CI logs.
 Retain unverified ideas as leads; separate candidate/review status from evidence maturity/fix disposition.
 Templates, prior-work references, exclusions and the progress table are in the catalog.
+Keep improvement proposals distinct from defect claims. Each proposal cites the current code and
+cost, sketches a simpler alternative, names the invariants it must preserve and its validation, and
+states why the gain justifies migration/review risk. Architectural proposals compare keeping the
+current design with at least one concrete alternative; fewer lines or abstractions alone is no proof
+of improvement. Reuse existing intended behavior unless a proposal explicitly requires a product
+decision. Record an evidence-backed keep-as-is outcome where complexity is justified.
 
 ## Opposite-family review
 
@@ -158,7 +196,8 @@ by the invariants checked and the boundaries actually exercised. Quota/prerequis
 Essential unrun checks/unresolved evidence mean qualified or partial completion, never silently clean.
 Final index/summary must be self-contained: revisions/environment/exclusions, component understanding,
 accepted prioritized findings/repros, test results/gaps, risk rationale, withdrawals/unresolved and
-next actions. Preserve original report/critique/response versions and dependencies for reproduction.
+next actions; plus a reviewed simplification/architecture assessment and PR-sized improvement roadmap.
+Preserve original report/critique/response versions and dependencies for reproduction.
 Compare the audit base with a separately recorded current main SHA before finalizing; reopen changed
 covered areas in an identified follow-up sweep. Do not confuse audit-branch HEAD with current main.
 Existing Git publication permissions remain scoped: no future audit-output commit/push without a
@@ -178,7 +217,8 @@ history, old PR diffs or cached copies; any history remediation requires a separ
 Tiered review is selected to protect reviewer capacity while retaining full challenge for serious
 and security/integrity claims. The pilot must record review effort and outcomes by tier; do not infer
 accuracy from agreement or withdrawal rates alone.
-Exact test-target setup and unattended automation remain planning decisions; this update launches neither.
+The current cycle selects a heavy-worker-first execution layout; exact isolated target setup still
+needs C00–C01 proof. Unattended automation remains a later decision; this update launches no tests.
 Optional calibration uses known bugs and decoy non-bugs in an authorized throwaway copy; it measures
 false positives/misses on those examples, not the overall audit accuracy.
 
