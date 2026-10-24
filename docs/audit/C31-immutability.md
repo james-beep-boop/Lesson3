@@ -12,7 +12,7 @@
   guard; the unique `(lessonPlan, semver)` index.
 - **Exclusions:** the **race/concurrency** half (C30 rows 4–6, request-editing lock stealing) is
   **not** done here — it needs the `tests/helpers/rowLocks.ts` barrier wired into the audit harness,
-  and the plan marks C31 exclusive. Recorded as the resume point. User/version deletion cascades
+  and the plan marks C31 exclusive. Recorded as the resume point; the race half was run later the same day (see *Race half* below). User/version deletion cascades
   (C30 rows 11–13) not exercised.
 - **Exit:** deterministic matrix green (every write refused, fingerprints identical) or a finding.
 
@@ -39,3 +39,26 @@ The exclusive race half on an approved target (or here with the barrier helper):
 pointer (C30 row 4/6, the load-bearing plan-row lock); request-editing lock stealing and stale locks;
 then user/version deletion cascades (C30 rows 11–13) with the `author`/`sourceVersion` columns
 excluded or logged as permitted changes.
+
+## Race half (2026-10-24, same disposable stack, HTTP-level)
+
+Run without the row-lock barrier helper, so the timing is not forced: concurrent requests only. These
+results show the races did not corrupt state in these runs. They do not prove every interleaving is safe.
+
+| Race | Attempts | Result |
+|---|---|---|
+| Six concurrent ingests of different content for one sub-strand | 1 round of 6 | All six returned 200. No duplicate `(lessonPlan, semver)` rows. |
+| Promote a non-official version while deleting it (promote sent first, 5 ms before the delete) | 6 rounds | Promote won once: promote 200, delete 409 (refused, now Official). Delete won 5 times: delete 200, promote 404. |
+| Promote and delete with delete sent first | 6 rounds | Delete won 6 times: delete 200, promote 404. |
+| Dangling official pointer after any round | 12 rounds | None. The pointer was always null or the id of an existing version. No 500 in any round. |
+
+Notes on the run:
+
+- The one promote-wins round is the only one that exercised the Official-not-deletable guard under
+  concurrency, and the guard held. HTTP timing rarely hits the window where promote reads before the
+  delete commits; a barrier helper is needed to force it.
+- Upload rate limits (`rate_limit_counters`) refused some race uploads with 429 until the counters
+  were cleared. That is the control working. It is why the counters were cleared between rounds.
+
+**Not covered:** user and version deletion cascades (C30 rows 11–13), and a forced interleaving. Those
+remain for an approved target with the barrier helper.
