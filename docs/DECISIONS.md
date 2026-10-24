@@ -11,6 +11,63 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — Stage the audit around available test capacity
+
+The operator agreed to begin the application audit using existing machines and the three subscription
+accounts, with clean-machine installation and replacement-machine recovery acceptance deferred until
+suitable hardware is available (estimated about two weeks). Container-stack initialization, synthetic
+database upgrades and restore drills can proceed now; they do not prove a technician can install or
+recover the whole service on a clean machine. This does not resume the separately paused Phase B
+recovery-kit implementation.
+
+Pin the cycle to `d3714a5b210e1bac7bfa8884f4fce9a34add37b5`, verified as clean local and remote
+main when selected. Preserve it and sweep later main changes before final completion. Default builds,
+scans, test suites and disposable full-stack attacks to the faster heavy-worker; reserve the shared
+deployment host for parity and bounded hardware-specific checks. Each executor needs an isolated
+checkout and target ownership, pinned runtime, synthetic data/mail, measured resource caps and reset
+proof. Private machine/account mapping and readiness evidence remain outside Git.
+
+The handbook, catalog and `docs/audit/cycle-2026-10-24.md` record the first milestone, newer-feature
+coverage and D01–D03 deferrals. Report interim application-audit results with those qualifications;
+full completion requires the missing acceptance evidence. Account reset is not target readiness:
+verify authentication/allowance at kickoff, preserve the chosen review tiers and run a small pilot.
+Execution is recorded in the cycle reports; product changes and publication remain outside this scope.
+
+The operator subsequently authorized C00/C01 execution and clarified that the audit must assess code
+simplification and architecture as well as defects. C84 and `IMPROVEMENTS.md` now make that a required
+deliverable: code-backed costs, simpler alternatives, tradeoffs, preserved invariants, validation and
+reviewed PR-sized proposals, including justified keep-as-is decisions. Baseline product code stays
+unchanged during this pass. The operator also confirmed **ARES Education** is the intended attribution;
+an older oracle saying ARES is not a reason to revert the approved change.
+
+C01 subsequently proved the isolated target, roles, internal mail, lock, reset/reseed and synthetic
+restore with matching nested-content fingerprints. Baseline results and their CLI/SMTP qualifications
+are in the audit scan records. Private account mapping is now recorded; review-unit assignment and the
+bounded model pilot remain pending. C20's Chromium/WebKit inventory is complete, C21 has a 50-row
+policy draft and independent guard map, and the first bounded C22 part covers ten actor scenarios
+with identical content/pointer/settings fingerprints. Qualified outcomes and remaining scope are in
+the chunk reports. No product code, existing test, dependency or vendor file was changed.
+
+Account clarification: the two Claude subscriptions are Team and Pro, not two Pro plans. Their
+authenticated author profile identities were checked privately after the operator clarified the
+mapping. Keep identities outside Git, retain the two author streams and use actual allowance/reset
+signals before dispatch; authentication alone does not establish remaining capacity.
+
+The subsequent C22 framework pass reproduced two authorization candidates: a baseline Teacher can
+persist system job-statistics changes and forge another holder's native editing lock. Native job/KV/
+migration gates and preference ownership controls passed their bounded cases. Failed negative
+assertions remain red, with restored statistics, deleted temporary rows and matching native content
+fingerprints; neither candidate is accepted before opposite-family critique and author recheck.
+Evidence and limits are in `docs/audit/C22-framework.md` and `docs/audit/findings/C22-rbac.md`.
+C84's opening `docs/audit/IMPROVEMENTS.md` drafts propose an explicit framework-state policy boundary and keeping the paired
+native-form/immutable-write mechanism. Broader review and the model pilot remain pending.
+
+The operator subsequently requested publication so Claude can fetch and critique the candidates.
+The authorized review package includes audit documents and isolated reproduction helpers, with
+`docs/audit/CLAUDE-REVIEW.md` as the entry point. Publish on `audit/2026-10-24-review`, preserve the
+product baseline and private evidence boundary, and return objections for author recheck before any
+acceptance or product fix.
+
 ## 2026-10-24 — Typing benchmark on the Rock: 184 ms → 40 ms per key
 
 The operator deployed `cab5f2a` (the #436 merge plus docs) to the Rock and asked for the plan §6
