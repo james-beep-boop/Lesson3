@@ -25,9 +25,17 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 **v1.04 tagged (2026-10-24)** at the operator's go-ahead, after #439 (`fe93187`) and the
 changelog PR #440 passed CI. It carries #433–#436, #438 and #439 (job-statistics global closed to
 API writes, audit F-C22-001). No migration; Payload stays on 3.91.0. Check `publish-containers.yml`
-for publication before installing. **Not yet deployed:** the Rock still needs the v1.04 deploy, its
-two backup-contact settings and a workstation restore drill. After the deploy, check the log has no
-`Error in job queue cron job handler` lines and that a queued export completes (#439).
+for publication before installing.
+
+**Deployed to the Rock 2026-10-24** (`cab5f2a` → `d49b44b`, `deploy: OK`). `.env` now sets
+`BACKUP_RECOVERY_CONTACT` and `BACKUP_KEY_HELD_BY`. No `Error in job queue cron job handler` lines
+in the 10 minutes after the deploy. ⚑ **Backup keys replaced:** neither private key for the old
+recipients could be found, so new main and school keypairs were generated on the operator's Mac and
+the old recipients are commented out in `.env`. Every backup before 2026-10-24 10:38 UTC (the
+pre-deploy snapshot included) is unreadable; the operator accepted that. **Restore drill PASSED** on
+`daily/lesson3-20261024T103812Z.dump.age`: 33 tables, 30 non-empty (95 lesson plans, 102 versions,
+8 users); the school key decrypts it independently. The operator is storing both identities in his
+password manager.
 
 **#438 merged (2026-10-24, `7f5573b`): `undici` 7.30.1 and `happy-dom` 21.0.4 pinned by override**,
 because new high advisories had turned `audit:prod` red. Why each was accepted, and when each
