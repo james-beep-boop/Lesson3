@@ -25,6 +25,7 @@ import { expireEditRecoveryTask } from './jobs/expireEditRecovery'
 import { messagePingTask } from './jobs/messagePing'
 import { passwordResetEmailTask } from './jobs/passwordResetEmail'
 import { isSiteAdmin } from './access'
+import { applyGeneratedSurfacePolicy } from './access/generatedSurfaces'
 import { isPublicLibraryEnabled, publicLibraryBootRefusal } from './lib/publicLibrary'
 import { firstUserBootRefusal, isUndefinedTableError } from './lib/publicPosture'
 import { positiveIntEnv } from './lib/env'
@@ -196,6 +197,10 @@ export default buildConfig({
     // arbitrary input, bypassing the export endpoint's read-gate + rate-limit. Lock the collection's REST
     // CRUD: nobody creates/updates/deletes jobs over the API (the system writes via overrideAccess
     // / direct DB), and only Site Admins may read them.
+    // ⚑ The task `schedule` ALSO makes Payload generate a `payload-jobs-stats` global (scheduler
+    // metadata) with default any-signed-in-user access. No option here can reach it — it is added
+    // during sanitization — so it is closed on the built config by `applyGeneratedSurfacePolicy`
+    // (access/generatedSurfaces.ts, applied at the end of this file). Audit F-C22-001, 2026-10-24.
     jobsCollectionOverrides: ({ defaultJobsCollection }) => ({
       ...defaultJobsCollection,
       access: {
@@ -286,4 +291,4 @@ export default buildConfig({
   }),
   sharp,
   plugins: [],
-})
+}).then(applyGeneratedSurfacePolicy)
