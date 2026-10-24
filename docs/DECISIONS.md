@@ -11,6 +11,86 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — `undici` and `happy-dom` pinned by override; Payload 3.92.0 deferred until after the audit
+
+**Why now.** On 2026-10-24, new high-severity advisories turned `npm run audit:prod` red on an
+unchanged lockfile. `main` itself would have failed its next run; #437 showed it first. #438
+(`7f5573b`) adds two `overrides` and nothing else:
+
+- **`undici` 7.29.1 → 7.30.1.** Clears GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472 and
+  GHSA-xjj6-f33q-929c. It is a patch release within 7.x; jsdom's `^7.21.0` is satisfied, but Payload
+  3.91.0 pins 7.29.1 exactly, so this runs Payload off its own pin. Payload 3.92.0 pins 7.30.1, so
+  upstream has made the same move. **Remove the override** when Payload pins 7.30.1 or later, which
+  the 3.92.0 upgrade does. This repeats the 2026-10-18 → 2026-10-21 cycle, when an earlier `undici`
+  override was dropped once Payload caught up.
+- **`happy-dom` 20.14.5 → 21.0.4.** Clears GHSA-834v-8h66-3h79. This is a **major** jump outside
+  `@lexical/headless`'s declared `^20.9.0`, accepted on purpose:
+  - no patched 20.x exists;
+  - even Lexical 0.52.0, the latest, still declares `^20.9.0`, so there is no upstream route;
+  - the app has no `richText` field, so Lexical's headless conversion is very likely never reached,
+    and every Vitest config runs in `environment: 'node'`;
+  - 21.0.4's dependency list is identical to 20.14.5's, and it has no install script.
+
+  The alternative was to accept the advisory and keep the gate red. **Remove the override** once
+  `@lexical/headless` accepts `happy-dom` 21, and re-check it on every Payload or Lexical upgrade.
+
+**Payload 3.92.0 (released 2026-10-22) was not taken here.** It fixes only `undici`, not `happy-dom`
+(it still uses Lexical 0.50.0). It is also mid-audit: the application audit is pinned to `d3714a5`
+on Payload 3.91.0, and its findings cite 3.91.0 source. So it ships as its own deliberate change
+**after the audit cycle**. NEXT-SESSION carries the checklist.
+
+**The lockfile** was regenerated with `npm install --package-lock-only` on Node 24.22.1 / npm 11.19.1,
+not through `scripts/in-deps.sh`, because no Docker daemon was available. The Node tarball was
+checked against the official SHA256 list. The diff is three hunks: the two versions, plus a root
+`"hasInstallScript": true`. That is npm recording #436's `postinstall`, which the lock had never
+picked up. Verified:
+
+- `audit:prod` went from exit 1 to exit 0; only the 5 existing moderates remain.
+- TypeScript, ESLint and Prettier pass, plus 1,852 unit tests.
+- CI on #438 was green across unit, integration, wire and browser tests.
+
+## 2026-10-24 — Native document locks: who sees them, where they apply, how App actions treat them
+
+Operator decisions for the remediation of audit candidate F-C22-002 (native editing locks), taken
+after the follow-up runtime check confirmed that a lock can block an authorized deletion. **Nothing is
+implemented yet**; these decisions fix the shape of the lock change before it is planned.
+
+**The core fix needs no product decision and is assumed.** Lock records are created only by Payload's
+editing form, never directly over the API. "Take over" may only hand a lock to the caller. Only people
+allowed to edit a document may lock it. Peer warnings and Take over must keep working, and both are
+the positive controls for the fix.
+
+1. **Lock records stay visible to every signed-in user.** Payload's own screens look up locks with the
+   viewer's permissions, so restricting visibility would silently remove the "Document locked"
+   warning for real conflicts. The cost is that any user can see who is editing which document ID.
+   Display names are already visible throughout the app, so this is accepted deliberately, not left
+   by accident.
+2. **Locking stays only where people edit in the built-in admin form.** Every collection was
+   lockable by default, and this app never chose otherwise. Locks help only where Payload's
+   warning and Take over UI exist; elsewhere they can only get in the way.
+   - **Keep locking:** `lesson-bundle-versions`, `lesson-plans`, `subjects`, `subject-grades`.
+   - **Turn off locking** (`lockDocuments: false`): `users`, `favorites`, `messages`, `edit-recovery`,
+     `discussion-topics`, `discussion-replies`, `discussion-participation`, and the `system-settings`
+     global.
+   - **`users` was the one judgement call.** Its main surfaces are App screens (display name,
+     Manage → Users), which have no Take over, so a lock there blocks people for up to five minutes.
+     Turning it off loses only a warning when two administrators edit the same person in the admin
+     panel at the same moment. Role grants already go through a dedicated, freshness-guarded
+     endpoint.
+   - **Turning locking off needs a generated migration.** Payload keeps one column per lockable
+     collection in its lock table, so this is not a settings-only change. Those columns hold only
+     transient lock rows, so no data of record is lost.
+3. **App deletes of versions and plans respect a real lock, with a clear message.** Once the core fix
+   is in, a lock only exists when someone genuinely has the document open. Deleting it from under
+   them would make their save fail. The App's delete-version, delete-candidate and delete-plan
+   actions therefore keep honouring the lock. They must replace today's raw "locked" error with
+   plain guidance along the lines of "someone is editing this — try again in a few minutes".
+   Actions on collections with locking turned off simply proceed.
+
+These decisions feed I-C84-001's table of framework-generated surfaces: lockability becomes an
+explicit per-collection decision there. The work ships as its own reviewed PR, separate from the
+job-statistics fix (F-C22-001), and with wire-level tests per CLAUDE.md.
+
 ## 2026-10-24 — Typing benchmark on the Rock: 184 ms → 40 ms per key
 
 The operator deployed `cab5f2a` (the #436 merge plus docs) to the Rock and asked for the plan §6
