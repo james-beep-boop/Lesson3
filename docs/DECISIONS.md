@@ -11,6 +11,53 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — Job-statistics global closed to API writes (audit F-C22-001)
+
+**Defect.** Payload generates a hidden `payload-jobs-stats` global whenever a task has a `schedule`.
+This app got one on 2026-08-06, with `expireEditRecovery`'s daily run. The global has no access rules
+of its own, so it inherits `defaultAccess`: any signed-in user may read and write it. The 2026-06-23
+jobs lockdown predates it and could not see it. The 2026-10-24 audit confirmed at runtime that a
+baseline Teacher could overwrite it, and that malformed metadata stops the whole `default` queue
+until repaired. That queue carries exports, emailed exports, password-reset emails and draft expiry.
+
+**Operator decisions** (plan `docs/PLAN-job-stats-global-access-2026-10-24.md` §7, all as
+recommended):
+
+- **D1 — read: Site Administrators only,** matching who may read job rows.
+- **D2 — write: nobody over the API,** Site Administrators included. The scheduler is the only
+  writer, and a hand edit can break the queue exactly as the defect did.
+- **D3 — a recovery note in `docs/OPS.md`:** "Background jobs stopped: reset the scheduler's
+  statistics". The plan sketched a two-step remedy; the note uses the single database reset, which
+  fixes both the stuck queue and its cause.
+
+**Fix.** `app/src/access/generatedSurfaces.ts` sets the global's access on the **built** config.
+`payload.config.ts` ends `buildConfig({...}).then(applyGeneratedSurfacePolicy)`. That is the only
+supported reach:
+
+- Payload offers no override for this global.
+- Plugins run before sanitization adds it.
+- Every consumer imports the built config through `@payload-config`.
+
+It **fails closed**: boot refuses if scheduling is on and the slug is gone, because a silent no-op
+after an upgrade would reopen the hole. The scheduler is unaffected, because it uses `payload.db.*`,
+which never consults access.
+
+**Verified.**
+
+- **Wire test** `tests/http/jobStatsGlobal.http.spec.ts`, run against a local dev server on a
+  throwaway PostgreSQL 16.15:
+  - **Red before:** 7 failures with the fix unwired. Every role could write (200) and every role
+    could read.
+  - **Green after:** 10/10.
+- **DB-free unit spec** `tests/unit/generatedSurfaces.spec.ts`: red with the wiring removed, green
+  with it.
+- **Integration control** `tests/int/jobStatsScheduling.int.spec.ts`: the scheduler still records
+  its run and keeps one pending expiry job.
+- **CLI parity:** `generate:types` and `generate:importmap` produce no diff, and `migrate:status`
+  loads the config.
+
+No migration: the change touches access rules only.
+
 ## 2026-10-24 — `undici` and `happy-dom` pinned by override; Payload 3.92.0 deferred until after the audit
 
 **Why now.** On 2026-10-24, new high-severity advisories turned `npm run audit:prod` red on an

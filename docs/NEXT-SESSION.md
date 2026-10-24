@@ -40,10 +40,12 @@ the application audit cycle**, which is pinned to Payload 3.91.0. Checklist:
 
 **Application audit in progress** on branch `audit/2026-10-24-review` (PR #437, never meant to
 merge). Two authorization candidates are confirmed at runtime and await Codex's author response:
-F-C22-001, the job-statistics global (High), and F-C22-002, native locks (Medium). The fix plan for
-the first is `docs/PLAN-job-stats-global-access-2026-10-24.md`, awaiting operator decisions D1–D3.
-The operator's lock decisions are in DECISIONS 2026-10-24, "Native document locks". No product fix
-has been made yet.
+F-C22-001, the job-statistics global (High), and F-C22-002, native locks (Medium). **F-C22-001 is fixed** on
+branch `fix/job-stats-global-access`: the job-statistics global refuses all API writes, and reads
+are Site-Admin-only. Plan: `docs/PLAN-job-stats-global-access-2026-10-24.md`; results: DECISIONS
+2026-10-24. After deploy, check the Rock's log has no "Error in job queue cron job handler" lines and
+that an export still completes. F-C22-002 (locks) is decided (DECISIONS 2026-10-24, "Native document
+locks") but not yet planned or built.
 
 **#436 merged (2026-10-24, `be573e9`): faster typing in the lesson editor.** A guarded `postinstall`
 patch to Payload's admin bundle (`app/scripts/patch-payload-ui.mjs`), plus live row labels. On the Mac,
