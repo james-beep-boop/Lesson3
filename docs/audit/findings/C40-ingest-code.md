@@ -48,7 +48,8 @@ valueOf         root: []  META: []
   (`ingest/releaseFingerprintContext.ts`), so a version can carry a fingerprint of content it does not
   store; (3) re-ingest "unchanged" detection compares the parsed bundle with the stored one, so a file
   that differs only by such a key creates a new major version with identical stored content.
-- The `required` check in the same function also uses `in` (`contract.ts:122–124`); no required key is
+- **Correction (Codex review, 2026-10-24):** `rawToBundle` (`app/src/ingest/toBundle.ts:46–52`) discards root-level extras. So the fingerprint and unchanged-detection consequences above apply to keys nested inside the five groups (for example `META`), not to root keys. That is why a root `toString` passed the gate yet was reported as unchanged.
+- The `required` check in the same function also uses `in` (`contract.ts:124`); no required key is
   a built-in name today, so that is latent.
 
 - **Repro (done over HTTP, cloud stack 2026-10-24):** as Site Administrator, `POST
@@ -61,6 +62,6 @@ valueOf         root: []  META: []
 - **Expected vs actual:** contract-drift is a hard gate (DECISIONS, warn-only → hard gate): any key not
   in the schema should reject the file. Actual: built-in names pass.
 - **Suggested fix:** use `Object.hasOwn(props, key)` (and `Object.hasOwn(obj, key)` for `required`),
-  and add the probe's four names to the contract tests.
+  and add the probe's four names to the contract tests at the root, inside `META`, and inside a lesson object. A rejected file must create no version.
 - **Related:** C41 corpus item "prototype-pollution keys".
 - **Disposition:** _(blank until triage)_

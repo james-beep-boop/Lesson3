@@ -10,7 +10,7 @@
   verification bypass, first-user bootstrap, signup field stripping.
 - **Artifacts:** this report; candidates in [findings/C23-auth.md](findings/C23-auth.md); one local
   timing measurement of Payload's password hash (recorded in F-C23-003).
-- **Exclusions:** no live requests. This session had no approved C01 target, so every runtime bullet
+- **Exclusions (superseded by the runtime results below):** no live requests at the time of writing. This session had no approved C01 target, so every runtime bullet
   (~50 rapid attempts, response/timing comparison over HTTP, cookie flags on the wire, cross-origin
   POST, Cloudflare/proxy behaviour) is **blocked, not covered**. Edge/proxy limits belong to the
   deployment-parity pass.
@@ -19,7 +19,7 @@
 
 ## Outcome
 
-**Source part complete; runtime part pending.** Three candidates (all author-verified/unreviewed,
+**Source part complete; runtime part done on 2026-10-24 (see Runtime results below).** Three candidates (all author-verified/unreviewed,
 security tier → full opposite-family cycle required):
 
 | ID | Summary | Provisional severity |
@@ -46,7 +46,7 @@ security tier → full opposite-family cycle required):
 - **L-C23-01 — CSRF posture without `SERVER_URL`.** With `SERVER_URL` empty, the only CSRF control
   is `SameSite=Lax`, which treats other ports and subdomains of the same registrable domain as
   same-site. A page on a sibling origin (e.g. another service on the same host) can therefore send
-  credentialed POSTs. Deployment-dependent; confirm what the shared deployment sets before rating.
+  credentialed POSTs. Deployment-dependent; confirm what the shared deployment sets before rating. Codex review (2026-10-24) rates this Info pending deployment evidence, and Medium if an untrusted sibling origin can reach authenticated mutations.
 - **L-C23-02 — Login hash cost as unauthenticated CPU load.** Each login for a real address costs one
   600,000-iteration PBKDF2 (~137 ms here). Bounded by the 1,000/h global bucket; measure on the
   target hardware in C62.

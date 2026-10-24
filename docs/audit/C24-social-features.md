@@ -71,10 +71,7 @@ taking effect, or an email, session or role leak.
 
 - **L-C24-01 — Cleanup refusal wording.** A non-admin calling the recovery cleanup endpoint gets
   "Only a site administrator may view recovery metadata." The action is cleanup, not view. Cosmetic.
-- **L-C24-02 — Version existence through 403 vs 404 on cleanup.** `loadForAdmin` reads the version
-  before the admin check, so a non-admin gets 403 for an existing version id and 404 for a missing
-  one. Every signed-in user can already read every version (`lessonBundleVersionRead`), so existence
-  is not a secret here. Recorded only in case version read access is ever narrowed.
+- **L-C24-02 — Retracted (Codex review, 2026-10-24).** My earlier reading was wrong. `loadForAdmin` in `app/src/endpoints/recovery.ts` (about lines 99–108) checks authentication and administrator status *before* it looks up the version, so the response does not depend on whether a version exists. My live probe covered only existing version IDs for non-administrators, so it could not show this either way. A regression test should pin the same 403 for existing and missing IDs, and 401 for anonymous callers.
 - **L-C24-03 — Own session ids in `GET /api/users/me`.** The caller's own session ids, creation and
   expiry times are returned. These are the JWT `sid` values, not the signed tokens, and they appear
   only to the owner. No action; noted for the C23 session review.

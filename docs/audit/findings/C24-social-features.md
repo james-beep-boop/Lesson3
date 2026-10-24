@@ -15,7 +15,7 @@ Coverage and the full probe table are in [C24-social-features.md](../C24-social-
   and not confirmed from the server log. Medium-high confidence on the symptom.
 - **Scenario:** a signed-in user posts `POST /api/favorites` with `{"version": 999999}`. The reply
   is `500 "Something went wrong."`. A valid request is 201; a duplicate is a clean 400.
-- **Where:** `app/src/collections/Favorites.ts` (`version` is `required` with no existence check
+- **Where:** `app/src/collections/Favorites.ts` lines 100–104 (`version` is `required` with no existence check
   before the insert; the cascade and `beforeValidate` do not look it up).
 - **Expected vs actual:** a missing version should be a 4xx ("version not found", 400 or 404), the
   way the message context-link hook refuses a missing version. Actual: a generic 500, which also
@@ -36,14 +36,11 @@ Coverage and the full probe table are in [C24-social-features.md](../C24-social-
 
 ### Suggested fix
 
-Resolve the version before insert (through the caller's read access) and throw a 400 "A lesson
-version must exist to be a favorite." Add a `tests/http` case for the missing-version 4xx in the
-same change, per the every-endpoint rule.
+Validate the version's existence and readability through the caller's access, and return a field-scoped 400 or 404 before the insert. Keep the foreign key, and handle a concurrent deletion of the version narrowly, because a lookup alone leaves that race. **Test:** a missing version returns 4xx and creates nothing; a valid create stays 201; duplicate handling is unchanged; concurrent version deletion produces no orphan or unexpected 500. Add the `tests/http` case in the same change, per the every-endpoint rule.
 
 ## Leads, not filed
 
-L-C24-01 (cleanup refusal says "view"), L-C24-02 (403 vs 404 for version existence on the recovery
-cleanup route; not secret today), L-C24-03 (own session ids in `/api/users/me`). Details in
+L-C24-01 (cleanup refusal says "view"), L-C24-02 (retracted; see the report), L-C24-03 (own session ids in `/api/users/me`). Details in
 [C24-social-features.md](../C24-social-features.md).
 
 - **Disposition:** _(blank until triage)_
