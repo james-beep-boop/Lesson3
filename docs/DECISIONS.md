@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — Backup keys replaced; backups before 10:38 UTC are unreadable
+
+**What happened.** At the v1.04 Rock deploy, neither private identity for the Rock's backup recipients
+(`BACKUP_AGE_RECIPIENT` `age1lwzg…sln8`, `BACKUP_AGE_RECIPIENT_SCHOOL` `age1u762…3g49`) could be found.
+The operator decided to replace both and accepted the loss of every older backup.
+
+**Done.** New main and school identities were generated on the operator's Mac, never on the Rock, and
+stored in his password manager. The Rock's `.env` now names `age1q0ce0yvyy8flxle0c84dqaeuk35t43fmgwversvlj8sczhcufe9shtq8mg`
+(main) and `age129t0saehyf2pqygquaf77ht5kp3xdnpr7ygcmaktkljvzcl3q57sug3zns` (school); the old values
+are kept there as comments. ⚑ **Every dump before `daily/lesson3-20261024T103812Z.dump.age`, including
+`premigrate/lesson3-20261024T103320Z-premigrate-d49b44b.dump.age`, cannot be decrypted.** A drill on
+that first new dump passed (33 tables, 30 non-empty), and the school identity decrypts it independently.
+
+**Lesson.** The 2026-08-22 drill proved the key matched, but nothing recorded where the key was held, so
+it was lost without anyone noticing. `BACKUP_KEY_HELD_BY` now records it on the Backups page; repeat the
+`age-keygen -y` match at every drill.
+
 ## 2026-10-24 — Native document locks enforced (audit F-C22-002)
 
 **Defect.** Payload generates a hidden `payload-locked-documents` collection with any-signed-in-user
