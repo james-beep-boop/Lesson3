@@ -22,6 +22,13 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-24
 
+**v1.04 tagged (2026-10-24)** at the operator's go-ahead, after #439 (`fe93187`) and the
+changelog PR #440 passed CI. It carries #433–#436, #438 and #439 (job-statistics global closed to
+API writes, audit F-C22-001). No migration; Payload stays on 3.91.0. Check `publish-containers.yml`
+for publication before installing. **Not yet deployed:** the Rock still needs the v1.04 deploy, its
+two backup-contact settings and a workstation restore drill. After the deploy, check the log has no
+`Error in job queue cron job handler` lines and that a queued export completes (#439).
+
 **#438 merged (2026-10-24, `7f5573b`): `undici` 7.30.1 and `happy-dom` 21.0.4 pinned by override**,
 because new high advisories had turned `audit:prod` red. Why each was accepted, and when each
 override comes out, is in DECISIONS 2026-10-24.
