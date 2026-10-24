@@ -11,8 +11,8 @@ Coverage and confirmed-safe checks are in [C40-ingest.md](../C40-ingest.md).
   are not mentioned anywhere found.
 - **Audit / review status:** candidate, author-verified/unreviewed; ingest is a security/integrity
   topic, so the full cycle applies. Author: author-a (Claude), 2026-10-24.
-- **Evidence scope / confidence:** locally reproduced at unit level (the baseline's `contract.ts`
-  itself, not a model of it), high confidence. Not reproduced over HTTP.
+- **Evidence scope / confidence:** locally reproduced over HTTP (disposable cloud stack, 2026-10-24)
+  and at unit level against the baseline's own `contract.ts`. High confidence.
 - **Scenario:** an uploaded bundle with `"META": { …, "constructor": "x" }`, or a top-level
   `"toString": { … anything … }` → no "unexpected key" drift; the file passes the hard gate.
 - **Where:** `app/src/ingest/contract.ts:125–131` (the `key in props` test).
@@ -51,8 +51,13 @@ valueOf         root: []  META: []
 - The `required` check in the same function also uses `in` (`contract.ts:122–124`); no required key is
   a built-in name today, so that is latent.
 
-- **Repro:** the probe above; over HTTP in C41 by uploading a valid bundle with an added
-  `META.constructor` and checking it is accepted.
+- **Repro (done over HTTP, cloud stack 2026-10-24):** as Site Administrator, `POST
+  /api/lesson-plans/upload` a valid ARES bundle (the app's own `ares-export` output) with
+  `META.constructor = {smuggled:[1,2,3]}` added → **200, bundle created**, no drift rejection. A
+  top-level `toString` key likewise passed the gate (200; skipped only because its content matched an
+  existing sub-strand). A `__proto__` key, by contrast, was rejected ("`__proto__` keys are not
+  allowed"), and `({}).polluted` stayed undefined — no prototype pollution. Unit probe output in
+  [C40-ingest.md](../C40-ingest.md).
 - **Expected vs actual:** contract-drift is a hard gate (DECISIONS, warn-only → hard gate): any key not
   in the schema should reject the file. Actual: built-in names pass.
 - **Suggested fix:** use `Object.hasOwn(props, key)` (and `Object.hasOwn(obj, key)` for `required`),

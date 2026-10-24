@@ -4,6 +4,13 @@ Baseline: `d3714a5b210e1bac7bfa8884f4fce9a34add37b5`. These are candidates, not 
 Payload references are to the published `payload@3.91.0` package (`dist/`), the version the baseline
 pins. Coverage, confirmed-safe checks and leads are in [C23-auth.md](../C23-auth.md).
 
+**Runtime reproduction (2026-10-24).** All three were reproduced on a disposable cloud stack —
+production build of the baseline, Node 24.22.1, Payload 3.91.0, PostgreSQL 16.15, Mailpit, every
+service bound to loopback, synthetic data only, torn down with the session. This is **locally
+reproduced**, not deployment-reproduced; the shared deployment's edge/proxy posture is a separate
+parity check. Evidence summary in [C23-auth.md](../C23-auth.md) "Runtime results"; raw request logs
+kept out of Git.
+
 ## F-C23-001 — Unauthenticated requests can deny sign-in to every account
 
 - **Severity:** provisional Medium. **Category:** authentication / availability.
@@ -13,7 +20,7 @@ pins. Coverage, confirmed-safe checks and leads are in [C23-auth.md](../C23-auth
   site-wide denial consequence for login is not recorded anywhere found.
 - **Audit / review status:** candidate, author-verified/unreviewed; full security cycle required.
   Author: author-a (Claude), 2026-10-24. Opposite-family critique pending.
-- **Evidence scope / confidence:** source-confirmed, high confidence in the mechanism; not reproduced.
+- **Evidence scope / confidence:** locally reproduced (disposable cloud stack, 2026-10-24), high confidence.
 - **Scenario:** an anonymous client sends 1,001 login attempts in one hour, each to a different made-up
   address → every later login in that window, for every account including Site Administrators, gets 429.
 - **Where:** `app/src/hooks/authRateLimit.ts:149–198`; bucket sizes `app/src/lib/rateLimit.ts:105–112`,
@@ -43,9 +50,9 @@ pins. Coverage, confirmed-safe checks and leads are in [C23-auth.md](../C23-auth
 - Does not establish: whether the shared deployment has an edge limiter in front (deployment parity),
   or how quickly requests can be sent there. No data is exposed or changed.
 
-- **Repro (pending, C01 target, hold the lock):** clear `rate_limit_counters` rows `login%`; send 1,001
-  `POST /api/users/login` with distinct random addresses and a wrong password; then log in with a valid
-  fixture → expect 429 with "Too many sign-in attempts". Clear the counters afterwards.
+- **Repro (done, cloud stack 2026-10-24):** 1,001 `POST /api/users/login` with distinct random
+  addresses and a wrong password, sent in ~5 s; the Site-Admin and Teacher logins that followed both
+  returned 429 "Too many sign-in attempts — please wait 3333s". Counters cleared afterwards.
 - **Expected vs actual:** SPEC §11 asks for rate limiting on auth so that abuse is bounded; the limit
   should not itself let one anonymous client lock out every user. Actual: it does.
 - **Suggested fix:** give the site-wide buckets a per-client dimension (forwarded client IP from a
@@ -62,7 +69,7 @@ pins. Coverage, confirmed-safe checks and leads are in [C23-auth.md](../C23-auth
   (`authRateLimit.ts:9–12`, `rateLimit.ts:142–147`); the source shows it adds a second lock.
 - **Audit / review status:** candidate, author-verified/unreviewed; full security cycle required.
   Author: author-a (Claude), 2026-10-24.
-- **Evidence scope / confidence:** source-confirmed, high confidence; not reproduced.
+- **Evidence scope / confidence:** locally reproduced (disposable cloud stack, 2026-10-24), high confidence.
 - **Scenario:** an anonymous client sends 20 wrong-password logins naming the victim's address → the
   victim's own correct login gets 429 for the rest of the hour; 5 forgot-password requests block the
   victim's reset for the rest of the day.
@@ -82,7 +89,8 @@ pins. Coverage, confirmed-safe checks and leads are in [C23-auth.md](../C23-auth
 - **Interpretation / limits:** narrower than F-C23-001 but quieter (tiny volume) and aimed: a Site
   Administrator's address is the obvious target. Payload's `unlock` clears its lock but not these
   counters (DECISIONS 2026-09-12). Not reproduced.
-- **Repro (pending):** 20 wrong logins for a fixture address, then its correct password → expect 429.
+- **Repro (done, cloud stack 2026-10-24):** 20 wrong logins naming one fixture address; the owner's
+  correct password then returned 429 ("wait 3339s"), even after Payload's 5-attempt lock was cleared.
 - **Expected vs actual:** the cap should limit an attacker's guesses, not the owner's sign-in.
 - **Suggested fix:** key the guess budget by address plus client, and do not charge or refuse a
   request whose password matches; or exempt successful logins from the per-address bucket.
@@ -97,8 +105,8 @@ pins. Coverage, confirmed-safe checks and leads are in [C23-auth.md](../C23-auth
   (status L3-R1, DECISIONS 2026-07-20; timing, 2026-07-21), on a different endpoint.
 - **Audit / review status:** candidate, author-verified/unreviewed; full security cycle required.
   Author: author-a (Claude), 2026-10-24.
-- **Evidence scope / confidence:** source-confirmed; hash cost locally measured; HTTP timing not
-  reproduced. High confidence in the lockout-message channel, medium-high in timing.
+- **Evidence scope / confidence:** locally reproduced (disposable cloud stack, 2026-10-24); the
+  timing gap was measured over HTTP there. High confidence.
 - **Scenario:** one `POST /api/users/login` with any password: an unknown address answers without
   hashing; a registered address first runs a 600,000-iteration PBKDF2, so it answers measurably later.
 - **Where:** Payload `auth/operations/login.js:151–185`, `auth/strategies/local/generatePasswordSaltHash.js:5–7`.
@@ -120,8 +128,9 @@ pins. Coverage, confirmed-safe checks and leads are in [C23-auth.md](../C23-auth
   (Q-C23-01 in the C23 report), at 3 attempts/address/day and 100/day overall, and creates an account
   as a side effect. Login raises the rate to the 1,000/hour global cap with no side effect. If the
   operator accepts signup's disclosure, this may be rated Info; that is a policy call.
-- **Repro (pending):** on the C01 target, clear `login%` counters; time 20 logins for a fixture
-  address and 20 for unknown addresses, wrong password each; compare distributions.
+- **Repro (done, cloud stack 2026-10-24):** wrong-password logins, ≤4 per account to avoid lockout:
+  known median 362 ms (min 320), unknown median 16 ms (min 12, max 23), distributions disjoint. The
+  lockout-message channel also observed after 5 attempts on a real account.
 - **Expected vs actual:** project policy (L3-R1) is that unauthenticated endpoints should not tell
   whether an address is registered. Actual: login does, by time and by lockout message.
 - **Suggested fix:** for an unknown address, run a dummy PBKDF2 with the current parameters before
