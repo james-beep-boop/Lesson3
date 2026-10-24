@@ -32,6 +32,7 @@ import { Button, toast, useConfig } from '@payloadcms/ui'
 import Modal from '../Modal'
 import { apiBaseFrom } from '../../lib/apiBase'
 import { curriculumContextLabel, filterRows, groupLessons, orderLessons } from '../../lib/substrand'
+import { documentLockedMessage } from '../../lib/wireError'
 import {
   deleteScope,
   deleteScopeSentence,
@@ -108,7 +109,9 @@ export function DeletePlansPanel({ rows }: { rows: PlanRow[] }) {
           const json = (await res.json().catch(() => null)) as {
             errors?: { message: string }[]
           } | null
-          const msg = json?.errors?.[0]?.message || `Delete failed (${res.status})`
+          const msg =
+            documentLockedMessage(res) ??
+            (json?.errors?.[0]?.message || `Delete failed (${res.status})`)
           throw new Error(removed.length > 0 ? `${msg} (after deleting ${removed.length})` : msg)
         }
         removed.push(id)

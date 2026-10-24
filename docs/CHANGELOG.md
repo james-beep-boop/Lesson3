@@ -16,6 +16,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
   nobody can write it over the API; the scheduler is unaffected. docs/OPS.md gains a recovery note,
   "Background jobs stopped: reset the scheduler's statistics" (#439).
 
+- Editing locks can no longer be faked. Only the editing form creates a lock, Take over only hands it
+  to the person taking it, and locking applies only to versions, plans, subjects and subject grades.
+  Deleting a version or plan that someone has open now says "Someone is editing this right now. Try
+  again in a few minutes." One database migration; it removes only short-lived lock records.
+
 - Typing in the lesson editor is faster on large plans: about 64 ms → 16–24 ms per key on a fast
   laptop, and 200 ms → 32 ms on a CPU four times slower (176–184 ms → 40 ms on the Rock). Lesson row
   labels still follow a title as it is typed. The change is a guarded install-time patch to Payload's

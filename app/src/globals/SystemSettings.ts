@@ -135,6 +135,8 @@ const stampFlagChanges: GlobalBeforeChangeHook = ({ data, originalDoc, req }) =>
 
 export const SystemSettings: GlobalConfig = {
   slug: 'system-settings',
+  // No native editing lock (DECISIONS 2026-10-24 "Native document locks"; access/lockedDocuments.ts).
+  lockDocuments: false,
   label: 'System settings',
   /**
    * ⚑ NOBODY UPDATES THIS THROUGH THE ORDINARY DOOR — not even a Site Administrator.

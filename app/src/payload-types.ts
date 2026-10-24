@@ -696,34 +696,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'subject-grades';
         value: number | SubjectGrade;
-      } | null)
-    | ({
-        relationTo: 'users';
-        value: number | User;
-      } | null)
-    | ({
-        relationTo: 'favorites';
-        value: number | Favorite;
-      } | null)
-    | ({
-        relationTo: 'messages';
-        value: number | Message;
-      } | null)
-    | ({
-        relationTo: 'edit-recovery';
-        value: number | EditRecovery;
-      } | null)
-    | ({
-        relationTo: 'discussion-topics';
-        value: number | DiscussionTopic;
-      } | null)
-    | ({
-        relationTo: 'discussion-replies';
-        value: number | DiscussionReply;
-      } | null)
-    | ({
-        relationTo: 'discussion-participation';
-        value: number | DiscussionParticipation;
       } | null);
   globalSlug?: string | null;
   user: {

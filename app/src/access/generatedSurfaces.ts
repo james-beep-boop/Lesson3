@@ -23,6 +23,13 @@
 import type { Access, SanitizedConfig } from 'payload'
 
 import { siteAdminOnly } from './index'
+import {
+  LOCKED_DOCUMENTS_SLUG,
+  lockCreate,
+  lockDelete,
+  lockRead,
+  lockUpdate,
+} from './lockedDocuments'
 
 /**
  * Payload's job-statistics global (installed `payload/dist/queues/config/global.js`). Payload does
@@ -38,6 +45,7 @@ export const JOB_STATS_GLOBAL_SLUG = 'payload-jobs-stats'
 export const noApiWrites: Access = () => false
 
 export const applyGeneratedSurfacePolicy = (config: SanitizedConfig): SanitizedConfig => {
+  applyLockedDocumentsPolicy(config)
   const jobStats = config.globals.find((global) => global.slug === JOB_STATS_GLOBAL_SLUG)
   if (!jobStats) {
     // Payload only generates the global when some task has a `schedule` (expireEditRecovery does).
@@ -57,4 +65,27 @@ export const applyGeneratedSurfacePolicy = (config: SanitizedConfig): SanitizedC
     update: noApiWrites,
   }
   return config
+}
+
+/**
+ * Payload's native editing-lock collection (audit F-C22-002). The rules and their reasons live in
+ * access/lockedDocuments.ts. Payload generates the collection whenever anything is lockable, and four
+ * collections are, so a missing one means a rename, not "nothing to lock".
+ */
+const applyLockedDocumentsPolicy = (config: SanitizedConfig): void => {
+  const locks = config.collections.find((collection) => collection.slug === LOCKED_DOCUMENTS_SLUG)
+  if (!locks) {
+    throw new Error(
+      `Payload no longer generates the '${LOCKED_DOCUMENTS_SLUG}' collection, but documents are ` +
+        'lockable. A Payload upgrade has probably renamed it: find the new lock collection and update ' +
+        'src/access/generatedSurfaces.ts before booting.',
+    )
+  }
+  locks.access = {
+    ...locks.access,
+    create: lockCreate,
+    read: lockRead,
+    update: lockUpdate,
+    delete: lockDelete,
+  }
 }
