@@ -11,6 +11,48 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — Native document locks: who sees them, where they apply, how App actions treat them
+
+Operator decisions for the remediation of audit candidate F-C22-002 (native editing locks), taken
+after the follow-up runtime check confirmed that a lock can block an authorized deletion. **Nothing is
+implemented yet**; these decisions fix the shape of the lock change before it is planned.
+
+**The core fix needs no product decision and is assumed.** Lock records are created only by Payload's
+editing form, never directly over the API. "Take over" may only hand a lock to the caller. Only people
+allowed to edit a document may lock it. Peer warnings and Take over must keep working, and both are
+the positive controls for the fix.
+
+1. **Lock records stay visible to every signed-in user.** Payload's own screens look up locks with the
+   viewer's permissions, so restricting visibility would silently remove the "Document locked"
+   warning for real conflicts. The cost is that any user can see who is editing which document ID.
+   Display names are already visible throughout the app, so this is accepted deliberately, not left
+   by accident.
+2. **Locking stays only where people edit in the built-in admin form.** Every collection was
+   lockable by default, and this app never chose otherwise. Locks help only where Payload's
+   warning and Take over UI exist; elsewhere they can only get in the way.
+   - **Keep locking:** `lesson-bundle-versions`, `lesson-plans`, `subjects`, `subject-grades`.
+   - **Turn off locking** (`lockDocuments: false`): `users`, `favorites`, `messages`, `edit-recovery`,
+     `discussion-topics`, `discussion-replies`, `discussion-participation`, and the `system-settings`
+     global.
+   - **`users` was the one judgement call.** Its main surfaces are App screens (display name,
+     Manage → Users), which have no Take over, so a lock there blocks people for up to five minutes.
+     Turning it off loses only a warning when two administrators edit the same person in the admin
+     panel at the same moment. Role grants already go through a dedicated, freshness-guarded
+     endpoint.
+   - **Turning locking off needs a generated migration.** Payload keeps one column per lockable
+     collection in its lock table, so this is not a settings-only change. Those columns hold only
+     transient lock rows, so no data of record is lost.
+3. **App deletes of versions and plans respect a real lock, with a clear message.** Once the core fix
+   is in, a lock only exists when someone genuinely has the document open. Deleting it from under
+   them would make their save fail. The App's delete-version, delete-candidate and delete-plan
+   actions therefore keep honouring the lock. They must replace today's raw "locked" error with
+   plain guidance along the lines of "someone is editing this — try again in a few minutes".
+   Actions on collections with locking turned off simply proceed.
+
+These decisions feed I-C84-001's table of framework-generated surfaces: lockability becomes an
+explicit per-collection decision there. The work ships as its own reviewed PR, separate from the
+job-statistics fix (F-C22-001), and with wire-level tests per CLAUDE.md.
+
 ## 2026-10-24 — Stage the audit around available test capacity
 
 The operator agreed to begin the application audit using existing machines and the three subscription
