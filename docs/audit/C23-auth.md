@@ -51,6 +51,29 @@ security tier → full opposite-family cycle required):
   600,000-iteration PBKDF2 (~137 ms here). Bounded by the 1,000/h global bucket; measure on the
   target hardware in C62.
 
+## Runtime results (2026-10-24, disposable cloud stack)
+
+Reproduced on a throwaway stack (baseline production build, Node 24.22.1, Payload 3.91.0, PostgreSQL
+16.15, Mailpit; all services loopback-only; nine synthetic accounts; torn down with the session).
+**Locally reproduced**, not deployment-reproduced.
+
+| Bullet | Result |
+|---|---|
+| Role logins | All eight verified accounts 200; the unverified account 403 "Please verify your email before logging in." |
+| **F-C23-001** | 1,001 anonymous wrong logins with distinct random addresses took **5 s**; the 1,001st and the next Site-Admin and Teacher logins returned **429** ("wait 3333s"). Confirmed. |
+| **F-C23-002** | 20 wrong logins naming one account returned 429 for the rest of the hour; the real owner's correct password then got 429 even after Payload's own 5-attempt lock was cleared. Confirmed. |
+| **F-C23-003** | Wrong-password login (≤4 per account, so no lockout): known addresses median **362 ms** (min 320), unknown **16 ms** (min 12, max 23) — fully separable, one sample classifies. Lockout message differs too: a real account returns "This user is locked…" after 5 attempts; an unknown address always returns the generic message. Confirmed. |
+| Lockout default | Payload's default fires: 5 wrong attempts → "This user is locked due to having too many failed login attempts" (401); the correct password is refused while locked. |
+| Forgot-password oracle | Known and unknown addresses returned identical 200 bodies; times 415 ms vs 409 ms (both at the floor). Mail reached only the real account, at the catcher. No oracle — safe. |
+| Reset token | Link host `127.0.0.1:3300` (from `ADMIN_URL`); first use 200, second use 403 "Token is either invalid or has expired"; the pre-reset password then failed and the new one worked (sessions/credentials rotated). Safe. |
+| Signup | Registered address → 400 "field is invalid: email"; fresh → 201. Existence is distinguishable (Q-C23-01). A body carrying `roles:['siteAdmin']`, `_verified:true` and `assignments` created an account with no roles, `_verified=f` and zero assignments — mass assignment stripped. Safe. |
+| Verification bypass | The unverified account could not log in (403). Safe. |
+| First-register | `POST /api/users/first-register` on the seeded DB → 403 "You are not allowed to perform this action." Safe. |
+| Cookie flags | `payload-token … Path=/; HttpOnly; SameSite=Lax`, no `Secure` (SERVER_URL empty here, matching source). Logout revoked only that session's cookie; a second concurrent session stayed valid (expected per-session logout). |
+
+CSRF cross-origin POST (L-C23-01) was not exercised — it needs a second origin and belongs to the
+deployment-parity pass. The cookie posture above is the source-confirmed input to it.
+
 ## Policy question
 
 - **Q-C23-01 — Is signup's existence disclosure accepted?** `POST /api/users` with a registered
