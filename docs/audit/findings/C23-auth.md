@@ -24,7 +24,7 @@ kept out of Git.
 - **Scenario:** an anonymous client sends 1,001 login attempts in one hour, each to a different made-up
   address → every later login in that window, for every account including Site Administrators, gets 429.
 - **Where:** `app/src/hooks/authRateLimit.ts:149–198`; bucket sizes `app/src/lib/rateLimit.ts:105–112`,
-  `148–167`, `190–193`; `app/src/endpoints/verifyEmail.ts:407–413`.
+  `148–167`, `190–193`; `app/src/endpoints/verifyEmail.ts:28–34`.
 
 ### Source chain
 
@@ -33,7 +33,7 @@ kept out of Git.
 2. The per-address key is whatever address the request names, so a fresh address per request never
    trips the per-address cap, while every request charges the shared site-wide bucket.
 3. Site-wide budgets: `loginGlobal` 1,000/hour, `forgotPasswordGlobal` 100/day, `signupGlobal`
-   100/day; the verify endpoint has only `verifyEmailGlobal` 300/day (`verifyEmail.ts:407`), keyed by
+   100/day; the verify endpoint has only `verifyEmailGlobal` 300/day (`verifyEmail.ts:28–34`), keyed by
    nothing the caller cannot vary.
 4. Once a site-wide bucket is spent, the hook throws 429 before Payload looks at the request, for every
    caller. Counters are fixed windows in Postgres (`rateLimit.ts:208–226`), so the denial lasts until
@@ -53,11 +53,10 @@ kept out of Git.
 - **Repro (done, cloud stack 2026-10-24):** 1,001 `POST /api/users/login` with distinct random
   addresses and a wrong password, sent in ~5 s; the Site-Admin and Teacher logins that followed both
   returned 429 "Too many sign-in attempts — please wait 3333s". Counters cleared afterwards.
+- **Correction (Codex review, 2026-10-24):** these are separate buckets. Exhausting the login budget blocks sign-in only; reset, signup and verification each need their own budget spent. The wording above is narrowed accordingly.
 - **Expected vs actual:** SPEC §11 asks for rate limiting on auth so that abuse is bounded; the limit
   should not itself let one anonymous client lock out every user. Actual: it does.
-- **Suggested fix:** give the site-wide buckets a per-client dimension (forwarded client IP from a
-  trusted proxy) or make them fail open for requests naming an address with a recent successful
-  login; and make the edge limiter a hard deployment requirement. No code changed.
+- **Suggested fix (revised after Codex review):** add trusted-client throttling before expensive work, and redesign aggregate overload protection so one client cannot consume shared capacity. Keep the resource bounds. Do not exempt addresses that have a recent successful login: anyone can name them. An edge limiter alone is insufficient unless its settings prevent exhaustion. **Test:** disposable HTTP tests showing one abusive client cannot deny another client's valid login, buckets stay independent, and spoofed forwarding headers cannot mint fresh client identities.
 - **Related:** F-C23-002 (same buckets, targeted form); OPS "Going public" item 2.
 - **Disposition:** _(blank until triage)_
 
@@ -88,12 +87,11 @@ kept out of Git.
 
 - **Interpretation / limits:** narrower than F-C23-001 but quieter (tiny volume) and aimed: a Site
   Administrator's address is the obvious target. Payload's `unlock` clears its lock but not these
-  counters (DECISIONS 2026-09-12). Not reproduced.
+  counters (DECISIONS 2026-09-12). Reproduced 2026-10-24 (see Repro below).
 - **Repro (done, cloud stack 2026-10-24):** 20 wrong logins naming one fixture address; the owner's
   correct password then returned 429 ("wait 3339s"), even after Payload's 5-attempt lock was cleared.
 - **Expected vs actual:** the cap should limit an attacker's guesses, not the owner's sign-in.
-- **Suggested fix:** key the guess budget by address plus client, and do not charge or refuse a
-  request whose password matches; or exempt successful logins from the per-address bucket.
+- **Suggested fix (revised after Codex review):** address together with F-C23-001. Do not simply exempt successful logins in this hook: it runs before password validation, and Payload refuses locked accounts separately before hashing. Reconsider the hard per-account lockout as well as the counters. **Test:** after failures from a separate client, check the owner's intended sign-in and reset behaviour, continued brute-force resistance, the reset-mail caps, and Payload's lockout together with the application counters.
 - **Related:** F-C23-001.
 - **Disposition:** _(blank until triage)_
 
@@ -133,8 +131,6 @@ kept out of Git.
   lockout-message channel also observed after 5 attempts on a real account.
 - **Expected vs actual:** project policy (L3-R1) is that unauthenticated endpoints should not tell
   whether an address is registered. Actual: login does, by time and by lockout message.
-- **Suggested fix:** for an unknown address, run a dummy PBKDF2 with the current parameters before
-  failing (a `beforeOperation` cannot do this; a thin login wrapper or upstream patch can); map
-  `LockedAuth` to the same message as a wrong password on the public form and API.
+- **Suggested fix (revised after Codex review):** normalise the public failure status and body for unknown, wrong-password and locked accounts, and equalise the expensive work for all three under the same pre-hash load controls. A dummy hash for unknown accounts alone leaves the locked-account channel open. Keep the disabled-account and verification rules. **Test:** identical public failures across the three cases; deterministic checks that equivalent hash work runs; timing measured outside ordinary CI. Signup's disclosure stays a separate policy decision (Q-C23-01).
 - **Related:** DECISIONS 2026-07-20/21 (forgot-password oracle fixes); Q-C23-01.
 - **Disposition:** _(blank until triage)_
