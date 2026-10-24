@@ -8,12 +8,36 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased
+## v1.04 (2026-10-24)
+
+- ⚑ **Security: Payload's hidden job-statistics record is closed to the API** (audit F-C22-001).
+  Any signed-in user could previously overwrite it and stop the background job queue (exports,
+  emailed exports, password-reset emails, draft expiry). Now only Site Administrators can read it and
+  nobody can write it over the API; the scheduler is unaffected. docs/OPS.md gains a recovery note,
+  "Background jobs stopped: reset the scheduler's statistics" (#439).
 
 - Typing in the lesson editor is faster on large plans: about 64 ms → 16–24 ms per key on a fast
-  laptop, and 200 ms → 32 ms on a CPU four times slower. Lesson row labels still follow a title as it
-  is typed. The change is a guarded install-time patch to Payload's admin bundle; no data, schema or
-  generated documents change.
+  laptop, and 200 ms → 32 ms on a CPU four times slower (176–184 ms → 40 ms on the Rock). Lesson row
+  labels still follow a title as it is typed. The change is a guarded install-time patch to Payload's
+  admin bundle; no data, schema or generated documents change (#436).
+
+- Manage → Lesson plans now opens with **Your saved versions** (your own numbered versions, your
+  Officials included) and **Your drafts** for every role. The older versions list is now the
+  administrators' cleanup queue. Teachers land on Your saved versions; drafts never auto-open and
+  show a count (#434).
+
+- The lesson reading page has a **Show details / Hide details** disclosure for every signed-in reader
+  in Standard mode. A framework phase must be chosen explicitly, and Save now names the incomplete
+  field, reveals it and keeps the unsaved work instead of failing with an unnamed error (#435).
+
+- Forum and Messages: lesson references open in a new tab. The pin dialog says "Pin this
+  discussion", and the delete dialog says "Delete entire thread and all replies" with "This cannot be
+  undone." The five in-app yes/no dialogs show two equal buttons, Cancel first (#433).
+
+- Dependency security: `undici` 7.30.1 and `happy-dom` 21.0.4 pinned by override to clear new
+  high-severity advisories (#438).
+
+No database migration since v1.03. Payload stays on 3.91.0.
 
 ## v1.03 (2026-10-22)
 
