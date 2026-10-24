@@ -498,6 +498,35 @@ cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run sc
 
 Exits non-zero on any failed check, so it can gate a script.
 
+### Background jobs stopped: reset the scheduler's statistics
+
+**Symptoms:** nothing runs from the job queue. Uncached exports never finish, emailed exports and
+password-reset emails never arrive, and drafts stop expiring. The app log repeats
+`Error in job queue cron job handler` every few seconds, usually with a date-parsing message.
+
+**Cause:** Payload keeps scheduler metadata in a hidden `payload-jobs-stats` record. Its timer
+schedules work *before* running the queue on each tick. If that metadata is malformed, scheduling
+throws first and the queue never runs. Restarting does not help, because the value lives in the
+database. Since 2026-10-24 the API refuses all writes to that record (audit F-C22-001,
+`app/src/access/generatedSurfaces.ts`), so a malformed value can only come from a database edit or
+a Payload defect.
+
+**Fix:** clear the statistics. The scheduler rebuilds them on its next tick, and queued work then
+runs. Nothing else is lost, because the record holds only "when did each schedule last fire". Run from
+the repo root:
+
+```bash
+cd /srv/lesson3 && docker compose exec postgres psql -U lesson3 -d lesson3 \
+  -c "UPDATE payload_jobs_stats SET stats = NULL;"
+```
+
+**Verify:** within a few seconds the log error stops and `Running N jobs` lines appear. A pending
+export completes. Then, as a Site Administrator, `GET /api/globals/payload-jobs-stats` shows fresh
+`lastScheduledRun` times.
+
+**Afterwards, find out how the value got there.** The API cannot write it, so check recent
+database access and the Payload version before closing the incident.
+
 ### One-off: clear stored editor collapse preferences
 
 Run ONCE after deploying the collapsed-by-default editor rows (2026-07-25). Without it the change is

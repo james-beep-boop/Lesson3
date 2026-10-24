@@ -1,7 +1,9 @@
 # Plan — close REST writes to Payload's job-statistics global
 
-**Status:** draft for review (2026-10-24). Nothing is implemented. Decisions needing the operator are
-in §7.
+**Status:** **implemented** on branch `fix/job-stats-global-access` (2026-10-24). The operator took
+all three §7 recommendations: D1 read Site-Admin-only, D2 no API writes, D3 OPS recovery note. Results
+and the one refinement are in DECISIONS 2026-10-24, "Job-statistics global closed to API writes". The
+OPS note uses a single database reset instead of D3's two-step sketch.
 
 **Trigger:** audit candidate **F-C22-001** (2026-10-24 audit, branch `audit/2026-10-24-review`).
 Rated **High** and confirmed at runtime on the disposable audit target: a signed-in baseline Teacher
