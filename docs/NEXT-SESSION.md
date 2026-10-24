@@ -22,6 +22,29 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # CURRENT STATE — 2026-10-24
 
+**#438 merged (2026-10-24, `7f5573b`): `undici` 7.30.1 and `happy-dom` 21.0.4 pinned by override**,
+because new high advisories had turned `audit:prod` red. Why each was accepted, and when each
+override comes out, is in DECISIONS 2026-10-24.
+
+**Pending: Payload 3.92.0** (released 2026-10-22). Not yet taken; do it as its own change **after
+the application audit cycle**, which is pinned to Payload 3.91.0. Checklist:
+
+- Move `payload` and all five `@payloadcms/*` packages together.
+- Re-derive or confirm the #436 typing patch strings. `patch-payload-ui.mjs` says they also match
+  3.92.0; the install fails loudly if not. Then re-run the Rock typing benchmark.
+- **Remove the `undici` override**: 3.92.0 pins 7.30.1.
+- **Keep the `happy-dom` override**: 3.92.0 still uses Lexical 0.50.0, and 0.52.0 still wants 20.x.
+- Check whether 3.92.0 contains payloadcms/payload#18775. If it does, drop `turbopackMinify: false`
+  as a separate follow-up (see "Open from the dependency review" below).
+- Full gate, plus the browser tests on the version edit page.
+
+**Application audit in progress** on branch `audit/2026-10-24-review` (PR #437, never meant to
+merge). Two authorization candidates are confirmed at runtime and await Codex's author response:
+F-C22-001, the job-statistics global (High), and F-C22-002, native locks (Medium). The fix plan for
+the first is `docs/PLAN-job-stats-global-access-2026-10-24.md`, awaiting operator decisions D1–D3.
+The operator's lock decisions are in DECISIONS 2026-10-24, "Native document locks". No product fix
+has been made yet.
+
 **Audit preparation:** the operator agreed to a staged application audit now, with clean-machine
 installation/recovery acceptance deferred until hardware is available. Baseline:
 `d3714a5b210e1bac7bfa8884f4fce9a34add37b5`. Start from `docs/audit/cycle-2026-10-24.md` and the
@@ -172,7 +195,9 @@ once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 2
   From v1.01's notes: have the updater print the release's ⚑ operator notes.
 - Open from the dependency review: drop `turbopackMinify: false` once a Payload 3.x release ships
   payloadcms/payload#18775, which is merged on 3.x but unreleased (do it as its own change after the
-  Payload bump); React 19.3, Playwright 1.64 and the majors each as their own change.
+  Payload bump); React 19.3 and the majors (Sentry 11, jsdom 30, …) each as their own change.
+  Playwright 1.64 is done (#429). The Payload bump itself is now 3.92.0; see "Pending: Payload 3.92.0"
+  above.
 
 **Earlier (2026-10-21):** Mark (ARES) answered the open Insert link questions; the fix merged as #424
 (`8ed85a2`). Tracker addresses are kept as copied (unwrapping

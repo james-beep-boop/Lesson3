@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-24 — `undici` and `happy-dom` pinned by override; Payload 3.92.0 deferred until after the audit
+
+**Why now.** On 2026-10-24, new high-severity advisories turned `npm run audit:prod` red on an
+unchanged lockfile. `main` itself would have failed its next run; #437 showed it first. #438
+(`7f5573b`) adds two `overrides` and nothing else:
+
+- **`undici` 7.29.1 → 7.30.1.** Clears GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472 and
+  GHSA-xjj6-f33q-929c. It is a patch release within 7.x; jsdom's `^7.21.0` is satisfied, but Payload
+  3.91.0 pins 7.29.1 exactly, so this runs Payload off its own pin. Payload 3.92.0 pins 7.30.1, so
+  upstream has made the same move. **Remove the override** when Payload pins 7.30.1 or later, which
+  the 3.92.0 upgrade does. This repeats the 2026-10-18 → 2026-10-21 cycle, when an earlier `undici`
+  override was dropped once Payload caught up.
+- **`happy-dom` 20.14.5 → 21.0.4.** Clears GHSA-834v-8h66-3h79. This is a **major** jump outside
+  `@lexical/headless`'s declared `^20.9.0`, accepted on purpose:
+  - no patched 20.x exists;
+  - even Lexical 0.52.0, the latest, still declares `^20.9.0`, so there is no upstream route;
+  - the app has no `richText` field, so Lexical's headless conversion is very likely never reached,
+    and every Vitest config runs in `environment: 'node'`;
+  - 21.0.4's dependency list is identical to 20.14.5's, and it has no install script.
+
+  The alternative was to accept the advisory and keep the gate red. **Remove the override** once
+  `@lexical/headless` accepts `happy-dom` 21, and re-check it on every Payload or Lexical upgrade.
+
+**Payload 3.92.0 (released 2026-10-22) was not taken here.** It fixes only `undici`, not `happy-dom`
+(it still uses Lexical 0.50.0). It is also mid-audit: the application audit is pinned to `d3714a5`
+on Payload 3.91.0, and its findings cite 3.91.0 source. So it ships as its own deliberate change
+**after the audit cycle**. NEXT-SESSION carries the checklist.
+
+**The lockfile** was regenerated with `npm install --package-lock-only` on Node 24.22.1 / npm 11.19.1,
+not through `scripts/in-deps.sh`, because no Docker daemon was available. The Node tarball was
+checked against the official SHA256 list. The diff is three hunks: the two versions, plus a root
+`"hasInstallScript": true`. That is npm recording #436's `postinstall`, which the lock had never
+picked up. Verified:
+
+- `audit:prod` went from exit 1 to exit 0; only the 5 existing moderates remain.
+- TypeScript, ESLint and Prettier pass, plus 1,852 unit tests.
+- CI on #438 was green across unit, integration, wire and browser tests.
+
 ## 2026-10-24 — Native document locks: who sees them, where they apply, how App actions treat them
 
 Operator decisions for the remediation of audit candidate F-C22-002 (native editing locks), taken
