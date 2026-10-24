@@ -7,7 +7,8 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  * three discussion collections drops those columns. (`users_id` stays: it records who holds a lock.
  * Users and the system-settings global lose locking without a schema change.) Lock rows are transient
  * presence state, nothing of record: the rows that point at those collections are deleted first, so
- * none survive pointing nowhere.
+ * none survive pointing nowhere. `IF EXISTS` throughout so a partly migrated copy (the restore drill's
+ * older-schema backup, `scripts/test-restore-db-stack.sh`) still migrates.
  */
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
@@ -17,30 +18,30 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
        OR "edit_recovery_id" IS NOT NULL OR "discussion_topics_id" IS NOT NULL
        OR "discussion_replies_id" IS NOT NULL OR "discussion_participation_id" IS NOT NULL));
 
-   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_favorites_fk";
+   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_favorites_fk";
   
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_messages_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_messages_fk";
   
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_edit_recovery_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_edit_recovery_fk";
   
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_discussion_topics_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_discussion_topics_fk";
   
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_discussion_replies_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_discussion_replies_fk";
   
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_discussion_participation_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_discussion_participation_fk";
   
-  DROP INDEX "payload_locked_documents_rels_favorites_id_idx";
-  DROP INDEX "payload_locked_documents_rels_messages_id_idx";
-  DROP INDEX "payload_locked_documents_rels_edit_recovery_id_idx";
-  DROP INDEX "payload_locked_documents_rels_discussion_topics_id_idx";
-  DROP INDEX "payload_locked_documents_rels_discussion_replies_id_idx";
-  DROP INDEX "payload_locked_documents_rels_discussion_participation_i_idx";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "favorites_id";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "messages_id";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "edit_recovery_id";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "discussion_topics_id";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "discussion_replies_id";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "discussion_participation_id";`)
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_favorites_id_idx";
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_messages_id_idx";
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_edit_recovery_id_idx";
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_discussion_topics_id_idx";
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_discussion_replies_id_idx";
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_discussion_participation_i_idx";
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "favorites_id";
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "messages_id";
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "edit_recovery_id";
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "discussion_topics_id";
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "discussion_replies_id";
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "discussion_participation_id";`)
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
