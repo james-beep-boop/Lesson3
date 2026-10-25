@@ -37,17 +37,18 @@ that hardware. The host Node is v22.23.4, so application commands must use the p
 
 ## Historical candidates and current-source disposition
 
-These are historical provisional severities, not new accepted findings. Exact details remain in the
-audit package's `findings/` files and review trail. A fix in source still requires regression and
-deployment confirmation before closure.
+The table preserves historical IDs and original provisional ratings. Current accepted outcomes are
+tracked separately in FINDINGS.md; the revalidated auth issues are known findings, not new discoveries.
+Historical details remain in the original package. A source fix needs relevant regressions and
+deployment evidence before broad closure.
 
 | Historical ID | Provisional severity | Current reconciliation | Required next evidence |
 |---|---|---|---|
 | F-C22-001, job-statistics mutation | Medium | Fix commit `c77a50a`; current `access/generatedSurfaces.ts` rejects API updates | Current wire test, trusted-scheduler regression, review response and deployment parity |
 | F-C22-002, forged editing lock | Low | Fix commit `472d5f2`; current `access/lockedDocuments.ts` restricts create/update/delete | Current role/target matrix, legitimate takeover and migration tests; review response |
-| F-C23-001, shared auth-budget exhaustion | Medium | Historical local reproduction recorded; current behavior and mitigation not revalidated | Current source, isolated capped reproduction, opposite-family critique/author response, edge posture |
-| F-C23-002, targeted auth-budget exhaustion | Low | Historical local reproduction recorded; current behavior not revalidated | Current source, isolated capped reproduction and full security review |
-| F-C23-003, account enumeration | Low | Historical local reproduction recorded; current behavior not revalidated | Current error/cookie/timing behavior and full security review |
+| F-C23-001, shared auth-budget exhaustion | Medium | Current default global-budget reproduction passed; accepted known Medium, deferred; edge parity pending | Current source/control recheck complete under sole-auditor waiver; shared deployment edge posture pending |
+| F-C23-002, targeted auth-budget exhaustion | Low | Current targeted-budget reproduction passed; accepted known Low, deferred | Current source/control recheck complete under sole-auditor waiver; remaining auth coverage pending |
+| F-C23-003, account enumeration | Low | Current paired timing and locked-message reproduction passed; accepted known Low, deferred | Cookie/deployment checks and remaining auth coverage pending; see findings/C23-auth-current.md |
 | F-C24-001, missing favorite version returns 500 | Info | Fix commit `470ebed` and follow-up `c6be564`; current collection uses `requireReadableFavoriteVersion` | Missing/malformed/deleted version cases and concurrent deletion behavior |
 | F-C40-001, inherited contract keys accepted | Low | Fix commit `470ebed`; current contract walker uses `Object.hasOwn` | Current direct and upload regression checks, fingerprint boundary review |
 
@@ -86,3 +87,7 @@ Next actions:
    session or its conclusions as blind or independently cross-family reviewed.
 5. Produce prioritized `FINDINGS.md` and `SUMMARY.md` with separate accepted, unreviewed, fixed,
    unresolved and unrun sections, after completing the required coverage and review cycle.
+
+## Subsequent current-baseline evidence
+
+See C20-current-surface.md, C22-current-native.md, C23-current-auth.md and C30-current-save.md. The prior authentication findings are revalidated and accepted with sole-auditor rechecks, not newly discovered or independently reviewed in this cycle. The separate normal restore-stack suite passed104 checks and tore down its target; F-C70-001 still needs an actual deletion-fault/colliding-ID restoration/export reproduction.

@@ -12,12 +12,12 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C13 | Triage: lint/types/complexity | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C14 | Triage: CSS static | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C15 | Triage: secrets/shell/Docker/CI | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C20 | Audit harness + surface inventory | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C21 | Expected permission matrix | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C22 | Actual permission matrix | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C23 | Auth flows | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C20 | Audit harness + surface inventory | Partial: C20-current-surface.md and scans/surface-current.md inventory actual sanitized config/routes; role login/API harness ready; Chromium/WebKit role/XHR crawl pending |
+| C21 | Expected permission matrix | Partial: scans/rbac-expected-current.md rechecks current SPEC/decisions and selected policy rows; full field/endpoint expansion and no-op administrator premise pending |
+| C22 | Actual permission matrix | Partial: C22-current-native.md;70 privacy/GraphQL observations,194 corrected native checks and9 immutability follow-up attempts; snapshots equal; full matrix pending |
+| C23 | Auth flows | Partial: C23-current-auth.md; default targeted/global budgets and timing/lockout reproduced;3 known findings accepted(M/L/L); other auth/session/recovery cases pending |
 | C24 | Discussions/messages/favorites/recovery | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C30 | Version write-path analysis | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C30 | Version write-path analysis | Partial: C30-current-save.md;118 real save checks,8 candidates cleaned; all write paths/concurrency/recovery/Combine reconciliation pending |
 | C31 | Immutability attack run | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C40 | Ingest code review | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C41 | Malicious upload corpus | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
@@ -40,13 +40,13 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C61 | Accessibility | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C62 | Performance + load | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C63 | Functional bug hunt | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C70 | Deployment + ops | Partial source/fault review and deterministic suites in C70-ops.md; remaining source, runtime fault/recovery and edge parity pending |
+| C70 | Deployment + ops | Partial: C70-ops.md;95 mock/lock checks,104 real-stack restore checks and updater transactions passed; F-C70-001 full fault consequence/recheck pending |
 | C71 | Docs drift | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C72 | Test-suite quality | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C80 | Cross-cutting reconciliation | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C81 | Vertical-flow pass | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C82 | Blind cross-model review | Independent cross-family blind pass waived by direct operator instruction; replace with a labelled sole-auditor missed-issue sweep; not yet run |
-| C83 | Synthesis + change sweep + roadmap | Draft SUMMARY.md and historical change inventory exist; accepted findings, final prioritization and final remote-main sweep pending |
+| C83 | Synthesis + change sweep + roadmap | Working SUMMARY.md and FINDINGS.md published; accepted known auth findings M/L/L; restore candidate separate; remaining coverage and final remote-main sweep pending |
 
 ## Completion gates
 

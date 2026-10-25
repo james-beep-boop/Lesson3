@@ -2,15 +2,31 @@
 
 **Incomplete audit — working report.** Current source baseline is
 `bd5f07863a150cd51245b9c942502efa19d4014d` on main, with the same product source as release v1.07
-(`69dd7d2ec1f3d8b9e78bff8c7f0892cdf41a2234`). No current-baseline finding is accepted yet.
+(`69dd7d2ec1f3d8b9e78bff8c7f0892cdf41a2234`). Three previously known authentication findings
+are accepted after current source/control rechecks: one Medium and two Low. They were explicitly
+deferred in DECISIONS 2026-10-25; none is counted as newly discovered.
 The operator selected a sole Codex auditor, audit only, no exclusions, Spark testing, and GitHub
 publication. Independent cross-family review is waived and is not claimed.
 
-## Priority investigation
+## Accepted findings and priority
 
-| Priority | Candidate | Provisional severity | Evidence and next action |
+| Priority | Finding | Severity | Evidence and practical limit |
 |---|---|---|---|
-| 1 | [F-C70-001: restore cache-deletion failure is masked](findings/C70-ops.md) | Medium | Reproduced against the exact shell helper with a permissions fault and positive control. Validate full restore/undo and stale export behavior on an isolated stack; then recheck severity and remedy. |
+| P1 | [F-C23-001: shared sign-in budget exhaustion](findings/C23-auth-current.md) | Medium | 1,005 distinct-address attempts in 2.172 s at concurrency four blocked valid teacher and administrator sign-ins. Existing sessions and the separate reset bucket still worked. |
+| P2 | [F-C23-002: targeted account budget exhaustion](findings/C23-auth-current.md) | Low | Twenty victim-address attempts blocked their valid login while another administrator could sign in. Requires the victim address; existing sessions work. |
+| P2 | [F-C23-003: login account enumeration](findings/C23-auth-current.md) | Low | Nine paired timing observations and the sixth-attempt locked-account message revealed registration. Account-presence inference, not recovered credentials. |
+
+These are locally reproduced on production builds of the isolated worker stack. Shared deployment
+revision, edge mitigations and delivery parity remain unverified; no independent model confirmation
+is claimed. Recommended work: a safe authentication-load-control redesign for F-C23-001/002, then
+public failure/hash-work normalization for F-C23-003 under those controls. Preserve bounded hash
+work, legitimate recovery and trusted proxy identity. An edge limiter alone does not prove protection
+unless its configured budgets prevent exhaustion. No fixes were implemented.
+
+## Candidate outside accepted totals
+
+[F-C70-001: restore cache-deletion errors are masked](findings/C70-ops.md), provisional Medium,
+reproduced against the exact helper with a permissions fault and writable positive control.
 
 This candidate requires a filesystem failure and retained readable cache entries during restore or
 undo. It is not a demonstrated default-deployment failure. The current code continues after the
@@ -24,17 +40,24 @@ validation is pending. No product fix was made.
 - [Historical change inventory](scans/change-sweep-2026-10-25.md): **62 changed paths**, including
   28 application-source paths, since the earlier audit's `d3714a5` baseline.
 - [Reconciliation](continuation-2026-10-25.md): earlier reports, candidates and fixes are kept distinct
-  from current-source evidence. Historical authentication candidates still need revalidation; four
+  from current-source evidence. The three authentication findings were revalidated; four
   other candidates have fixes present in current source, with current regression/parity checks pending.
-- [Operations review](C70-ops.md): restore mock/kernel-lock suite **95 passed, zero failed**; updater
-  transaction-stub suite passed. The cache failure probe reproduced the candidate. These checks used
-  temporary fixtures, with no live database mutation.
+- [Operations review](C70-ops.md): **95 mock/kernel-lock checks**, updater transactions and
+  **104 real-stack restore interruption/recovery checks** passed. Successful restoration does not
+  cover the candidate's failed-deletion path. All runtime data was synthetic and disposable.
 - [Current baseline](scans/current-baseline.md): lint, types, format, **1,867 unit tests** and
   **339 integration tests** passed; production/migration builds passed. Complementary HTTP runs
   cover **479 passing cases**, with two no-SMTP cases still skipped; the original full run failed
   on PDF harness configuration. Five moderate dependency entries need reachability triage.
 - [Disposable target proof](C01-current-target.md): reset, reseed, synthetic restore, eight verified
   role logins, unverified-user refusal and internal reset-mail capture passed.
+- [Native authorization/privacy](C22-current-native.md): 70 observations and a corrected **194-check**
+  matrix passed; retained snapshots and Official-plan fingerprints stayed equal. Sparse validation
+  failure was distinguished from reaching the immutable-write guard.
+- [Save boundary](C30-current-save.md): **118 checks** passed across both scopes, field split,
+  resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
+- [Resolved surface inventory](scans/surface-current.md): 16 collections, two globals, four root
+  endpoints and five tasks. All **43 catalog chunks** remain tracked in [progress.md](progress.md).
 
 Remaining current-baseline browser/configuration checks, comprehensive scans, full role/action attacks, ingest/export
 drills, browser/accessibility/performance checks, deployment parity, final risk reconciliation and
@@ -43,8 +66,9 @@ No clean-audit conclusion or complete risk count is warranted.
 
 ## Next execution
 
-Run the first-wave permission/version/ingest attacks on the proven disposable target. Finish the
-remaining baseline checks and all catalog chunks, recording exact
+Continue the first-wave ingest, version/concurrency and remaining permission attacks. Validate the
+restore candidate on a separate target alongside eligible work, then finish remaining baseline
+checks and catalog chunks, recording exact
 source ranges, commands, outcomes and gaps. Save a checkpoint after each bounded group so subscription
 limits do not lose progress. Replace this working summary with the complete prioritized handoff
 when coverage and evidence satisfy the audit contract.

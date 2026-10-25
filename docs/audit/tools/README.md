@@ -1,0 +1,59 @@
+# Current audit helper execution
+
+Product baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Run application helpers through
+`scripts/in-deps.sh` in pinned Node 24, using an approved disposable Compose network. The worker
+uses a private Docker namespace shim to preserve unrelated images/volumes. Credentials, host
+mappings, raw results and browser state remain outside Git.
+
+## Private target contract
+
+`with-target-lock.sh TARGET_DIR COMMAND...` requires `state/identity.json`, uses atomic
+`state/target.lock` acquisition and exports an ownership token for nested reset operations. Success
+releases only its own lock; failure/interruption retains it. Reconcile actual process/outcome before
+releasing a failed run's lock. A file/PID record alone does not prove liveness.
+
+`reset-test.sh TARGET_DIR [SYNTHETIC_DUMP]` requires:
+
+- `state/identity.json`: `project` matching `l3audit-[a-z0-9-]+`, `purpose` exactly
+  `synthetic-disposable-audit`, immutable `sourceSHA` and absolute `sourceCheckout`.
+- `state/source-sha` and `state/config.sha256`, matching source and `private/compose.json` bytes.
+  Product changes outside audit output/test paths are refused.
+- `private/runtime.env`, captured SMTP service `mail`, database service `postgres`, database/user
+  `lesson3`, and app connection to that database. Actual database-container project and database
+  comment marker match `project`. Volumes/networks are namespaced, binds stay under TARGET_DIR,
+  published ports bind only loopback. Managed writers are `app` and test-only `pdf-private`.
+- Restore input under TARGET_DIR/private. Never point this at an existing installation.
+
+Private fixture JSON can be mounted at `/audit-fixtures`. Use the caller's UID/GID for owner-only
+fixture writes. Keep the repository wrapper's narrow mounts; do not mount checkout `.git` into a
+third-party dependency container.
+
+## Probe execution
+
+API probes require `E2E_BASE_URL=http://app:3000`, approved target env and private
+`LESSON3_AUDIT_FIXTURE_FILE`. The marked fixture contains synthetic password/accounts/scopes/IDs.
+Seed only after target-marker and empty-user checks, with `LESSON3_AUDIT_RUN_ID`,
+`LESSON3_AUDIT_PASSWORD` and private fixture output. Runtime commands below run inside pinned Node,
+on the correct private network, under the target lock. Set `LESSON3_AUDIT_RESULT_FILE` privately
+where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
+
+| Helper | Command / additional input |
+|---|---|
+| Seed | `npx tsx tests/audit/c01-seed.ts` |
+| Role/mail readiness | `npx tsx tests/audit/c01-readiness.ts`; `LESSON3_AUDIT_CHECK_MAIL=1` initially, otherwise 0 |
+| Static inventory | `npx tsx tests/audit/c20-inventory.ts`; no database/network needed |
+| Native privacy/GraphQL | `npx tsx tests/audit/c22-private-fields.ts` |
+| Native writes/favorites | `npx tsx tests/audit/c22-native-matrix.ts`; eight favorites created/deleted; verify fingerprints |
+| Sparse/full/bulk PATCH | `node tests/audit/c22-immutable-followup.mjs`; private `/audit-fixtures` output |
+| Save boundary | `npx tsx tests/audit/c30-save-matrix.ts`; eight candidates created/deleted; clean two-plan fixture required for exact patch controls |
+| Targeted auth budget | `npx tsx tests/audit/c23-auth-budgets.ts`; `LESSON3_AUDIT_AUTH_MODE=target` |
+| Global auth budget | Same, mode `global`; at most 1,005 requests, concurrency four, 120-second deadline |
+| Timing/lockout | `npx tsx tests/audit/c23-enumeration.ts`; three wrong passwords per each of three roles, then one account to six attempts |
+
+Restore the approved synthetic dump before/after every auth probe and prove role readiness afterwards.
+An auth-proof exit 0 means the known defect was reproduced, not that abuse protection passed.
+Retain original failed runs and exact helper/source versions.
+
+The host-only `bash docs/audit/tools/repro-restore-cache.sh` requires an ordinary user and shell
+tools. It uses a temporary cache and Docker-function stub, no daemon/database. It proves failure
+masking and a writable control, not the complete restored-export consequence.

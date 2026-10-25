@@ -61,5 +61,5 @@ New TypeScript helpers passed ESLint and Prettier checks; shell helpers passed `
 | c01-readiness.ts | a6253be162d5a6ac083bcb2a9587815ced77fa0364cab8791cc2ca194f90b559 |
 
 This proves audit-target reset/restore readiness, not whole-machine recovery acceptance or the full
-product restore interruption matrix. The latter is running separately. First-wave C20–C24,
+product restore interruption matrix. That separate current-image suite passed 104 checks. First-wave C20–C24,
 C30–C31 and C40–C41 checks can now use this target under its lock.

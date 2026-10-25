@@ -46,6 +46,14 @@ database and age stubs, plus real kernel lock contention checks; it is not a ful
 failures, backup failure, partial activation, conflicting bundles and pending/archive guards.
 These suites do not cover failed deletion inside the cache helper.
 
+The existing real-stack restore suite subsequently passed **104 checks, zero failures**, exit 0,
+using the current production/migration images. A private copy changed only repository-root
+resolution, Compose project and tools-image names for isolation; assertions and product scripts
+were unchanged. It exercised staging, migration boundaries, interruptions, retained connections,
+forward/undo recovery, startup failure, confirmation/discard and successful cache invalidation.
+Its dedicated target was torn down. It did not inject a cache-deletion failure, so F-C70-001 still
+needs full restore/export consequence validation.
+
 ## Resume
 
 Review restore dispatch/validation and deployment/CI/Docker source; run the existing deterministic

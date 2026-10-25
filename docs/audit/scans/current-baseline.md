@@ -25,7 +25,7 @@ Private raw logs and exact configuration are retained outside the checkout.
 | Updater transactions | `bash scripts/test-online-update.sh` | Passed, exit 0; local stubs |
 | Cache failure probe | `bash docs/audit/tools/repro-restore-cache.sh` | Candidate reproduced: exit 0 with retained file after deletion failure; writable control removes file |
 | C01 target proof | Marked reset/reseed, synthetic restore, role logins and captured reset link | Passed, exit 0; see C01-current-target.md |
-| Full-stack restore suite | Existing restore-stack assertions with namespaced external harness and current images | Running on a separate disposable target; assertions/product scripts unchanged |
+| Full-stack restore suite | Existing restore-stack assertions with namespaced external harness and current images | Passed: 104 checks, zero failed, exit 0; disposable target torn down; assertions/product scripts unchanged |
 | Browser suites | Existing Chromium suite and required WebKit audit coverage | Not run yet |
 | Contract/extraction/fidelity/RBAC CLIs | Handbook's documented CLI/fixture checks | Not run yet on current baseline |
 | Deployment parity | Observed shared-site SHA, edge headers and delivery | Pending |
