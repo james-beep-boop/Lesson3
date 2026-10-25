@@ -93,11 +93,28 @@ Cleanup verified zero remaining `ZZ_AUDIT_C31_STALE_LOCK` versions and zero nati
 the target lock released and the application stack healthy. This closes the bounded stale-lock
 expiry check; it does not establish behavior for every possible clock skew or a live refresh race.
 
+## Recovery and draft attribution — current HTTP suite pass
+
+The current `app/tests/http/recovery.http.spec.ts` suite passed **35 tests** in 3.98 seconds (exit
+0) against the marked target. It covered all seven recovery operations' unauthenticated and wrong-
+role gates; start, capture, GET and discard; stale generation/revision and malformed token/document
+refusal with the prior capture preserved; owner-only isolation on a shared version; Site-Admin
+metadata and revision-checked cleanup; delete-authorized unsaved-work counts; and owner-only Combine
+draft metadata with cross-plan context excluded on restore. It also confirmed restore does not spend
+the shared preview budget. The raw output is private at `logs/c31-recovery-http.log`.
+
+The fixture teardown completed with no target lock retained and the stack remained healthy. Together
+with the pending-authority save cases above, this is current wire evidence for recovery ownership,
+CAS retirement and attribution boundaries. It does not close every C30 write path, full recovery
+restore attribution under concurrent Combine/Official changes, or the final fingerprint/deletion
+ledger.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
 unauthorized deletion ledger, persisted row fingerprint artifacts, recovery/restore attribution,
 Combine and Official-pointer races, and reset afterward. The source/parent deletion,
-authority-change-while-waiting, native lock authorization, and bounded stale-lock expiry cases now
-have the evidence described above; the complete ledger and final fingerprint artifact are still open.
+authority-change-while-waiting, native lock authorization, bounded stale-lock expiry, and current
+recovery ownership/CAS cases now have the evidence described above; the complete ledger, concurrent
+Combine/Official cases and final fingerprint artifact are still open.
 Earlier C22/C30 tests are supporting evidence; no full-chunk or independent-review claim is made.
