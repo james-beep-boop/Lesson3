@@ -59,6 +59,9 @@ validation is pending. No product fix was made.
   failure was distinguished from reaching the immutable-write guard. A current auth/favorites wire
   suite added 23 role-gated unlock, message-read and favorite cases; a current user-search suite
   added 10 Site-Admin search/filter/grant-label and secret-exclusion cases.
+- [System settings](C5-settings-current.md): the current wire suite passed 26 cases, including
+  advisory-lock freshness and authority revocation while a save waited; the broader C5.5 catalog
+  remains open.
 - [Save boundary](C30-current-save.md): **118 checks** passed across both scopes, field split,
   resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
 - [Controlled save races](C31-current-races.md): two editing teachers and one teacher in two

@@ -67,6 +67,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Timing/lockout | `npx tsx tests/audit/c23-enumeration.ts`; three wrong passwords per each of three roles, then one account to six attempts |
 | Auth/favorites wire | `npm run test:http -- tests/http/authFavorites.http.spec.ts`; current target suite; unlock, message receipts and favorite role/shape/duplicate boundaries |
 | User-search wire | `npm run test:http -- tests/http/userSearch.http.spec.ts`; current target suite; Site-Admin search/filter/grant-label gates and auth-secret exclusion |
+| System-settings wire | `npm run test:http -- tests/http/systemSettings.http.spec.ts`; current target suite; settings role/freshness/CSRF gates and advisory-lock authority waits |
 
 Restore the approved synthetic dump before/after every auth probe and prove role readiness afterwards.
 An auth-proof exit 0 means the known defect was reproduced, not that abuse protection passed.
