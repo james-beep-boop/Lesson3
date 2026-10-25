@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## v1.07 (2026-10-25)
+## Unreleased (on `main`, not tagged or deployed)
 
 - Every page is now light. Manage and the lesson editor used to switch to dark colours on a device
   set to dark mode, while the rest of the site stayed light. No database migration.
