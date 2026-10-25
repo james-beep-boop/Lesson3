@@ -70,6 +70,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Auth/favorites wire | `npm run test:http -- tests/http/authFavorites.http.spec.ts`; current target suite; unlock, message receipts and favorite role/shape/duplicate boundaries |
 | User-search wire | `npm run test:http -- tests/http/userSearch.http.spec.ts`; current target suite; Site-Admin search/filter/grant-label gates and auth-secret exclusion |
 | System-settings wire | `npm run test:http -- tests/http/systemSettings.http.spec.ts`; current target suite; settings role/freshness/CSRF gates and advisory-lock authority waits |
+| Discussions wire | `npm run test:http -- tests/http/discussions.http.spec.ts`; current target suite; thread/reply, privacy, participation, forum-off, read/pin/redaction and authority waits |
 
 Restore the approved synthetic dump before/after every auth probe and prove role readiness afterwards.
 An auth-proof exit 0 means the known defect was reproduced, not that abuse protection passed.
