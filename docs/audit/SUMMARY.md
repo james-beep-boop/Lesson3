@@ -56,7 +56,8 @@ validation is pending. No product fix was made.
   role logins, unverified-user refusal and internal reset-mail capture passed.
 - [Native authorization/privacy](C22-current-native.md): 70 observations and a corrected **194-check**
   matrix passed; retained snapshots and Official-plan fingerprints stayed equal. Sparse validation
-  failure was distinguished from reaching the immutable-write guard.
+  failure was distinguished from reaching the immutable-write guard. A current auth/favorites wire
+  suite added 23 role-gated unlock, message-read and favorite cases.
 - [Save boundary](C30-current-save.md): **118 checks** passed across both scopes, field split,
   resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
 - [Controlled save races](C31-current-races.md): two editing teachers and one teacher in two

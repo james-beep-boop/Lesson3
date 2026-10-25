@@ -30,6 +30,12 @@ Both proof/recovery wrappers exited 0, indicating successful defect reproduction
 fixture readiness. Accepted impact is Medium/Low/Low respectively, with sole-auditor source/control
 rechecks and no independent model review. Details, limits and remediation are in the findings file.
 
+The current `app/tests/http/authFavorites.http.spec.ts` wire suite passed **23 tests** in 3.05
+seconds (exit 0). It covered role-gated account unlock and unknown-email behavior, anonymous and
+cross-user message read/creation boundaries, and favorite creation, malformed IDs, duplicate
+rejection and role refusal. Its random fixture users and lock state were torn down cleanly; raw
+output is private at `logs/c23-auth-favorites-http.log`.
+
 Installed Payload 3.92.0 login/hash implementations were independently opened from the pinned deps
 image, and sanitized resolved user auth defaults were checked. A first config-inspection attempt
 using tsx's CJS eval failed on the config's top-level await; the explicit ESM loader command succeeded.
