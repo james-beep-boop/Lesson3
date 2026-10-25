@@ -138,8 +138,8 @@ wrong-old-document serving was established. No product fix was made.
   the same flow passed 38/38 against a temporary app with SMTP explicitly disabled, including the
   approval branch. The dedicated offline-signup journey also passed 1/1 against that SMTP-disabled
   app. Additional Chromium flows passed liveRowLabels 2/2 and editorBackDarkMode 1/1. Browser
-  versionUnavailable passed 6/6. Browser breadth, accessibility, visual and full component coverage
-  remain open.
+  versionUnavailable passed 6/6 and lessonDetails passed 2/2 for Teacher and editing Teacher. Browser
+  breadth, accessibility, visual and full component coverage remain open.
 - [Visual consistency](C60-visual-current.md): the computed-style pages measurement passed 1/1 on
   the Mailpit target, covering login, eight authenticated surfaces, account menus and 390px home/
   Manage layouts. Follow-up menu-states and dialogs measurements passed 1/1 each, covering keyboard

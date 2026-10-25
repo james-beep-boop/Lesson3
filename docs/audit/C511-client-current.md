@@ -63,5 +63,10 @@ and both deleted/existing comparison sides without substituting content. The run
 `0e4a0e788a30456f546d459d8ee0f04fffa661cb02cde091710389ac7998f4be`; the raw log hash is
 `bba3c00690a434440e003dce94397d9bf7725bb73fed98c1a8a0c46fee8df3c8`.
 
+The Chromium `tests/e2e/lessonDetails.e2e.spec.ts` flow passed **2/2** in 5.8 seconds for both a
+Teacher and a Teacher with editing access inspecting the selected version in Standard mode. Runner
+hash: `fa6cfa51dedeb4092dba269d277c68c951f7a70b48c3ddf01af4607901f6bc8d`; raw log hash:
+`1cc6f48f598c93218c2be75e31e69286ef32d694f0d0b16d6f6d77a88b54c5cd`.
+
 Browser navigation breadth, real cookies/CSRF across roles, WebKit rendering, accessibility, visual
 consistency, and full component coverage remain open in C5.11/C60/C61.
