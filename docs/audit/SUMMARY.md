@@ -63,7 +63,8 @@ validation is pending. No product fix was made.
   advisory-lock freshness and authority revocation while a save waited; the broader C5.5 catalog
   remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
-  participation, forum-off, redaction and authority-wait cases; broader C24 coverage remains open.
+  participation, forum-off, redaction and authority-wait cases; message-reference coverage added
+  12 label, recipient and no-write refusal cases; broader C24 coverage remains open.
 - [Save boundary](C30-current-save.md): **118 checks** passed across both scopes, field split,
   resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
 - [Controlled save races](C31-current-races.md): two editing teachers and one teacher in two

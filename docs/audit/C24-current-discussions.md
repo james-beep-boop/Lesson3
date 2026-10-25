@@ -12,3 +12,9 @@ private at `logs/c24-discussions-http.log`.
 
 This closes the current discussions wire slice only. Broader messages, favorites, recovery,
 deployment parity and remaining C24 catalog cases remain open.
+
+The current `app/tests/http/messageReferences.http.spec.ts` suite passed **12 tests** in 2.92
+seconds (exit 0). It covered anonymous and role-gated message creation, server-stamped recipients,
+whole-lesson versus deleted-version labels, reply preservation of the original label, missing or
+mismatched reference refusal, and no-write guarantees on unavailable versions. Fixture teardown
+completed; raw output is private at `logs/c24-message-references-http.log`.
