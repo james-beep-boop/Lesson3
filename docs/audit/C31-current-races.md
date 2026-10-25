@@ -144,4 +144,10 @@ Combine and Official-pointer races, and reset afterward. The source/parent delet
 authority-change-while-waiting, native lock authorization, bounded stale-lock expiry, current
 recovery ownership/CAS, and read-only Combine ancestry cases now have the evidence described above;
 the complete ledger, concurrent Combine/Official cases and final fingerprint artifact are still open.
+
+An audit-only two-writer Official-pointer attempt was inconclusive: two distinct authenticated
+requests were launched behind a held plan-row lock, but only one backend reached the observed wait
+within 20 seconds. Both attempts were cleaned up, the two login-counter increments were restored,
+and the private logs retain the failed harness runs. No race conclusion or finding is drawn; a
+simultaneous Official-pointer race remains open.
 Earlier C22/C30 tests are supporting evidence; no full-chunk or independent-review claim is made.
