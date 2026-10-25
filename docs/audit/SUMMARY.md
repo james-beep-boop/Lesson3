@@ -75,6 +75,9 @@ validation is pending. No product fix was made.
 - [First-user bootstrap](C5-first-bootstrap-current.md): after an isolated empty-database reset,
   the current wire suite passed four setup, budget, concurrent first-register and one-shot closure
   cases; the synthetic target was restored and the wider signup/session catalog remains open.
+- [Server time and worldwide IDs](C5-server-worldwide-current.md): focused wire suites passed five
+  server-clock cases and five identifier visibility/uniqueness/immutability cases; broader export,
+  data and frontend wiring coverage remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.

@@ -25,13 +25,13 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C5.1 | Authorization core | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.2 | Ingest & upload boundary | Partial: nullResources wire suite 8/8 passed for null/partial resource upload, read, save-as-new and DOCX preservation; broader ingest/upload boundary remains pending |
 | C5.3 | Auth, account & admin endpoints | Partial: current firstUserBootstrap 4/4, user-assignment 22/22 and user-admin-actions 36/36 wire suites passed for bootstrap, assignment/admin gates, reset links, account state and caller-authority changes while waiting; broader admin/account endpoint and source review remains pending |
-| C5.4 | Export & data endpoints | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C5.4 | Export & data endpoints | Partial: worldwideIds wire suite 5/5 passed for UID uniqueness, visibility, immutability and release-fingerprint separation; broader export/data endpoint review remains pending |
 | C5.5 | Social, recovery & settings endpoints | Partial: C5-settings-current.md and C5-user-assignments-current.md; systemSettings 26/26 and userAssignments 22/22 passed, including advisory-lock freshness and authority waits; broader social/recovery/settings/deployment catalog pending |
 | C5.6a/b… | Collections + hooks | Partial: subjectGrades wire suite 13/13 passed for invalid/boundary grade validation and derived-name invariants; broader collections/hooks review remains pending |
 | C5.7 | Jobs & queue | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.8 | Generator & fidelity | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.9a/b/c | lib/ utilities | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C5.10 | Frontend server & wiring | Partial: firstUserBootstrap wire suite 4/4 passed for empty-install setup, one-shot registration and post-bootstrap login-page state; broader frontend server/wiring review remains pending |
+| C5.10 | Frontend server & wiring | Partial: firstUserBootstrap 4/4 and serverTime 5/5 wire suites passed for empty-install setup, one-shot registration, post-bootstrap login-page state and server-clock response; broader frontend server/wiring review remains pending |
 | C5.11a–f | Components & client | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.12 | Fields & editor grammar | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.13 | Config & wiring | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |

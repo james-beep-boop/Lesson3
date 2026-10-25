@@ -76,6 +76,8 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Subject-grades wire | `npm run test:http -- tests/http/subjectGrades.http.spec.ts`; current target suite; invalid/boundary grade create-update validation and derived display-name invariants |
 | Null-resources wire | `npm run test:http -- tests/http/nullResources.http.spec.ts`; current target suite; null/populated resource upload, read, save-as-new and DOCX preservation |
 | First-user bootstrap wire | `npm run test:http -- tests/http/firstUserBootstrap.http.spec.ts` after `reset-test.sh TARGET`; current empty-install target suite; setup, signup budget, concurrent first-register and one-shot closure |
+| Server-time wire | `npm run test:http -- tests/http/serverTime.http.spec.ts`; current target suite; authentication and uncached server-clock response |
+| Worldwide-IDs wire | `npm run test:http -- tests/http/worldwideIds.http.spec.ts`; current target suite; UID uniqueness, visibility, immutability and release-fingerprint separation |
 | Discussions wire | `npm run test:http -- tests/http/discussions.http.spec.ts`; current target suite; thread/reply, privacy, participation, forum-off, read/pin/redaction and authority waits |
 | Message references wire | `npm run test:http -- tests/http/messageReferences.http.spec.ts`; current target suite; recipient/label authority and no-write reference refusals |
 
