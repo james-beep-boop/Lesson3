@@ -69,6 +69,9 @@ validation is pending. No product fix was made.
 - [User admin actions](C5-user-admin-actions-current.md): the current wire suite passed 36 reset-link,
   account-state, Site-Admin and dedicated-budget cases, including refusal after authority changes
   during advisory-lock waits; broader C5.3 coverage remains open.
+- [Subject grades](C5-subject-grades-current.md): the current wire suite passed 13 invalid and
+  boundary create/update cases, preserving numeric storage and derived display names; broader
+  collections and hooks coverage remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.
