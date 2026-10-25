@@ -15,5 +15,11 @@ fingerprint.
 Both fixture teardowns completed and the target lock was clear. Raw output is private at
 `logs/c5-server-time-http.log` and `logs/c5-worldwide-ids-http.log`.
 
+The current `app/tests/int/worldwideIds.int.spec.ts` suite passed **6/6** tests in the marked target,
+covering trusted and ordinary creates, fresh UIDs, fingerprint non-inheritance, immutable person
+identifiers, stable/reset installation identity and idempotent migration backfill. Raw output is in
+the private combined log `logs/c5-data-auth-jobs-integrations.log`; this complements the five wire
+cases above but does not close migration-upgrade or deployment-parity coverage.
+
 This is focused server-time and identifier endpoint evidence. It does not close the wider export,
 data, source-review or deployment-parity catalog.

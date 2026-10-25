@@ -15,3 +15,9 @@ is private at `logs/c5-user-admin-actions-http.log`.
 
 This is current wire evidence for the user-admin-actions slice. It does not close the wider C5.3
 account/recovery source review, deployment-parity or no-SMTP catalog.
+
+The current `app/tests/int/adminResetLinkCarveOut.int.spec.ts` suite passed **3/3** tests. It
+confirmed the authenticated administrator reset-link carve-out does not consume the public
+per-address forgot-password budget, remains usable after that public budget is exhausted, and does
+not bypass ordinary public throttling. Raw output is private at
+`logs/c5-data-auth-jobs-integrations.log`.

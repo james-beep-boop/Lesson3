@@ -106,7 +106,12 @@ validation is pending. No product fix was made.
   broader source-review, browser and parity catalog remains open.
 - [Global jobs and errors](C5-global-errors-current.md): focused wire suites passed 10 global
   job-statistics role/read-write cases and three concrete 409/403/404 error-message cases; broader
-  jobs, error taxonomy and test-quality coverage remains open.
+  jobs, error taxonomy and test-quality coverage remains open. Current integration checks add one
+  scheduling and five best-effort-enqueue cases.
+- [Data and authentication integrations](C5-data-auth-jobs-current.md): current suites passed six
+  worldwide-ID, three administrator reset-link, four auth-rate-limit, one scheduling and five
+  best-effort-enqueue cases; deployment, browser, session, queue-durability and migration-upgrade
+  coverage remains open.
 - [Export endpoint](C54-export-endpoint-current.md): the focused current selection passed six
   DOCX/PDF job, authentication, poll-binding and deduplication cases, plus three AReS JSON export
   and eight per-document serve-only/tag cases; broader export fidelity and queue coverage remains

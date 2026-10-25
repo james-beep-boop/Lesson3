@@ -50,6 +50,12 @@ isolation. Raw output is private at
 fixture teardown and target lock completed normally. This is direct store/helper evidence, not a
 complete signup, session, edge-proxy or no-SMTP authentication attack run.
 
+The current `app/tests/int/authRateLimit.int.spec.ts` suite passed **4/4** tests in the same target,
+covering per-identifier login and forgot-password exhaustion, correct-credential `429` behavior,
+independent identifiers and equal treatment of unknown addresses. Raw output is private at
+`logs/c5-data-auth-jobs-integrations.log`; this does not close the broader session, cookie, edge or
+no-SMTP attack matrix.
+
 Installed Payload 3.92.0 login/hash implementations were independently opened from the pinned deps
 image, and sanitized resolved user auth defaults were checked. A first config-inspection attempt
 using tsx's CJS eval failed on the config's top-level await; the explicit ESM loader command succeeded.

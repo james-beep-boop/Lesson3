@@ -16,3 +16,11 @@ Both fixture teardowns completed and the target lock was clear. Raw output is pr
 
 This is focused global-job and error-contract evidence. It does not close the wider jobs/queue,
 error taxonomy, source-review or deployment-parity catalog.
+
+The current `app/tests/int/jobStatsScheduling.int.spec.ts` suite passed **1/1** integration test,
+confirming scheduled expiry records and deduplicates the scheduled job. The current
+`app/tests/int/bestEffortEnqueue.int.spec.ts` suite passed **5/5**, confirming that simulated queue
+failures do not destroy message or Official-pointer writes, detached enqueue calls omit the caller
+request, orphaned pre-warm work is a no-op, and real generator failures still surface. Expected
+simulated errors were logged by the application; raw output is private at
+`logs/c5-data-auth-jobs-integrations.log`.
