@@ -30,11 +30,11 @@ deployed revision to see how far that got; the steps after the PR are operator-r
 F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-seed.sh` re-runnable;
 `dev-server.sh` passes `RENDER_TIMINGS`. No migration. Details: DECISIONS 2026-10-25.
 
-**Still to do after that PR merges** (unless already done):
-1. Tag v1.05 from the operator's Mac. It also carries the lock fix #442 and its migration, which
-   runs on this deploy.
-2. Deploy to the Rock over Remote Control on the operator's Mac, then: the lock warning and Take
-   over from two accounts, one change in Manage → Users, and a restore drill.
+**Done 2026-10-25:** #447 merged (`a68fb74`); **v1.05 tagged** on it from the operator's Mac;
+**deployed to the Rock** (`d49b44b` → `a68fb74`, `deploy: OK`). The one migration,
+`20261024_094011_native_lock_scope`, ran cleanly; no job-queue or other errors in the app log for
+10 minutes after; `/login` 200. **Still open:** the manual checks of the lock warning and Take over
+from two accounts, and one change in Manage → Users.
 
 **First job on return: Payload 3.92.0** (checklist under "Pending: Payload 3.92.0" below), then
 the dependency-review follow-ups each as its own change (`turbopackMinify`, React 19.3, the majors).
