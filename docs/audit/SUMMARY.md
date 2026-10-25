@@ -93,6 +93,9 @@ validation is pending. No product fix was made.
 - [Request editing](C24-request-editing-current.md): the focused endpoint selection passed five
   teacher-first access-request gate, recipient-resolution and daily-budget cases; broader messaging
   and recovery coverage remains open.
+- [Full endpoints](C5-endpoints-full-current.md): the complete current endpoint file passed 122 of
+  124 cases; the two skipped cases are explicit no-SMTP complements on this Mailpit target, and the
+  broader source-review, browser and parity catalog remains open.
 - [Global jobs and errors](C5-global-errors-current.md): focused wire suites passed 10 global
   job-statistics role/read-write cases and three concrete 409/403/404 error-message cases; broader
   jobs, error taxonomy and test-quality coverage remains open.
