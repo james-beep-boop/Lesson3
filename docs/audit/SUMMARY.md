@@ -29,16 +29,22 @@ validation is pending. No product fix was made.
 - [Operations review](C70-ops.md): restore mock/kernel-lock suite **95 passed, zero failed**; updater
   transaction-stub suite passed. The cache failure probe reproduced the candidate. These checks used
   temporary fixtures, with no live database mutation.
+- [Current baseline](scans/current-baseline.md): lint, types, format, **1,867 unit tests** and
+  **339 integration tests** passed; production/migration builds passed. Complementary HTTP runs
+  cover **479 passing cases**, with two no-SMTP cases still skipped; the original full run failed
+  on PDF harness configuration. Five moderate dependency entries need reachability triage.
+- [Disposable target proof](C01-current-target.md): reset, reseed, synthetic restore, eight verified
+  role logins, unverified-user refusal and internal reset-mail capture passed.
 
-Current-baseline application suites, comprehensive scans, full role/action attacks, ingest/export
+Remaining current-baseline browser/configuration checks, comprehensive scans, full role/action attacks, ingest/export
 drills, browser/accessibility/performance checks, deployment parity, final risk reconciliation and
 the final remote-main change sweep are outstanding. Historical results are not substituted for these.
 No clean-audit conclusion or complete risk count is warranted.
 
 ## Next execution
 
-Build the namespaced pinned Node 24 dependency environment, run current baseline checks, and prove
-a new disposable full stack and reset/mail controls. Continue all catalog chunks, recording exact
+Run the first-wave permission/version/ingest attacks on the proven disposable target. Finish the
+remaining baseline checks and all catalog chunks, recording exact
 source ranges, commands, outcomes and gaps. Save a checkpoint after each bounded group so subscription
 limits do not lose progress. Replace this working summary with the complete prioritized handoff
 when coverage and evidence satisfy the audit contract.
