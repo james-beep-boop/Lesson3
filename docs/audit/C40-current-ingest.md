@@ -45,7 +45,7 @@ whole request pending explicit consent. The CLI keeps an atomic batch contract.
 
 The transaction path rechecks existing-plan/unchanged state while holding subject-grade and plan
 locks. Taxonomy creation and valid-subset writes share the transaction; errors invoke rollback.
-Those are reviewed mechanisms, not yet full wire-level concurrency/fault proof. Source-required
+C41 additionally verifies actual PostgreSQL write-fault rollback, including the already-written peer and newly consented taxonomy. True concurrency proof remains open. Source-required
 helper behavior (`txDb`, hooks, access refresh and job/cache consequences) remains cross-chunk work.
 
 `assertDeclaredBodyWithin` is a Content-Length guard. Post-parse field/file limits do not prove a
@@ -85,5 +85,5 @@ merely for containing angle brackets. Rich prose corpus and actual route/browser
 ## Outstanding
 
 Review the remaining ingest/preview/recovery tests and full CLI wiring; finish component-level
-source dependencies; execute approved-taxonomy/fault rollback, reingest/concurrency, body-framing,
+source dependencies; finish remaining taxonomy shapes, reingest/concurrency, body-framing,
 script/HTML sink and full corpus fidelity checks. C40 remains partial, with no exclusions.

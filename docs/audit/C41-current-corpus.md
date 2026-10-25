@@ -102,6 +102,29 @@ The catalog's broad refusal premise must be read in light of this actual contrac
 inert statements is not proof of code execution. This probe exercises the extractor, not the full
 CLI filesystem/import/transaction entry point.
 
+## Approved taxonomy and actual PostgreSQL failure
+
+A separate two-case HTTP probe (`c41-taxonomy-wire.mjs`) completed with exit 0. With explicit
+consent, a request containing one existing-taxonomy file and one new-subject/grade file returned
+200/count2, created exactly one subject and grade, and committed exactly two plans/versions.
+Authorized cleanup restored the original four-collection snapshot.
+
+For the negative case, a temporary **BEFORE INSERT** trigger on `lesson_bundle_versions` rejected
+only the synthetic title `ZZ_AUDIT_C41_TX_FAIL`. Immediately before raising, its PostgreSQL log
+reported `peer_versions=1, new_subjects=1, new_plans=2`: the first peer version and newly consented
+taxonomy had actually been written inside the transaction. The upload returned500. A snapshot
+**before cleanup** equalled the original, proving rollback rather than the test deleting leftovers.
+A subsequent authenticated identity check succeeded. The trigger and function were dropped in
+`finally` and their absence verified; no fault hook remains in the application or database.
+
+The host controller checked both the Docker project label and the PostgreSQL database comment
+against the isolated target's marker, and refused an existing function with that name. Reproduce
+only under the exclusive target lock in that marked disposable database. Install a narrowly
+conditional trigger, run the audit helper with the standard private fixture/corpus/result paths,
+then remove the trigger/function even if the helper fails. A generic500 alone does not prove the
+intended injected fault: retain the trigger's in-transaction counter log as well as snapshot equality.
+All raw logs, fixture data, exact executed runner bytes and hashes remain private.
+
 ## Reproduction and provenance
 
 Audit-only helpers: `app/tests/audit/c41-generate.mjs`, `c41-web-corpus.mjs`,
@@ -119,7 +142,7 @@ manifest hash: `1c13d671e09809cc88b77c51d5c41c4588ee6154074baa82d4acfba732a5c12f
 ## Outstanding mandatory checks
 
 Still pending: full CLI path/corpus import; richer script/HTML prose through preview/editor/export/
-mail sinks; approved taxonomy creation plus actual database-fault rollback; reingest and true
+mail sinks; remaining taxonomy-consent shapes; reingest and true
 concurrent write behavior; omitted/chunked/misdeclared request bodies and proxy posture; compressed
 archive/body limits and remaining exact boundary/count combinations; real browser verification.
 The current pass is not evidence for those checks or a clean-audit conclusion.

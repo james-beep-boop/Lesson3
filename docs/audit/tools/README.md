@@ -48,6 +48,8 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Save boundary | `npx tsx tests/audit/c30-save-matrix.ts`; eight candidates created/deleted; clean two-plan fixture required for exact patch controls |
 | Targeted auth budget | `npx tsx tests/audit/c23-auth-budgets.ts`; `LESSON3_AUDIT_AUTH_MODE=target` |
 | Global auth budget | Same, mode `global`; at most 1,005 requests, concurrency four, 120-second deadline |
+| Controlled save races | `node tests/audit/c31-save-barrier.mjs`; private corpus directory and marked target DB URI; holds/releases a plan-row lock, creates/deletes one plan and four candidates |
+| Approved-taxonomy rollback | `node tests/audit/c41-taxonomy-wire.mjs`; marked disposable DB with narrowly conditional fault trigger; standard private paths; controller must remove trigger/function in finally |
 | Generate upload corpus | `node tests/audit/c41-generate.mjs`; network disabled; absolute private `LESSON3_AUDIT_CORPUS_DIR` outside `/app` |
 | Web upload corpus | `node tests/audit/c41-web-corpus.mjs`; private corpus/fixture/result paths; optional `LESSON3_AUDIT_CORPUS_GROUP` narrows non-control groups; imports/deletes candidate plans |
 | Static CLI extractor corpus | `npx tsx tests/audit/c41-cli-corpus.ts`; private result path, network disabled, no database |
