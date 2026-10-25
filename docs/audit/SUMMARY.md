@@ -125,8 +125,10 @@ wrong-old-document serving was established. No product fix was made.
   three server-stamped grantor/time and relationship-depth cases; broader authorization and utility
   review remains open.
 - [Utility slice](C59-utilities-current.md): focused artifact-cache, canonical-JSON, email,
-  sanitizer and system-facts tests passed 43/43; rate-limit and session source observations align
-  with the existing shared-store and endpoint evidence. The remaining `src/lib` catalog is open.
+  sanitizer and system-facts tests passed 43/43; a contract-unit follow-up passed 127/127 across 16
+  clock, selection, recovery, posture, visibility, ancestry, semver, body-limit, count and ordering
+  files. Rate-limit and session source observations align with the existing shared-store and endpoint
+  evidence. The remaining `src/lib` catalog is open.
 - [Client/component slice](C511-client-current.md): 15 focused unit files passed 108/108 for export
   client/kind, editor validation, recovery/Combine boundaries, idle logout, navigation freshness,
   signup/upload guards and system panel/flags; one CI-equivalent Chromium editor-validation flow

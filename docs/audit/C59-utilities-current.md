@@ -52,5 +52,17 @@ The failed-user harness log is private at
 - `app/src/lib/session.ts` memoizes auth only within a request render and redirects unauthenticated
   callers through `requireUser`; it does not create a cross-request session cache.
 
+## Contract-unit follow-up
+
+Sixteen additional focused unit files passed **127/127** in 1.03 seconds with Vitest `4.1.12`:
+clock-skew bounds; display and lesson-detail selection; editing viewport state; offline administrator
+recovery; personal-version projection; plan selection; public posture and slug normalization; bundle
+visibility; release ancestry/fingerprint; semver conflict rules; server action body limits; version
+counts and ordering. The exact runner hash is
+`715fe2b01a5ee8fa0160c4ded522f5af40839ec34f967b710f4099e0565ad1f4`; the raw log hash is
+`1a7bc37ec8c1d4827a53cf0a260116726cc45ce063103aef13b10d49bcbe6db3`. These checks cover pure
+boundary and projection contracts; they do not close the remaining combine/recovery, resolver,
+transaction, or deployment families.
+
 Remaining C5.9 work includes the other `src/lib` families, expiry/clock utilities, combine and
 recovery primitives outside the already tested suites, and broader deployment/browser coverage.
