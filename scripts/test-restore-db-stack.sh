@@ -325,6 +325,46 @@ for pair in "approved undo-approved" "swapped undo-services-stopped" "starting u
   check "[$back] discarded and closed" no_journal
 done
 
+# ─── Cache deletion faults: no startup until repair, in both directions ─────────────────────────────
+say "restore cache deletion fault, repair and resume"
+CACHE_MODE="$(dc exec -T app sh -c 'stat -c %a "$ARTIFACT_CACHE_DIR"')"
+dc exec -T app sh -c 'echo retained > "$ARTIFACT_CACHE_DIR/probe-stale.bin"'
+dc run --rm --no-deps -T --user 0 --entrypoint sh app -c 'chmod 0555 "$ARTIFACT_CACHE_DIR"' >/dev/null
+restore "$B1_DATE" --local-file "$B1" --into lesson3 --force-prod
+PREVIOUS="$(jkey previous)"
+check "cache fault: restore fails" bad_exit
+check "cache fault: restore explains repair and resume" has 'could not empty the export cache'
+check "cache fault: restore keeps its swapped state" eq "$(state)" swapped
+check "cache fault: app stays stopped after restore" eq "$(dc ps --services --status running | grep -cx app)" 0
+check "cache fault: old database is retained" eq "$(dbs)" "lesson3 $PREVIOUS"
+check "cache fault: artifact stays readable" dc run --rm --no-deps -T --entrypoint sh app -c 'test -r "$ARTIFACT_CACHE_DIR/probe-stale.bin"'
+dc run --rm --no-deps -T --user 0 --entrypoint sh app -c "chmod $CACHE_MODE \"\$ARTIFACT_CACHE_DIR\"" >/dev/null
+restore "" --resume
+check "cache repair: restore resume succeeds" ok_exit
+check "cache repair: restore reaches provisional" eq "$(state)" provisional
+check "cache repair: restored content is live" eq "$(plans)" 1
+check "cache repair: retained artifact was deleted" dc exec -T app sh -c 'test ! -e "$ARTIFACT_CACHE_DIR/probe-stale.bin"'
+
+say "undo cache deletion fault, repair and resume"
+dc exec -T app sh -c 'echo retained > "$ARTIFACT_CACHE_DIR/probe-stale.bin"'
+dc run --rm --no-deps -T --user 0 --entrypoint sh app -c 'chmod 0555 "$ARTIFACT_CACHE_DIR"' >/dev/null
+restore undo --undo
+UNDONE="$(jkey undone)"
+check "cache fault: undo fails" bad_exit
+check "cache fault: undo explains repair and resume" has 'could not empty the export cache'
+check "cache fault: undo keeps its swapped state" eq "$(state)" undo-swapped
+check "cache fault: app stays stopped after undo" eq "$(dc ps --services --status running | grep -cx app)" 0
+check "cache fault: undone database is retained" eq "$(dbs)" "lesson3 $UNDONE"
+check "cache fault: undo artifact stays readable" dc run --rm --no-deps -T --entrypoint sh app -c 'test -r "$ARTIFACT_CACHE_DIR/probe-stale.bin"'
+dc run --rm --no-deps -T --user 0 --entrypoint sh app -c "chmod $CACHE_MODE \"\$ARTIFACT_CACHE_DIR\"" >/dev/null
+restore "" --resume
+check "cache repair: undo resume succeeds" ok_exit
+check "cache repair: undo completes" eq "$(state)" undone
+check "cache repair: previous content is live" eq "$(plans)" 2
+check "cache repair: undo artifact was deleted" dc exec -T app sh -c 'test ! -e "$ARTIFACT_CACHE_DIR/probe-stale.bin"'
+restore "$UNDONE" --discard-previous
+check "cache repair: undo journal can be closed" no_journal
+
 # ─── Startup failure: offer --undo, never act alone ──────────────────────────────────────────────────
 say "startup failure after the swap"
 T_ENV="-e RESTORE_TEST_INTERRUPT_AFTER=swapped" restore "$B1_DATE" --local-file "$B1" --into lesson3 --force-prod
