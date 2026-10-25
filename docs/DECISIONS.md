@@ -11,6 +11,41 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Payload 3.92.0 tested (PR #448): typing speed unchanged on the Rock
+
+Payload and its five `@payloadcms/*` packages moved 3.91.0 → 3.92.0 on a draft branch. The `undici`
+override is dropped (3.92.0 pins 7.30.1); the `happy-dom` override stays (Lexical is still 0.50.0). The
+typing-patch strings match the 3.92.0 bundle unchanged. No migration; codegen unchanged.
+
+**Upstream diff (3.91.0 vs 3.92.0 `dist`):** `@payloadcms/next` and `db-postgres` unchanged. In `payload`,
+every error class now sets `this.name` explicitly (payloadcms/payload#18775), so `turbopackMinify: false`
+can be removed as its own change, proven by `apiErrorMessages.http.spec.ts` against a built app; field
+access now receives `id` during permission computation, which makes the "self" branches of
+`emailReadAccess`, `selfOrSiteAdminField` and `assignmentsReadField` evaluate correctly in admin
+permission lookups without widening them; per-locale validation applies only to `locale: 'all'` (no
+localization here). In `@payloadcms/ui`, an Upload drawer fix and the `/admin` account view hiding
+password fields when the viewer lacks `update`. The files the native-lock rules rely on are unchanged.
+
+**Gates (cloud):** lint, types, format clean; unit 1869, int 334 pass; e2e 139 pass, and the 6 failures
+(4 Insert link PDF-picker, `advancedTools` "keeps Insert link", `combine` "restores Combine metadata")
+fail identically on `main` in the same container, so they are environmental.
+
+**Rock benchmark** (same method as 2026-10-24; five alternating rounds, `BENCH_RATES=1`, load 0.7–1.5;
+all 370 keys delivered):
+
+| Rock, 1× | median | p90 | max | long tasks | wall time for 37 keys |
+|---|---|---|---|---|---|
+| v1.05 (`a68fb74`, Payload 3.91.0) | 40–48 ms | 48 ms | 80–104 ms | 0.30–0.39 s | 5.92–5.96 s |
+| PR #448 (`de39b00`, Payload 3.92.0) | 40–48 ms | 48 ms | 80–112 ms | 0.31–0.43 s | 5.93–6.01 s |
+
+Within noise of each other and of the 2026-10-24 figures. The link measured ~430 KB/s, so the candidate
+images were built on the Rock from temporary clones. ⚑ The `rowlabel` marker comment does not survive
+Turbopack bundling (the live v1.05 bundle is the same), so check that patch in the served chunk by its
+code (the row label calls `Ge()`, not `bf()`), not by the marker. The `ucs` marker does survive.
+Cleanup removed all perf containers, images, clones and the copied plan; an unplanned
+`docker volume prune` removed only unused anonymous volumes (the perf Postgres data), and every named
+lesson3 and onecli volume remains. The live app ran on the same image throughout.
+
 ## 2026-10-25 — Wrap-up triage of the 2026-10-24 audit's five reviewed findings
 
 The operator is shelving the project after one more tag. Of the five Codex-reviewed findings still
