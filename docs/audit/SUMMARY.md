@@ -136,6 +136,10 @@ wrong-old-document serving was established. No product fix was made.
   approval branch. The dedicated offline-signup journey also passed 1/1 against that SMTP-disabled
   app. Additional Chromium flows passed liveRowLabels 2/2 and editorBackDarkMode 1/1. Browser
   breadth, accessibility, visual and full component coverage remain open.
+- [Visual consistency](C60-visual-current.md): the computed-style pages measurement passed 1/1 on
+  the Mailpit target, covering login, eight authenticated surfaces, account menus and 390px home/
+  Manage layouts. This is a current dump without a before/after comparison; menu/dialog states,
+  full role/route widths, screenshot review and accessibility remain open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; the current discussions integration suite added

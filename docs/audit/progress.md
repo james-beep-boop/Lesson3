@@ -36,7 +36,7 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C5.12 | Fields & editor grammar | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.13 | Config & wiring | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.14 | Migrations spot-check + upgrade drill | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C60 | Visual consistency crawl | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C60 | Visual consistency crawl | Partial: C60-visual-current.md; computed-style pages measurement passed 1/1 over login, eight authenticated surfaces, account menus and 390px home/Manage. Menu/dialog states, full role/route widths, screenshot review and before/after comparison remain pending |
 | C61 | Accessibility | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C62 | Performance + load | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C63 | Functional bug hunt | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
