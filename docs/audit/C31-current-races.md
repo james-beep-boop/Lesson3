@@ -64,11 +64,25 @@ closes the authority-change-while-waiting item for the exercised native/version 
 close request-editing lock stealing or stale-lock behavior, recovery attribution, Combine races, or
 the required full C31 fingerprint/deletion ledger.
 
+## Native editing-lock attack boundary — current HTTP suite pass
+
+The current `app/tests/http/lockedDocuments.http.spec.ts` suite also passed **18 tests** in 2.99
+seconds (exit 0) against the marked target. It refused API lock creation for every signed-in role,
+including a forged lock naming an administrator; allowed all signed-in users to read a real lock;
+allowed takeover only to the caller, on a document that caller may edit; refused handing a lock to
+another user, moving it to another document, and takeover by a plain Teacher; and allowed only the
+holder to unlock. A real lock returned 423 for a competing version deletion and the same deletion
+succeeded after the holder released it. The raw output is private at `logs/c31-locked-documents.log`.
+
+The suite leaves the target clean and unlocked. It validates the native lock authorization and
+deletion barrier, but it does not age a lock through the five-minute expiry or prove stale-lock
+cleanup, so that item remains open.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
-unauthorized deletion ledger, persisted row fingerprint artifacts, editing-lock stealing/staleness,
+unauthorized deletion ledger, persisted row fingerprint artifacts, stale-lock aging/cleanup,
 recovery/restore attribution, Combine and Official-pointer races, and reset afterward. The source/
-parent deletion and authority-change-while-waiting cases now have the bounded evidence described
-above; the complete ledger and final fingerprint artifact are still open.
+parent deletion, authority-change-while-waiting, and native lock authorization cases now have the
+bounded evidence described above; the complete ledger and final fingerprint artifact are still open.
 Earlier C22/C30 tests are supporting evidence; no full-chunk or independent-review claim is made.

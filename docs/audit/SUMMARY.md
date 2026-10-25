@@ -63,7 +63,9 @@ validation is pending. No product fix was made.
   sessions both reached an observed PostgreSQL lock barrier; four successful saves retained prose,
   authors and monotonic versions; historical-row comparisons and cleanup passed. A separate
   current HTTP suite added 19 real lock-wait authority-change cases covering account grants/deletes,
-  source retirement, recovery saves and Make Official rollback. Full C31 remains pending.
+  source retirement, recovery saves and Make Official rollback. The native editing-lock suite added
+  18 takeover, holder-only unlock, forged-create and 423 deletion-barrier cases. Full C31 remains
+  pending, including stale-lock aging and the final fingerprint/deletion ledger.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked
