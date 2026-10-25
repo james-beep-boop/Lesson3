@@ -62,10 +62,11 @@ validation is pending. No product fix was made.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed. Honest declared body ceilings returned 413 on upload, preview and
-  save-as-new; monitored205MiB expansion refused; lesson/taxonomy state restored.
+  save-as-new; chunked oversized preview/save/upload bodies returned the application’s 413/400 caps;
+  monitored205MiB expansion refused; lesson/taxonomy state restored.
   Approved taxonomy and actual PostgreSQL fault rollback passed; the Chromium preview, DOCX export
   and Mailpit attachment sink probe passed with script-like prose rendered as inert text. Omitted or
-  chunked body framing, editor/PDF/WebKit coverage and further concurrency remain open. Observations are not
+  public proxy body posture, editor/PDF/WebKit coverage and further concurrency remain open. Observations are not
   new findings.
 - [Resolved surface inventory](scans/surface-current.md): 16 collections, two globals, four root
   endpoints and five tasks. All **43 catalog chunks** remain tracked in [progress.md](progress.md).

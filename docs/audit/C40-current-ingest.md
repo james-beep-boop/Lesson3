@@ -71,6 +71,22 @@ recorded all three statuses and exit 0. This proves the application-side check f
 declared length; it does not prove a limit for omitted, chunked, or false headers, nor the
 reverse-proxy posture.
 
+## Chunked-body follow-up
+
+Two additional helpers exercised HTTP/1.1 `Transfer-Encoding: chunked` without a
+`Content-Length`. Preview and save-as-new each received a 4,000,126-byte multipart body whose
+`data` field was 4,000,003 UTF-8 bytes (`{}` plus whitespace); both returned 413 `Preview payload
+too large`. A streaming upload sent 209,977,504 bytes—one byte over the 209,977,344-byte request
+budget after framing—and returned 400 `Upload too large (max 209977344 bytes)`. The plan collection
+count stayed 2 before and after the upload. The direct app container remained running with
+`OOMKilled=false`; one sampler observation during the upload was 820.1 MiB of its 8 GiB limit, so
+this is evidence of a post-parse application cap and memory cost, not a proxy-cap proof.
+
+The public deployment requirement remains separate: `docs/OPS.md` requires an nginx/Caddy-style
+global ceiling just above 209,977,344 bytes because an omitted or chunked header reaches the
+application parser first. No production proxy is attached to this isolated target, so its
+configuration and public-path 413 behavior remain unverified.
+
 ## Test and runtime evidence
 
 Read existing `extract.spec.ts` 1–197, `uploadFiles.spec.ts` 1–298,
@@ -103,5 +119,6 @@ merely for containing angle brackets. Rich prose corpus and actual route/browser
 ## Outstanding
 
 Review the remaining ingest/preview/recovery tests and full CLI wiring; finish component-level
-source dependencies; finish remaining taxonomy shapes, reingest/concurrency, omitted/chunked body
-framing, script/HTML sink and full corpus fidelity checks. C40 remains partial, with no exclusions.
+source dependencies; finish remaining taxonomy shapes, reingest/concurrency, false-header and
+proxy posture, script/HTML sink and full corpus fidelity checks. C40 remains partial, with no
+exclusions.

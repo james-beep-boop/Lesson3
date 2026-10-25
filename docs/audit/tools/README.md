@@ -52,6 +52,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Approved-taxonomy rollback | `node tests/audit/c41-taxonomy-wire.mjs`; marked disposable DB with narrowly conditional fault trigger; standard private paths; controller must remove trigger/function in finally |
 | Rich prose sinks | `node tests/audit/c41-content-sinks.mjs`; browser image, marked target network, synthetic source/recipient; stored/unsaved preview, Chromium DOM, DOCX export and Mailpit attachment; helper deletes owned plan |
 | Declared body ceilings | `node tests/audit/c40-body-ceilings.mjs`; private fixture/result paths, marked target network; honest oversized multipart `Content-Length` probes for upload, preview and save-as-new |
+| Chunked body ceilings | `node tests/audit/c40-chunked-body.mjs` and `c40-chunked-upload.mjs`; marked target network; no-`Content-Length` preview/save field caps plus a streamed just-over-limit upload with private resource sampling |
 | Generate upload corpus | `node tests/audit/c41-generate.mjs`; network disabled; absolute private `LESSON3_AUDIT_CORPUS_DIR` outside `/app` |
 | Web upload corpus | `node tests/audit/c41-web-corpus.mjs`; private corpus/fixture/result paths; optional `LESSON3_AUDIT_CORPUS_GROUP` narrows non-control groups; imports/deletes candidate plans |
 | Static CLI extractor corpus | `npx tsx tests/audit/c41-cli-corpus.ts`; private result path, network disabled, no database |

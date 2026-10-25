@@ -88,6 +88,14 @@ sampling overhead, ranged from 209,809,408 to 339,333,120 bytes. No OOM, OOM-kil
 occurred. These are sampled values, not an exact request peak or a production capacity estimate.
 This follow-up repeated the ten role controls and one expansion request, not the entire corpus.
 
+The body-framing follow-up used the same marked target and Site Administrator fixture. Chunked
+preview/save bodies of 4,000,126 bytes returned 413 after the field-byte check. A streamed chunked
+upload of 209,977,504 bytes (one byte over the 209,977,344-byte request budget after multipart
+framing) returned 400 `Upload too large`; the plan count remained unchanged at 2. The app stayed
+running with `OOMKilled=false`; a single cgroup sample was 820.1 MiB of 8 GiB. This demonstrates
+the application’s post-parse defense and its memory cost. The required public proxy ceiling and
+public-path rejection remain unverified.
+
 ## CLI extractor corpus
 
 The real `extractAresData` ran in the pinned dependency container, network disabled: **29 cases,
