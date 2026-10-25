@@ -51,7 +51,25 @@ helper behavior (`txDb`, hooks, access refresh and job/cache consequences) remai
 `assertDeclaredBodyWithin` is a Content-Length guard. Post-parse field/file limits do not prove a
 hard ceiling while a missing/chunked body is buffered. The recovery parser itself describes that
 limitation. Its comment referring to NEXT-SESSION is historical context, not current deployment
-verification; bounded wire probes and proxy/config review remain necessary.
+verification; omitted/chunked-body and proxy/config review remain necessary.
+
+## Declared body-ceiling wire probe
+
+The standalone `app/tests/audit/c40-body-ceilings.mjs` probe passed on the isolated target after
+the app image was rebuilt from the pinned source. It logged three independent HTTP POSTs with
+honest oversized `Content-Length` values and valid multipart framing for the preview/save paths:
+
+| Route | Declared length | Result |
+|---|---:|---|
+| `/api/lesson-plans/upload` | 210,763,776 bytes | 413, `Upload too large (max 209977344 bytes)` |
+| `/:id/preview` | 5,242,880 bytes | 413, `Preview payload too large` |
+| `/:id/save-as-new` | 5,242,880 bytes | 413, `Preview payload too large` |
+
+The requests used an isolated HTTP connection per route because these intentional early rejections
+close the connection while a client may still be writing the declared body. The private result file
+recorded all three statuses and exit 0. This proves the application-side check for an honest
+declared length; it does not prove a limit for omitted, chunked, or false headers, nor the
+reverse-proxy posture.
 
 ## Test and runtime evidence
 
@@ -85,5 +103,5 @@ merely for containing angle brackets. Rich prose corpus and actual route/browser
 ## Outstanding
 
 Review the remaining ingest/preview/recovery tests and full CLI wiring; finish component-level
-source dependencies; finish remaining taxonomy shapes, reingest/concurrency, body-framing,
-script/HTML sink and full corpus fidelity checks. C40 remains partial, with no exclusions.
+source dependencies; finish remaining taxonomy shapes, reingest/concurrency, omitted/chunked body
+framing, script/HTML sink and full corpus fidelity checks. C40 remains partial, with no exclusions.

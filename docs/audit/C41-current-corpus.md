@@ -127,8 +127,38 @@ All raw logs, fixture data, exact executed runner bytes and hashes remain privat
 
 ## Reproduction and provenance
 
+### Rich prose through preview, browser, export, and mail
+
+The sink probe `app/tests/audit/c41-content-sinks.mjs` completed with exit 0 on the isolated
+stack. It imported a full canonical bundle whose title, unit fields, every lesson prose field,
+Final Explanation, and Summary Table contained the literal marker
+`<script>`, `<img onerror>`, `<svg>`, and a `javascript:` string.
+
+- Stored and unsaved HTML previews returned 200 with the shared CSP
+  `default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'` and `nosniff`.
+  The raw HTML contained escaped text (`&lt;script&gt;`), with no actual script/img/svg/iframe
+  tags. The marker remained visible text.
+- Chromium loaded the served preview over the target network address. The DOM contained zero
+  `script`, `img`, `svg`, or `iframe` elements and zero sampled `onerror`/`onclick`/`onload`
+  attributes. The marker was present in `innerText`; the document title contained the escaped
+  marker; no console errors occurred. The browser image's HTTPS-first behavior upgraded the
+  service name, so the final browser check used the isolated app container IP while the API
+  requests continued to use `http://app:3000`.
+- DOCX preparation returned 202, the status reached ready, and the warm export returned 200
+  `application/zip` with 45,299 bytes.
+- Email preparation returned 202. Mailpit received a message to the synthetic teacher address
+  with a CR/LF-free subject, the marker in the plain-text body, and one `bundle_docx.zip`
+  attachment. The first two attempts found an older password-reset message; the runner was fixed
+  to select a fresh `Lesson plan:` subject and was then rerun successfully. The initial failed
+  jobs were caused by that test-selection mistake followed by cleanup, not by a product finding.
+
+This is strong evidence for the current preview/export/mail path, while browser coverage remains
+limited to the Chromium served preview. WebKit, editor UI controls, PDF, and other notification
+templates remain outside this bounded probe.
+
 Audit-only helpers: `app/tests/audit/c41-generate.mjs`, `c41-web-corpus.mjs`,
-`c41-cli-corpus.ts`. Generate outside the checkout with `LESSON3_AUDIT_CORPUS_DIR`; run web tests
+`c41-cli-corpus.ts`, `c41-content-sinks.mjs`. Generate outside the checkout with
+`LESSON3_AUDIT_CORPUS_DIR`; run web tests
 under the documented target lock with the marked synthetic fixture, corpus directory, result path,
 and `E2E_BASE_URL=http://app:3000`. The optional `LESSON3_AUDIT_CORPUS_GROUP` selects the named
 non-control group while retaining role controls. CLI extraction requires only the private result
@@ -141,8 +171,8 @@ manifest hash: `1c13d671e09809cc88b77c51d5c41c4588ee6154074baa82d4acfba732a5c12f
 
 ## Outstanding mandatory checks
 
-Still pending: full CLI path/corpus import; richer script/HTML prose through preview/editor/export/
-mail sinks; remaining taxonomy-consent shapes; reingest and true
+Still pending: full CLI path/corpus import; remaining editor/PDF/WebKit/browser sink checks;
+remaining taxonomy-consent shapes; reingest and true
 concurrent write behavior; omitted/chunked/misdeclared request bodies and proxy posture; compressed
 archive/body limits and remaining exact boundary/count combinations; real browser verification.
 The current pass is not evidence for those checks or a clean-audit conclusion.
