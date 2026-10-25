@@ -8,7 +8,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased (on `main`, not tagged or deployed)
+## v1.06 (2026-10-25)
+
+- Pages load less code: minification is back on, so the browser downloads about 0.87 MB of
+  JavaScript instead of 1.61 MB (gzipped), and the server bundle shrinks from 54 MB to 18 MB. Server
+  error messages still come through intact, and typing speed on the Rock is unchanged. React moves to
+  19.3.1, Next.js to 16.4.3, and `zod` to 4.6.7, which clears the one high audit advisory. No
+  database migration (#449).
 
 - Payload moves from 3.91.0 to 3.92.0, with its five companion packages. The `undici` override is
   no longer needed (Payload pins 7.30.1 itself). The faster-typing patch carries over unchanged, and

@@ -36,14 +36,12 @@ F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-se
 10 minutes after; `/login` 200. **Still open:** the manual checks of the lock warning and Take over
 from two accounts, and one change in Manage → Users.
 
-**Payload 3.92.0 is merged to `main` (#448, `4c78d1b`), but not tagged or deployed.** The operator chose
-2026-10-25 not to tag it yet; the Rock stays on v1.05 (`a68fb74`). The six packages moved together, the `undici`
-override is gone, the typing patch applied unchanged, and the Rock benchmark showed no change from
-v1.05 (40–48 ms per key on both). Results: DECISIONS 2026-10-25 "Payload 3.92.0 tested".
-**Minification back on and React 19.3.1: draft PR #449.** The error-message wire test passes against
-the minified build, client JS drops 1.61 → 0.87 MB gzipped, and Rock typing is unchanged. Results:
-DECISIONS 2026-10-25 "Minification back on". **Next after it:** the majors (Sentry 11, jsdom 30, …),
-each as its own change.
+**v1.06 is tagged on `main` (not deployed; the Rock stays on v1.05, `a68fb74`).** It carries Payload
+3.92.0 (#448) and #449: minification back on, React 19.3.1, Next.js 16.4.3, `zod` 4.6.7. Client JS
+drops 1.61 → 0.87 MB gzipped; the error-message wire test passes against the minified build; Rock
+typing is unchanged from v1.05 (40–48 ms per key). No migration. Results: DECISIONS 2026-10-25
+"Payload 3.92.0 tested" and "Minification back on". **Next:** deploy v1.06 when the operator asks;
+then the majors (Sentry 11, jsdom 30, …), each as its own change.
 
 **Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
 evidence, L-C23-01) merged into it 2026-10-25, so no audit PR is open. Not started: the rest of the
@@ -253,7 +251,7 @@ once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 2
   From v1.01's notes: have the updater print the release's ⚑ operator notes.
 - Open from the dependency review: the majors (Sentry 11, jsdom 30, …) each as their own change.
   Playwright 1.64 is done (#429), Payload 3.92.0 is done (#448), and minification plus React 19.3.1
-  are in draft PR #449.
+  are in v1.06 (#449).
 
 **Earlier (2026-10-21):** Mark (ARES) answered the open Insert link questions; the fix merged as #424
 (`8ed85a2`). Tracker addresses are kept as copied (unwrapping
