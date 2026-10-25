@@ -569,7 +569,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/jobStatsScheduling.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/lockRows.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/messageReferenceMigration.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/messages.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/messages.int.spec.ts` | C72 | Current C24 integration evidence: C24-messages-current.md; 11/11 passed |
 | `app/tests/int/nullResources.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/officialPointerLock.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/personalVersions.int.spec.ts` | C72 | Current C31/C5.4 integration evidence: C31-personal-versions-current.md; 6/6 passed |
