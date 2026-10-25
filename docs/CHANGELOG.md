@@ -8,6 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## v1.05 (2026-10-25)
+
+- Editing locks can no longer be faked. Only the editing form creates a lock, Take over only hands it
+  to the person taking it, and locking applies only to versions, plans, subjects and subject grades.
+  Deleting a version or plan that someone has open now says "Someone is editing this right now. Try
+  again in a few minutes." One database migration, which runs on deploy and removes only
+  short-lived lock records (#442, audit F-C22-002).
+- Uploads now reject an ARES file carrying an unknown key named after a built-in object property
+  (`constructor`, `toString`, `valueOf`, `hasOwnProperty`), like any other unexpected key. These
+  names used to pass the contract gate unchecked (audit F-C40-001).
+- Favoriting a lesson version that does not exist answers 404 instead of a generic 500 (audit
+  F-C24-001).
+- Developer scripts: `scripts/dev-seed.sh` can be re-run (it failed with an email validation error),
+  and `scripts/dev-server.sh` passes `RENDER_TIMINGS` through to the app.
+
 ## v1.04 (2026-10-24)
 
 - ⚑ **Security: Payload's hidden job-statistics record is closed to the API** (audit F-C22-001).
@@ -15,11 +30,6 @@ Concise record of delivered product changes, newest first. Detailed implementati
   emailed exports, password-reset emails, draft expiry). Now only Site Administrators can read it and
   nobody can write it over the API; the scheduler is unaffected. docs/OPS.md gains a recovery note,
   "Background jobs stopped: reset the scheduler's statistics" (#439).
-
-- Editing locks can no longer be faked. Only the editing form creates a lock, Take over only hands it
-  to the person taking it, and locking applies only to versions, plans, subjects and subject grades.
-  Deleting a version or plan that someone has open now says "Someone is editing this right now. Try
-  again in a few minutes." One database migration; it removes only short-lived lock records.
 
 - Typing in the lesson editor is faster on large plans: about 64 ms → 16–24 ms per key on a fast
   laptop, and 200 ms → 32 ms on a CPU four times slower (176–184 ms → 40 ms on the Rock). Lesson row

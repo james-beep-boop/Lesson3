@@ -131,6 +131,19 @@ describe('favorites (§10): stamped ownership, own-only rows, unique per version
     ).rejects.toThrow()
     await fx.payload.delete({ collection: 'favorites', id: fav.id, overrideAccess: true })
   })
+
+  // Audit F-C24-001: the missing version used to reach the foreign key and surface as a 500.
+  it('refuses a favorite on a nonexistent version with a 404 and creates nothing', async () => {
+    await expect(
+      fx.payload.create({
+        collection: 'favorites',
+        data: { version: 999_999_999, user: fx.users.teacher.id },
+        overrideAccess: false,
+        user: fx.users.teacher,
+      }),
+    ).rejects.toMatchObject({ status: 404 })
+    expect(await favoritesVisibleTo(fx.users.teacher)).toHaveLength(0)
+  })
 })
 
 describe('follower stars track the Official; editor pins stay (teacher-first T4)', () => {

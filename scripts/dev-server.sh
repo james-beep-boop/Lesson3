@@ -17,6 +17,7 @@
 #
 # Usage:  scripts/dev-server.sh          (or via .claude/launch.json → "lesson3-dev")
 #         PUBLIC_LIBRARY_ENABLED=1 SERVER_URL=http://localhost:3000 scripts/dev-server.sh
+#         RENDER_TIMINGS=1 scripts/dev-server.sh      (server-render phase timings, lib/renderTimings.ts)
 # Stop:   Ctrl-C
 set -euo pipefail
 
@@ -67,4 +68,5 @@ exec docker run --rm --init --name lesson3-dev-server \
   -e ARTIFACT_CACHE_DIR=/tmp/artifact-cache \
   --env PUBLIC_LIBRARY_ENABLED \
   --env SERVER_URL \
+  --env RENDER_TIMINGS \
   lesson3-deps npx next dev -H 0.0.0.0

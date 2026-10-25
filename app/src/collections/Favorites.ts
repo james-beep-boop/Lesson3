@@ -5,7 +5,11 @@ import type {
   CollectionConfig,
 } from 'payload'
 
+import { APIError } from 'payload'
+
 import { isSiteAdmin } from '../access'
+import { findReadableVersion } from '../lib/readBundle'
+import { relId } from '../lib/relId'
 import type { User } from '../payload-types'
 
 /**
@@ -51,6 +55,31 @@ const stampFavoriteUser: CollectionBeforeValidateHook = ({ data, operation, req 
 }
 
 /**
+ * Refuse a favorite on a version the caller cannot read — including one that does not exist — with
+ * a 404 before the insert, rather than letting the foreign key turn it into a generic 500 (audit
+ * F-C24-001). The FK stays: a version deleted between this lookup and the insert is still refused by
+ * the database, just less politely. System paths (no `req.user`) are trusted, as for the stamp above.
+ */
+const requireReadableFavoriteVersion: CollectionBeforeValidateHook = async ({
+  data,
+  operation,
+  req,
+}) => {
+  if (operation !== 'create' || !req.user) return data
+  const id = relId(data?.version)
+  // An absent version is left to the field's own `required` check, which answers 400.
+  if (id == null) return data
+  const version = await findReadableVersion(req.payload, {
+    id,
+    user: req.user as User,
+    req,
+    select: { semver: true },
+  })
+  if (!version) throw new APIError('That lesson version is not available.', 404)
+  return data
+}
+
+/**
  * Cascade: delete favorites rows pointing at a parent BEFORE the parent row goes. Both favorites
  * relationships are required → NOT NULL columns with ON DELETE SET NULL FKs, so leaving rows behind
  * makes Postgres raise 23502 (the same trap `cascadeDeleteLessonPlanVersions` documents). Runs in
@@ -89,7 +118,7 @@ export const Favorites: CollectionConfig = {
     delete: ownFavorites,
   },
   hooks: {
-    beforeValidate: [stampFavoriteUser],
+    beforeValidate: [stampFavoriteUser, requireReadableFavoriteVersion],
   },
   fields: [
     {
