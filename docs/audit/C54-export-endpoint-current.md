@@ -28,3 +28,9 @@ The focused `endpoints.http.spec.ts -t "Preview endpoint"` selection passed **5 
 seconds (119 other tests skipped; exit 0), covering unauthenticated/read-only and editing gates,
 stored and unsaved prose overlays, structural-change refusal, and script-free preview behavior. Raw
 output is private at `logs/c54-preview-endpoint-http.log`.
+
+The focused `endpoints.http.spec.ts -t "Preview-as-PDF endpoint"` selection passed **7 tests** in
+3.62 seconds (117 other tests skipped; exit 0), covering unauthenticated/edit gates, document-tag
+validation, missing-deliverable and structural refusal, Gotenberg inline PDF delivery, and proof
+that a larger unsaved prose overlay reaches the generated PDF. Raw output is private at
+`logs/c40-preview-pdf-http.log`.

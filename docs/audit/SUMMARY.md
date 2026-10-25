@@ -100,7 +100,8 @@ validation is pending. No product fix was made.
   DOCX/PDF job, authentication, poll-binding and deduplication cases, plus three AReS JSON export
   and eight per-document serve-only/tag cases; broader export fidelity and queue coverage remains
   open. The focused Preview endpoint selection added five stored/unsaved gate, overlay, structural
-  refusal and script-free HTML cases.
+  refusal and script-free HTML cases, and the Preview-as-PDF selection added seven Gotenberg gate,
+  validation, structural-refusal and unsaved-fidelity cases.
 - [Assignment provenance](C5-assignment-provenance-current.md): the current integration suite passed
   three server-stamped grantor/time and relationship-depth cases; broader authorization and utility
   review remains open.
