@@ -11,6 +11,33 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Shared colour roles, introduced with no visible change (CSS step 2)
+
+The operator approved a staged CSS cleanup (Codex review, 2026-10-25): shared semantic tokens first, then the
+navigation/user menu/badges and the dialog moved into shared component styles as separate changes, buttons
+kept as per-surface adapters, and Payload's global palette left alone unless it is ever needed. Codex's
+review found the two stylesheets already style the same React components (`AppNav`, `Modal`) separately and
+have drifted (nav badge 1.1rem vs 1.15rem, avatar badge offset, dialog radius and body size).
+
+**This step names the roles and changes nothing on screen.** `app-tokens.scss` gains `--app-text`,
+`--app-text-muted`, `--app-border`, `--app-surface` and `--app-surface-soft`, with the frontend's values
+(the frontend-only `--line-strong`, `--accent-ink`, `--danger` and `--radius` stay literal in `styles.css`
+until the admin needs them). `styles.css`'s `--ink`,
+`--muted`, `--line`, … become aliases of them. In `custom.scss`, 95 declarations that used Payload's
+`--theme-elevation-*` for one of those roles now use the role (`color` 1000 → text, `color` 600 → muted,
+`border*` 150 → border, `background` 0 → surface, `background` 50 → surface-soft); four uses that are not one
+of those roles stay as they were. A **temporary** `:root` block at the top of `custom.scss` re-points those
+five roles at the old Payload values, so the admin renders exactly as before. Each override is global to its
+role (about 95 uses across the whole admin), so removing one re-colours all of them at once; they go together,
+in a change that means to alter the admin's look, not piecemeal with one component.
+
+**Proof of "no change":** a throwaway Playwright script dumped the computed colour, background, every border
+colour, outline, shadow, radius, font size, text-decoration colour, fill and stroke of every element on 11
+screens (sign-in, catalogue, catalogue with the account menu open, lesson, Guide, Discuss, Messages, Manage,
+Manage with the menu open, the version editor, the native Users list), signed in as a Site Administrator,
+against the production build before and after. Two baseline runs were identical (the dump is
+deterministic), and the after-run is identical to the baseline: 0 differences across 3,226 elements.
+
 ## 2026-10-25 — Manage and the editor pinned to the light theme
 
 The operator saw some pages turn dark on a dark-mode device and others not. Cause: the App pages

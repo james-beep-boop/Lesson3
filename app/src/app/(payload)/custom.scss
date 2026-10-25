@@ -3,6 +3,21 @@
 // can't drift from the frontend pages. `@use` must lead the file.
 @use '../app-tokens';
 
+// ⚑ TEMPORARY: the admin's colour roles keep their pre-2026-10-25 Payload values. The shared semantic
+// palette (app-tokens.scss) carries the frontend's values; these five re-point the roles at what this
+// file used before the roles existed, so introducing the names changed no rendered colour. The
+// differences are small (black vs #1a1a1a text, #ddd vs #e2e2e2 borders, …). ⚑ Each line is GLOBAL to
+// its role: deleting one re-colours every admin use of that role at once (Manage, the editor, dialogs,
+// the nav), not one component, so retire them together in a change that means to alter the admin's
+// look. `:root`, after the `@use`, so these win over the shared defaults.
+:root {
+  --app-text: var(--theme-elevation-1000);
+  --app-text-muted: var(--theme-elevation-600);
+  --app-border: var(--theme-elevation-150);
+  --app-surface: var(--theme-elevation-0);
+  --app-surface-soft: var(--theme-elevation-50);
+}
+
 // ONE rem root across both surfaces (2026-07-31, docs/DESIGN-visual-system-2026-07-31.md §3.1).
 // Payload's own default is ~13px; this was 15px from 2026-07-12 until 2026-07-31, which left every
 // `rem` value in the admin rendering ~6% smaller than the same value on the frontend — the drift
@@ -123,7 +138,7 @@ body {
     font-weight: 700;
     // Was 0, with the space supplied by `__head`'s margin-bottom; same token, one element fewer.
     margin: 0 0 var(--app-space-2);
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
   }
 
   // Access lines (Administrator: … / Editing access: …) beneath the title row. A site admin has none,
@@ -135,7 +150,7 @@ body {
   &__scope {
     font-size: var(--app-secondary-size);
     margin: 0.15rem 0 0;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
   }
 
   // ⚑ `&__section` / `&__subsection` and the `&__section ~ &__section` separator USED TO LIVE HERE and
@@ -249,7 +264,7 @@ body {
       // identically would flatten the 20/18 type step that exists to express that depth — spending
       // the type scale to signal nesting and then contradicting it with colour. Nested triggers keep
       // the transparent-with-hover treatment from the base rule above.
-      background: var(--theme-elevation-50);
+      background: var(--app-surface-soft);
 
       &:hover {
         background: var(--theme-elevation-100);
@@ -318,7 +333,7 @@ body {
     margin: 0;
     font-size: var(--app-list-heading-size); // nested default (18px)
     font-weight: 600;
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
 
     // Top-level: the 20px page-section step. Same value the heading it replaces used.
     &--section {
@@ -350,7 +365,7 @@ body {
     // levels take it: a nested disclosure is the same kind of control as a top-level one, and giving
     // only one of them a hover state is the two-idioms problem in miniature.
     &:hover {
-      background: var(--theme-elevation-50);
+      background: var(--app-surface-soft);
       color: var(--theme-elevation-800);
     }
 
@@ -455,7 +470,7 @@ body {
   &__desc {
     font-size: var(--app-secondary-size);
     margin: 0.15rem 0 0.75rem;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     // Keep prose to a readable measure even though the page column is now full-width.
     max-width: 46rem;
   }
@@ -482,7 +497,7 @@ body {
   }
 
   .muted {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: 0.9rem;
   }
 
@@ -490,10 +505,10 @@ body {
     list-style: none;
     margin: 0;
     padding: 0;
-    border-top: 1px solid var(--theme-elevation-150);
+    border-top: 1px solid var(--app-border);
 
     li {
-      border-bottom: 1px solid var(--theme-elevation-150);
+      border-bottom: 1px solid var(--app-border);
     }
 
     // A bordered list draws dividers BETWEEN its rows and never closes with one. A trailing divider
@@ -550,7 +565,7 @@ body {
   }
 
   &__who-email {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
     overflow-wrap: anywhere;
   }
@@ -573,7 +588,7 @@ body {
   // The env var beside a fact's label. Same treatment as `__who-email`, deliberately NOT that class:
   // see the ⚑ in SystemFactsPanel.tsx — sharing it made a test locator match another panel's rows.
   &__fact-env {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
     overflow-wrap: anywhere;
   }
@@ -597,7 +612,7 @@ body {
     // long enough. A short detail sat inline on a wide viewport. Claiming a full row is what actually
     // asks for one.
     flex-basis: 100%;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
     margin-block-start: 2px;
   }
@@ -612,7 +627,7 @@ body {
     // `off` is a legitimate state for an offline school, not a fault, so it stays ordinary muted text.
     // `unknown` means we asked and could not tell — and for PDF output that means every export and
     // preview is failing right now, so it earns the error colour rather than a gentler one.
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
 
     &[data-status='ok'] {
       color: var(--theme-success-500);
@@ -661,7 +676,7 @@ body {
 
     dt {
       margin-top: var(--app-space-1);
-      color: var(--theme-elevation-600);
+      color: var(--app-text-muted);
     }
 
     dd {
@@ -685,7 +700,7 @@ body {
   }
 
   &__link {
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
     font-size: var(--app-body-size);
     text-decoration: none;
 
@@ -701,7 +716,7 @@ body {
   // phone the line is the only place the version and date appear.
   &__meta {
     margin: 0;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
   }
 
@@ -710,8 +725,8 @@ body {
   &__empty {
     margin: 0;
     padding: var(--app-space-4) 0;
-    border-top: 1px solid var(--theme-elevation-150);
-    color: var(--theme-elevation-600);
+    border-top: 1px solid var(--app-border);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
     max-width: 46rem;
   }
@@ -731,7 +746,7 @@ body {
     font-size: var(--app-body-size);
     font-weight: 600;
     margin: 0 0 var(--app-space-1);
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
   }
 
   // Collapsible details for a subject-grade row in RolesAccessPanel. Shares padding geometry with
@@ -762,7 +777,7 @@ body {
   &__roles-label {
     font-size: var(--app-secondary-size);
     font-weight: 600;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     margin: var(--app-space-3) 0 0;
   }
 
@@ -795,10 +810,10 @@ body {
   &__select {
     padding: 0.35rem 0.5rem;
     font-size: 0.9rem;
-    color: var(--theme-elevation-1000);
-    border: 1px solid var(--theme-elevation-150);
+    color: var(--app-text);
+    border: 1px solid var(--app-border);
     border-radius: 4px;
-    background: var(--theme-elevation-0);
+    background: var(--app-surface);
     // 18rem fitted a bare display name; the options now carry "Name — address" so the picker can be
     // used to identify a person rather than guess at one (review 2026-08-02), and 18rem truncated
     // exactly the half that disambiguates. Still a max, so short rosters stay narrow.
@@ -882,11 +897,11 @@ body {
     list-style: none;
     margin: 0;
     padding: 0;
-    border-top: 1px solid var(--theme-elevation-150);
+    border-top: 1px solid var(--app-border);
   }
 
   &__row {
-    border-bottom: 1px solid var(--theme-elevation-150);
+    border-bottom: 1px solid var(--app-border);
   }
 
   &__summary {
@@ -898,7 +913,7 @@ body {
     padding: 0.75rem 0.1rem;
     border: 0;
     background: none;
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
     font: inherit;
     text-align: left;
     cursor: pointer;
@@ -934,7 +949,7 @@ body {
 
   &__email,
   &__summary-meta {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
     overflow-wrap: anywhere;
   }
@@ -1008,7 +1023,7 @@ body {
     justify-content: center;
     gap: var(--app-space-2);
     margin-top: var(--app-space-3);
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
   }
 
@@ -1318,8 +1333,8 @@ body {
     font-weight: 600;
     margin: 0 0 var(--app-space-2);
     padding-block-start: var(--app-space-3);
-    border-top: 1px solid var(--theme-elevation-150);
-    color: var(--theme-elevation-1000);
+    border-top: 1px solid var(--app-border);
+    color: var(--app-text);
   }
 
   &__strand + &__strand {
@@ -1331,7 +1346,7 @@ body {
     font-size: var(--app-body-size);
     font-weight: 600;
     margin: 0 0 var(--app-space-1);
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
   }
 
   // Fixed number column, mirroring the catalogue's `.substrand-num` so the names align down the list
@@ -1340,7 +1355,7 @@ body {
   &__num {
     flex-shrink: 0;
     width: var(--app-substrand-num-width);
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1364,7 +1379,7 @@ body {
   // not only in the confirmation.
   &__hidden {
     margin: 0 0 var(--app-space-2);
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
   }
 }
@@ -1445,7 +1460,7 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
     width: 100%;
     min-height: 44px;
     padding: 0.6rem 0.75rem;
-    border: 1px solid var(--theme-elevation-150);
+    border: 1px solid var(--app-border);
     border-radius: var(--style-radius-s);
     background: var(--theme-input-bg);
     color: var(--theme-text);
@@ -1544,10 +1559,10 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     flex: 1;
     padding: 0.5rem 0.7rem;
     font-size: 1rem;
-    color: var(--theme-elevation-1000);
-    border: 1px solid var(--theme-elevation-150);
+    color: var(--app-text);
+    border: 1px solid var(--app-border);
     border-radius: 4px;
-    background: var(--theme-elevation-0);
+    background: var(--app-surface);
   }
 
   &__check {
@@ -1559,9 +1574,9 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
   // Version marker — a quiet pill.
   &__badge {
     padding: 0.08rem 0.4rem;
-    border: 1px solid var(--theme-elevation-150);
+    border: 1px solid var(--app-border);
     border-radius: 4px;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: 0.72rem;
     font-variant-numeric: tabular-nums;
   }
@@ -1579,14 +1594,14 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
   // Shared header geometry (2026-07-31). Was `0.5rem 1.25rem`, which rendered 7.5px/18.75px against
   // the frontend's 12px/20px — the header sat 11px shorter and its content edge 1.25px inboard.
   padding: var(--app-header-pad-block) var(--app-header-pad-inline);
-  border-bottom: 1px solid var(--theme-elevation-150);
-  background: var(--theme-elevation-50); // the admin analogue of the frontend's --bg-soft
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
 
   // The frontend's .brand wordmark (D2): same weight/size, themed for light/dark.
   .brand {
     font-weight: 700;
     font-size: 1rem;
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
     text-decoration: none;
 
     &:hover {
@@ -1602,7 +1617,7 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
   }
 
   .app-nav__link {
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
     text-decoration: none;
 
     &:hover {
@@ -1654,8 +1669,8 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     padding: 0;
     border-radius: 50%;
     background: var(--theme-elevation-100);
-    border: 1px solid var(--theme-elevation-150);
-    color: var(--theme-elevation-1000);
+    border: 1px solid var(--app-border);
+    color: var(--app-text);
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -1686,26 +1701,26 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     display: flex;
     flex-direction: column;
     padding: 0.6rem 0.75rem;
-    background: var(--theme-elevation-0);
-    border: 1px solid var(--theme-elevation-150);
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
     border-radius: 0.5rem;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
   }
 
   .user-menu__type {
     font-weight: 600;
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
     font-size: 0.85rem;
   }
 
   .user-menu__scope {
     margin-top: 0.15rem;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: 0.8rem;
   }
 
   .user-menu__name {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: 0.8rem;
     word-break: break-all;
   }
@@ -1716,9 +1731,9 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     gap: 0.4rem;
     margin-top: 0.45rem;
     padding-top: 0.45rem;
-    border-top: 1px solid var(--theme-elevation-150);
+    border-top: 1px solid var(--app-border);
     font-size: 0.85rem;
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
     text-decoration: none;
 
     &:hover {
@@ -1748,21 +1763,21 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     gap: 0.35rem;
     margin-top: 0.45rem;
     padding-top: 0.45rem;
-    border-top: 1px solid var(--theme-elevation-150);
+    border-top: 1px solid var(--app-border);
   }
 
   .user-menu__edit-label {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: 0.72rem;
   }
 
   .user-menu__edit-input {
     width: 100%;
     padding: 0.3rem 0.4rem;
-    border: 1px solid var(--theme-elevation-150);
+    border: 1px solid var(--app-border);
     border-radius: 4px;
-    background: var(--theme-elevation-0);
-    color: var(--theme-elevation-1000);
+    background: var(--app-surface);
+    color: var(--app-text);
     font: inherit;
     font-size: 0.85rem;
   }
@@ -1782,10 +1797,10 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
   // dropdown built on 0.45rem rhythm. These are menu-scale controls, like `.user-menu__logout`.
   .user-menu__edit-btn {
     padding: 0.2rem 0.5rem;
-    border: 1px solid var(--theme-elevation-150);
+    border: 1px solid var(--app-border);
     border-radius: 4px;
-    background: var(--theme-elevation-50);
-    color: var(--theme-elevation-1000);
+    background: var(--app-surface-soft);
+    color: var(--app-text);
     font: inherit;
     font-size: 0.78rem;
     cursor: pointer;
@@ -1818,12 +1833,12 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     margin-top: 0.45rem;
     padding-top: 0.45rem;
     border: none;
-    border-top: 1px solid var(--theme-elevation-150);
+    border-top: 1px solid var(--app-border);
     background: none;
     text-align: left;
     font: inherit;
     font-size: 0.85rem;
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
     cursor: pointer;
 
     &:hover {
@@ -2165,7 +2180,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   overflow-wrap: anywhere;
 
   strong {
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
   }
 }
 
@@ -2207,10 +2222,10 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   font-weight: 600;
 
   &--is {
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
   }
   &--not {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-weight: 400; // "Not Official" is the unremarkable case — don't shout the normal state
   }
 }
@@ -2231,7 +2246,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   display: flex;
   flex-direction: column;
   padding: 0.25rem;
-  background: var(--theme-elevation-0);
+  background: var(--app-surface);
   border: 1px solid var(--theme-elevation-200);
   border-radius: 6px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
@@ -2250,7 +2265,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   &:hover,
   &:focus-visible {
     background: var(--theme-elevation-100);
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
   }
 }
 
@@ -2269,7 +2284,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   flex-direction: column;
   min-width: 12rem;
   padding: 4px 0;
-  background: var(--theme-elevation-0);
+  background: var(--app-surface);
   border: 1px solid var(--theme-elevation-200);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
@@ -2285,7 +2300,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 
   &:hover,
   &:focus-visible {
-    background: var(--theme-elevation-50);
+    background: var(--app-surface-soft);
   }
   &:disabled {
     color: var(--theme-elevation-400);
@@ -2350,7 +2365,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     align-items: center;
     gap: 0.25rem 0.4rem;
     padding-top: 0.5rem;
-    border-top: 1px solid var(--theme-elevation-150);
+    border-top: 1px solid var(--app-border);
   }
   &__nav-link {
     border: none;
@@ -2368,7 +2383,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     }
   }
   &__nav-label {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     margin-left: 0.25rem;
     font-size: 0.85rem;
   }
@@ -2377,8 +2392,8 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     padding: 0.2rem 0.45rem;
     border: 1px solid var(--theme-elevation-200);
     border-radius: 4px;
-    background: var(--theme-elevation-0);
-    color: var(--theme-elevation-1000);
+    background: var(--app-surface);
+    color: var(--app-text);
     font: inherit;
     font-size: 0.85rem;
     font-variant-numeric: tabular-nums;
@@ -2457,7 +2472,7 @@ a.btn.lp-btn {
 .lp-upload-confirm {
   margin: var(--app-space-3) 0 0;
   padding: var(--app-space-3);
-  border: 1px solid var(--theme-elevation-150);
+  border: 1px solid var(--app-border);
   border-radius: 4px;
   min-width: 0;
 
@@ -2503,10 +2518,10 @@ a.btn.lp-btn {
 .lp-users__input {
   min-height: var(--app-btn-min-height);
   padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
-  border: 1px solid var(--theme-elevation-150);
+  border: 1px solid var(--app-border);
   border-radius: var(--app-btn-radius);
   background: var(--theme-input-bg, var(--theme-elevation-0));
-  color: var(--theme-elevation-1000);
+  color: var(--app-text);
   font-family: var(--app-ui-font);
   font-size: var(--app-btn-font-size);
 
@@ -2658,8 +2673,8 @@ a.btn.lp-btn {
   // No padding: `__title` is a full-bleed header bar and `__content` carries the inset. `overflow`
   // is what keeps the bar's corners inside the panel's radius.
   overflow: hidden;
-  color: var(--theme-elevation-1000);
-  background: var(--theme-elevation-0);
+  color: var(--app-text);
+  background: var(--app-surface);
   border: 1px solid var(--theme-elevation-200);
   border-radius: var(--style-radius-m, 4px);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
@@ -2678,7 +2693,7 @@ a.btn.lp-btn {
   .modal__title {
     margin: 0;
     padding: 0.7rem 1.25rem;
-    background: var(--theme-elevation-50);
+    background: var(--app-surface-soft);
     border-bottom: 1px solid var(--theme-elevation-200);
     font-size: 20px;
   }
@@ -2702,7 +2717,7 @@ a.btn.lp-btn {
   }
 
   .modal__body {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
   }
 
@@ -2716,10 +2731,10 @@ a.btn.lp-btn {
     input {
       min-height: var(--app-btn-min-height);
       padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
-      border: 1px solid var(--theme-elevation-150);
+      border: 1px solid var(--app-border);
       border-radius: var(--app-btn-radius);
       background: var(--theme-input-bg, var(--theme-elevation-0));
-      color: var(--theme-elevation-1000);
+      color: var(--app-text);
       font-family: var(--app-ui-font);
       font-size: var(--app-btn-font-size);
 
@@ -2786,7 +2801,7 @@ a.btn.lp-btn {
   // `dd` carries a UA margin-inline-start of 40px; the row owns its own inset.
   .help-rows__row dd {
     margin: 0.1rem 0 0;
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
   }
 
   // The button row itself is the shared `.modal__actions` (see the base block). It takes the same
@@ -2822,14 +2837,14 @@ a.btn.lp-btn {
     align-items: center;
     gap: var(--app-space-2);
     margin-block: var(--app-space-4) var(--app-space-2);
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: var(--app-secondary-size);
     font-weight: 600;
 
     &::after {
       content: '';
       flex: 1;
-      border-top: 1px solid var(--theme-elevation-150);
+      border-top: 1px solid var(--app-border);
     }
   }
 
@@ -2841,7 +2856,7 @@ a.btn.lp-btn {
     span {
       width: 1.25rem;
       height: 1.25rem;
-      border: 2px solid var(--theme-elevation-150);
+      border: 2px solid var(--app-border);
       border-top-color: var(--theme-elevation-600);
       border-radius: 50%;
       animation: prose-link-loading 1s linear infinite;
@@ -2860,7 +2875,7 @@ a.btn.lp-btn {
     padding: 0;
     overflow-y: auto;
     list-style: none;
-    border: 1px solid var(--theme-elevation-150);
+    border: 1px solid var(--app-border);
     border-radius: var(--app-btn-radius);
 
     li + li {
@@ -2882,7 +2897,7 @@ a.btn.lp-btn {
 
       &:hover,
       &:focus-visible {
-        background: var(--theme-elevation-50);
+        background: var(--app-surface-soft);
       }
 
       &:focus-visible {
@@ -2892,7 +2907,7 @@ a.btn.lp-btn {
 
       small {
         flex: none;
-        color: var(--theme-elevation-600);
+        color: var(--app-text-muted);
       }
     }
   }
@@ -2945,28 +2960,28 @@ a.btn.lp-btn {
     margin: 0 0 var(--app-space-1);
     font-size: var(--app-secondary-size);
     font-weight: 700;
-    color: var(--theme-elevation-1000);
+    color: var(--app-text);
   }
 
   // "Emptied" / "Whitespace only" — where there is no visible text to show, because the field is
   // cleared or the only difference is spacing the diff engine cannot mark up. Muted, so it reads as a
   // note ABOUT the field rather than as the field's content.
   &__note {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
   }
 
   // The colour key above the list. Quiet — it explains the list, it is not part of it.
   &__key {
     margin: 0 0 var(--app-space-1);
     font-size: var(--app-secondary-size);
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
   }
 
   &__list {
     margin: 0;
 
     dt {
-      color: var(--theme-elevation-600);
+      color: var(--app-text-muted);
       font-size: var(--app-secondary-size);
       font-weight: 600;
     }
@@ -3045,7 +3060,7 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     padding: 0.05rem 0.4rem;
     border-radius: 999px;
     border: 1px solid var(--theme-elevation-200);
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: 0.7rem;
     font-weight: 400;
     vertical-align: middle;
@@ -3076,7 +3091,7 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     flex-direction: column;
   }
   &__label {
-    color: var(--theme-elevation-600);
+    color: var(--app-text-muted);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
