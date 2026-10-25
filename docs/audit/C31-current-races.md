@@ -231,6 +231,13 @@ current target, proving a competing transaction blocks until commit, calls outsi
 are refused rather than silently unlocking nothing, and an empty ID list is a no-op. Raw output is
 private at `logs/c23-c24-lock-security-integrations.log`.
 
+The current recovery integration group passed **76/76** tests across the seven edit-recovery suites
+(`Cap` 7, `Capture` 13, `Expiry` 10, `Metadata` 10, `Retire` 14, `Start` 7 and `UnsavedWork` 15).
+It covered capacity, capture fencing/projection, expiry and retirement races, transaction
+fail-closed behavior, first-start/reactivation concurrency and unsaved-work attribution. Raw output
+is private at `logs/c24-c31-recovery-migration-integrations.log`; this complements the 35-case
+recovery HTTP suite but does not close browser or deployment parity.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus

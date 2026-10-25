@@ -115,6 +115,10 @@ validation is pending. No product fix was made.
 - [Security, lock-helper and null-resource integrations](C23-C24-security-integrations-current.md):
   current suites passed 15 user-security, 11 auth/favorites, three row-lock and three null-resource
   cases; cookie/CSRF, expiry, browser, deployment and wider C23/C24/C40 coverage remains open.
+- [Recovery and migration integrations](C24-C31-recovery-migrations-current.md): current suites
+  passed 76 recovery-kernel and three migration cases, covering capture capacity/fencing, expiry,
+  retirement, unsaved-work attribution, message labels and Combine lineage/draft backfills; browser,
+  upgrade sequencing and deployment parity remain open.
 - [Export endpoint](C54-export-endpoint-current.md): the focused current selection passed six
   DOCX/PDF job, authentication, poll-binding and deduplication cases, plus three AReS JSON export
   and eight per-document serve-only/tag cases; broader export fidelity and queue coverage remains

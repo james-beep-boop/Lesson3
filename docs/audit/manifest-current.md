@@ -550,25 +550,25 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/authRateLimit.int.spec.ts` | C72 | Current C23/C72 integration evidence: C5-data-auth-jobs-current.md; 4/4 passed |
 | `app/tests/int/bestEffortEnqueue.int.spec.ts` | C72 | Current C5/C24/C72 integration evidence: C5-data-auth-jobs-current.md; 5/5 passed |
 | `app/tests/int/clearCollapsePrefs.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/combineDraftMigration.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/combineMigration.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/combineDraftMigration.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 1/1 passed |
+| `app/tests/int/combineMigration.int.spec.ts` | C72 | Current C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 1/1 passed |
 | `app/tests/int/discussions.int.spec.ts` | C72 | Current C24 integration evidence: C24-current-discussions.md; 23/23 passed |
 | `app/tests/int/discussions3b.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/discussions4a.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/draftCombineSuggestion.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/editRecoveryAccess.int.spec.ts` | C72 | Current C24/C31 integration evidence: C31-edit-recovery-access-current.md; 8/8 passed |
-| `app/tests/int/editRecoveryCap.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/editRecoveryCapture.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/editRecoveryExpiry.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/editRecoveryMetadata.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/editRecoveryRetire.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/editRecoveryStart.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/editRecoveryUnsavedWork.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/editRecoveryCap.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 7/7 passed |
+| `app/tests/int/editRecoveryCapture.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 13/13 passed |
+| `app/tests/int/editRecoveryExpiry.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 10/10 passed |
+| `app/tests/int/editRecoveryMetadata.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 10/10 passed |
+| `app/tests/int/editRecoveryRetire.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 14/14 passed |
+| `app/tests/int/editRecoveryStart.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 7/7 passed |
+| `app/tests/int/editRecoveryUnsavedWork.int.spec.ts` | C72 | Current C24/C31/C72 integration evidence: C24-C31-recovery-migrations-current.md; 15/15 passed |
 | `app/tests/int/editorGroupsAccess.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/favorites.int.spec.ts` | C72 | Current C24 integration evidence: C24-favorites-current.md; 15/15 passed |
 | `app/tests/int/jobStatsScheduling.int.spec.ts` | C72 | Current C5/C72 integration evidence: C5-data-auth-jobs-current.md; 1/1 passed |
 | `app/tests/int/lockRows.int.spec.ts` | C72 | Current C31/C72 integration evidence: C23-C24-security-integrations-current.md; 3/3 passed |
-| `app/tests/int/messageReferenceMigration.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/messageReferenceMigration.int.spec.ts` | C72 | Current C24/C72 integration evidence: C24-C31-recovery-migrations-current.md; 1/1 passed |
 | `app/tests/int/messages.int.spec.ts` | C72 | Current C24 integration evidence: C24-messages-current.md; 11/11 passed |
 | `app/tests/int/nullResources.int.spec.ts` | C72 | Current C40/C41/C72 integration evidence: C23-C24-security-integrations-current.md; 3/3 passed |
 | `app/tests/int/officialPointerLock.int.spec.ts` | C72 | Pending review |
