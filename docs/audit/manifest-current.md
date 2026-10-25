@@ -577,7 +577,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/publicPublication.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/rateLimit.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/reingest.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/subjectAdminHandover.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/subjectAdminHandover.int.spec.ts` | C72 | Current C5.3 integration evidence: C5-user-assignments-current.md; 3/3 passed |
 | `app/tests/int/systemSettings.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/taxonomyDelete.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/uploadTaxonomy.int.spec.ts` | C72 | Pending review |

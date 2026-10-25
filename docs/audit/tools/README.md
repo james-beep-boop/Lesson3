@@ -88,6 +88,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | API-error messages wire | `npm run test:http -- tests/http/apiErrorMessages.http.spec.ts`; current target suite; concrete 409/403/404 error-contract messages |
 | Export endpoint wire | `npm run test:http -- tests/http/endpoints.http.spec.ts -t "Export endpoint"`; current target selection; DOCX/PDF jobs, auth gates, poll binding and deduplication |
 | Assignment provenance integration | `npm run test:int -- tests/int/assignmentProvenance.int.spec.ts` with target runtime env mounted as `/app/test.env`; current grant-stamp persistence and relationship-depth cases |
+| Subject-admin handover integration | `npm run test:int -- tests/int/subjectAdminHandover.int.spec.ts` with target runtime env mounted as `/app/test.env`; current D6a refusal, handover and demotion cases |
 | Discussions wire | `npm run test:http -- tests/http/discussions.http.spec.ts`; current target suite; thread/reply, privacy, participation, forum-off, read/pin/redaction and authority waits |
 | Message references wire | `npm run test:http -- tests/http/messageReferences.http.spec.ts`; current target suite; recipient/label authority and no-write reference refusals |
 

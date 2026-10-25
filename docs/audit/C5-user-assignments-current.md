@@ -19,3 +19,8 @@ change. The fixture teardown completed and the target lock was clear; raw output
 
 This is current wire evidence for the user-assignment slice. It does not close the wider C5.3/C5.5
 endpoint, source-review, deployment-parity or no-SMTP catalog.
+
+The current `app/tests/int/subjectAdminHandover.int.spec.ts` integration suite also passed **3
+tests** in 2.85 seconds (exit 0), independently confirming the amended D6a refusal for ineligible
+targets and removals, plus permitted handover and same-transaction demotion. Raw output is private
+at `logs/c53-subject-admin-handover-int.log`; teardown and the target lock were clear.
