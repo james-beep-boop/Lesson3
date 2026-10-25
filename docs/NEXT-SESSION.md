@@ -50,6 +50,12 @@ budget, and every account, Site Administrators included, then gets 429 until the
 sessions keep working; no data is exposed. The cheap mitigation is operational: confirm the Rock's
 reverse proxy has a per-IP limit on `/api/users/login` (OPS "Going public" item 2). Whether it does
 was never checked. The real fix is a redesign of the shared buckets (the report's reviewed fix).
+The Rock is public through a Cloudflare Tunnel, so that limit is a Cloudflare WAF rate-limiting
+rule, not repo config. Suggested rule (given to the operator 2026-10-25): match `POST` to
+`/api/users/login`, `/api/users/forgot-password` or paths starting `/api/users/verify/`; count per
+IP; 2 requests per 10 s; block for 10 s. One IP then tops out at 720 login attempts an hour, under
+the 1,000 site-wide budget. It does not stop several IPs together, and it does not cover the
+100-a-day forgot-password budget.
 
 **Deferred, with reports on the audit branch (`docs/audit/findings/`):**
 - **F-C23-001** (Medium), above.
