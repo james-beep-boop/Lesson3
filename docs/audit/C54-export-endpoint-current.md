@@ -18,3 +18,8 @@ The focused `endpoints.http.spec.ts -t "JSON export"` selection also passed **3 
 seconds (121 other tests skipped; exit 0), covering unauthenticated and unknown-version refusal and
 an authenticated Teacher's Standard AReS JSON download. Raw output is private at
 `logs/c54-json-export-http.log`.
+
+The focused `endpoints.http.spec.ts -t "per-document export"` selection passed **8 tests** in
+8.96 seconds (116 other tests skipped; exit 0), covering authentication and tag validation, cold
+serve-only refusal, warm DOCX attachment and warm PDF inline delivery, and missing-deliverable
+handling. Raw output is private at `logs/c54-per-document-export-http.log`.
