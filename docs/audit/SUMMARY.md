@@ -65,7 +65,8 @@ validation is pending. No product fix was made.
   current HTTP suite added 19 real lock-wait authority-change cases covering account grants/deletes,
   source retirement, recovery saves and Make Official rollback. The native editing-lock suite added
   18 takeover, holder-only unlock, forged-create and 423 deletion-barrier cases. Full C31 remains
-  pending, including stale-lock aging and the final fingerprint/deletion ledger.
+  pending, including the final fingerprint/deletion ledger; a direct probe separately confirmed a
+  fresh 423 lock expires after a measured 600-second age and permits the guarded delete.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked

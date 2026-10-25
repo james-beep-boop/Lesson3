@@ -78,11 +78,26 @@ The suite leaves the target clean and unlocked. It validates the native lock aut
 deletion barrier, but it does not age a lock through the five-minute expiry or prove stale-lock
 cleanup, so that item remains open.
 
+## Native editing-lock expiry — audit probe pass
+
+The audit-only `app/tests/audit/c31-stale-lock.mjs` probe used the trusted Local API to create one
+synthetic non-Official version and one lock held by an editing teacher. Through the real HTTP DELETE
+endpoint, a fresh lock returned **423**. The probe then set only that lock row's `updated_at` to ten
+minutes ago (measured age **600.0 seconds**) and retried the same delete as the Subject Administrator;
+it returned **200**, demonstrating that the five-minute stale-lock window expires for the guarded
+application action. The probe exited 0; its exact pre-execution helper hash was
+`02b9b24a5b83e42c50ffe483bea27e4bcd9e58d0025d4280d233dfeee31dce64`, with raw output and the
+owner-only result retained privately.
+
+Cleanup verified zero remaining `ZZ_AUDIT_C31_STALE_LOCK` versions and zero native lock rows, with
+the target lock released and the application stack healthy. This closes the bounded stale-lock
+expiry check; it does not establish behavior for every possible clock skew or a live refresh race.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
-unauthorized deletion ledger, persisted row fingerprint artifacts, stale-lock aging/cleanup,
-recovery/restore attribution, Combine and Official-pointer races, and reset afterward. The source/
-parent deletion, authority-change-while-waiting, and native lock authorization cases now have the
-bounded evidence described above; the complete ledger and final fingerprint artifact are still open.
+unauthorized deletion ledger, persisted row fingerprint artifacts, recovery/restore attribution,
+Combine and Official-pointer races, and reset afterward. The source/parent deletion,
+authority-change-while-waiting, native lock authorization, and bounded stale-lock expiry cases now
+have the evidence described above; the complete ledger and final fingerprint artifact are still open.
 Earlier C22/C30 tests are supporting evidence; no full-chunk or independent-review claim is made.
