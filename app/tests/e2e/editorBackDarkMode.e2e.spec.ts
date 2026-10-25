@@ -1,5 +1,8 @@
 /**
- * The version editor's Back control stays readable in the admin's dark theme (2026-10-18).
+ * The version editor's Back control stays readable on a dark-mode device (2026-10-18).
+ *
+ * Since 2026-10-25 the admin is pinned light (`admin.theme: 'light'`), so a dark-mode device gets the
+ * light theme like every App page; this pins both that and Back's contrast.
  *
  * Every admin button keeps the fixed light fill `--app-btn-bg` in both themes. Back's ink used to be
  * the theme-following `--theme-elevation-800`, which turns near-white in dark mode, so on a phone set
@@ -33,13 +36,13 @@ const luminance = (css: string): number => {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
 }
 
-test('Back is readable in the dark theme', async ({ page }) => {
+test('a dark-mode device gets the light admin, and Back is readable', async ({ page }) => {
   // A Teacher with editing access: a plain Teacher is sent back to the library from the admin.
   await loginAs(page, fx, 'editor')
   await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}`)
 
-  // Guard against a vacuous pass: the admin must actually be in its dark theme.
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  // The device asks for dark; the admin stays light, matching the App pages.
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
 
   const back = page.getByRole('link', { name: 'Back to lesson' })
   await expect(back).toBeVisible()

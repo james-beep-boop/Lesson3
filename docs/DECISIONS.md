@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Manage and the editor pinned to the light theme
+
+The operator saw some pages turn dark on a dark-mode device and others not. Cause: the App pages
+(catalogue, lessons, Guide, Discuss, sign-in) have only ever had light colours (see 2026-10-22, "the frontend
+has no dark theme"), while Payload's admin, which serves Manage and the version editor, defaults to
+`admin.theme: 'all'` and follows the device. **Decision (operator, 2026-10-25): always light.** One line,
+`admin.theme: 'light'` in `payload.config.ts`; Payload then ignores the device preference and drops its theme
+picker from the account view. Rejected: building a dark theme for the App pages (a project of its own, with
+its own contrast checks), and leaving it as it was.
+
+The two browser tests that emulated a dark device and expected `data-theme="dark"`
+(`editorBackDarkMode.e2e.spec.ts`, the dark-device delete in `manage.e2e.spec.ts`) now expect `light`, so
+they pin the new rule; Back's contrast check stays. `custom.scss` uses Payload's `--theme-*` variables
+rather than dark-only rules, so nothing there needed to change. Verified: lint, types, format, unit 1867, build, and both specs (39 tests) against the built app.
+
 ## 2026-10-25 — Minification back on and React 19.3.1 (PR #449): typing speed unchanged on the Rock
 
 `experimental.turbopackMinify: false` and its wiring guard (`tests/unit/nextConfigMinify.spec.ts`) are removed,
