@@ -36,6 +36,12 @@ cross-user message read/creation boundaries, and favorite creation, malformed ID
 rejection and role refusal. Its random fixture users and lock state were torn down cleanly; raw
 output is private at `logs/c23-auth-favorites-http.log`.
 
+The current `app/tests/http/userSearch.http.spec.ts` suite passed **10 tests** in 3.08 seconds
+(exit 0). It verified unauthenticated and non-admin refusal, display-name/email search,
+server-side pagination and type/status filters, unknown-filter refusal, grant-label disclosure,
+and absence of authentication secrets in returned rows. Fixture teardown completed; raw output is
+private at `logs/c23-user-search-http.log`.
+
 Installed Payload 3.92.0 login/hash implementations were independently opened from the pinned deps
 image, and sanitized resolved user auth defaults were checked. A first config-inspection attempt
 using tsx's CJS eval failed on the config's top-level await; the explicit ESM loader command succeeded.
