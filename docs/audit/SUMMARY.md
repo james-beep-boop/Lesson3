@@ -62,6 +62,10 @@ validation is pending. No product fix was made.
 - [System settings](C5-settings-current.md): the current wire suite passed 26 cases, including
   advisory-lock freshness and authority revocation while a save waited; the broader C5.5 catalog
   remains open.
+- [User assignments](C5-user-assignments-current.md): the current wire suite passed 22 route and
+  generic-PATCH cases for D6a appointment/handover boundaries, freshness and role gates, plus
+  caller authority changes while assignment requests waited; broader C5.3/C5.5 coverage remains
+  open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.
