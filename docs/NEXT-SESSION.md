@@ -36,12 +36,11 @@ F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-se
 10 minutes after; `/login` 200. **Still open:** the manual checks of the lock warning and Take over
 from two accounts, and one change in Manage → Users.
 
-**v1.06 is tagged on `main` (not deployed; the Rock stays on v1.05, `a68fb74`).** It carries Payload
+**v1.06 is tagged and deployed to the Rock** (2026-10-25, `a68fb74` → `5cb64b4`, `deploy: OK`; premigrate snapshot taken, no migration ran, no app-log errors for 5 minutes, `/login` 200 showing 1.06). It carries Payload
 3.92.0 (#448) and #449: minification back on, React 19.3.1, Next.js 16.4.3, `zod` 4.6.7. Client JS
 drops 1.61 → 0.87 MB gzipped; the error-message wire test passes against the minified build; Rock
 typing is unchanged from v1.05 (40–48 ms per key). No migration. Results: DECISIONS 2026-10-25
-"Payload 3.92.0 tested" and "Minification back on". **Next:** deploy v1.06 when the operator asks;
-then the majors (Sentry 11, jsdom 30, …), each as its own change.
+"Payload 3.92.0 tested" and "Minification back on". **Open:** PR #451 (Manage and the editor pinned light; unreleased). **Next:** the majors (Sentry 11, jsdom 30, …), each as its own change.
 
 **Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
 evidence, L-C23-01) merged into it 2026-10-25, so no audit PR is open. Not started: the rest of the
