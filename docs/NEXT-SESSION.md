@@ -20,6 +20,54 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
+# SHELVED 2026-10-25 — read this block first
+
+The operator put the project away after one last wrap-up. The plan was: one PR of quick fixes, then
+tag **v1.05**, deploy it to the Rock and run the post-deploy checks. Check `git tag` and the Rock's
+deployed revision to see how far that got; the steps after the PR are operator-run.
+
+**In the wrap-up PR:** audit F-C40-001 (built-in key names passed the ingest contract gate) and
+F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-seed.sh` re-runnable;
+`dev-server.sh` passes `RENDER_TIMINGS`. No migration. Details: DECISIONS 2026-10-25.
+
+**Still to do after that PR merges** (unless already done):
+1. Tag v1.05 from the operator's Mac. It also carries the lock fix #442 and its migration, which
+   runs on this deploy.
+2. Deploy to the Rock over Remote Control on the operator's Mac, then: the lock warning and Take
+   over from two accounts, one change in Manage → Users, and a restore drill.
+
+**Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
+evidence, L-C23-01) merged into it 2026-10-25, so no audit PR is open. Not started: the rest of the
+catalogue (`docs/audit/catalog.md`) and the deferred hardware checks D01–D03.
+
+**Showstoppers: none known.** No open finding loses or corrupts data, breaks versioning or export, or
+lets a user read or change what they should not. Everything confirmed as an authorization bug
+(F-C22-001, F-C22-002) is fixed.
+
+**Biggest remaining issue: F-C23-001, sign-in can be denied to everyone.** One anonymous client
+sending about 1,000 failed logins with made-up addresses in an hour spends the site-wide login
+budget, and every account, Site Administrators included, then gets 429 until the hour ends. Existing
+sessions keep working; no data is exposed. The cheap mitigation is operational: confirm the Rock's
+reverse proxy has a per-IP limit on `/api/users/login` (OPS "Going public" item 2). Whether it does
+was never checked. The real fix is a redesign of the shared buckets (the report's reviewed fix).
+
+**Deferred, with reports on the audit branch (`docs/audit/findings/`):**
+- **F-C23-001** (Medium), above.
+- **F-C23-002** (Low): 20 wrong logins naming one address block its owner for the hour, 5
+  forgot-password requests block its reset for the day. Fix together with F-C23-001.
+- **F-C23-003** (Low): login timing and the "locked" message reveal whether an address has an
+  account. Needs normalised failures plus equal hash work; signup's own disclosure is a policy call.
+- **L-CL-002**: the `form-state` server function may create a lock on a document the caller cannot
+  edit. Untraced; its own change.
+- **L-C23-01** (Info): the app accepts a cookie-authenticated cross-origin POST when `SERVER_URL` is
+  empty; `SameSite=Lax` is the only barrier, and it does not stop a same-site sibling origin. Becomes
+  Medium only if an untrusted origin shares the Rock's site. Check the Rock sets `SERVER_URL`.
+- Not taken: Payload 3.92.0 (checklist below), the Manage "versions" query speedup (write-up:
+  https://claude.ai/artifact/SMP3rtRK7kQRgbSSRnnMox), the Guide first-visit cost (operator: leave it),
+  the insert-link button (tabled).
+
+---
+
 # CURRENT STATE — 2026-10-24
 
 **v1.04 tagged (2026-10-24)** at the operator's go-ahead, after #439 (`fe93187`) and the

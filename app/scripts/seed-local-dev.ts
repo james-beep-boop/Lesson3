@@ -26,7 +26,11 @@ import config from '@payload-config'
 import { getPayload } from 'payload'
 import type { Where } from 'payload'
 
-import { createUserVerified, minimalBundleContent } from '../tests/helpers/fixtures'
+import {
+  createUserVerified,
+  deleteUserFixture,
+  minimalBundleContent,
+} from '../tests/helpers/fixtures'
 import { isLocalDatabaseUri } from './lib/localDbGuard'
 
 const PASSWORD = 'local1234'
@@ -73,11 +77,19 @@ async function main(): Promise<void> {
     })
     await payload.delete({ collection: 'lesson-plans', id: plan.id, overrideAccess: true })
   }
-  await payload.delete({
+  // ⚑ One by one through `deleteUserFixture`, not a where-delete. The seeded site admin is usually the
+  // database's only usable administrator, so the last-admin guard refuses its delete — and a
+  // where-delete reports that in its `errors` instead of throwing, so the old code carried on and the
+  // re-create below failed on the surviving address (the email validation error on every re-run).
+  const { docs: oldUsers } = await payload.find({
     collection: 'users',
     where: { email: { like: `@${EMAIL_DOMAIN}` } },
+    pagination: false,
+    depth: 0,
+    select: { email: true },
     overrideAccess: true,
   })
+  for (const user of oldUsers) await deleteUserFixture(payload, user.id)
 
   // ---- Taxonomy ------------------------------------------------------------------------------
   // Subject and SubjectGrade are SHARED with anything else already in this database, so they are

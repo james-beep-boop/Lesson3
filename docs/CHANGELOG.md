@@ -8,6 +8,16 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (for v1.05)
+
+- Uploads now reject an ARES file carrying an unknown key named after a built-in object property
+  (`constructor`, `toString`, `valueOf`, `hasOwnProperty`), like any other unexpected key. These
+  names used to pass the contract gate unchecked (audit F-C40-001).
+- Favoriting a lesson version that does not exist answers 404 instead of a generic 500 (audit
+  F-C24-001).
+- Developer scripts: `scripts/dev-seed.sh` can be re-run (it failed with an email validation error),
+  and `scripts/dev-server.sh` passes `RENDER_TIMINGS` through to the app.
+
 ## v1.04 (2026-10-24)
 
 - ⚑ **Security: Payload's hidden job-statistics record is closed to the API** (audit F-C22-001).

@@ -48,7 +48,7 @@ const ALIAS_OF: Record<string, string> = {
 
 /** Actionable hint for an unexpected key (alias of a canonical field, or a known corruption). */
 function hintForKey(key: string): string {
-  if (ALIAS_OF[key]) return ` (non-canonical alias of "${ALIAS_OF[key]}")`
+  if (Object.hasOwn(ALIAS_OF, key)) return ` (non-canonical alias of "${ALIAS_OF[key]}")`
   if (/^safety\d+otes$/.test(key)) return ' (likely a corrupted "safetyNotes")'
   return ''
 }
@@ -121,12 +121,15 @@ function walk(value: unknown, node: Schema, path: string, out: string[]): void {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
     const obj = value as Record<string, unknown>
     for (const key of node.required ?? []) {
-      if (!(key in obj)) out.push(`${path === '' ? key : `${path}.${key}`}: required field missing`)
+      if (!Object.hasOwn(obj, key))
+        out.push(`${path === '' ? key : `${path}.${key}`}: required field missing`)
     }
     const props = node.properties ?? {}
     for (const [key, v] of Object.entries(obj)) {
       const childPath = path === '' ? key : `${path}.${key}`
-      if (key in props) {
+      // ⚑ `Object.hasOwn`, not `in`: `in` also finds `Object.prototype` members, so `constructor`,
+      // `toString` and friends counted as declared keys and slipped past the gate (audit F-C40-001).
+      if (Object.hasOwn(props, key)) {
         walk(v, props[key]!, childPath, out)
       } else if (node.additionalProperties === false) {
         out.push(`${childPath}: unexpected key${hintForKey(key)}`)
