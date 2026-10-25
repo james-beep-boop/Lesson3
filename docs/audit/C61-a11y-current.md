@@ -20,3 +20,21 @@ The private probe source hash is
 
 The complete route/role axe matrix, keyboard-only walkthroughs, focus visibility, contrast review of
 the favorite glyph, and screen-reader checks for icon controls remain open.
+
+The complete Chromium role/route matrix subsequently checked **28 pages** (four roles × seven
+routes: home, Guide, Discuss, Messages, lesson, Compare, and Admin/Manage). Every page completed
+with **zero axe violations** and the run exited 0. Nine checks were `incomplete`, all color-contrast
+determinations that axe could not resolve: the aria-hidden non-BMP favorite star appeared on every
+role's home page and on lesson pages, and generated lesson document text/link nodes appeared on
+lesson pages. These are tool limitations/manual-review leads, not violations. Teacher Admin redirects
+to home and therefore has the home-page star lead; the other role Admin pages had no extra incomplete
+result.
+
+The full-matrix probe source hash is
+`05190f3bb6b5255c60bd73101d9da02915e96ad331b5dbae97f670418c34db32`; runner hash is
+`e6ebe84dc2cf921d7253c3769001fe3697657e89ad6f229237c2689212ef8061`; raw log hash is
+`ecf1c3c49285a9b90c79a316b1670898ef3b30ad3dcd70b60071116e420abc74`; result hash is
+`208ebc8175b2ac6ce599b9006af6821e1ab23f4627ecddf06a0152fe20cf3439`.
+
+Keyboard-only completion, manual contrast sampling of the non-BMP glyph, and screen-reader output
+remain qualified follow-ups. No C61 finding is accepted.

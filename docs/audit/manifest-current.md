@@ -45,7 +45,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/LICENSE` | C5.13/C71 | Pending review |
 | `app/README.md` | C5.13/C71 | Pending review |
 | `app/eslint.config.mjs` | C5.13/C71 | Pending review |
-| `app/next.config.ts` | C5.13/C71 | Pending review |
+| `app/next.config.ts` | C5.13/C71 | Reviewed; headers/body limits and App Router checks; see C513-config-current.md |
 | `app/package-lock.json` | C5.13/C71 | Resolution, integrity, advisory and override review required |
 | `app/package.json` | C5.13/C71 | Pending review |
 | `app/playwright.config.ts` | C5.13/C71 | Pending review |
@@ -80,12 +80,12 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/scripts/verify-stage2-export.ts` | C5.13/C71 | Pending review |
 | `app/scripts/verify-stage2-reads.ts` | C5.13/C71 | Pending review |
 | `app/scripts/verify-stage2b-preview.ts` | C5.13/C71 | Pending review |
-| `app/src/access/bundle.ts` | C5.1 | Pending review |
-| `app/src/access/generatedSurfaces.ts` | C5.1 | Pending review |
-| `app/src/access/index.ts` | C5.1 | Pending review |
-| `app/src/access/lockedDocuments.ts` | C5.1 | Pending review |
-| `app/src/access/versionImmutability.ts` | C5.1 | Pending review |
-| `app/src/access/versioning.ts` | C5.1 | Pending review |
+| `app/src/access/bundle.ts` | C5.1 | Reviewed; field-level prose/structure/system-only boundaries; see C51-authorization-current.md |
+| `app/src/access/generatedSurfaces.ts` | C5.1/C5.13 | Reviewed; generated route/collection surface assertions; see C51-authorization-current.md and C513-config-current.md |
+| `app/src/access/index.ts` | C5.1 | Reviewed; role, scope, user privacy and admin predicates; see C51-authorization-current.md |
+| `app/src/access/lockedDocuments.ts` | C5.1/C31 | Reviewed; lock access and deletion barrier evidence in C31-current-races.md |
+| `app/src/access/versionImmutability.ts` | C5.1 | Reviewed; 6 wiring units and authenticated-update integration; see C51-authorization-current.md |
+| `app/src/access/versioning.ts` | C5.1/C31 | Reviewed; create/delete scope and semver/pointer evidence; see C51-authorization-current.md |
 | `app/src/app/(frontend)/LibraryBrowser.tsx` | C5.10/C5.11 | Pending review |
 | `app/src/app/(frontend)/discuss/[id]/page.tsx` | C5.10/C5.11 | Pending review |
 | `app/src/app/(frontend)/discuss/new/page.tsx` | C5.10/C5.11 | Pending review |
@@ -258,10 +258,10 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/endpoints/verifyEmail.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/versionEdit.ts` | C5.3–C5.5 | Pending review |
 | `app/src/errors/AccountDisabled.ts` | C5.13/C71 | Pending review |
-| `app/src/fields/bundleFields.ts` | C5.12 | Pending review |
-| `app/src/fields/identity.ts` | C5.12 | Pending review |
-| `app/src/fields/lessonContent.ts` | C5.12 | Pending review |
-| `app/src/fields/phases.ts` | C5.12 | Pending review |
+| `app/src/fields/bundleFields.ts` | C5.12 | Reviewed; focused fields slice 112/112; see C512-fields-current.md |
+| `app/src/fields/identity.ts` | C5.12 | Reviewed; focused fields slice 112/112; see C512-fields-current.md |
+| `app/src/fields/lessonContent.ts` | C5.12 | Reviewed; focused fields slice 112/112; see C512-fields-current.md |
+| `app/src/fields/phases.ts` | C5.12 | Reviewed; controlled phase grammar; focused fields slice 112/112; see C512-fields-current.md |
 | `app/src/generator/adapter.ts` | C5.8 | Pending review |
 | `app/src/generator/artifactCache.ts` | C5.8 | Source read; C59-utilities-current.md; focused cache unit 9/9 and C70 restore fault evidence |
 | `app/src/generator/cacheCodecs.ts` | C5.8 | Pending review |
@@ -398,80 +398,80 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/welcomeDismissal.ts` | C5.9 | Pending review |
 | `app/src/lib/widgetUser.ts` | C5.9 | Pending review |
 | `app/src/lib/wireError.ts` | C5.9 | Pending review |
-| `app/src/migrations/20260608_024132_initial.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260608_024132_initial.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260608_145602_lesson_entities.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260608_145602_lesson_entities.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260608_224715_bundle_versioning.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260608_224715_bundle_versioning.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260609_164927_subjectgrade_unique_drop_media.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260609_164927_subjectgrade_unique_drop_media.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260609_170000_drop_subject_slug.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260609_170000_drop_subject_slug.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260622_210554_add_unit_fields.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260622_210554_add_unit_fields.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260623_151918_add_payload_jobs.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260623_151918_add_payload_jobs.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260624_221905_official_version_model.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260624_221905_official_version_model.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260625_125532_drop_lesson_bundles.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260625_125532_drop_lesson_bundles.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260628_154237_add_version_semver_unique.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260628_154237_add_version_semver_unique.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260629_213000_add_rate_limit_counters.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260702_015014_add_version_author.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260702_015014_add_version_author.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260702_194849_add_favorites.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260702_194849_add_favorites.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260702_230926_add_email_task.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260702_230926_add_email_task.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260703_041716_add_messaging.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260703_041716_add_messaging.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260706_175339_favorites_per_version.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260706_175339_favorites_per_version.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260710_041621_add_email_verification.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260710_041621_add_email_verification.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260719_185124_ares_resource_links_cutover.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260719_185124_ares_resource_links_cutover.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260719_210359_resource_links_child_rows.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260719_210359_resource_links_child_rows.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260721_025518_add_password_reset_email_task.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260721_025518_add_password_reset_email_task.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260806_185943_add_edit_recovery.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260806_185943_add_edit_recovery.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260812_180000_dedupe_pending_export_jobs.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260814_235248_add_public_publication.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260814_235248_add_public_publication.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260817_141942_add_sign_in_disabled.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260817_141942_add_sign_in_disabled.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260820_223208_add_assignment_provenance.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260820_223208_add_assignment_provenance.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260821_234341_add_system_settings.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260821_234341_add_system_settings.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260822_011614_drop_outbound_email_flag.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260822_011614_drop_outbound_email_flag.ts` | C5.14 | Pending review |
-| `app/src/migrations/20260919_222201_add_reset_password_requested_at.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20260919_222201_add_reset_password_requested_at.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261009_082909_add_forum_enabled.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261009_082909_add_forum_enabled.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261009_125057_add_discussions.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261009_125057_add_discussions.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261012_012355_add_message_version_labels.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261012_012355_add_message_version_labels.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261018_072213_combine_lineage.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261018_072213_combine_lineage.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261018_095242_combine_draft_context.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261018_095242_combine_draft_context.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261019_120000_release_ancestry.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261019_211325_worldwide_ids.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261019_211325_worldwide_ids.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261020_092934_advanced_tools.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261020_092934_advanced_tools.ts` | C5.14 | Pending review |
-| `app/src/migrations/20261024_094011_native_lock_scope.json` | C5.14 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/migrations/20261024_094011_native_lock_scope.ts` | C5.14 | Pending review |
-| `app/src/migrations/index.ts` | C5.14 | Pending review |
+| `app/src/migrations/20260608_024132_initial.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260608_024132_initial.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260608_145602_lesson_entities.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260608_145602_lesson_entities.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260608_224715_bundle_versioning.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260608_224715_bundle_versioning.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260609_164927_subjectgrade_unique_drop_media.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260609_164927_subjectgrade_unique_drop_media.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260609_170000_drop_subject_slug.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260609_170000_drop_subject_slug.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260622_210554_add_unit_fields.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260622_210554_add_unit_fields.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260623_151918_add_payload_jobs.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260623_151918_add_payload_jobs.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260624_221905_official_version_model.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260624_221905_official_version_model.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260625_125532_drop_lesson_bundles.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260625_125532_drop_lesson_bundles.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260628_154237_add_version_semver_unique.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260628_154237_add_version_semver_unique.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260629_213000_add_rate_limit_counters.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260702_015014_add_version_author.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260702_015014_add_version_author.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260702_194849_add_favorites.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260702_194849_add_favorites.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260702_230926_add_email_task.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260702_230926_add_email_task.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260703_041716_add_messaging.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260703_041716_add_messaging.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260706_175339_favorites_per_version.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260706_175339_favorites_per_version.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260710_041621_add_email_verification.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260710_041621_add_email_verification.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260719_185124_ares_resource_links_cutover.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260719_185124_ares_resource_links_cutover.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260719_210359_resource_links_child_rows.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260719_210359_resource_links_child_rows.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260721_025518_add_password_reset_email_task.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260721_025518_add_password_reset_email_task.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260806_185943_add_edit_recovery.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260806_185943_add_edit_recovery.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260812_180000_dedupe_pending_export_jobs.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260814_235248_add_public_publication.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260814_235248_add_public_publication.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260817_141942_add_sign_in_disabled.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260817_141942_add_sign_in_disabled.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260820_223208_add_assignment_provenance.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260820_223208_add_assignment_provenance.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260821_234341_add_system_settings.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260821_234341_add_system_settings.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260822_011614_drop_outbound_email_flag.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260822_011614_drop_outbound_email_flag.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20260919_222201_add_reset_password_requested_at.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20260919_222201_add_reset_password_requested_at.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261009_082909_add_forum_enabled.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261009_082909_add_forum_enabled.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261009_125057_add_discussions.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261009_125057_add_discussions.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261012_012355_add_message_version_labels.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261012_012355_add_message_version_labels.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261018_072213_combine_lineage.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261018_072213_combine_lineage.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261018_095242_combine_draft_context.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261018_095242_combine_draft_context.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261019_120000_release_ancestry.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261019_211325_worldwide_ids.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261019_211325_worldwide_ids.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261020_092934_advanced_tools.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261020_092934_advanced_tools.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/20261024_094011_native_lock_scope.json` | C5.14 | Generated snapshot excluded from manual review by C5.14 catalog rule; TypeScript provenance reviewed in C514-migrations-current.md |
+| `app/src/migrations/20261024_094011_native_lock_scope.ts` | C5.14 | Reviewed; hand-edited migration source sampled and covered by C514-migrations-current.md |
+| `app/src/migrations/index.ts` | C5.14 | Reviewed; 36 hand-authored modules registered in order; see C514-migrations-current.md |
 | `app/src/payload-types.ts` | C5.13/C71 | Generated: input/provenance/drift checks required; manual exclusion pending |
-| `app/src/payload.config.ts` | C5.13/C71 | Pending review |
+| `app/src/payload.config.ts` | C5.13/C71 | Reviewed; config wiring and 73/73 focused checks; see C513-config-current.md |
 | `app/src/proxy.ts` | C5.13/C71 | Pending review |
 | `app/test.env` | C5.13/C71 | Pending review |
 | `app/tests/e2e/advancedTools.e2e.spec.ts` | C72 | Pending review |

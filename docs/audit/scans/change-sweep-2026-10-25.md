@@ -68,3 +68,14 @@ A	docs/audit/reviews/recent-2026-10-25.md
 M	scripts/dev-server.sh
 M	scripts/test-restore-db-stack.sh
 ```
+
+## Final remote-main sweep
+
+The immutable audit source remained `bd5f07863a150cd51245b9c942502efa19d4014d`. After the audit
+passes, a fresh `git fetch origin main` observed remote main at
+`d28b6ef4ca00555219e9de042ae6363d85be6c11`. The final comparison reported five documentation-only
+changes: `docs/DECISIONS.md`, `docs/DESIGN-modes-connectivity-network-2026-10-19.md`,
+`docs/NEXT-SESSION.md`, and two archive renames under `docs/archive/`. No application source,
+migration, test, deployment, or configuration path changed after the audit base. No covered product
+area required reopening. This is a separate remote-main observation; the audit branch's documentation
+commits are intentionally not compared as product changes.
