@@ -495,7 +495,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/e2e/offlineSignup.e2e.spec.ts` | C72 | 1/1 Chromium against temporary SMTP-disabled app; full sign-up, approval and sign-in journey (see C511-client-current.md) |
 | `app/tests/e2e/publicLibraryDisabled.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/saveSnapshot.e2e.spec.ts` | C72 | Pending review |
-| `app/tests/e2e/uploadBundles.e2e.spec.ts` | C72 | Pending review |
+| `app/tests/e2e/uploadBundles.e2e.spec.ts` | C72 | 2/2 Chromium; ZIP rejection/refresh and missing taxonomy confirmation/import (see C511-client-current.md) |
 | `app/tests/e2e/versionUnavailable.e2e.spec.ts` | C72 | 6/6 Chromium; deleted/malformed/existing lesson and comparison version identity flows (see C511-client-current.md) |
 | `app/tests/e2e/welcomeDialog.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/fixtures/pdf-library/.gitattributes` | C72 | Pending review |

@@ -68,5 +68,11 @@ Teacher and a Teacher with editing access inspecting the selected version in Sta
 hash: `fa6cfa51dedeb4092dba269d277c68c951f7a70b48c3ddf01af4607901f6bc8d`; raw log hash:
 `1cc6f48f598c93218c2be75e31e69286ef32d694f0d0b16d6f6d77a88b54c5cd`.
 
+The Chromium `tests/e2e/uploadBundles.e2e.spec.ts` flow passed **2/2** in 6.7 seconds. It covered
+valid ZIP import reporting rejected/skipped filenames after refresh, and the confirmation flow for
+creating missing subjects and grades before import. Runner hash:
+`139bfc625bd689bc0588274cb194d7044ece5af35ce08b548da283a3bc1019e6`; raw log hash:
+`a04ef2e65f6636ec08a8dabad0775f55116e6cbe0d4fcbb5385f7353ced88566`.
+
 Browser navigation breadth, real cookies/CSRF across roles, WebKit rendering, accessibility, visual
 consistency, and full component coverage remain open in C5.11/C60/C61.
