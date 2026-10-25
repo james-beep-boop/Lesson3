@@ -170,6 +170,28 @@ conflict with exactly-once retirement semantics, retirement-before-source-cascad
 single session chaining successive recovery tokens. Fixture teardown completed and the target lock
 released; raw output is private at `logs/c31-save-recovery-http.log`.
 
+## Deletion scope and persisted fingerprint ledger — audit probe pass
+
+The audit-only `app/tests/audit/c31-deletion-ledger.mjs` probe exercised ten real HTTP deletion
+attempts against the marked target. It recorded the expected policy boundary: an authoring editor
+could delete their own candidate (`200`), a Subject Administrator could delete candidates in their
+administered subject-grade (`200`), and Site Administrator cleanup could delete a candidate (`200`).
+An editor peer, plain Teacher, out-of-scope Subject Administrator and anonymous caller were refused
+with `403` and the row remained. A Site Administrator's attempt to delete the Official version was
+refused with `409` and the row remained. Refused candidates were then removed by the permitted
+cleanup path.
+
+The probe persisted complete before/after MD5 vectors for the lesson-plan, version, child-row,
+subject and resource-related tables. All synthetic candidates and cascaded rows were gone, and the
+vectors compared equal (`fingerprintEqual: true`). The exact formatted helper hash was
+`2171e7a6f589ad8de5463641e151b0f23895b9fd37e701fa4e02dc65231d196c`; the JSON ledger and vectors
+remain private at `fixtures/c31-deletion-ledger.json`, with raw output at
+`logs/c31-deletion-ledger.log`.
+
+This closes the bounded current deletion-scope and persisted-fingerprint check. It does not close
+every C30 write path, plan-cascade deletion, concurrent delete/promotion race, recovery attribution,
+or the final all-path C31 ledger.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
