@@ -530,7 +530,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/http/lockedDocuments.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/messageReferences.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/nativeVersionAuthority.http.spec.ts` | C72 | Current C31 wire evidence: C31-current-races.md; 8/8 passed |
-| `app/tests/http/nullResources.http.spec.ts` | C72 | Pending review |
+| `app/tests/http/nullResources.http.spec.ts` | C72 | Current C41/C5.2 wire evidence: C41-null-resources-current.md; 8/8 passed |
 | `app/tests/http/pendingAuthority.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/recovery.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/saveAsNewRecovery.http.spec.ts` | C72 | Pending review |

@@ -102,6 +102,8 @@ validation is pending. No product fix was made.
   bundle. Honest declared body ceilings returned 413 on upload, preview and
   save-as-new; chunked oversized preview/save/upload bodies returned the application’s 413/400 caps;
   monitored205MiB expansion refused; lesson/taxonomy state restored.
+  The focused null-resource wire suite added eight upload, read, save-as-new and DOCX preservation
+  cases for null and populated resource slots.
   Approved taxonomy and actual PostgreSQL fault rollback passed; the Chromium preview, DOCX export
   and Mailpit attachment sink probe passed with script-like prose rendered as inert text. Omitted or
   public proxy body posture, editor/PDF/WebKit coverage and further concurrency remain open. Observations are not
