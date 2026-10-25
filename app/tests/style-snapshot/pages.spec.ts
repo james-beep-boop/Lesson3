@@ -1,8 +1,9 @@
 // dumps computed colours of every element on representative pages.
-import { test } from '@playwright/test'
+import { test, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
+import { dump } from './kit'
 
 let fx: RoleFixture
 test.beforeAll(async () => {
@@ -12,7 +13,6 @@ test.afterAll(async () => {
   await fx?.teardown()
 })
 
-const OUT = process.env.STYLE_OUT!
 const PROPS = [
   'color',
   'background-color',
@@ -44,26 +44,7 @@ const PROPS = [
   'display',
   'position',
 ]
-const dump = async (page: import('@playwright/test').Page) =>
-  page.evaluate((props) => {
-    const path = (el: Element): string => {
-      const parts: string[] = []
-      for (let e: Element | null = el; e && e !== document.documentElement; e = e.parentElement) {
-        parts.unshift(
-          e.tagName.toLowerCase() +
-            (e.classList.length ? '.' + [...e.classList].sort().join('.') : ''),
-        )
-      }
-      return parts.join('>')
-    }
-    const rows: string[] = []
-    document.querySelectorAll('*').forEach((el) => {
-      const cs = getComputedStyle(el)
-      rows.push(path(el) + ' | ' + props.map((p) => cs.getPropertyValue(p)).join(' ; '))
-    })
-    rows.sort()
-    return rows
-  }, PROPS)
+const snap = (page: Page) => dump(page, PROPS)
 
 test('snapshot', async ({ page, browser }) => {
   test.setTimeout(300_000)
@@ -71,7 +52,7 @@ test('snapshot', async ({ page, browser }) => {
   const anon = await browser.newPage()
   await anon.goto(`${BASE}/login`)
   await anon.waitForLoadState('networkidle')
-  out.login = await dump(anon)
+  out.login = await snap(anon)
   await loginAs(page, fx, 'siteAdmin')
   const pages: Record<string, string> = {
     home: '/',
@@ -87,13 +68,13 @@ test('snapshot', async ({ page, browser }) => {
     await page.goto(`${BASE}${u}`)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(800)
-    out[k] = await dump(page)
+    out[k] = await snap(page)
     const menu = page.locator('button.user-menu__avatar').first()
     if (k === 'home' || k === 'admin') {
       if (await menu.count()) {
         await menu.click()
-        await page.waitForTimeout(300)
-        out[k + '-menu'] = await dump(page)
+        await page.locator('.user-menu__dropdown').waitFor()
+        out[k + '-menu'] = await snap(page)
         await page.keyboard.press('Escape')
       }
     }
@@ -107,14 +88,14 @@ test('snapshot', async ({ page, browser }) => {
     await phone.goto(`${BASE}${u}`)
     await phone.waitForLoadState('networkidle')
     await phone.waitForTimeout(800)
-    out[k] = await dump(phone)
+    out[k] = await snap(phone)
     const m = phone.locator('button.user-menu__avatar').first()
     if (await m.count()) {
       await m.click()
-      await phone.waitForTimeout(300)
-      out[k + '-menu'] = await dump(phone)
+      await phone.locator('.user-menu__dropdown').waitFor()
+      out[k + '-menu'] = await snap(phone)
       await phone.keyboard.press('Escape')
     }
   }
-  fs.writeFileSync(OUT, JSON.stringify({ __props: PROPS, ...out }, null, 1))
+  fs.writeFileSync(process.env.STYLE_OUT!, JSON.stringify({ __props: PROPS, ...out }, null, 1))
 })

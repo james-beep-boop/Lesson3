@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 import { openEditor, expandLessons } from '../helpers/editRecoveryUi'
+import { dump, VIEWPORTS } from './kit'
 
 let fx: RoleFixture
 test.beforeAll(async () => {
@@ -44,31 +45,7 @@ const PROPS = [
   'overflow-y',
   'max-height',
 ]
-const dump = (page: Page) =>
-  page.evaluate((props) => {
-    const rows: string[] = []
-    document.querySelectorAll('.modal-backdrop, .modal-backdrop *').forEach((el) => {
-      const parts: string[] = []
-      for (
-        let e: Element | null = el;
-        e && !e.classList.contains('modal-backdrop');
-        e = e.parentElement
-      )
-        parts.unshift(
-          e.tagName.toLowerCase() +
-            (e.classList.length ? '.' + [...e.classList].sort().join('.') : ''),
-        )
-      const cs = getComputedStyle(el)
-      const r = el.getBoundingClientRect()
-      rows.push(
-        (parts.join('>') || 'BACKDROP') +
-          ' | ' +
-          props.map((p) => cs.getPropertyValue(p)).join(' ; ') +
-          ` ; box ${r.width.toFixed(1)}x${r.height.toFixed(1)}`,
-      )
-    })
-    return rows.sort()
-  }, PROPS)
+const snap = (page: Page) => dump(page, PROPS, '.modal-backdrop')
 
 const SYNTH = (tall: boolean, plain: boolean) => `
 <div class="modal-backdrop"><div class="modal lp-modal${plain ? ' modal--plain' : ''}" role="dialog" tabindex="-1">
@@ -101,7 +78,7 @@ async function synth(page: Page, out: Record<string, string[]>, key: string) {
       await page.keyboard.press('Shift+Tab')
       await page.keyboard.press('Tab')
     }
-    out[`${key}/synth-${name}`] = await dump(page)
+    out[`${key}/synth-${name}`] = await snap(page)
     if (name === 'tall') {
       out[`${key}/synth-tall-scroll`] = [
         await page.evaluate(() => {
@@ -118,10 +95,7 @@ async function synth(page: Page, out: Record<string, string[]>, key: string) {
 test('dialogs', async ({ browser }) => {
   test.setTimeout(400_000)
   const out: Record<string, string[]> = {}
-  for (const [vp, size] of [
-    ['desktop', { width: 1280, height: 900 }],
-    ['phone', { width: 390, height: 844 }],
-  ] as const) {
+  for (const [vp, size] of VIEWPORTS) {
     const page = await browser.newPage({ viewport: size })
     await loginAs(page, fx, 'siteAdmin')
     // App pages
@@ -131,8 +105,8 @@ test('dialogs', async ({ browser }) => {
     const chip = page.getByRole('button', { name: /versions ▾/ }).first()
     if (await chip.count()) {
       await chip.click()
-      await page.waitForTimeout(800)
-      out[`${vp}/app/versions`] = await dump(page)
+      await page.locator('.modal').waitFor()
+      out[`${vp}/app/versions`] = await snap(page)
       await page.keyboard.press('Escape')
     }
     if (vp === 'phone') {
@@ -141,8 +115,8 @@ test('dialogs', async ({ browser }) => {
       const edit = page.getByRole('button', { name: /^(Edit|Continue editing)$/ })
       if (await edit.count()) {
         await edit.click()
-        await page.waitForTimeout(500)
-        out[`${vp}/app/too-narrow`] = await dump(page)
+        await page.locator('.modal').waitFor()
+        out[`${vp}/app/too-narrow`] = await snap(page)
         await page.keyboard.press('Escape')
       }
     }
@@ -156,24 +130,26 @@ test('dialogs', async ({ browser }) => {
       const help = page.getByRole('button', { name: 'Help', exact: true })
       if (await help.count()) {
         await help.click()
-        await page.waitForTimeout(500)
-        out[`${vp}/admin/help`] = await dump(page)
+        await page.locator('.modal').waitFor()
+        out[`${vp}/admin/help`] = await snap(page)
         await page.keyboard.press('Escape')
       }
       await expandLessons(page)
-      for (const b of await page.getByRole('button', { name: 'Show All', exact: true }).all())
+      // `expandLessons` opens the lessons array; this opens the arrays inside it (framework rows).
+      for (const b of await page.getByRole('button', { name: 'Show All', exact: true }).all()) {
         if (await b.isVisible()) await b.click()
+      }
       const col = page.locator('#field-lessons__0__framework__0__learnerExperience')
       if (await col.count()) {
         await col.click()
         await page.getByRole('button', { name: 'Insert link', exact: true }).click()
-        await page.waitForTimeout(500)
-        out[`${vp}/admin/insert-link`] = await dump(page)
+        await page.locator('.modal').waitFor()
+        out[`${vp}/admin/insert-link`] = await snap(page)
         const addr = page.getByRole('button', { name: 'Insert address', exact: true })
         if (await addr.count()) {
           await addr.click()
           await page.waitForTimeout(300)
-          out[`${vp}/admin/insert-link-error`] = await dump(page)
+          out[`${vp}/admin/insert-link-error`] = await snap(page)
         }
         await page.keyboard.press('Escape')
       }

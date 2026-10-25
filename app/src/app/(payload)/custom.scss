@@ -1386,8 +1386,8 @@ body {
   }
 }
 
-// The delete confirmation. A modifier over the `.modal` base + `.modal__body`/`__field`/`__actions`
-// below, so it declares only what is genuinely its own.
+// The delete confirmation. A modifier over the shared `.modal` base + `.modal__body`/`__field`/`__actions`
+// (`../app-dialog.scss`), so it declares only what is genuinely its own.
 .lp-confirm {
   p {
     margin: 0 0 var(--app-space-2);
@@ -2429,7 +2429,7 @@ a.btn.lp-btn {
     color: var(--app-text-muted);
   }
 
-  // The button row itself is the shared `.modal__actions` (see the base block). It takes the same
+  // The button row itself is the shared `.modal__actions` (`../app-dialog.scss`). It takes the same
   // hairline as a row, so Close reads as the last item rather than floating after the list.
   .modal__actions {
     justify-content: flex-end;
@@ -2548,7 +2548,7 @@ a.btn.lp-btn {
   }
 }
 
-// The edit-recovery restore offer. A true modifier of the base `.modal` above — it adds only the
+// The edit-recovery restore offer. A true modifier of the shared `.modal` base (`../app-dialog.scss`) — it adds only the
 // scrollable transcript of the captured prose, which is what makes this panel different from a
 // confirmation: the user is deciding about content they need to be able to READ first.
 .lp-restore {

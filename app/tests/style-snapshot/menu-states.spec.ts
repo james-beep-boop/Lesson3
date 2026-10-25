@@ -1,8 +1,9 @@
 // interaction-state styles of the shared nav/menu on both surfaces.
-import { test } from '@playwright/test'
+import { test, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
+import { VIEWPORTS } from './kit'
 
 let fx: RoleFixture
 test.beforeAll(async () => {
@@ -41,18 +42,13 @@ const PROPS = [
   'padding-left',
   'min-height',
 ]
-const read = (page: import('@playwright/test').Page, sel: string) =>
+const read = (page: Page, sel: string) =>
   page.evaluate(
     ([s, props]) => {
-      const el = document.querySelector(s as string)
+      const el = document.querySelector(s)
       if (!el) return null
       const cs = getComputedStyle(el)
-      const r = el.getBoundingClientRect()
-      return {
-        ...Object.fromEntries((props as string[]).map((p) => [p, cs.getPropertyValue(p)])),
-        box: `${r.width.toFixed(1)}x${r.height.toFixed(1)} @${r.left.toFixed(1)},${r.top.toFixed(1)}`,
-        vw: innerWidth,
-      }
+      return Object.fromEntries(props.map((p) => [p, cs.getPropertyValue(p)]))
     },
     [sel, PROPS] as const,
   )
@@ -60,10 +56,7 @@ const read = (page: import('@playwright/test').Page, sel: string) =>
 test('states', async ({ browser }) => {
   test.setTimeout(300_000)
   const out: Record<string, unknown> = {}
-  for (const [vp, size] of [
-    ['desktop', { width: 1280, height: 900 }],
-    ['phone', { width: 390, height: 844 }],
-  ] as const) {
+  for (const [vp, size] of VIEWPORTS) {
     const page = await browser.newPage({ viewport: size })
     await loginAs(page, fx, 'siteAdmin')
     for (const [surf, url] of [
@@ -84,7 +77,7 @@ test('states', async ({ browser }) => {
       await page.keyboard.press('Tab')
       o.avatarFocus = await read(page, '.user-menu__avatar:focus-visible')
       await page.keyboard.press('Enter')
-      await page.waitForTimeout(300)
+      await page.locator('.user-menu__dropdown').waitFor()
       o.dropdown = await read(page, '.user-menu__dropdown')
       o.menuBadge = await read(page, '.user-menu__badge')
       o.messages = await read(page, 'a.user-menu__item')
@@ -96,7 +89,7 @@ test('states', async ({ browser }) => {
       await page.locator('button.user-menu__item').click()
       await page.locator('.user-menu__edit-input').fill('')
       await page.locator('.user-menu__edit-btn[type=submit]').click()
-      await page.waitForTimeout(200)
+      await page.locator('.user-menu__edit-error').waitFor()
       o.error = await read(page, '.user-menu__edit-error')
       o.input = await read(page, '.user-menu__edit-input')
       o.saveBtn = await read(page, '.user-menu__edit-btn')
@@ -107,7 +100,10 @@ test('states', async ({ browser }) => {
       )
       o.saveDisabled = await read(page, '.user-menu__edit-btn')
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(200)
+      await page
+        .locator('.user-menu__dropdown')
+        .waitFor({ state: 'detached', timeout: 2000 })
+        .catch(() => {})
       o.closedAfterEscape = (await page.locator('.user-menu__dropdown').count()) === 0
       out[k] = o
     }
