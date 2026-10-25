@@ -196,6 +196,17 @@ describe('POST /api/favorites over HTTP', () => {
     },
   )
 
+  // Review 2026-10-25: a version that is present but not an id skipped the lookup above and reached
+  // the insert, where the foreign key or the integer column answered 500.
+  it.each([-1, 0, 1.5, 2_147_483_648, 'abc'])(
+    '400s a favorite whose version is not an id (%s) and creates nothing',
+    async (version) => {
+      const res = await post('/api/favorites', { version }, 'teacher')
+      expect(res.status).toBe(400)
+      expect(await favoritesOf(fx.users.teacher.id)).toHaveLength(0)
+    },
+  )
+
   it('creates a favorite on a real version (201), then refuses the duplicate (400)', async () => {
     const res = await post('/api/favorites?depth=0', { version: fx.version.id }, 'teacher')
     expect(res.status).toBe(201)

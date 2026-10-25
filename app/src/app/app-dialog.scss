@@ -1,0 +1,123 @@
+/*
+ * The shared dialog (`src/components/Modal`) — ONE stylesheet for both surfaces (2026-10-25, CSS step 4).
+ *
+ * `Modal` portals the same markup to `document.body` on the App pages and in Manage/the editor. Its base
+ * rules used to live twice, in `(frontend)/styles.css` and in `(payload)/custom.scss`, and had drifted:
+ * a 0.6rem corner against Payload's 4px, a 0.92rem body against the 14px scale step, a 0.3rem field gap
+ * against 8px, and so on. They now live only here: imported by the frontend layout (after
+ * `app-tokens.scss`, before `styles.css`) and `@use`d by `custom.scss`.
+ *
+ * Where the copies differed, the one written in the shared tokens (`app-tokens.scss`) won, and otherwise
+ * the App pages' look. So the body text is the 14px secondary step and the field is the admin's
+ * token-built 38px control, while the panel keeps the App's 0.6rem corner and hairline.
+ *
+ * SCOPE: the `.modal*` vocabulary only. Per-dialog modifiers (`.modal--versions`, `.lesson-edit-help`,
+ * `.lp-confirm`, …) stay with the stylesheet of the surface that renders them, and the buttons inside a
+ * dialog stay per-surface adapters (`.lp-modal .btn` in custom.scss). Every rule here is one class deep
+ * (0-1-0, or 0-2-0 for the `--plain` and `--pair` modifiers), so any modifier written as
+ * `.<dialog> .modal__x` outranks it without help.
+ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--app-space-3);
+  background: rgba(0, 0, 0, 0.45);
+}
+.modal {
+  width: 100%;
+  max-width: 26rem;
+  /* No padding: `.modal__title` is a full-bleed header bar and `.modal__content` carries the inset.
+     `overflow: hidden` is what keeps the bar's corners inside the panel's radius. */
+  overflow: hidden;
+  color: var(--app-text);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 0.6rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+/* ⚑ THE MANAGE PANEL'S CHROME, REUSED — not new dialog styling (operator decision 2026-08-23).
+   `Manage`'s accordion already answers "what does a titled container look like here": a soft grey
+   header bar, a hairline under it, a left-aligned heading at the 20px step, and quiet rules inside.
+   ⚑ LEFT-ALIGNED, deliberately: every other heading in the app is, and the long recovery title would
+   centre badly. */
+.modal__title {
+  margin: 0;
+  padding: 0.7rem 1.25rem;
+  background: var(--app-surface-soft);
+  border-bottom: 1px solid var(--app-border);
+  font-size: var(--app-section-title-size);
+  font-weight: 600;
+  /* Stated, not inherited: Manage's <h2> carries Payload's own 32px line height. */
+  line-height: var(--app-line-height);
+}
+.modal__content {
+  padding: 1.25rem;
+}
+/* ⚑ OPT-OUT, and the reason the bar is not universal. A destructive confirmation (`.lp-confirm`) would
+   read as a panel rather than a warning, and the two-sentence too-narrow notice carries more chrome
+   than content. They keep the plain heading. */
+.modal--plain .modal__title {
+  padding: 1.25rem 1.25rem 0;
+  background: none;
+  border-bottom: 0;
+  font-size: 1.15rem;
+}
+.modal--plain .modal__content {
+  padding: 0.75rem 1.25rem 1.25rem;
+}
+.modal__body {
+  margin: 0 0 0.9rem;
+  color: var(--app-text-muted);
+  font-size: var(--app-secondary-size);
+}
+.modal__form {
+  display: grid;
+  gap: var(--app-space-2);
+}
+/* A labelled field. Outside a `.modal__form` it carries its own space below; inside one, the form's gap
+   does that job. The input is built from the button tokens so it lines up with the buttons beside it. */
+.modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  margin-block-end: var(--app-space-3);
+  font-size: var(--app-secondary-size);
+}
+.modal__form > .modal__field {
+  margin-block-end: 0;
+}
+.modal__field input {
+  min-height: var(--app-btn-min-height);
+  padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-btn-radius);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-family: var(--app-ui-font);
+  font-size: var(--app-btn-font-size);
+}
+.modal__field input:focus-visible {
+  outline: var(--app-btn-focus-ring) solid var(--app-accent);
+  outline-offset: var(--app-btn-focus-ring-offset);
+}
+.modal__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+/* A two-button confirmation (Cancel, then the action): two equal buttons spanning the dialog
+   (operator decision 2026-10-22). Cancel stays on the left, as in every other dialog here. */
+.modal__actions--pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.modal__actions--pair > * {
+  width: 100%;
+  margin: 0;
+  justify-content: center;
+}

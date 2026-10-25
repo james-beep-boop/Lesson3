@@ -66,9 +66,13 @@ const requireReadableFavoriteVersion: CollectionBeforeValidateHook = async ({
   req,
 }) => {
   if (operation !== 'create' || !req.user) return data
-  const id = relId(data?.version)
   // An absent version is left to the field's own `required` check, which answers 400.
-  if (id == null) return data
+  if (data?.version == null) return data
+  // ⚑ Present but not an id (`-1`, `0`, `1.5`, `"abc"`, past 2³¹−1): `relId` reads it as null, and
+  // returning there let the raw value reach the insert, where the foreign key or the integer column
+  // turned it into a 500 — the same failure this hook exists to prevent (review 2026-10-25).
+  const id = relId(data.version)
+  if (id == null) throw new APIError('That lesson version is not valid.', 400)
   const version = await findReadableVersion(req.payload, {
     id,
     user: req.user as User,

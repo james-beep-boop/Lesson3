@@ -22,9 +22,8 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 # SHELVED 2026-10-25 — read this block first
 
-The operator put the project away after one last wrap-up. The plan was: one PR of quick fixes, then
-tag **v1.05**, deploy it to the Rock and run the post-deploy checks. Check `git tag` and the Rock's
-deployed revision to see how far that got; the steps after the PR are operator-run.
+The operator put the project away after one last wrap-up: one PR of quick fixes, then **v1.05**
+tagged and deployed to the Rock (done, below). Work resumed the same day with v1.06 and a CSS cleanup.
 
 **In the wrap-up PR:** audit F-C40-001 (built-in key names passed the ingest contract gate) and
 F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-seed.sh` re-runnable;
@@ -40,10 +39,22 @@ from two accounts, and one change in Manage → Users.
 3.92.0 (#448) and #449: minification back on, React 19.3.1, Next.js 16.4.3, `zod` 4.6.7. Client JS
 drops 1.61 → 0.87 MB gzipped; the error-message wire test passes against the minified build; Rock
 typing is unchanged from v1.05 (40–48 ms per key). No migration. Results: DECISIONS 2026-10-25
-"Payload 3.92.0 tested" and "Minification back on". **Open:** PR #451 (Manage and the editor pinned light; unreleased). **Next:** the majors (Sentry 11, jsdom 30, …), each as its own change.
+"Payload 3.92.0 tested" and "Minification back on". **Merged since, not tagged or deployed** (the operator said no new tag): #451 (every page pinned light),
+#452 (shared colour roles), #453 (nav, avatar menu and badges in `app/src/app/app-chrome.scss`). The
+dialog step, #454 (`app/src/app/app-dialog.scss`), is on hold while the review fixes land. Still to do:
+the five temporary admin colour-role overrides at the top of `custom.scss` come out together, as one
+change meant to alter Manage's look (DECISIONS 2026-10-25, CSS step 2). **Deferred by the operator
+(2026-10-25), from the #454 /simplify pass:** (1) a shared "present but not an id → 400" helper in
+`src/lib/relId.ts` — discussion links and message replies already refuse a bad id, and the only hook
+that skips one (`stampVersionLineage`) reads system-only fields, so nothing user-reachable is open;
+(2) moving the danger button's `margin-left: 0.5rem` (`.lp-modal .btn.btn--style-error`) into each
+button row, which would retire the `.modal__actions--pair` reset but touches about eight Manage rows.
+**Next:** the majors (Sentry 11,
+jsdom 30, …), each as its own change.
 
 **Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
-evidence, L-C23-01) merged into it 2026-10-25, so no audit PR is open. Not started: the rest of the
+evidence, L-C23-01) merged into it 2026-10-25, so no audit *finding* PR is open; the audit branch's
+own PR, #437, stays open on purpose (it never merges). Not started: the rest of the
 catalogue (`docs/audit/catalog.md`) and the deferred hardware checks D01–D03.
 
 **Showstoppers: none known.** No open finding loses or corrupts data, breaks versioning or export, or
@@ -101,7 +112,7 @@ password manager.
 because new high advisories had turned `audit:prod` red. Why each was accepted, and when each
 override comes out, is in DECISIONS 2026-10-24.
 
-**Done: Payload 3.92.0** (#448, merged; not yet released). On the next Payload upgrade, follow the same checklist:
+**Done: Payload 3.92.0** (#448, released in v1.06). On the next Payload upgrade, follow the same checklist:
 move `payload` and all five `@payloadcms/*` packages together; confirm or re-derive the #436 patch
 strings (the install fails loudly if they no longer match) and re-run the Rock typing benchmark; review
 each override; full gate plus the browser tests on the version edit page. ⚑ Check the `rowlabel` patch
@@ -166,7 +177,7 @@ operator's "merge when green". Plan, review log and Q1–Q7 decisions:
   - Teachers land on Your saved versions; drafts never auto-open and show a count; Subject
     administrators land all-closed.
   - Row actions come from `versionActions` (`lib/personalVersions.ts`) for both lists.
-- **Release and deployment:** not released or deployed; the next tag would carry both.
+- **Release and deployment:** both shipped in v1.04 (2026-10-24).
 - **Codex review:** reviewed the plan and both PRs; all findings fixed.
 
 **v1.03 tagged (2026-10-22):** #432 merged as `625a9d8` after the revised head

@@ -3,6 +3,7 @@
 // can't drift from the frontend pages. `@use` must lead the file.
 @use '../app-tokens';
 @use '../app-chrome';
+@use '../app-dialog';
 
 // ⚑ TEMPORARY: the admin's colour roles keep their pre-2026-10-25 Payload values. The shared semantic
 // palette (app-tokens.scss) carries the frontend's values; these five re-point the roles at what this
@@ -1385,8 +1386,8 @@ body {
   }
 }
 
-// The delete confirmation. A modifier over the `.modal` base + `.modal__body`/`__field`/`__actions`
-// below, so it declares only what is genuinely its own.
+// The delete confirmation. A modifier over the shared `.modal` base + `.modal__body`/`__field`/`__actions`
+// (`../app-dialog.scss`), so it declares only what is genuinely its own.
 .lp-confirm {
   p {
     margin: 0 0 var(--app-space-2);
@@ -2385,125 +2386,15 @@ a.btn.lp-btn {
   }
 }
 
-// The shared Modal's base `.modal-backdrop`/`.modal` rules live only in the FRONTEND stylesheet and
-// don't load on this surface, so the admin needs its own copy of the base — re-themed to Payload
-// tokens, geometry mirroring `styles.css`. Lifted out of `.lesson-edit-help` on 2026-08-04 when the
-// delete-plans confirmation became the second admin Modal, exactly as the note here asked. Callers are
-// now true MODIFIERS (`.lesson-edit-help`, `.lp-confirm`) and add only what differs.
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.45);
-}
-
-.modal {
-  width: 100%;
-  max-width: 26rem;
-  // No padding: `__title` is a full-bleed header bar and `__content` carries the inset. `overflow`
-  // is what keeps the bar's corners inside the panel's radius.
-  overflow: hidden;
-  color: var(--app-text);
-  background: var(--app-surface);
-  border: 1px solid var(--theme-elevation-200);
-  border-radius: var(--style-radius-m, 4px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
-
-  // The element vocabulary `Modal`'s callers ALREADY use on the frontend (`.modal__title/__body/
-  // __field/__actions` — see EmailModal / EditActions and styles.css). Restated here in Payload tokens
-  // rather than re-invented under per-caller names: two admin Modals had otherwise grown their own
-  // spellings of "muted paragraph", "labelled field" and "button row".
-  // ⚑ THE ACCORDION'S CHROME, REUSED — and for the same reason the accordion borrowed Payload's
-  // `Collapsible`: so a dialog reads as part of this admin rather than a visitor to it. Same
-  // `--theme-elevation-50` fill, same hairline, same left-aligned heading at the 20px step, same
-  // `--style-radius-m` on the panel. No new tokens, no new idiom.
-  //
-  // ⚑ LEFT-ALIGNED, deliberately: every other heading in the app is, and the recovery prompt's long
-  // title would centre badly.
-  .modal__title {
-    margin: 0;
-    padding: 0.7rem 1.25rem;
-    background: var(--app-surface-soft);
-    border-bottom: 1px solid var(--theme-elevation-200);
-    font-size: 20px;
-  }
-
-  .modal__content {
-    padding: 1.25rem;
-  }
-
-  // ⚑ OPT-OUT — the bar is the default, not a universal. A destructive confirmation (`.lp-confirm`)
-  // would read as a panel rather than a warning, and the two-sentence too-narrow notice carries more
-  // chrome than content. Both keep the plain heading they had.
-  &.modal--plain .modal__title {
-    padding: 1.25rem 1.25rem 0;
-    background: none;
-    border-bottom: 0;
-    font-size: 1.15rem;
-  }
-
-  &.modal--plain .modal__content {
-    padding: 0.75rem 1.25rem 1.25rem;
-  }
-
-  .modal__body {
-    color: var(--app-text-muted);
-    font-size: var(--app-secondary-size);
-  }
-
-  .modal__field {
-    display: flex;
-    flex-direction: column;
-    gap: var(--app-space-1);
-    margin-block-end: var(--app-space-3);
-    font-size: var(--app-secondary-size);
-
-    input {
-      min-height: var(--app-btn-min-height);
-      padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-btn-radius);
-      background: var(--theme-input-bg, var(--theme-elevation-0));
-      color: var(--app-text);
-      font-family: var(--app-ui-font);
-      font-size: var(--app-btn-font-size);
-
-      &:focus-visible {
-        outline: var(--app-btn-focus-ring) solid var(--app-accent);
-        outline-offset: var(--app-btn-focus-ring-offset);
-      }
-    }
-  }
-
-  .modal__actions {
-    display: flex;
-    align-items: center;
-    gap: var(--app-space-1);
-  }
-
-  // A two-button confirmation: two equal buttons spanning the dialog, Cancel on the left (operator
-  // decision 2026-10-22). Mirrors `.modal__actions--pair` in styles.css.
-  .modal__actions--pair {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-
-    > * {
-      width: 100%;
-      margin: 0;
-      justify-content: center;
-    }
-
-    // ⚑ The danger button's `margin-left: 0.5rem` (`.lp-modal .btn.btn--style-error`, 0-3-0) outranks
-    // `> *` above (0-2-0) and pushed Delete 8px past the row's right edge (Codex, #433). In a pair the
-    // grid gap is the only spacing, so reset it at 0-4-0.
-    > .btn.btn--style-error {
-      margin-left: 0;
-    }
-  }
+// The shared Modal's base (`.modal-backdrop`, `.modal`, `.modal__*`) is `../app-dialog.scss`, shared
+// with the App pages. Callers here are MODIFIERS (`.lesson-edit-help`, `.lp-confirm`, …) and add only
+// what differs.
+//
+// ⚑ The danger button's `margin-left: 0.5rem` (`.lp-modal .btn.btn--style-error`, 0-3-0) outranks the
+// pair's `> *` reset and pushed Delete 8px past the row's right edge (Codex, #433). In a pair the grid
+// gap is the only spacing, so reset it at 0-4-0. Admin-only: `btn--style-error` is Payload's.
+.modal .modal__actions--pair > .btn.btn--style-error {
+  margin-left: 0;
 }
 
 // Editing instructions appear once in an accessible shared Modal rather than under every textarea.
@@ -2538,7 +2429,7 @@ a.btn.lp-btn {
     color: var(--app-text-muted);
   }
 
-  // The button row itself is the shared `.modal__actions` (see the base block). It takes the same
+  // The button row itself is the shared `.modal__actions` (`../app-dialog.scss`). It takes the same
   // hairline as a row, so Close reads as the last item rather than floating after the list.
   .modal__actions {
     justify-content: flex-end;
@@ -2657,7 +2548,7 @@ a.btn.lp-btn {
   }
 }
 
-// The edit-recovery restore offer. A true modifier of the base `.modal` above — it adds only the
+// The edit-recovery restore offer. A true modifier of the shared `.modal` base (`../app-dialog.scss`) — it adds only the
 // scrollable transcript of the captured prose, which is what makes this panel different from a
 // confirmation: the user is deciding about content they need to be able to READ first.
 .lp-restore {

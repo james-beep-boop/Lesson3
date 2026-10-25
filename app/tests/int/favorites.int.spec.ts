@@ -144,6 +144,23 @@ describe('favorites (§10): stamped ownership, own-only rows, unique per version
     ).rejects.toMatchObject({ status: 404 })
     expect(await favoritesVisibleTo(fx.users.teacher)).toHaveLength(0)
   })
+
+  // Review 2026-10-25: present but not an id — `relId` reads it as null, and the hook used to wave it
+  // through to the insert, which answered 500.
+  it.each([-1, 0, 1.5, 2_147_483_648])(
+    'refuses a favorite whose version is not an id (%s) with a 400',
+    async (version) => {
+      await expect(
+        fx.payload.create({
+          collection: 'favorites',
+          data: { version, user: fx.users.teacher.id },
+          overrideAccess: false,
+          user: fx.users.teacher,
+        }),
+      ).rejects.toMatchObject({ status: 400 })
+      expect(await favoritesVisibleTo(fx.users.teacher)).toHaveLength(0)
+    },
+  )
 })
 
 describe('follower stars track the Official; editor pins stay (teacher-first T4)', () => {

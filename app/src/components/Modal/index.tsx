@@ -22,10 +22,9 @@ interface ModalProps {
    *  `modal--versions`, a wider panel for the version list). Purely presentational — the dialog
    *  semantics and focus behaviour above are identical for every caller.
    *
-   *  Both surfaces now define the base `.modal-backdrop`/`.modal` chrome — the frontend in
-   *  `styles.css`, the admin in `custom.scss` (lifted there on 2026-08-04, when the delete-plans
-   *  confirmation became its second Modal) — so every caller is a true modifier and none has to
-   *  restate the backdrop. */
+   *  The base `.modal-backdrop`/`.modal` chrome is one stylesheet both surfaces load
+   *  (`src/app/app-dialog.scss`), so every caller is a true modifier and none has to restate the
+   *  backdrop. */
   className?: string
   children: React.ReactNode
 }

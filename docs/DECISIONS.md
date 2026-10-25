@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — The dialog styled once, in a shared file (CSS step 4)
+
+`Modal` portals the same markup to `document.body` on both surfaces, but its base rules (`.modal-backdrop`,
+`.modal`, `.modal__title/__content/__body/__form/__field/__actions`, `--plain`, `--pair`) lived in
+`styles.css` and again in `custom.scss`. They now live only in `app/src/app/app-dialog.scss`, imported by
+the frontend layout and `@use`d by `custom.scss`. Per-dialog modifiers stay with their surface, the buttons
+inside stay per-surface adapters (`.lp-modal .btn`), and the admin keeps one rule of its own: the 0-4-0
+reset of Payload's danger-button margin inside a pair (#433). The portal is untouched.
+
+**How the look was chosen:** where the two copies differed, the one written in the shared tokens won, and
+otherwise the App's. So:
+- body text is the 14px secondary step (the App had 0.92rem, 14.7px);
+- a field is the admin's token-built control: a 38px input from the button tokens with the accent focus
+  ring, a flex label with an 8px gap (the App's input was 40px with the browser's ring);
+- the button row's gap is the 8px space step (the App had 0.6rem);
+- the panel takes the App's 0.6rem corner and hairline, and a 600-weight title at the App's line height
+  (Manage had Payload's 4px corner, a darker `--theme-elevation-200` line, weight 500 and a 32px line);
+- the body paragraph's 0.9rem bottom space now applies in Manage too;
+- a field outside a `.modal__form` keeps 16px below it, and inside one the form's 12px gap replaces it
+  (the one Manage form, Save settings, was block layout with 16px margins).
+
+**Proof:** a throwaway Playwright dump of every element inside an open dialog, before and after, at 1280px
+and 390px: a synthetic dialog with every part (title bar, plain variant, body, a field inside and outside a
+form, focused input, paired and single button rows, and an over-tall body) on both surfaces, plus the real
+editor Help, Insert link (with its validation error) and the phone "needs a wider screen" notice. The
+differences are the ones listed above, and after the change the App and Manage dialogs have identical
+boxes; only the five temporary colour-role shades differ. The page-level dump of step 3 is unchanged.
+A dialog taller than the window still runs off both ends without scrolling, on both surfaces, before and
+after; no real dialog is that tall today (the versions list scrolls inside itself), so it was left alone.
+
 ## 2026-10-25 — Navigation, avatar menu and badges styled once, in a shared file (CSS step 3)
 
 `<AppNav>` and `<UserMenu>` render the same markup on the App pages and in Manage, but their rules lived
@@ -24,8 +54,11 @@ reaches a Payload-native element.
 the computed-style dump). In Manage and the editor: the avatar's fill matches the header instead of a
 darker grey, the account dropdown is the soft grey with the lighter shadow instead of white, and the
 Messages and "Change display name" rows are link blue instead of black (Log Out stays ink, D5). The avatar
-badge was already identical; `.app-nav__badge`, the drifted 1.15rem admin badge, is rendered by no
-component and was dropped rather than reconciled. The five temporary colour-role overrides from step 2
+badge also changed in Manage, to the App's geometry: 1.1rem tall with 0.68rem text at -5px, from 1rem,
+0.62rem and -4px. ⚑ Corrected the same day (Codex review): this entry first said the badge "was already
+identical", which was wrong; the state check compared the two surfaces only after the change, and the
+page dump had no unread message to render a badge. Rule: a "no change" or "already identical" claim needs the BEFORE measured in the same state as the after. `.app-nav__badge`, the drifted 1.15rem admin badge, is
+rendered by no component and was dropped rather than reconciled. The five temporary colour-role overrides from step 2
 stay, so the admin's text and greys still differ from the App's by a shade; they go together, separately.
 
 **Proof:** the computed-style dump from step 2, extended with geometry (size, padding, margin, offsets,
