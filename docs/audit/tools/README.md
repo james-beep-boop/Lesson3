@@ -56,6 +56,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Combine preview wire | `npm run test:http -- tests/http/combinePreview.http.spec.ts`; existing HTTP suite against the marked target; ancestry, overlays, conflicts, structure refusal and cross-plan gates |
 | Make Official write wire | `npm run test:http -- tests/http/endpoints.http.spec.ts -t make-official`; focused current endpoint selection; atomic pointer/deletion, stale/missing consent and role refusal |
 | Source-retirement wire | `npm run test:http -- tests/http/endpoints.http.spec.ts -t deleteSource`; focused current endpoint selection; authored non-Official retirement, scope refusal and Official preservation |
+| Combine save wire | `npm run test:http -- tests/http/combineSave.http.spec.ts`; current target suite; lineage, rollback, source-retirement races and authority changes during plan-lock waits |
 | Approved-taxonomy rollback | `node tests/audit/c41-taxonomy-wire.mjs`; marked disposable DB with narrowly conditional fault trigger; standard private paths; controller must remove trigger/function in finally |
 | Rich prose sinks | `node tests/audit/c41-content-sinks.mjs`; browser image, marked target network, synthetic source/recipient; stored/unsaved preview, Chromium DOM, DOCX export and Mailpit attachment; helper deletes owned plan |
 | Declared body ceilings | `node tests/audit/c40-body-ceilings.mjs`; private fixture/result paths, marked target network; honest oversized multipart `Content-Length` probes for upload, preview and save-as-new |

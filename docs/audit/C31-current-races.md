@@ -142,6 +142,17 @@ authored non-Official source, the non-owner/source-scope refusal path, and the r
 `deleteSource=true` is ignored for an Official source. Fixture teardown completed and the target
 lock released; raw output is private at `logs/c31-delete-source-http.log`.
 
+The current `app/tests/http/combineSave.http.spec.ts` suite passed **31 tests** in 22.41 seconds
+(exit 0). It covered Combine and ordinary-save gates, stale timestamps, parent-plan and source
+lineage after parent deletion, provenance selection beyond the lineage window, stale-retirement
+rollback, candidate preservation, and real plan-lock waits where a parent disappears or caller
+authority is revoked, disabled, unverified or signed out. It also verified the ordinary-save path
+after a lock wait and no-candidate outcomes when source deletion races the request. Fixture teardown
+completed and the target lock released; raw output is private at `logs/c31-combine-save-http.log`.
+
+This is current write-side Combine and lock-wait evidence. A reliable two-writer Official-pointer
+race and the complete persisted fingerprint/deletion ledger remain open.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
