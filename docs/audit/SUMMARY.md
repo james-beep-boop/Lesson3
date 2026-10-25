@@ -70,7 +70,8 @@ validation is pending. No product fix was made.
   recovery HTTP suite added 35 current owner-only, CAS, retirement, metadata, unsaved-count and
   Combine-context cases, and the current Combine-preview suite added 18 ancestry, conflict,
   structure-refusal and cross-plan cases. Concurrent Combine/Official races and the final ledger
-  remain open.
+  remain open. A focused current endpoint selection added five Make Official write-path cases for
+  atomic previous deletion, mandatory/stale consent and role refusal.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked

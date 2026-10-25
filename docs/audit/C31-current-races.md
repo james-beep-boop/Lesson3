@@ -123,6 +123,19 @@ All synthetic versions and plans were removed by fixture teardown and the target
 closes the read-only Combine preview and ancestry cases for the current wire, but not a concurrent
 Combine save, an Official-pointer race, or the final persisted fingerprint/deletion ledger.
 
+## Make Official write boundary — current HTTP endpoint pass
+
+The `app/tests/http/endpoints.http.spec.ts -t make-official` selection passed **5 tests** (119
+other tests skipped by the selector) in 2.86 seconds (exit 0). It verified atomic pointer movement
+with previous-Official deletion, mandatory `expectedPreviousOfficialId` consent, stale-consent 409
+with the pointer and previous version unchanged, and refusal for a Teacher with editing access. The
+raw output is private at `logs/c31-make-official-http.log`; fixture teardown completed and the target
+lock released.
+
+This is current write-path evidence, alongside the pending-authority barrier cases, but it does not
+replace a simultaneous two-writer Official-pointer race or the complete persisted fingerprint and
+deletion ledger.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
