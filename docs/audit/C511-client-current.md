@@ -25,17 +25,23 @@ uses uncached server state; signup trust and upload helpers enforce their shape/
 system feature/flag views preserve their state contracts. This closes one real Chromium
 editor-validation flow.
 
-The CI-equivalent Chromium run of `tests/e2e/manage.e2e.spec.ts` reached **37/38** tests before one
-assertion failed on all retries. The failing assertion expected `Awaiting approval` for a synthetic
-unverified account, while the rendered state was `Teacher · Unverified`. This is a test-environment
-contract mismatch, not a product finding: the target app was intentionally running with Mailpit
-(`SMTP_HOST=mail`), and `AdminDashboard` derives `emailEnabled` from that variable before passing it
-to `UsersPanel`; `UsersPanel` consequently renders `Unverified` and offers `Mark verified`. The test
-comment and assertion hard-code the no-SMTP branch. The raw log is retained privately at
+The CI-equivalent Chromium run of `tests/e2e/manage.e2e.spec.ts` against the normal Mailpit target
+reached **37/38** tests before one assertion failed on all retries. The failing assertion expected
+`Awaiting approval` for a synthetic unverified account, while the rendered state was `Teacher ·
+Unverified`. This is a test-environment contract mismatch, not a product finding: the target app was
+running with `SMTP_HOST=mail`, and `AdminDashboard` derives `emailEnabled` from that variable before
+passing it to `UsersPanel`; `UsersPanel` consequently renders `Unverified` and offers `Mark verified`.
+The test comment and assertion hard-code the no-SMTP branch. The raw log is retained privately at
 `logs/c5-11-manage-e2e-ci-image.log` (SHA-256
-`46f7acc1f7c672e1d83160d2ab412e38dd7c66ace22e4384c996acc6b7240219`). The 37 passing tests still
-exercise account actions, roles, system panels, taxonomy and self display-name behavior. The
-no-SMTP branch needs a separately configured app target before this browser contract can be credited.
+`46f7acc1f7c672e1d83160d2ab412e38dd7c66ace22e4384c996acc6b7240219`).
+
+The same browser flow was then run against a temporary app process on the target network with
+`SMTP_HOST` explicitly empty. It passed **38/38** in 45 seconds, including the `Awaiting approval` /
+`Approve` path. The exact private runner hash is
+`06379352c50cdd2566501c61f87fc60b2d3636055cf1f33f2d44cc5dcd5f57ae`; the raw log hash is
+`f5a778a1b883006d572b71e3b5dcef2745d036713d10098cdc65a3518b57d02f`. Both SMTP branches therefore
+match their source contracts. The 37 Mailpit-target passing tests exercise account actions, roles,
+system panels, taxonomy and self display-name behavior.
 
 Browser navigation breadth, real cookies/CSRF across roles, WebKit rendering, accessibility, visual
 consistency, and full component coverage remain open in C5.11/C60/C61.
