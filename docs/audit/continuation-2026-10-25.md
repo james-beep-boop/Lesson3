@@ -96,8 +96,8 @@ The CI-equivalent Chromium Manage run reached 37/38 tests against the Mailpit ta
 hard-coded no-SMTP `Awaiting approval` assertion met the correctly rendered `Unverified` state. A
 temporary app process with `SMTP_HOST` explicitly empty then passed the same flow **38/38**, including
 the approval branch. This confirms both source contracts; the Mailpit mismatch remains recorded as a
-test-portability gap rather than a product finding. See C511-client-current.md for exact runner and
-raw-log hashes.
+test-portability gap rather than a product finding. The dedicated offline-signup journey also passed
+1/1 against that temporary app. See C511-client-current.md for exact runner and raw-log hashes.
 
 
 Current C40/C41 evidence is in their named reports:35 HTTP requests across26 prepared upload groups,

@@ -43,5 +43,11 @@ The same browser flow was then run against a temporary app process on the target
 match their source contracts. The 37 Mailpit-target passing tests exercise account actions, roles,
 system panels, taxonomy and self display-name behavior.
 
+The dedicated `tests/e2e/offlineSignup.e2e.spec.ts` then passed **1/1** against the same temporary
+SMTP-disabled app in 6.5 seconds. It covered the complete offline journey: sign-up copy, pre-approval
+login refusal, the Site Administrator's approval queue and final teacher sign-in. The exact private
+runner hash is `763394dfac4e5c4120819f985893f6d6451741d08c4ef236714aadb9774618da`; the raw log hash is
+`7ca65295d942e42250a198efa823c2037a444e22130f02617f2810ecb3773d99`.
+
 Browser navigation breadth, real cookies/CSRF across roles, WebKit rendering, accessibility, visual
 consistency, and full component coverage remain open in C5.11/C60/C61.
