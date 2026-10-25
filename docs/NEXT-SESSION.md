@@ -36,6 +36,10 @@ F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-se
 2. Deploy to the Rock over Remote Control on the operator's Mac, then: the lock warning and Take
    over from two accounts, one change in Manage → Users, and a restore drill.
 
+**First job on return: Payload 3.92.0** (checklist under "Pending: Payload 3.92.0" below), then
+the dependency-review follow-ups each as its own change (`turbopackMinify`, React 19.3, the majors).
+Held back from v1.05 on purpose: it touches the typing patch, which needs the Rock benchmark.
+
 **Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
 evidence, L-C23-01) merged into it 2026-10-25, so no audit PR is open. Not started: the rest of the
 catalogue (`docs/audit/catalog.md`) and the deferred hardware checks D01–D03.
@@ -68,7 +72,7 @@ the 1,000 site-wide budget. It does not stop several IPs together, and it does n
 - **L-C23-01** (Info): the app accepts a cookie-authenticated cross-origin POST when `SERVER_URL` is
   empty; `SameSite=Lax` is the only barrier, and it does not stop a same-site sibling origin. Becomes
   Medium only if an untrusted origin shares the Rock's site. Check the Rock sets `SERVER_URL`.
-- Not taken: Payload 3.92.0 (checklist below), the Manage "versions" query speedup (write-up:
+- Not taken: the Manage "versions" query speedup (write-up:
   https://claude.ai/artifact/SMP3rtRK7kQRgbSSRnnMox), the Guide first-visit cost (operator: leave it),
   the insert-link button (tabled).
 
