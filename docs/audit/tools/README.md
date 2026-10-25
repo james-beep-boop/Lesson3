@@ -86,6 +86,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Teacher-key wire | `npm run test:http -- tests/http/teacherKey.http.spec.ts`; current target suite; DOCX/PDF archive names, exemplar isolation, attribution and role gates |
 | Global-job-stats wire | `npm run test:http -- tests/http/jobStatsGlobal.http.spec.ts`; current target suite; global read/write role gates and rejected-write immutability |
 | API-error messages wire | `npm run test:http -- tests/http/apiErrorMessages.http.spec.ts`; current target suite; concrete 409/403/404 error-contract messages |
+| Export endpoint wire | `npm run test:http -- tests/http/endpoints.http.spec.ts -t "Export endpoint"`; current target selection; DOCX/PDF jobs, auth gates, poll binding and deduplication |
 | Discussions wire | `npm run test:http -- tests/http/discussions.http.spec.ts`; current target suite; thread/reply, privacy, participation, forum-off, read/pin/redaction and authority waits |
 | Message references wire | `npm run test:http -- tests/http/messageReferences.http.spec.ts`; current target suite; recipient/label authority and no-write reference refusals |
 

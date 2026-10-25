@@ -93,6 +93,9 @@ validation is pending. No product fix was made.
 - [Global jobs and errors](C5-global-errors-current.md): focused wire suites passed 10 global
   job-statistics role/read-write cases and three concrete 409/403/404 error-message cases; broader
   jobs, error taxonomy and test-quality coverage remains open.
+- [Export endpoint](C54-export-endpoint-current.md): the focused current selection passed six
+  DOCX/PDF job, authentication, poll-binding and deduplication cases; broader export fidelity and
+  queue coverage remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.
