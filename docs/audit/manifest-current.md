@@ -519,14 +519,14 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/helpers/payloadErrors.ts` | C72 | Pending review |
 | `app/tests/helpers/renderSql.ts` | C72 | Pending review |
 | `app/tests/helpers/rowLocks.ts` | C72 | Pending review |
-| `app/tests/http/apiErrorMessages.http.spec.ts` | C72 | Pending review |
+| `app/tests/http/apiErrorMessages.http.spec.ts` | C72 | Current C72 wire evidence: C5-global-errors-current.md; 3/3 passed |
 | `app/tests/http/authFavorites.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/combinePreview.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/combineSave.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/discussions.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/endpoints.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/firstUserBootstrap.http.spec.ts` | C72 | Current C5.3/C5.10 wire evidence: C5-first-bootstrap-current.md; 4/4 passed after isolated empty reset/restore |
-| `app/tests/http/jobStatsGlobal.http.spec.ts` | C72 | Pending review |
+| `app/tests/http/jobStatsGlobal.http.spec.ts` | C72 | Current C5.7 wire evidence: C5-global-errors-current.md; 10/10 passed |
 | `app/tests/http/lockedDocuments.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/messageReferences.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/nativeVersionAuthority.http.spec.ts` | C72 | Current C31 wire evidence: C31-current-races.md; 8/8 passed |

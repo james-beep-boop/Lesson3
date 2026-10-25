@@ -28,7 +28,7 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C5.4 | Export & data endpoints | Partial: worldwideIds 5/5 and teacherKey 12/12 wire suites passed for UID uniqueness/visibility/immutability, teacher-key role gates and DOCX/PDF archive behavior; broader export/data endpoint review remains pending |
 | C5.5 | Social, recovery & settings endpoints | Partial: C5-settings-current.md and C5-user-assignments-current.md; systemSettings 26/26 and userAssignments 22/22 passed, including advisory-lock freshness and authority waits; broader social/recovery/settings/deployment catalog pending |
 | C5.6a/b… | Collections + hooks | Partial: subjectGrades wire suite 13/13 passed for invalid/boundary grade validation and derived-name invariants; broader collections/hooks review remains pending |
-| C5.7 | Jobs & queue | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C5.7 | Jobs & queue | Partial: jobStatsGlobal wire suite 10/10 passed for global read/write role gates and rejected-write immutability; broader jobs/queue review remains pending |
 | C5.8 | Generator & fidelity | Partial: teacherKey wire suite 12/12 passed for DOCX/PDF archive names, exemplar isolation, attribution and role gates; broader generator/fidelity review remains pending |
 | C5.9a/b/c | lib/ utilities | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.10 | Frontend server & wiring | Partial: firstUserBootstrap 4/4 and serverTime 5/5 wire suites passed for empty-install setup, one-shot registration, post-bootstrap login-page state and server-clock response; broader frontend server/wiring review remains pending |
@@ -42,7 +42,7 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C63 | Functional bug hunt | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C70 | Deployment + ops | Partial: C70-ops.md;95 mock/lock checks,104 real-stack restore checks and updater transactions passed; F-C70-001 full fault consequence/recheck pending |
 | C71 | Docs drift | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C72 | Test-suite quality | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C72 | Test-suite quality | Partial: current focused HTTP suites now include apiErrorMessages 3/3 with concrete 409/403/404 error-contract assertions; full test-quality review remains pending |
 | C80 | Cross-cutting reconciliation | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C81 | Vertical-flow pass | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C82 | Blind cross-model review | Independent cross-family blind pass waived by direct operator instruction; replace with a labelled sole-auditor missed-issue sweep; not yet run |
