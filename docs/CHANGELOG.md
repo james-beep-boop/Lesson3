@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased (on `main`, not tagged or deployed)
+## v1.07 (2026-10-25)
 
 - Every page is now light. Manage and the lesson editor used to switch to dark colours on a device
   set to dark mode, while the rest of the site stayed light. No database migration.
@@ -18,6 +18,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Dialogs look the same everywhere. In Manage and the editor they get the rounder corners and
   bolder title of the rest of the site; on the rest of the site, text boxes in dialogs match the
   buttons beside them and show a clear blue outline when selected. No database migration.
+- Favoriting a lesson version with an id that is not a real id (0, a negative number, a fraction,
+  text) now answers with a clear 400 error instead of a server error. No database migration (#454).
 
 ## v1.06 (2026-10-25)
 

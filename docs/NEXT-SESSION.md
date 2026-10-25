@@ -39,9 +39,11 @@ from two accounts, and one change in Manage → Users.
 3.92.0 (#448) and #449: minification back on, React 19.3.1, Next.js 16.4.3, `zod` 4.6.7. Client JS
 drops 1.61 → 0.87 MB gzipped; the error-message wire test passes against the minified build; Rock
 typing is unchanged from v1.05 (40–48 ms per key). No migration. Results: DECISIONS 2026-10-25
-"Payload 3.92.0 tested" and "Minification back on". **Merged since, not tagged or deployed** (the operator said no new tag): #451 (every page pinned light),
-#452 (shared colour roles), #453 (nav, avatar menu and badges in `app/src/app/app-chrome.scss`). The
-dialog step, #454 (`app/src/app/app-dialog.scss`), is on hold while the review fixes land. Still to do:
+"Payload 3.92.0 tested" and "Minification back on". **v1.07 is tagged on `main`** (2026-10-25, after #454): #451 (every page pinned light), #452 (shared
+colour roles), #453 (nav, avatar menu and badges in `app/src/app/app-chrome.scss`), #454 (the dialog in
+`app/src/app/app-dialog.scss`, plus the Codex review fixes: favorites refuse an invalid version id with
+400, a stronger ingest-contract test, and the style comparison kit in `app/tests/style-snapshot/`). No
+migration. **Deploy to the Rock: in progress.** Still to do:
 the five temporary admin colour-role overrides at the top of `custom.scss` come out together, as one
 change meant to alter Manage's look (DECISIONS 2026-10-25, CSS step 2). **Deferred by the operator
 (2026-10-25), from the #454 /simplify pass:** (1) a shared "present but not an id → 400" helper in
