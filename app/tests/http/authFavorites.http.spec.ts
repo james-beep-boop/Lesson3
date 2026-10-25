@@ -168,3 +168,43 @@ describe('message read receipts over HTTP', () => {
     expect((await readMessage(mine.id)).readAt).toBe(readAt)
   })
 })
+
+// Audit F-C24-001: a favorite on a missing version reached the foreign key and answered 500.
+describe('POST /api/favorites over HTTP', () => {
+  const favoritesOf = async (userId: number) =>
+    (
+      await fx.payload.find({
+        collection: 'favorites',
+        where: { user: { equals: userId } },
+        overrideAccess: true,
+        depth: 0,
+        pagination: false,
+      })
+    ).docs
+
+  it('403s an anonymous favorite', async () => {
+    const res = await post('/api/favorites', { version: fx.version.id })
+    expect(res.status).toBe(403)
+  })
+
+  it.each(roles)(
+    '404s a $label favorite on a nonexistent version and creates nothing',
+    async ({ role }) => {
+      const res = await post('/api/favorites', { version: 999_999_999 }, role)
+      expect(res.status).toBe(404)
+      expect(await favoritesOf(fx.users[role].id)).toHaveLength(0)
+    },
+  )
+
+  it('creates a favorite on a real version (201), then refuses the duplicate (400)', async () => {
+    const res = await post('/api/favorites?depth=0', { version: fx.version.id }, 'teacher')
+    expect(res.status).toBe(201)
+    const duplicate = await post('/api/favorites', { version: fx.version.id }, 'teacher')
+    expect(duplicate.status).toBe(400)
+    await fx.payload.delete({
+      collection: 'favorites',
+      where: { user: { equals: fx.users.teacher.id } },
+      overrideAccess: true,
+    })
+  })
+})

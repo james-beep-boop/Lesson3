@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Wrap-up triage of the 2026-10-24 audit's five reviewed findings
+
+The operator is shelving the project after one more tag. Of the five Codex-reviewed findings still
+open (F-C22-001/002 were already fixed in #439/#442), two were small and local and are fixed here;
+three need design work and are deferred with their reports intact.
+
+- **Fixed — F-C40-001.** `ingest/contract.ts` tested declared keys with `in`, so `Object.prototype`
+  names passed as declared and nothing under them was checked. Now `Object.hasOwn`, for `required`
+  and for the alias hint too: `ALIAS_OF[key]` was the same bug and made `constructor` print a bogus
+  "non-canonical alias" hint once the gate was fixed. Pinned by `tests/unit/ingestContract.spec.ts`
+  (root, `META`, lesson object; fails before the change).
+- **Fixed — F-C24-001.** A `beforeValidate` hook on `favorites` resolves the version with the
+  caller's access and throws 404 before the insert. Every signed-in user can read every version, so
+  this changes no permission. The FK stays; a version deleted between lookup and insert is still
+  refused by the database (as a 500), which is the narrow race the report mentions and is accepted.
+  Int and wire tests in `favorites.int.spec.ts` and `authFavorites.http.spec.ts`.
+- **Deferred — F-C23-001, F-C23-002, F-C23-003** (auth rate limits and login enumeration). The
+  reviewed fixes are a redesign of the shared login buckets and of Payload's lockout behaviour, not a
+  quick change. See NEXT-SESSION "Shelved 2026-10-25".
+- **Deferred — L-CL-002** (form-state lock creation). Its own change, as recorded with F-C22-002.
+
+Also fixed: `seed-local-dev.ts` deleted its users with a where-delete. The seeded site admin is
+normally the only usable administrator, so the last-admin guard refused its delete, and a
+where-delete reports that in `errors` rather than throwing; every re-run then failed creating the
+surviving address. It now deletes through `deleteUserFixture`, which exists for exactly this.
+Reproduced against a local Postgres: old code fails on the second run, new code seeds twice.
+**Lesson:** a Payload where-delete (or where-update) does not throw on a per-row refusal; check
+`errors` or delete by id.
+
 ## 2026-10-24 — Backup keys replaced; backups before 10:38 UTC are unreadable
 
 **What happened.** At the v1.04 Rock deploy, neither private identity for the Rock's backup recipients
