@@ -84,6 +84,9 @@ validation is pending. No product fix was made.
 - [Personal versions](C31-personal-versions-current.md): the current integration suite passed six
   projection and deletion-scope cases for authorship, subject scopes and Official exceptions;
   broader source and all-path deletion review remains open.
+- [Favorites](C24-favorites-current.md): the current integration suite passed 15 ownership,
+  pointer-following, duplicate/refusal and version/plan/user cascade cases; broader discussions and
+  messaging coverage remains open.
 - [Global jobs and errors](C5-global-errors-current.md): focused wire suites passed 10 global
   job-statistics role/read-write cases and three concrete 409/403/404 error-message cases; broader
   jobs, error taxonomy and test-quality coverage remains open.

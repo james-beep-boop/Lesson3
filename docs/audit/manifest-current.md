@@ -565,7 +565,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/editRecoveryStart.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/editRecoveryUnsavedWork.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/editorGroupsAccess.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/favorites.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/favorites.int.spec.ts` | C72 | Current C24 integration evidence: C24-favorites-current.md; 15/15 passed |
 | `app/tests/int/jobStatsScheduling.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/lockRows.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/messageReferenceMigration.int.spec.ts` | C72 | Pending review |
