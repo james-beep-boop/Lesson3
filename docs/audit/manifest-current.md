@@ -649,7 +649,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/editRecoveryTtlProvenance.spec.ts` | C72 | Pending review |
 | `app/tests/unit/editingViewport.spec.ts` | C72 | Pending review |
 | `app/tests/unit/editorPlainLanguage.spec.ts` | C72 | Pending review |
-| `app/tests/unit/editorValidation.spec.ts` | C72 | Pending review |
+| `app/tests/unit/editorValidation.spec.ts` | C72 | C511 focused slice; 4/4 passed |
 | `app/tests/unit/emailAddress.spec.ts` | C72 | C59 focused slice; 10/10 passed |
 | `app/tests/unit/emailFormat.spec.tsx` | C72 | C59 focused slice; 3/3 passed |
 | `app/tests/unit/emptyArraySerialization.spec.ts` | C72 | Pending review |
@@ -659,10 +659,10 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/envTemplateParity.spec.ts` | C72 | Pending review |
 | `app/tests/unit/errorTracking.spec.ts` | C72 | Pending review |
 | `app/tests/unit/expireEditRecoveryTask.spec.ts` | C72 | Pending review |
-| `app/tests/unit/exportArtifacts.spec.ts` | C72 | Pending review |
-| `app/tests/unit/exportClient.spec.ts` | C72 | Pending review |
-| `app/tests/unit/exportJobDedupe.spec.ts` | C72 | Pending review |
-| `app/tests/unit/exportKind.spec.ts` | C72 | Pending review |
+| `app/tests/unit/exportArtifacts.spec.ts` | C72 | C511 focused slice; 7/7 passed |
+| `app/tests/unit/exportClient.spec.ts` | C72 | C511 focused slice; 11/11 passed |
+| `app/tests/unit/exportJobDedupe.spec.ts` | C72 | C511 focused slice; 2/2 passed |
+| `app/tests/unit/exportKind.spec.ts` | C72 | C511 focused slice; 9/9 passed |
 | `app/tests/unit/extract.spec.ts` | C72 | Pending review |
 | `app/tests/unit/favoriteToggle.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/fieldSplitContainers.spec.ts` | C72 | Pending review |
@@ -681,7 +681,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/htmlDiffCacheWiring.spec.ts` | C72 | Pending review |
 | `app/tests/unit/htmlDiffContract.spec.ts` | C72 | Pending review |
 | `app/tests/unit/htmlSectionsCache.spec.ts` | C72 | Pending review |
-| `app/tests/unit/idleLogoutScreenClear.spec.tsx` | C72 | Pending review |
+| `app/tests/unit/idleLogoutScreenClear.spec.tsx` | C72 | C511 focused slice; 8/8 passed |
 | `app/tests/unit/ingestContentEquality.spec.ts` | C72 | Pending review |
 | `app/tests/unit/ingestContract.spec.ts` | C72 | Pending review |
 | `app/tests/unit/ingestSubjectGradeLock.spec.ts` | C72 | Pending review |
@@ -709,7 +709,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/modalChrome.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/moreMenu.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/mutationAuthority.spec.ts` | C72 | Pending review |
-| `app/tests/unit/navigationFreshness.spec.tsx` | C72 | Pending review |
+| `app/tests/unit/navigationFreshness.spec.tsx` | C72 | C511 focused slice; 11/11 passed |
 | `app/tests/unit/officialPointerPartialUpdate.spec.ts` | C72 | Pending review |
 | `app/tests/unit/offlineAdminRecovery.spec.ts` | C72 | Pending review |
 | `app/tests/unit/pageBackLink.spec.tsx` | C72 | Pending review |
@@ -730,7 +730,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/publicSlug.spec.ts` | C72 | Pending review |
 | `app/tests/unit/readBundleVisibility.spec.ts` | C72 | Pending review |
 | `app/tests/unit/readFeaturesSettings.spec.ts` | C72 | Pending review |
-| `app/tests/unit/recoveryCombineBoundary.spec.ts` | C72 | Pending review |
+| `app/tests/unit/recoveryCombineBoundary.spec.ts` | C72 | C511 focused slice; 3/3 passed |
 | `app/tests/unit/recoveryParse.spec.ts` | C72 | Pending review |
 | `app/tests/unit/refreshCaller.spec.ts` | C72 | Pending review |
 | `app/tests/unit/relId.spec.ts` | C72 | Pending review |
@@ -754,8 +754,8 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/semverConflict.spec.ts` | C72 | Pending review |
 | `app/tests/unit/serverActionBodyLimit.spec.ts` | C72 | Pending review |
 | `app/tests/unit/shareMenuAdvanced.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/signupForm.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/signupTrustClassifier.spec.ts` | C72 | Pending review |
+| `app/tests/unit/signupForm.spec.tsx` | C72 | C511 focused slice; 3/3 passed |
+| `app/tests/unit/signupTrustClassifier.spec.ts` | C72 | C511 focused slice; 7/7 passed |
 | `app/tests/unit/stripCollapsed.spec.ts` | C72 | Pending review |
 | `app/tests/unit/structuralControlsCss.spec.ts` | C72 | Pending review |
 | `app/tests/unit/subjectAdminDemoteLock.spec.ts` | C72 | Pending review |
@@ -763,15 +763,15 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/subjectSelectOptions.spec.ts` | C72 | Pending review |
 | `app/tests/unit/substrand.spec.ts` | C72 | Pending review |
 | `app/tests/unit/systemFacts.spec.ts` | C72 | C59 focused slice; 9/9 passed |
-| `app/tests/unit/systemFeaturesPanel.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/systemFeaturesState.spec.ts` | C72 | Pending review |
-| `app/tests/unit/systemFlags.spec.ts` | C72 | Pending review |
+| `app/tests/unit/systemFeaturesPanel.spec.tsx` | C72 | C511 focused slice; 7/7 passed |
+| `app/tests/unit/systemFeaturesState.spec.ts` | C72 | C511 focused slice; 3/3 passed |
+| `app/tests/unit/systemFlags.spec.ts` | C72 | C511 focused slice; 6/6 passed |
 | `app/tests/unit/systemSettingsFlags.spec.ts` | C72 | Pending review |
 | `app/tests/unit/systemSettingsSave.spec.ts` | C72 | Pending review |
 | `app/tests/unit/testSignupLimitConfig.spec.ts` | C72 | Pending review |
 | `app/tests/unit/unsavedWarning.spec.ts` | C72 | Pending review |
-| `app/tests/unit/uploadBundles.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/uploadFiles.spec.ts` | C72 | Pending review |
+| `app/tests/unit/uploadBundles.spec.tsx` | C72 | C511 focused slice; 11/11 passed |
+| `app/tests/unit/uploadFiles.spec.ts` | C72 | C511 focused slice; 16/16 passed |
 | `app/tests/unit/useEditRecovery.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/useOpenPanels.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/userSearchWiring.spec.ts` | C72 | Pending review |

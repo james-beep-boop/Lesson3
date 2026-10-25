@@ -127,6 +127,10 @@ wrong-old-document serving was established. No product fix was made.
 - [Utility slice](C59-utilities-current.md): focused artifact-cache, canonical-JSON, email,
   sanitizer and system-facts tests passed 43/43; rate-limit and session source observations align
   with the existing shared-store and endpoint evidence. The remaining `src/lib` catalog is open.
+- [Client/component slice](C511-client-current.md): 15 focused unit files passed 108/108 for export
+  client/kind, editor validation, recovery/Combine boundaries, idle logout, navigation freshness,
+  signup/upload guards and system panel/flags; browser, accessibility, visual and full component
+  coverage remain open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; the current discussions integration suite added
