@@ -136,6 +136,12 @@ This is current write-path evidence, alongside the pending-authority barrier cas
 replace a simultaneous two-writer Official-pointer race or the complete persisted fingerprint and
 deletion ledger.
 
+The focused `app/tests/http/endpoints.http.spec.ts -t deleteSource` selection passed **3 tests**
+(121 other tests skipped by the selector) in 2.89 seconds (exit 0). It covered retirement of an
+authored non-Official source, the non-owner/source-scope refusal path, and the rule that
+`deleteSource=true` is ignored for an Official source. Fixture teardown completed and the target
+lock released; raw output is private at `logs/c31-delete-source-http.log`.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
