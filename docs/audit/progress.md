@@ -24,7 +24,7 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C42 | Export fidelity + robustness | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.1 | Authorization core | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.2 | Ingest & upload boundary | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C5.3 | Auth, account & admin endpoints | Partial: current user-assignment wire suite 22/22 passed for route/generic-PATCH gates, handover and caller-authority changes while waiting; broader admin/account endpoint and source review remains pending |
+| C5.3 | Auth, account & admin endpoints | Partial: current user-assignment 22/22 and user-admin-actions 36/36 wire suites passed for assignment/admin gates, reset links, account state and caller-authority changes while waiting; broader admin/account endpoint and source review remains pending |
 | C5.4 | Export & data endpoints | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.5 | Social, recovery & settings endpoints | Partial: C5-settings-current.md and C5-user-assignments-current.md; systemSettings 26/26 and userAssignments 22/22 passed, including advisory-lock freshness and authority waits; broader social/recovery/settings/deployment catalog pending |
 | C5.6a/b… | Collections + hooks | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |

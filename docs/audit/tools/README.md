@@ -71,6 +71,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | User-search wire | `npm run test:http -- tests/http/userSearch.http.spec.ts`; current target suite; Site-Admin search/filter/grant-label gates and auth-secret exclusion |
 | System-settings wire | `npm run test:http -- tests/http/systemSettings.http.spec.ts`; current target suite; settings role/freshness/CSRF gates and advisory-lock authority waits |
 | User-assignments wire | `npm run test:http -- tests/http/userAssignments.http.spec.ts`; current target suite; D6a route and generic-PATCH assignment gates, handover, freshness and authority changes while waiting |
+| User-admin-actions wire | `npm run test:http -- tests/http/userAdminActions.http.spec.ts`; current target suite; reset links, account state, Site-Admin actions, dedicated budget and authority changes while waiting |
 | Discussions wire | `npm run test:http -- tests/http/discussions.http.spec.ts`; current target suite; thread/reply, privacy, participation, forum-off, read/pin/redaction and authority waits |
 | Message references wire | `npm run test:http -- tests/http/messageReferences.http.spec.ts`; current target suite; recipient/label authority and no-write reference refusals |
 

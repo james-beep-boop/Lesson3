@@ -66,6 +66,9 @@ validation is pending. No product fix was made.
   generic-PATCH cases for D6a appointment/handover boundaries, freshness and role gates, plus
   caller authority changes while assignment requests waited; broader C5.3/C5.5 coverage remains
   open.
+- [User admin actions](C5-user-admin-actions-current.md): the current wire suite passed 36 reset-link,
+  account-state, Site-Admin and dedicated-budget cases, including refusal after authority changes
+  during advisory-lock waits; broader C5.3 coverage remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.

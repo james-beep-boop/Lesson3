@@ -538,7 +538,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/http/subjectGrades.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/systemSettings.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/teacherKey.http.spec.ts` | C72 | Pending review |
-| `app/tests/http/userAdminActions.http.spec.ts` | C72 | Pending review |
+| `app/tests/http/userAdminActions.http.spec.ts` | C72 | Current wire evidence: C5-user-admin-actions-current.md; 36/36 passed |
 | `app/tests/http/userAssignments.http.spec.ts` | C72 | Current wire evidence: C5-user-assignments-current.md; 22/22 passed |
 | `app/tests/http/userSearch.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/worldwideIds.http.spec.ts` | C72 | Pending review |
