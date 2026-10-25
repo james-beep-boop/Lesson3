@@ -45,7 +45,16 @@ Gotenberg.
 | `main` (`4c78d1b`, minify off) | 40 ms | 40–48 ms | 80–112 ms | 0.30–0.41 s | 5.92–5.95 s |
 | PR #449 (`d158e17`, minify on, React 19.3.1) | 40–48 ms | 40–48 ms | 80–88 ms | 0.31–0.36 s | 5.93–5.98 s |
 
-Within noise. The live site was untouched; the perf containers, images and temp files were removed. Docker's
+Within noise.
+
+**Added on the operator's request (same PR):** `next` and `eslint-config-next` 16.4.2 → 16.4.3 (an LTS bug-fix
+release with no security fixes), and `zod` 4.4.3 → 4.6.7 in the lockfile, which clears the one high advisory
+(GHSA-mrhx-c7xc-m3w5; `zod` is reached only through dev tooling and `@payloadcms/db-postgres`). The audit now
+shows only the 5 moderate `esbuild` advisories through drizzle-kit, with no fix. Re-checked after the addition:
+lint, types, format, unit 1867, build, and `apiErrorMessages.http.spec.ts` 3/3 against the built app; the
+benchmark above was not re-run for a patch release.
+
+The live site was untouched; the perf containers, images and temp files were removed. Docker's
 build cache on the Rock grew 22.4 → 29.7 GB and was left alone (`docker builder prune` is safe if the space is
 wanted).
 
