@@ -572,7 +572,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/messages.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/nullResources.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/officialPointerLock.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/personalVersions.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/personalVersions.int.spec.ts` | C72 | Current C31/C5.4 integration evidence: C31-personal-versions-current.md; 6/6 passed |
 | `app/tests/int/planIdentityImmutable.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/publicPublication.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/rateLimit.int.spec.ts` | C72 | Pending review |
