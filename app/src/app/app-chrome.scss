@@ -1,0 +1,253 @@
+/*
+ * The top navigation and the avatar menu — ONE stylesheet for both surfaces (2026-10-25, CSS step 3).
+ *
+ * `<AppNav>` and `<UserMenu>` render the same markup on the App pages and in Manage/the editor. Their
+ * rules used to live twice, in `(frontend)/styles.css` and nested under `.lp-admin-header` in
+ * `(payload)/custom.scss`, and the two copies had drifted: the avatar badge was 1.1rem at -5px on one
+ * surface and 1rem at -4px on the other, the dropdown white on one and grey on the other, the Messages
+ * row blue on one and black on the other. The frontend's look was chosen for every difference (and the
+ * admin's `.app-nav__badge`, which no component renders, was dropped). The rules now live only here:
+ * imported by the frontend layout (after `app-tokens.scss`, before `styles.css`) and `@use`d by
+ * `custom.scss`. The admin still re-points five colour roles at Payload's values for now (top of
+ * `custom.scss`), so the text and greys there differ by a shade until that block is retired.
+ *
+ * SCOPE: only the classes these two components own (`.app-nav*`, `.user-menu*`, and the forum's
+ * `.disc-dot`, which shares the nav dot's geometry). Nothing here reaches a Payload-native element, and
+ * nothing here may: Payload's own chrome stays Payload's. The header that holds the nav is NOT shared —
+ * the two headers sit in different page shells and keep their own rules.
+ *
+ * Colours come from the shared roles in `app-tokens.scss` (`--app-text`, `--app-border`, …), so both
+ * surfaces paint this menu identically.
+ */
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.9rem;
+}
+.app-nav__link {
+  color: var(--app-text);
+  text-decoration: none;
+}
+.app-nav__link:hover {
+  text-decoration: underline;
+}
+
+/* ONE badge geometry app-wide (D5): the menu count and the avatar's unread badge share this rule —
+   tweak it here and both move together. Per-site rules below carry only placement. */
+.user-menu__badge,
+.user-menu__avatar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--app-accent);
+  color: var(--app-on-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* The forum's unread dot (discussions §16.1: BLUE, with accessible text beside it) — ONE geometry for the
+   nav item and the topic rows, like the badges above. A dot, not a count: the forum says "something is
+   new", not how much. Per-site rules carry only placement. */
+.app-nav__dot,
+.disc-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--app-accent);
+  vertical-align: middle;
+}
+.app-nav__dot {
+  margin-left: 0.35rem;
+}
+
+.user-menu {
+  position: relative;
+  display: inline-flex;
+}
+.user-menu__avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--app-avatar-size);
+  height: var(--app-avatar-size);
+  padding: 0;
+  border-radius: 50%;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  color: var(--app-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* Unread indicator on the avatar, so a waiting message shows without opening the menu.
+   Geometry comes from the shared badge rule above; only placement lives here. */
+.user-menu__avatar-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+}
+.user-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 100;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.75rem;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.user-menu__type {
+  font-weight: 600;
+  color: var(--app-text);
+  font-size: 0.85rem;
+}
+/* Access-scope lines beneath the type (Administrator: … / Editing access: …). */
+.user-menu__scope {
+  margin-top: 0.15rem;
+  color: var(--app-text-muted);
+  font-size: 0.8rem;
+}
+.user-menu__name {
+  color: var(--app-text-muted);
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+/* Messages entry inside the dropdown — between the email and Log Out, each set off by a divider. */
+.user-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--app-border);
+  font-size: 0.85rem;
+  color: var(--app-accent);
+  text-decoration: none;
+}
+.user-menu__item:hover {
+  text-decoration: underline;
+}
+/* `.user-menu__item` was written for the Messages <a>; "Change display name" is a <button> using the
+   same class, so it takes the same reset `.user-menu__logout` already carries. Only the side/bottom
+   borders are cleared — the divider above is the item's own border-top. */
+button.user-menu__item {
+  width: 100%;
+  border-inline: none;
+  border-block-end: none;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+/* Display-name edit (D4) — a small stacked form inside the dropdown, using the same divider idiom as
+   the items above it so it reads as one more row rather than a panel dropped in. */
+.user-menu__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--app-border);
+}
+.user-menu__edit-label {
+  color: var(--app-text-muted);
+  font-size: 0.72rem;
+}
+.user-menu__edit-input {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+.user-menu__edit-error {
+  margin: 0;
+  color: #b3261e;
+  font-size: 0.72rem;
+}
+.user-menu__edit-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+/* Deliberately NOT .btn: the button system's 36px geometry would tower over a 0.85rem dropdown built
+   on 0.45rem rhythm. Menu-scale controls, like .user-menu__logout. */
+.user-menu__edit-btn {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.user-menu__edit-btn:hover:not(:disabled) {
+  background: var(--app-border);
+}
+.user-menu__edit-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.user-menu__logout {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border: none;
+  border-top: 1px solid var(--app-border);
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  /* Ink, not link-blue (D5): ending the session is a different kind of action than the Messages
+     content link above it — the divider plus a neutral color keep them from reading as siblings. */
+  color: var(--app-text);
+  cursor: pointer;
+}
+.user-menu__logout:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  /* The nav stays a ROW of mixed-height controls (~22px links, a 44px avatar), so it wraps and keeps
+     its centring while each header stacks into a column in its own stylesheet. */
+  .app-nav {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.85rem;
+  }
+
+  /* ⚑ The avatar dropdown's rows are touch targets too, and were NOT (measured at 390px, 2026-08-17:
+     Messages 29px, Log Out 30px). The display-name form (D4) added new controls to this menu, so the
+     rows are raised as a GROUP: a 44px Save above a 30px Log Out in one small menu reads as a mistake.
+     Phone width only, so the desktop menu's density is untouched. */
+  .user-menu__item,
+  .user-menu__logout,
+  .user-menu__edit-btn,
+  .user-menu__edit-input {
+    min-height: var(--app-btn-touch-min-height);
+  }
+  /* Height alone leaves width riding on the label; WCAG 2.5.5 asks for 44 in both dimensions. */
+  .user-menu__edit-btn {
+    min-width: var(--app-btn-touch-min-height);
+  }
+  /* 44×44 touch target (WCAG 2.5.5, the project standard). */
+  .user-menu__avatar {
+    min-width: var(--app-avatar-touch-size);
+    min-height: var(--app-avatar-touch-size);
+  }
+}

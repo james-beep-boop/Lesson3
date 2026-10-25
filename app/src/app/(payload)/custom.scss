@@ -2,6 +2,7 @@
 // --app-page-title-size / --app-content-width / --app-content-pad / --app-accent so the Manage view
 // can't drift from the frontend pages. `@use` must lead the file.
 @use '../app-tokens';
+@use '../app-chrome';
 
 // ⚑ TEMPORARY: the admin's colour roles keep their pre-2026-10-25 Payload values. The shared semantic
 // palette (app-tokens.scss) carries the frontend's values; these five re-point the roles at what this
@@ -1582,9 +1583,8 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
   }
 }
 
-// Admin top nav (src/components/AdminHeaderMenu → the SAME <AppNav> as the frontend). The shared
-// .app-nav / .user-menu classes are themed here with Payload vars; SIZING MUST MATCH the frontend
-// (src/app/(frontend)/styles.css) so the two surfaces look identical.
+// Admin top nav (src/components/AdminHeaderMenu → the SAME <AppNav> as the frontend). The header's own
+// geometry matches the frontend's .app-header; what sits in it is styled once, in ../app-chrome.scss.
 .lp-admin-header {
   display: flex;
   justify-content: space-between; // brand left, nav right — mirrors the frontend .app-header
@@ -1609,242 +1609,8 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     }
   }
 
-  .app-nav {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    font-size: 0.9rem;
-  }
-
-  .app-nav__link {
-    color: var(--app-text);
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  .app-nav__badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.15rem;
-    height: 1.15rem;
-    margin-left: 0.35rem;
-    padding: 0 0.3rem;
-    border-radius: 999px;
-    background: var(--theme-success-500);
-    color: var(--theme-base-0);
-    font-size: 0.7rem;
-    font-weight: 700;
-    line-height: 1;
-    vertical-align: text-top;
-  }
-
-  // The Discuss item's unread dot — the frontend's `.app-nav__dot`, so the shared nav matches on both
-  // surfaces (discussions §16.1: blue, with visually hidden text beside it).
-  .app-nav__dot {
-    display: inline-block;
-    width: 0.55rem;
-    height: 0.55rem;
-    margin-left: 0.35rem;
-    border-radius: 50%;
-    background: var(--app-accent);
-    vertical-align: middle;
-  }
-
-  .user-menu {
-    position: relative;
-    display: inline-flex;
-  }
-
-  .user-menu__avatar {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--app-avatar-size);
-    height: var(--app-avatar-size);
-    padding: 0;
-    border-radius: 50%;
-    background: var(--theme-elevation-100);
-    border: 1px solid var(--app-border);
-    color: var(--app-text);
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .user-menu__avatar-badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 1rem;
-    height: 1rem;
-    padding: 0 0.22rem;
-    border-radius: 999px;
-    background: var(--app-accent); // shared brand accent (app-tokens) — same on both surfaces
-    color: #fff;
-    font-size: 0.62rem;
-    font-weight: 700;
-    line-height: 1rem;
-    text-align: center;
-  }
-
-  .user-menu__dropdown {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    right: 0;
-    z-index: 100;
-    min-width: 12rem;
-    display: flex;
-    flex-direction: column;
-    padding: 0.6rem 0.75rem;
-    background: var(--app-surface);
-    border: 1px solid var(--app-border);
-    border-radius: 0.5rem;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  }
-
-  .user-menu__type {
-    font-weight: 600;
-    color: var(--app-text);
-    font-size: 0.85rem;
-  }
-
-  .user-menu__scope {
-    margin-top: 0.15rem;
-    color: var(--app-text-muted);
-    font-size: 0.8rem;
-  }
-
-  .user-menu__name {
-    color: var(--app-text-muted);
-    font-size: 0.8rem;
-    word-break: break-all;
-  }
-
-  .user-menu__item {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.45rem;
-    padding-top: 0.45rem;
-    border-top: 1px solid var(--app-border);
-    font-size: 0.85rem;
-    color: var(--app-text);
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  // `.user-menu__item` was written for the Messages <a>; "Change display name" is a <button> using the
-  // same class, so it needs the same reset `.user-menu__logout` already carries. Only the side/bottom
-  // borders are cleared — the divider above is the item's own `border-top`.
-  button.user-menu__item {
-    width: 100%;
-    border-inline: none;
-    border-block-end: none;
-    background: none;
-    font: inherit;
-    font-size: 0.85rem;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  // Display-name edit (D4). A small stacked form inside the dropdown; same divider idiom as the items
-  // above it, so it reads as one more row of the menu rather than a panel dropped into it.
-  .user-menu__edit {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    margin-top: 0.45rem;
-    padding-top: 0.45rem;
-    border-top: 1px solid var(--app-border);
-  }
-
-  .user-menu__edit-label {
-    color: var(--app-text-muted);
-    font-size: 0.72rem;
-  }
-
-  .user-menu__edit-input {
-    width: 100%;
-    padding: 0.3rem 0.4rem;
-    border: 1px solid var(--app-border);
-    border-radius: 4px;
-    background: var(--app-surface);
-    color: var(--app-text);
-    font: inherit;
-    font-size: 0.85rem;
-  }
-
-  .user-menu__edit-error {
-    margin: 0;
-    color: var(--theme-error-500);
-    font-size: 0.72rem;
-  }
-
-  .user-menu__edit-actions {
-    display: flex;
-    gap: 0.4rem;
-  }
-
-  // Deliberately NOT `.btn.lp-btn`: the button system's 36px geometry would tower over a 0.85rem
-  // dropdown built on 0.45rem rhythm. These are menu-scale controls, like `.user-menu__logout`.
-  .user-menu__edit-btn {
-    padding: 0.2rem 0.5rem;
-    border: 1px solid var(--app-border);
-    border-radius: 4px;
-    background: var(--app-surface-soft);
-    color: var(--app-text);
-    font: inherit;
-    font-size: 0.78rem;
-    cursor: pointer;
-
-    &:hover:not(:disabled) {
-      background: var(--theme-elevation-100);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-  }
-
-  .user-menu__badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.1rem;
-    height: 1.1rem;
-    padding: 0 0.3rem;
-    border-radius: 999px;
-    background: var(--app-accent);
-    color: #fff;
-    font-size: 0.68rem;
-    font-weight: 700;
-  }
-
-  .user-menu__logout {
-    margin-top: 0.45rem;
-    padding-top: 0.45rem;
-    border: none;
-    border-top: 1px solid var(--app-border);
-    background: none;
-    text-align: left;
-    font: inherit;
-    font-size: 0.85rem;
-    color: var(--app-text);
-    cursor: pointer;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
+  // The nav, the avatar menu and their badges inside this header: `../app-chrome.scss`, shared with
+  // the App pages.
 }
 
 // One logout everywhere: hide Payload's nav logout (ours lives top-right in .lp-admin-header).
@@ -2585,43 +2351,11 @@ a.btn.lp-btn {
 
   // Mirror the frontend's phone header (2026-07-31). The admin header had NO mobile rule at all: it
   // stayed a single row and simply let the brand wrap, measuring 56px against the frontend's stacked
-  // 109.8px. Same column layout, same flex-start reasoning as `styles.css` — the nav stays a ROW of
-  // mixed-height controls, so it centres while the header itself starts left.
-  // ⚑ The avatar dropdown's rows are touch targets too, and were NOT (measured at 390px, 2026-08-17:
-  // Messages 29px, Log Out 30px). That is pre-existing — this menu predates the button system's
-  // touch pass and was never swept into it — but the display-name form (D4) adds new controls to it,
-  // and shipping a 28px Save while the same file argues for 44px elsewhere is not defensible.
-  //
-  // Raised as a GROUP rather than just the new controls: a 44px Save above a 30px Log Out in one
-  // small menu reads as a mistake. Phone-width only, so the desktop menu's density is untouched.
-  .user-menu__item,
-  .user-menu__logout,
-  .user-menu__edit-btn,
-  .user-menu__edit-input {
-    min-height: var(--app-btn-touch-min-height);
-  }
-
-  .user-menu__edit-btn {
-    // A min-height alone leaves width riding on the label — WCAG 2.5.5 asks for 44 in BOTH
-    // dimensions, and "Save" is short. Same reasoning as `.btn.lp-btn--compact` above.
-    min-width: var(--app-btn-touch-min-height);
-  }
-
+  // 109.8px. Same column layout, same flex-start reasoning as `styles.css`. The nav row inside it and
+  // the avatar menu's touch targets are in `../app-chrome.scss`.
   .lp-admin-header {
     flex-direction: column;
     align-items: flex-start;
-
-    .app-nav {
-      flex-wrap: wrap;
-      gap: 0.5rem 0.85rem;
-    }
-
-    // 44×44 touch target (WCAG 2.5.5, Level AAA — the project standard, above the AA 24×24 floor of
-    // 2.5.8) — the frontend avatar already grew here; the admin's did not.
-    .user-menu__avatar {
-      min-width: var(--app-avatar-touch-size);
-      min-height: var(--app-avatar-touch-size);
-    }
   }
 
   // Phone gutter + page origin, from the same tokens as the frontend.

@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Navigation, avatar menu and badges styled once, in a shared file (CSS step 3)
+
+`<AppNav>` and `<UserMenu>` render the same markup on the App pages and in Manage, but their rules lived
+twice: in `styles.css`, and nested under `.lp-admin-header` in `custom.scss`. They now live only in
+`app/src/app/app-chrome.scss`, imported by the frontend layout and `@use`d by `custom.scss`. The file is
+scoped to classes these components own (`.app-nav*`, `.user-menu*`, plus the forum's `.disc-dot`, which
+shares the nav dot's geometry); the two headers that hold the nav keep their own rules, and nothing in it
+reaches a Payload-native element.
+
+**The frontend's look was chosen for every difference.** On the App pages nothing moves (0 differences in
+the computed-style dump). In Manage and the editor: the avatar's fill matches the header instead of a
+darker grey, the account dropdown is the soft grey with the lighter shadow instead of white, and the
+Messages and "Change display name" rows are link blue instead of black (Log Out stays ink, D5). The avatar
+badge was already identical; `.app-nav__badge`, the drifted 1.15rem admin badge, is rendered by no
+component and was dropped rather than reconciled. The five temporary colour-role overrides from step 2
+stay, so the admin's text and greys still differ from the App's by a shade; they go together, separately.
+
+**Proof:** the computed-style dump from step 2, extended with geometry (size, padding, margin, offsets,
+line height) and phone-width pages with the menu open, showed only the changes above. A second throwaway
+check, with an unread message waiting, compared both surfaces at 1280px and 390px: the avatar and menu
+badges, the unread count, the open dropdown, the display-name form with its "Enter a display name" error,
+Save/Cancel enabled and disabled, and Escape closing the menu all have identical boxes on both surfaces,
+and every phone row is 44px tall. Keyboard focus rings still differ: they come from each surface's global
+focus rules (the browser's on the App pages, Payload's in Manage), not from this file, and were left alone.
+
 ## 2026-10-25 — Shared colour roles, introduced with no visible change (CSS step 2)
 
 The operator approved a staged CSS cleanup (Codex review, 2026-10-25): shared semantic tokens first, then the

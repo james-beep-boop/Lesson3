@@ -12,6 +12,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 - Every page is now light. Manage and the lesson editor used to switch to dark colours on a device
   set to dark mode, while the rest of the site stayed light. No database migration.
+- The account menu in Manage and the lesson editor now looks the same as on the rest of the site: the
+  same grey menu, blue Messages and "Change display name" links, and avatar colour. The top navigation
+  and the menu are styled in one shared place, so they can't drift apart again. No database migration.
 
 ## v1.06 (2026-10-25)
 
