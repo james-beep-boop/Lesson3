@@ -142,6 +142,9 @@ wrong-old-document serving was established. No product fix was made.
   focus, badges, dropdown/error/button states and synthetic/real dialogs. These are current dumps
   without a before/after comparison; full role/route widths, screenshot review and accessibility
   remain open.
+- [Accessibility](C61-a11y-current.md): installed axe-core produced zero violations on seven
+  representative anonymous/Site Admin/Teacher pages. Three pages left only the aria-hidden favorite
+  star's non-BMP contrast check incomplete; this is a manual-review lead, not an accepted finding.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; the current discussions integration suite added
