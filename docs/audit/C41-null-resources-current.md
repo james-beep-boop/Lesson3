@@ -14,3 +14,8 @@ Fixture teardown completed and the target lock was clear; raw output is private 
 
 This is a focused null-resource fidelity check. It does not close the wider C40/C41 ingest corpus,
 proxy, editor/PDF/WebKit, concurrency or full export catalog.
+
+The current `app/tests/int/nullResources.int.spec.ts` suite passed **3/3** integration cases for
+empty-slot storage, the later save gate and same-substrand re-ingest preservation. Raw output is
+private at `logs/c23-c24-lock-security-integrations.log`; broader corpus, proxy, browser and
+concurrency coverage remains open.

@@ -62,6 +62,12 @@ reset token survived public forgot-password. The exact orchestration hash and ra
 in `C5-endpoints-full-current.md`; this closes those two complements only, not the remaining
 no-SMTP recovery/session and deployment-parity catalog.
 
+The current `app/tests/int/userSecurity.int.spec.ts` suite passed **15/15** integration tests. It
+covered immediate session invalidation, disabled-account login and reset-token refusal, uniform
+forgot-password behavior, last-usable-Site-Admin protections, self-action guards and advisory-lock
+contention. Raw output is private at `logs/c23-c24-lock-security-integrations.log`; the broader
+cookie/CSRF, expiry and deployment-parity matrix remains open.
+
 Installed Payload 3.92.0 login/hash implementations were independently opened from the pinned deps
 image, and sanitized resolved user auth defaults were checked. A first config-inspection attempt
 using tsx's CJS eval failed on the config's top-level await; the explicit ESM loader command succeeded.

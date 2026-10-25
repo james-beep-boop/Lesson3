@@ -226,6 +226,11 @@ fixture teardown left the application healthy. This closes the bounded plan-casc
 integration checks. It does not close every C30 write path, the concurrent promotion/delete or
 Combine races, recovery attribution, or the final all-path fingerprint ledger.
 
+The shared `app/tests/int/lockRows.int.spec.ts` helper suite also passed **3/3** cases in the
+current target, proving a competing transaction blocks until commit, calls outside a transaction
+are refused rather than silently unlocking nothing, and an empty ID list is a no-op. Raw output is
+private at `logs/c23-c24-lock-security-integrations.log`.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus

@@ -546,7 +546,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/adminResetLinkCarveOut.int.spec.ts` | C72 | Current C5/C23/C72 integration evidence: C5-data-auth-jobs-current.md; 3/3 passed |
 | `app/tests/int/api.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/assignmentProvenance.int.spec.ts` | C72 | Current C5.3/C5.9 integration evidence: C5-assignment-provenance-current.md; 3/3 passed |
-| `app/tests/int/authFavorites.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/authFavorites.int.spec.ts` | C72 | Current C23/C24/C72 integration evidence: C23-C24-security-integrations-current.md; 11/11 passed |
 | `app/tests/int/authRateLimit.int.spec.ts` | C72 | Current C23/C72 integration evidence: C5-data-auth-jobs-current.md; 4/4 passed |
 | `app/tests/int/bestEffortEnqueue.int.spec.ts` | C72 | Current C5/C24/C72 integration evidence: C5-data-auth-jobs-current.md; 5/5 passed |
 | `app/tests/int/clearCollapsePrefs.int.spec.ts` | C72 | Pending review |
@@ -567,10 +567,10 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/editorGroupsAccess.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/favorites.int.spec.ts` | C72 | Current C24 integration evidence: C24-favorites-current.md; 15/15 passed |
 | `app/tests/int/jobStatsScheduling.int.spec.ts` | C72 | Current C5/C72 integration evidence: C5-data-auth-jobs-current.md; 1/1 passed |
-| `app/tests/int/lockRows.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/lockRows.int.spec.ts` | C72 | Current C31/C72 integration evidence: C23-C24-security-integrations-current.md; 3/3 passed |
 | `app/tests/int/messageReferenceMigration.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/messages.int.spec.ts` | C72 | Current C24 integration evidence: C24-messages-current.md; 11/11 passed |
-| `app/tests/int/nullResources.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/nullResources.int.spec.ts` | C72 | Current C40/C41/C72 integration evidence: C23-C24-security-integrations-current.md; 3/3 passed |
 | `app/tests/int/officialPointerLock.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/personalVersions.int.spec.ts` | C72 | Current C31/C5.4 integration evidence: C31-personal-versions-current.md; 6/6 passed |
 | `app/tests/int/planIdentityImmutable.int.spec.ts` | C72 | Current C31/C72 integration evidence: C72-access-cascades-current.md; 3/3 passed |
@@ -581,7 +581,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/systemSettings.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/taxonomyDelete.int.spec.ts` | C72 | Current C31/C72 integration evidence: C72-access-cascades-current.md; 8/8 passed |
 | `app/tests/int/uploadTaxonomy.int.spec.ts` | C72 | Current C40/C41/C72 integration evidence: C40-current-ingest.md; 5/5 passed |
-| `app/tests/int/userSecurity.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/userSecurity.int.spec.ts` | C72 | Current C23/C72 integration evidence: C23-C24-security-integrations-current.md; 15/15 passed |
 | `app/tests/int/verifyBackfill.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/worldwideIds.int.spec.ts` | C72 | Current C5.4/C72 integration evidence: C5-data-auth-jobs-current.md; 6/6 passed |
 | `app/tests/style-snapshot/README.md` | C72 | Pending review |

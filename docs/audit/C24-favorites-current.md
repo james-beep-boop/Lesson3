@@ -13,3 +13,8 @@ Fixture teardown completed and the target lock was clear; raw output is private 
 
 This is current favorite ownership and cascade evidence. It does not close the wider discussions,
 messaging, source-review or deployment-parity catalog.
+
+The current `app/tests/int/authFavorites.int.spec.ts` suite added **11/11** integration cases for
+native unlock/read-receipt authorization and favorite ownership/shape boundaries. Raw output is
+private at `logs/c23-c24-lock-security-integrations.log`; broader discussions, messaging and
+deployment-parity coverage remains open.

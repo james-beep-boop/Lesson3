@@ -112,6 +112,9 @@ validation is pending. No product fix was made.
   worldwide-ID, three administrator reset-link, four auth-rate-limit, one scheduling and five
   best-effort-enqueue cases; deployment, browser, session, queue-durability and migration-upgrade
   coverage remains open.
+- [Security, lock-helper and null-resource integrations](C23-C24-security-integrations-current.md):
+  current suites passed 15 user-security, 11 auth/favorites, three row-lock and three null-resource
+  cases; cookie/CSRF, expiry, browser, deployment and wider C23/C24/C40 coverage remains open.
 - [Export endpoint](C54-export-endpoint-current.md): the focused current selection passed six
   DOCX/PDF job, authentication, poll-binding and deduplication cases, plus three AReS JSON export
   and eight per-document serve-only/tag cases; broader export fidelity and queue coverage remains
