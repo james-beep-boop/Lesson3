@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Next.js 16.4.3 and `zod` 4.6.7; the rest of the dependency survey stays put
+
+The operator asked whether any dependency was compelling after the minification change (PR #449).
+A survey of every direct dependency against npm, plus `npm audit` on the lockfile, found two cheap
+moves, made here:
+
+- **`next` and `eslint-config-next` 16.4.2 → 16.4.3**: an LTS backport with no security fixes. It stops
+  loading a standalone React during server bootstrap and keeps OpenTelemetry request traces together
+  (Sentry).
+- **`zod` 4.4.3 → 4.6.7** (lockfile only): clears the audit's one high advisory, GHSA-mrhx-c7xc-m3w5
+  (memory exhaustion on oversized constrained collections). Only `eslint-plugin-react-hooks` pulls
+  it in, so it never ran in the app.
+
+**Still deliberately not moved:** `docx` 9.6.1 (the generator's authored version; 9.14.0 is out),
+`drizzle-orm` 0.45.2 (Payload 3.92.0 pins it exactly), `sass` 1.79.6, Payload 4 (beta only), and the
+majors listed in the 2026-10-24 entries. The five moderate advisories left (esbuild via drizzle-kit's
+`@esbuild-kit` loader) have no upstream fix and concern esbuild's dev server, which is never run.
+
+**Gates (local, deps container):** lint, types, `prettier --check package.json`, unit 1869 pass; the
+production image builds on 16.4.3 with the typing patch applied (`patch-payload-ui: applied ucs,
+rowlabel`, marker present in the served chunk). The `next@16.4.2` "verified in installed" comments in
+`proxy.ts` and `instrumentation.ts` are dated statements and are left as written.
+
 ## 2026-10-25 — Payload 3.92.0 tested (PR #448): typing speed unchanged on the Rock
 
 Payload and its five `@payloadcms/*` packages moved 3.91.0 → 3.92.0 on a draft branch. The `undici`
