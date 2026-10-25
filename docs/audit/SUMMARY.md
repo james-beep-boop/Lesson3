@@ -96,6 +96,9 @@ validation is pending. No product fix was made.
 - [Export endpoint](C54-export-endpoint-current.md): the focused current selection passed six
   DOCX/PDF job, authentication, poll-binding and deduplication cases; broader export fidelity and
   queue coverage remains open.
+- [Assignment provenance](C5-assignment-provenance-current.md): the current integration suite passed
+  three server-stamped grantor/time and relationship-depth cases; broader authorization and utility
+  review remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.

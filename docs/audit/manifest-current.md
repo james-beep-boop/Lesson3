@@ -545,7 +545,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/access.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/adminResetLinkCarveOut.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/api.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/assignmentProvenance.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/assignmentProvenance.int.spec.ts` | C72 | Current C5.3/C5.9 integration evidence: C5-assignment-provenance-current.md; 3/3 passed |
 | `app/tests/int/authFavorites.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/authRateLimit.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/bestEffortEnqueue.int.spec.ts` | C72 | Pending review |
