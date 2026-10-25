@@ -137,21 +137,20 @@ wrong-old-document serving was established. No product fix was made.
   current HTTP suite added 19 real lock-wait authority-change cases covering account grants/deletes,
   source retirement, recovery saves and Make Official rollback. The native editing-lock suite added
   18 takeover, holder-only unlock, forged-create and 423 deletion-barrier cases. Full C31 remains
-  pending, including the final fingerprint/deletion ledger; a direct probe separately confirmed a
+  pending for concurrent and recovery-attribution interleavings; a direct probe separately confirmed a
   fresh 423 lock expires after a measured 600-second age and permits the guarded delete. The
   native version-authority suite added eight Official/delete lock-wait cases, all refusing callers
   after demotion, disablement, unverification or sign-out while preserving the pointer and version.
   recovery HTTP suite added 35 current owner-only, CAS, retirement, metadata, unsaved-count and
   Combine-context cases, and the current Combine-preview suite added 18 ancestry, conflict,
-  structure-refusal and cross-plan cases. Concurrent Combine/Official races and the final ledger
-  remain open. A focused current endpoint selection added five Make Official write-path cases for
+  structure-refusal and cross-plan cases. Concurrent Combine/Official races remain open. A focused current endpoint selection added five Make Official write-path cases for
   atomic previous deletion, mandatory/stale consent and role refusal, plus three deleteSource cases
   covering authored-source retirement, source-scope refusal and Official-source preservation. The
   current Combine-save suite added 31 lineage, rollback, source-retirement and authority-wait cases;
-  a reliable two-writer Official race and the final ledger remain open. The save-as-new recovery
+  a reliable two-writer Official race remains open. The save-as-new recovery
   suite added 9 token-retirement, rollback, capture-race and source-cascade cases. A focused deletion
   ledger added ten permitted/refused HTTP outcomes and persisted before/after vectors that compared
-  equal after cleanup. The current integration guard also proved the plan-row delete barrier waits
+  equal after cleanup, and its current-target rerun reproduced the same equal vectors. The current integration guard also proved the plan-row delete barrier waits
   and preserves the Official pointer, and the current access/taxonomy/identity integration pass
   added 37 plan-cascade and identity checks; full all-path and concurrent promotion/deletion coverage
   remains open.

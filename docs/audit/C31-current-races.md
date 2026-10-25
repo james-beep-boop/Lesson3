@@ -115,9 +115,8 @@ the shared preview budget. The raw output is private at `logs/c31-recovery-http.
 
 The fixture teardown completed with no target lock retained and the stack remained healthy. Together
 with the pending-authority save cases above, this is current wire evidence for recovery ownership,
-CAS retirement and attribution boundaries. It does not close every C30 write path, full recovery
-restore attribution under concurrent Combine/Official changes, or the final fingerprint/deletion
-ledger.
+CAS retirement and attribution boundaries. It does not close every C30 write path or full recovery
+restore attribution under concurrent Combine/Official changes.
 
 The current `app/tests/int/editRecoveryAccess.int.spec.ts` suite passed **8 tests** in 3.02 seconds
 (exit 0). It hard-denied collection read/list/create/update/delete to every role, enforced the
@@ -195,8 +194,24 @@ remain private at `fixtures/c31-deletion-ledger.json`, with raw output at
 `logs/c31-deletion-ledger.log`.
 
 This closes the bounded current deletion-scope and persisted-fingerprint check. It does not close
-every C30 write path, plan-cascade deletion, concurrent delete/promotion race, recovery attribution,
-or the final all-path C31 ledger.
+every C30 write path, plan-cascade deletion, concurrent delete/promotion race, or recovery attribution.
+
+## Persisted deletion ledger rerun — current target
+
+The deletion-ledger helper was rerun under the marked target lock after the C70 continuation. It
+recorded **10/10 expected outcomes**: author and in-scope Subject Administrator deletes returned
+200; peer, plain Teacher, out-of-scope Subject Administrator and anonymous deletes returned 403;
+Site Administrator cleanup returned 200; and direct Official deletion returned 409 with the row
+present. The persisted before/after vectors for lesson plans, versions, child rows, subjects and
+subject grades were equal (`fingerprintEqual: true`).
+
+The exact private runner hash was
+`89da1cbfe919d9a4d6f9a8c8325fca01534f2a68646fd3a73b6303425d67b702`; raw output SHA-256 is
+`5aeab081d4b9eca75cffbf201382c611766a83d937290bd8db4c5bd8053783f1`, and the owner-only result
+SHA-256 is `6b019fb05d5e2e4247c55daa7a0d028424059322f817cef3f62d44aa9eb96087`. The target lock
+released normally, the synthetic rows were cleaned, and the application stack remained healthy.
+This closes the current persisted deletion/fingerprint ledger evidence; it does not resolve the
+inconclusive simultaneous Official-pointer race or every possible recovery attribution interleaving.
 
 The current `app/tests/int/officialPointerLock.int.spec.ts` integration guard passed **1 test** in
 3.99 seconds (exit 0) after mounting the marked target runtime env over the integration suite's
@@ -224,7 +239,7 @@ covered immutable identity and relationship fields.
 Raw output is private at `logs/c72-cascade-integrations-locked.log`; the target lock released and
 fixture teardown left the application healthy. This closes the bounded plan-cascade and identity
 integration checks. It does not close every C30 write path, the concurrent promotion/delete or
-Combine races, recovery attribution, or the final all-path fingerprint ledger.
+Combine races, or recovery attribution.
 
 The shared `app/tests/int/lockRows.int.spec.ts` helper suite also passed **3/3** cases in the
 current target, proving a competing transaction blocks until commit, calls outside a transaction
@@ -240,12 +255,12 @@ recovery HTTP suite but does not close browser or deployment parity.
 
 ## Outstanding
 
-This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
-unauthorized deletion ledger, persisted row fingerprint artifacts, recovery/restore attribution,
-Combine and Official-pointer races, and reset afterward. The source/parent deletion,
+This is still not the complete C31 attack run. Remaining: every C30 path and role, recovery/restore
+attribution, Combine and Official-pointer races, and reset afterward. The source/parent deletion,
 authority-change-while-waiting, native lock authorization, bounded stale-lock expiry, current
-recovery ownership/CAS, and read-only Combine ancestry cases now have the evidence described above;
-the complete ledger, concurrent Combine/Official cases and final fingerprint artifact are still open.
+recovery ownership/CAS, read-only Combine ancestry, and persisted deletion/fingerprint ledger cases
+now have the evidence described above; concurrent Combine/Official cases and recovery attribution
+interleavings remain open.
 
 An audit-only two-writer Official-pointer attempt was inconclusive: two distinct authenticated
 requests were launched behind a held plan-row lock, but only one backend reached the observed wait
