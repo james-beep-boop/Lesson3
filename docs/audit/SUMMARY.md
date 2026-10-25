@@ -134,7 +134,8 @@ wrong-old-document serving was established. No product fix was made.
   test hard-coded the no-SMTP `Awaiting approval` label while the app correctly rendered `Unverified`;
   the same flow passed 38/38 against a temporary app with SMTP explicitly disabled, including the
   approval branch. The dedicated offline-signup journey also passed 1/1 against that SMTP-disabled
-  app. Browser breadth, accessibility, visual and full component coverage remain open.
+  app. Additional Chromium flows passed liveRowLabels 2/2 and editorBackDarkMode 1/1. Browser
+  breadth, accessibility, visual and full component coverage remain open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; the current discussions integration suite added

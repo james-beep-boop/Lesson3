@@ -49,5 +49,13 @@ login refusal, the Site Administrator's approval queue and final teacher sign-in
 runner hash is `763394dfac4e5c4120819f985893f6d6451741d08c4ef236714aadb9774618da`; the raw log hash is
 `7ca65295d942e42250a198efa823c2037a444e22130f02617f2810ecb3773d99`.
 
+Two additional CI-equivalent Chromium flows passed against the normal Mailpit target: `liveRowLabels`
+passed **2/2** in 8.6 seconds (live labels through edit/reorder and exact rapid prose save), and
+`editorBackDarkMode` passed **1/1** in 4.6 seconds (dark-mode device handling, light admin shell and
+readable Back navigation). Their runner hashes are `06a9345a63441f1d338e66906ca300598880f3df6b74715c32368f4e5d1774c2`
+and `a70fb36736fad2bf096b1f28776fa24a8becaf3c94497976b76692e339a92e87`; raw log hashes are
+`f3a041a826de18ce5812dc9abea391c115925faa30fce5810de90f9f62036196` and
+`890b9067d6b20a46987700a2f50087fecc9ef9f6a19ec182d19f0499d2666953`.
+
 Browser navigation breadth, real cookies/CSRF across roles, WebKit rendering, accessibility, visual
 consistency, and full component coverage remain open in C5.11/C60/C61.

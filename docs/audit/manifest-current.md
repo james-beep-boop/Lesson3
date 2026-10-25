@@ -485,11 +485,11 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/e2e/drafts.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/editRecovery.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/editRecoveryRestore.e2e.spec.ts` | C72 | Pending review |
-| `app/tests/e2e/editorBackDarkMode.e2e.spec.ts` | C72 | Pending review |
+| `app/tests/e2e/editorBackDarkMode.e2e.spec.ts` | C72 | 1/1 Chromium; dark-mode device, light admin shell and readable Back navigation (see C511-client-current.md) |
 | `app/tests/e2e/editorValidation.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/insertLink.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/lessonDetails.e2e.spec.ts` | C72 | Pending review |
-| `app/tests/e2e/liveRowLabels.e2e.spec.ts` | C72 | Pending review |
+| `app/tests/e2e/liveRowLabels.e2e.spec.ts` | C72 | 2/2 Chromium; live labels through edit/reorder and exact rapid prose save (see C511-client-current.md) |
 | `app/tests/e2e/manage.e2e.spec.ts` | C72 | 37/38 against Mailpit plus 38/38 against temporary SMTP-disabled app; both source branches exercised (see C511-client-current.md) |
 | `app/tests/e2e/messages.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/offlineSignup.e2e.spec.ts` | C72 | 1/1 Chromium against temporary SMTP-disabled app; full sign-up, approval and sign-in journey (see C511-client-current.md) |
