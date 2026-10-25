@@ -25,6 +25,8 @@ import {
   lockDeletingUser,
   refuseDisabledLogin,
 } from '../hooks/userRoles'
+import { protectedLoginEndpoint } from '../endpoints/login'
+import { equalizeLoginPasswordWork } from '../hooks/loginPasswordWork'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 import { preserveAccountDisabledWire } from '../errors/AccountDisabled'
@@ -69,6 +71,8 @@ export const Users: CollectionConfig = {
   // (DECISIONS 2026-10-24 "Native document locks"; access/lockedDocuments.ts).
   lockDocuments: false,
   auth: {
+    // Abuse budgets belong to clients, never to an account an attacker can name.
+    maxLoginAttempts: 0,
     // 2-hour inactivity window (a comfortable work session; was 15 min — too short in practice,
     // 2026-07-04). With admin.autoRefresh off (the default), the admin shows a "Stay logged in?"
     // prompt ~1 min before expiry and force-logs-out at expiry if unattended — so a walked-away
@@ -132,12 +136,13 @@ export const Users: CollectionConfig = {
     // public ACCOUNT_DISABLED marker after formatting; the real-network test pins the exact result.
     afterError: [preserveAccountDisabledWire],
     // Throttle the unauthenticated auth surface (SPEC §11 "generation, auth"): login and
-    // forgot-password budgets, per target identifier + site-global. See hooks/authRateLimit.
+    // forgot-password mail budgets and client-scoped login budgets. See hooks/authRateLimit.
     // Payload otherwise emails a verification link during first-register and only then marks that
     // same account verified. Suppress only that trusted bootstrap send; ordinary signup still mails.
     beforeOperation: [
       suppressFirstUserVerificationEmail,
       rateLimitAuthOperations,
+      equalizeLoginPasswordWork,
       refreshMutationAuthority,
     ],
     // ⚑ `beforeLogin` runs in BOTH `login` and `resetPassword` (the latter inline, before it signs
@@ -175,6 +180,7 @@ export const Users: CollectionConfig = {
     ],
   },
   endpoints: [
+    protectedLoginEndpoint,
     // Lazy, paginated Site-Admin directory for Manage → Users (D11). Registered before the dynamic
     // account-action routes so `/search` is unambiguously a collection endpoint, never a user id —
     // an ORDER dependency, and therefore pinned by `tests/unit/userSearchWiring.spec.ts` rather than
@@ -202,6 +208,20 @@ export const Users: CollectionConfig = {
     setSignInDisabledEndpoint,
   ],
   fields: [
+    // Retain the old columns for restore compatibility; the login hook clears old lock state.
+    {
+      name: 'loginAttempts',
+      type: 'number',
+      defaultValue: 0,
+      hidden: true,
+      access: { create: () => false, update: () => false },
+    },
+    {
+      name: 'lockUntil',
+      type: 'date',
+      hidden: true,
+      access: { create: () => false, update: () => false },
+    },
     // A person's permanent worldwide id is read like their email: themselves and Site Administrators
     // only, so the Users API cannot be used to list everyone's durable identifiers (2026-10-19).
     worldwideIdField(emailReadAccess),

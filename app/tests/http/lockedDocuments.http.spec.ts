@@ -105,7 +105,8 @@ let locksBefore: Set<number>
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  const tokens = await Promise.all(ROLES.map((k) => login(fx.users[k].email, fx.password)))
+  const tokens: string[] = []
+  for (const k of ROLES) tokens.push(await login(fx.users[k].email, fx.password))
   ROLES.forEach((k, i) => (token[k] = tokens[i]!))
   locksBefore = new Set((await allLocks()).map((lock) => lock.id))
 })

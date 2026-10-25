@@ -6,10 +6,9 @@
  * installed source: auth/operations/login.js + forgotPassword.js), so this hook is the seam.
  *
  * What it bounds, and why:
- *  - LOGIN, per target identifier + global. Payload's default account lockout
- *    (maxLoginAttempts: 5) already stops single-account brute force; this throttles the hammering
- *    itself — distributed guessing across accounts (global cap) and the lockout-DoS where an
- *    attacker re-locks a victim's account forever (per-target cap bounds the attempts/hour).
+ *  - LOGIN, per client and per client+requested identifier. No anonymous caller can spend another
+ *    client's account or aggregate budget. The HTTP endpoint and settings reauthentication also
+ *    bound in-flight password work. Native account-wide lockout is disabled.
  *  - FORGOT-PASSWORD, per target address + global. Each request sends REAL outbound mail with no
  *    authentication required — the same egress class the email-a-doc caps guard — so it gets the
  *    same two-tier shape (per-recipient + site ceiling).
@@ -22,15 +21,15 @@
  * exists, and the 429 text names only the request rate — so neither the limit nor its message
  * reveals whether an address is registered.
  *
- * Local-API note: a trusted system path that calls `payload.login()` spends login budget like anyone
- * else — that operation carries no trust axis to distinguish it. CREATE does (see the classifier),
- * so trusted server-side user creates are NOT counted as signups. Budgets are far above legitimate
- * use; int tests clean their keys.
+ * Local-API note: trusted in-process login scripts use a local, target-scoped client key. HTTP
+ * reauthentication forwards the server-owned request token and retains the actual client's limits.
  */
 import type { CollectionBeforeOperationHook } from 'payload'
 import { APIError } from 'payload'
 
 import { consumeRateLimit, type Bucket } from '../lib/rateLimit'
+import { loginClient } from '../lib/loginProtection'
+import { createHash } from 'node:crypto'
 
 /** The auth data shape both operations carry (email-only login — loginWithUsername is off). */
 type AuthArgs = { data?: { email?: unknown } }
@@ -39,7 +38,7 @@ type AuthArgs = { data?: { email?: unknown } }
  *  only surfaces for login (the short-window case where "wait Ns" is actionable). */
 const THROTTLED = {
   login: {
-    buckets: ['login', 'loginGlobal'],
+    buckets: ['login', 'loginClient'],
     message: (retryAfterSec: number) =>
       `Too many sign-in attempts — please wait ${retryAfterSec}s and try again.`,
     globalMessage: (retryAfterSec: number) =>
@@ -188,14 +187,23 @@ export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
   const target = typeof raw === 'string' && raw.trim() !== '' ? raw.trim().toLowerCase() : 'invalid'
 
   const { buckets, message, globalMessage } = THROTTLED[kind]
+  if (kind === 'login') {
+    const client = loginClient(req, target)
+    // Charge the client first: varying addresses after exhaustion must not mint unlimited rows.
+    const clientHit = await consumeRateLimit(req, 'loginClient', client)
+    if (!clientHit.ok) throw new APIError(message(clientHit.retryAfterSec), 429)
+    const targetHit = await consumeRateLimit(
+      req,
+      'login',
+      `${client}:${createHash('sha256').update(target).digest('hex')}`,
+    )
+    if (!targetHit.ok) throw new APIError(message(targetHit.retryAfterSec), 429)
+    return args
+  }
   const targetHit = await consumeRateLimit(req, buckets[0], target)
-  if (!targetHit.ok) {
-    throw new APIError(message(targetHit.retryAfterSec), 429)
-  }
+  if (!targetHit.ok) throw new APIError(message(targetHit.retryAfterSec), 429)
   const globalHit = await consumeRateLimit(req, buckets[1], 'all')
-  if (!globalHit.ok) {
-    throw new APIError(globalMessage(globalHit.retryAfterSec), 429)
-  }
+  if (!globalHit.ok) throw new APIError(globalMessage(globalHit.retryAfterSec), 429)
 
   return args
 }

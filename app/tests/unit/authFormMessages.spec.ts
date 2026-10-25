@@ -50,6 +50,14 @@ describe('login — all three outcomes', () => {
     expect(msg).not.toMatch(/disabled|verified/i)
   })
 
+  it('throttling and capacity exhaustion ask the user to retry without blaming their password', () => {
+    for (const status of [429, 503]) {
+      const msg = signInErrorMessage(undefined, status)
+      expect(msg).toMatch(/busy.*try again/i)
+      expect(msg).not.toMatch(/invalid|password/i)
+    }
+  })
+
   it('the disabled branch wins over the status branch, not the other way round', () => {
     // Order matters: both conditions are true for a disabled account, and checking status first
     // would silently produce the verification message.

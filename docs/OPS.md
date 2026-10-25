@@ -765,6 +765,10 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
        }
    }
    ```
+   Configure the app's `AUTH_TRUSTED_PROXY_CIDRS` for the actual proxy peers before deploying the
+   client-scoped sign-in protection; see [SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md). An empty
+   setting treats the proxy as one shared client. This app setting does not install a WAF rule.
+
 2. **Edge rate limiting** at that proxy — connection/request throttles in front of the app-level
    Postgres limiter (which stays; it's the inner wall). Start conservative (e.g. Caddy
    `rate_limit`/nginx `limit_req` ~10 r/s per IP with burst, tighter on `/api/users/login` and

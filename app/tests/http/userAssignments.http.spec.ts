@@ -105,7 +105,8 @@ async function rolesOf(id: number): Promise<{ subjectGrade: number | undefined; 
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  const tokens = await Promise.all(ROLES.map((k) => login(fx.users[k].email, fx.password)))
+  const tokens: string[] = []
+  for (const k of ROLES) tokens.push(await login(fx.users[k].email, fx.password))
   ROLES.forEach((k, i) => (token[k] = tokens[i]!))
 
   const target = await fx.payload.create({

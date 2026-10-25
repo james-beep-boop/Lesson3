@@ -177,6 +177,12 @@ an indefinite public exposure that no operator action ended.
 
 ## Save: one re-authentication, no token
 
+**2026-10-25 amendment:** the historical per-user/global lockout design below is superseded for
+login and settings reauthentication by client+requested-email and client budgets, with bounded
+in-flight password work. Payload still verifies the password and its transient session is revoked.
+See [SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md). Anonymous attempts must not lock another client
+out of an account.
+
 Save posts `{ changes, password, expectedUpdatedAt }`. The server verifies the password, applies the
 changes, stamps provenance, commits.
 

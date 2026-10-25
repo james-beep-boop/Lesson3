@@ -98,7 +98,8 @@ async function startAs(versionId: number, as: RoleKey) {
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  const tokens = await Promise.all(ROLES.map((key) => login(fx.users[key].email, fx.password)))
+  const tokens: string[] = []
+  for (const key of ROLES) tokens.push(await login(fx.users[key].email, fx.password))
   ROLES.forEach((key, i) => (token[key] = tokens[i]))
   sharedVersionId = await makeVersion('2.0.1')
 }, 120_000)

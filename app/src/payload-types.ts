@@ -376,6 +376,8 @@ export interface LessonBundleVersion {
  */
 export interface User {
   id: number;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
   uid?: string | null;
   /**
    * Shown next to versions you save.
@@ -411,8 +413,6 @@ export interface User {
   resetPasswordRequestedAt?: string | null;
   _verified?: boolean | null;
   _verificationToken?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
   sessions?:
     | {
         id: string;
@@ -943,6 +943,8 @@ export interface SubjectGradesSelect<T extends boolean = true> {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  loginAttempts?: T;
+  lockUntil?: T;
   uid?: T;
   name?: T;
   signInDisabled?: T;
@@ -966,8 +968,6 @@ export interface UsersSelect<T extends boolean = true> {
   resetPasswordRequestedAt?: T;
   _verified?: T;
   _verificationToken?: T;
-  loginAttempts?: T;
-  lockUntil?: T;
   sessions?:
     | T
     | {

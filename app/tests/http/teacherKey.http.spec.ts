@@ -102,7 +102,8 @@ beforeAll(async () => {
     } as never,
     overrideAccess: true,
   })) as { id: number; lessons?: unknown[] }
-  const tokens = await Promise.all(ROLES.map((key) => login(fx.users[key].email, fx.password)))
+  const tokens: string[] = []
+  for (const key of ROLES) tokens.push(await login(fx.users[key].email, fx.password))
   ROLES.forEach((key, i) => (token[key] = tokens[i]!))
 }, 120_000)
 

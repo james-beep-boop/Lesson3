@@ -10,6 +10,7 @@
  * copies — converting them is worthwhile but is churn beyond the change that created this file, so
  * they are left as a landing place rather than rewritten in passing.
  */
+import { createHash } from 'node:crypto'
 import type { Payload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
@@ -33,6 +34,13 @@ export async function clearRateLimitBuckets(payload: Payload, likePattern: strin
   await drizzleOf(payload).execute(
     sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${likePattern};`,
   )
+}
+
+/** Remove this test target's hashed login keys, including trusted Local-API client counters. */
+export async function clearLoginTargetBudget(payload: Payload, email: string): Promise<void> {
+  const target = createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
+  await clearRateLimitBuckets(payload, `login:%:${target}`)
+  await clearRateLimitBuckets(payload, `loginClient:local:${target}`)
 }
 
 /**

@@ -14,7 +14,7 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { clearRateLimitBuckets } from '../helpers/db.js'
+import { clearLoginTargetBudget } from '../helpers/db.js'
 import {
   createUserVerified,
   deleteUserFixture,
@@ -107,7 +107,8 @@ const deleteThread = (topicId: number, as?: RoleKey) =>
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  const tokens = await Promise.all(ROLES.map((k) => login(fx.users[k].email, fx.password)))
+  const tokens: string[] = []
+  for (const k of ROLES) tokens.push(await login(fx.users[k].email, fx.password))
   ROLES.forEach((k, i) => (token[k] = tokens[i]))
   await setForum(true)
 })
@@ -268,7 +269,7 @@ function refusesAdminChangedDuringWait(
           }),
         )
       } finally {
-        await clearRateLimitBuckets(fx.payload, `login:${caller.email.toLowerCase()}`)
+        await clearLoginTargetBudget(fx.payload, caller.email.toLowerCase())
         if (!deleted) await deleteUserFixture(fx.payload, caller.id)
       }
     }, 30_000)
@@ -574,7 +575,7 @@ describe('GET /api/discussion-topics/nav-state', () => {
       expect(read.status).toBe(200)
       expect((await asReader('GET', '/api/discussion-topics/nav-state')).body.unread).toBe(false)
     } finally {
-      await clearRateLimitBuckets(fx.payload, `login:${reader.email.toLowerCase()}`)
+      await clearLoginTargetBudget(fx.payload, reader.email.toLowerCase())
       await clearPostingCaps(fx.payload, [reader])
       await deleteUserFixture(fx.payload, reader.id)
     }

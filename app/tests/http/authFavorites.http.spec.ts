@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { Message } from '../../src/payload-types.js'
-import { clearRateLimitBuckets } from '../helpers/db.js'
+import { clearLoginTargetBudget, clearRateLimitBuckets } from '../helpers/db.js'
 import { MARK, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures.js'
 import { login, url } from '../helpers/httpWire.js'
 
@@ -35,7 +35,7 @@ afterAll(async () => {
     for (const user of Object.values(fx.users)) {
       await clearRateLimitBuckets(fx.payload, `message:${user.id}`)
       await clearRateLimitBuckets(fx.payload, `messagePingRecipient:${user.id}`)
-      await clearRateLimitBuckets(fx.payload, `login:${user.email.toLowerCase()}`)
+      await clearLoginTargetBudget(fx.payload, user.email.toLowerCase())
     }
   } finally {
     await fx.teardown()

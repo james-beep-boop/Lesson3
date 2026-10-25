@@ -10,7 +10,7 @@
  *
  *   1. authorize — signed out 401, not a Site Administrator 403 (`assertSiteAdmin`);
  *   2. read a size-capped body and validate it — an explicit allowlist, never a passthrough (400/413);
- *   3. re-authenticate with the caller's password (401 wrong, 429 throttled, Payload's lockout) — see
+ *   3. re-authenticate with the caller's password (401 wrong, 429 throttled, 503 busy) — see
  *      {@link reauthenticate};
  *   4. in ONE transaction: take the settings lock, re-read, refuse a stale `expectedUpdatedAt` (409),
  *      write on the trusted path (`overrideAccess: true`), and let `stampFlagChanges` record provenance.
@@ -35,6 +35,7 @@ import {
   type Endpoint,
   type PayloadRequest,
 } from 'payload'
+import { withLoginCapacity } from '../lib/loginProtection'
 import { assertFresh, takeAdvisoryLock } from '../lib/txDb'
 import { SAVEABLE_FLAGS, type SaveableFlag } from '../lib/systemFlagNames'
 import type { User } from '../payload-types'
@@ -115,20 +116,12 @@ function sessionIdOf(token: string | undefined): string {
  *
  * ⚑ PAYLOAD'S LOGIN, NOT A COPY OF ITS HASH CHECK (operator decision 2026-10-09). The password
  * comparison is not exported, and re-implementing it would duplicate security-sensitive code an
- * upgrade could silently diverge from. `payload.login` brings, for free: the hash check, Payload's
- * account lockout (`maxLoginAttempts`), `refuseDisabledLogin`, and the existing `login`/`loginGlobal`
- * rate limits keyed on the caller's own address (`hooks/authRateLimit.ts`) — the "per user AND
- * globally" re-auth budget the design asks for, without a second limiter.
+ * upgrade could silently diverge from. `payload.login` retains native verification, session handling
+ * and `refuseDisabledLogin`, with the same client-scoped budgets and password-work equalization as
+ * the sign-in endpoint. The original server-owned headers preserve the HTTP client's identity.
  *
- * ⚑ ITS OWN REQUEST, AND BEFORE THE SAVE'S TRANSACTION. `loginOperation` assigns `req.user`, so it must
- * not run on the endpoint's request; and running it first keeps the deliberately slow password hash
- * and its writes to the user row out of the settings lock's critical section.
- *
- * ⚑ NOT FOR LOCKOUT'S SAKE — an earlier version of this comment said it was, and was wrong. It claimed
- * a failed attempt inside the Save's transaction would be rolled back and lockout would never
- * accumulate. Payload already prevents that: `incrementLoginAttempts` deliberately writes WITHOUT `req`,
- * outside any transaction, so parallel requests see the count. A mutation that moved this call inside
- * the transaction left the lockout test green, which is how the claim was caught (DECISIONS 2026-10-09).
+ * Its own request prevents `loginOperation` from replacing the endpoint's `req.user`. Running it
+ * before the Save transaction keeps password work and user writes outside the settings lock.
  *
  * ⚑ THE MINTED SESSION IS REVOKED AT ONCE. `useSessions` is on, so every login adds a session; its token
  * is never sent anywhere, and revoking it (Payload's own `logoutOperation`, which drops exactly
@@ -139,13 +132,17 @@ async function reauthenticate(req: PayloadRequest, password: string): Promise<vo
   const email = (req.user as User).email
   let result: Awaited<ReturnType<PayloadRequest['payload']['login']>>
   try {
-    result = await req.payload.login({ collection: 'users', data: { email, password }, depth: 0 })
+    const loginReq = await createLocalReq({ req: { headers: req.headers } }, req.payload)
+    result = await withLoginCapacity(loginReq, email, () =>
+      req.payload.login({
+        collection: 'users',
+        data: { email, password },
+        depth: 0,
+        req: loginReq,
+      }),
+    )
   } catch (err) {
-    // ⚑ BY CLASS, NOT BY STATUS. Payload's `LockedAuth` is ALSO a 401, so mapping every 401 would tell
-    // a locked-out administrator typing the RIGHT password that it is wrong. Only a wrong password is
-    // reworded; a lock, a throttle (429) or a disabled account keeps Payload's own answer. If the class
-    // check ever fails (the 2026-10-08 minifier defect), the degradation is Payload's generic
-    // "email or password" message — still true, never a false one.
+    // Reword only credential failures; throttling, overload and disabled-account guidance survive.
     if (err instanceof AuthenticationError) {
       throw new APIError('That password is not correct.', 401)
     }
