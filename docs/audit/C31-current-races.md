@@ -109,12 +109,26 @@ CAS retirement and attribution boundaries. It does not close every C30 write pat
 restore attribution under concurrent Combine/Official changes, or the final fingerprint/deletion
 ledger.
 
+## Combine ancestry and conflict boundary — current HTTP suite pass
+
+The current `app/tests/http/combinePreview.http.spec.ts` suite passed **18 tests** in 3.84 seconds
+(exit 0). It covered unauthenticated, malformed, missing, same-version, cross-plan and no-edit
+gates; three-way sibling overlays and common-ancestor selection; same-field conflicts with all three
+texts; administrator/resource and structural refusals; two-way behavior without an ancestor;
+multi-lesson matching despite regenerated resource-link IDs; the already-included ancestor result;
+and a bounded high-content computation case. The raw output is private at
+`logs/c31-combine-preview.log`.
+
+All synthetic versions and plans were removed by fixture teardown and the target lock released. This
+closes the read-only Combine preview and ancestry cases for the current wire, but not a concurrent
+Combine save, an Official-pointer race, or the final persisted fingerprint/deletion ledger.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
 unauthorized deletion ledger, persisted row fingerprint artifacts, recovery/restore attribution,
 Combine and Official-pointer races, and reset afterward. The source/parent deletion,
-authority-change-while-waiting, native lock authorization, bounded stale-lock expiry, and current
-recovery ownership/CAS cases now have the evidence described above; the complete ledger, concurrent
-Combine/Official cases and final fingerprint artifact are still open.
+authority-change-while-waiting, native lock authorization, bounded stale-lock expiry, current
+recovery ownership/CAS, and read-only Combine ancestry cases now have the evidence described above;
+the complete ledger, concurrent Combine/Official cases and final fingerprint artifact are still open.
 Earlier C22/C30 tests are supporting evidence; no full-chunk or independent-review claim is made.

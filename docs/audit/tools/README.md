@@ -53,6 +53,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Native editing locks | `npm run test:http -- tests/http/lockedDocuments.http.spec.ts`; existing HTTP suite against the marked target; forged-create, takeover, holder-only unlock and 423 deletion barrier |
 | Native lock expiry | `npx tsx tests/audit/c31-stale-lock.mjs`; private fixture/result paths; fresh lock 423 followed by a measured 600-second stale lock and successful guarded delete |
 | Recovery wire boundary | `npm run test:http -- tests/http/recovery.http.spec.ts`; existing HTTP suite against the marked target; seven-operation gates, owner/CAS/retirement, metadata, unsaved counts and Combine context |
+| Combine preview wire | `npm run test:http -- tests/http/combinePreview.http.spec.ts`; existing HTTP suite against the marked target; ancestry, overlays, conflicts, structure refusal and cross-plan gates |
 | Approved-taxonomy rollback | `node tests/audit/c41-taxonomy-wire.mjs`; marked disposable DB with narrowly conditional fault trigger; standard private paths; controller must remove trigger/function in finally |
 | Rich prose sinks | `node tests/audit/c41-content-sinks.mjs`; browser image, marked target network, synthetic source/recipient; stored/unsaved preview, Chromium DOM, DOCX export and Mailpit attachment; helper deletes owned plan |
 | Declared body ceilings | `node tests/audit/c40-body-ceilings.mjs`; private fixture/result paths, marked target network; honest oversized multipart `Content-Length` probes for upload, preview and save-as-new |
