@@ -84,3 +84,9 @@ each unrun or environment-specific check from covered evidence.
 
 Rotate all synthetic audit account passwords and remove the disposable Mailpit/target stack after
 the branch has been reviewed.
+
+Post-audit follow-up: this audit's marked disposable stack, Mailpit, synthetic account database, and
+cache volumes have now been removed after verifying namespace, configuration digest, and database
+ownership marker. Private evidence is retained. [PR #457](https://github.com/james-beep-boop/Lesson3/pull/457)
+proposes the restore-cache fix separately from this unmerged audit branch. The three stored no-op
+fields and the administrator helper behavior are detailed in [C21 follow-up](C21-stored-fields-followup.md).

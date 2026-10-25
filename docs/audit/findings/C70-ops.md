@@ -105,3 +105,13 @@ finding. No product fix or deployment change was made.
 
 - **Disposition:** accepted Medium, conditional on a cache-deletion fault with retained readable
   entries; remediation recommended and not implemented in this audit.
+
+### Post-audit remediation
+
+A separate fix is proposed in [PR #457](https://github.com/james-beep-boop/Lesson3/pull/457), based
+on main rather than merging this audit branch. The real permission-fault regression found an extra
+implementation detail: the Alpine app image's BusyBox `find -delete` can itself return 0 after
+printing a deletion error. Removing the trailing `true` alone therefore does not suffice. The fix
+also checks that no cache files remain before starting services and retains the forward/undo journal
+state for repair and resume. The original v1.07 baseline finding remains valid; proposed remediation
+is not evidence of a deployed fix or of a wrong-document collision.
