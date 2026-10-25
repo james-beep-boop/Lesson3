@@ -491,7 +491,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/e2e/lessonDetails.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/liveRowLabels.e2e.spec.ts` | C72 | 2/2 Chromium; live labels through edit/reorder and exact rapid prose save (see C511-client-current.md) |
 | `app/tests/e2e/manage.e2e.spec.ts` | C72 | 37/38 against Mailpit plus 38/38 against temporary SMTP-disabled app; both source branches exercised (see C511-client-current.md) |
-| `app/tests/e2e/messages.e2e.spec.ts` | C72 | Pending review |
+| `app/tests/e2e/messages.e2e.spec.ts` | C72 | 3/3 Chromium compose/reply/reference flow; unavailable-version labels and no-whole-lesson substitution (see C24-messages-current.md) |
 | `app/tests/e2e/offlineSignup.e2e.spec.ts` | C72 | 1/1 Chromium against temporary SMTP-disabled app; full sign-up, approval and sign-in journey (see C511-client-current.md) |
 | `app/tests/e2e/publicLibraryDisabled.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/saveSnapshot.e2e.spec.ts` | C72 | Pending review |

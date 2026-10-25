@@ -13,3 +13,9 @@ Fixture teardown completed and the target lock was clear; raw output is private 
 
 This is current message ownership, budget and cascade evidence. It does not close the wider
 discussions, no-SMTP, source-review or deployment-parity catalog.
+
+The CI-equivalent Chromium `tests/e2e/messages.e2e.spec.ts` flow passed **3/3** in 7.3 seconds. It
+covered labelled compose and recipient reply, live whole-lesson references, unavailable deleted-version
+labels preserved through replies, and refusal to turn an explicitly requested unavailable version
+into a whole-lesson reference. Runner hash: `ca0d2ca96c84831dcaa06e877f3fc1c62f6656e398703b5dd92bd3141a18c548`;
+raw log hash: `66b7e17766f65d7855af556c4383184f924878fb1742fb9316a5704c9c58cfde`.

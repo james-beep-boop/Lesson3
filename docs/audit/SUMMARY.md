@@ -154,6 +154,9 @@ wrong-old-document serving was established. No product fix was made.
   12 label, recipient and no-write refusal cases; the current discussions integration suite added
   23 lock-ordering, deletion/cascade, activity and forum-off cases; a pure discussion/reference unit
   slice added 73/73. Broader C24 coverage remains open.
+- [Messaging](C24-messages-current.md): the current integration suite passed 11/11 and the
+  Chromium compose/reply/reference flow passed 3/3, including unavailable-version labels and
+  no-whole-lesson substitution. Broader C24 coverage remains open.
 - [Save boundary](C30-current-save.md): **118 checks** passed across both scopes, field split,
   resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
 - [Controlled save races](C31-current-races.md): two editing teachers and one teacher in two
