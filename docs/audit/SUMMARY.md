@@ -61,7 +61,9 @@ validation is pending. No product fix was made.
   resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
 - [Controlled save races](C31-current-races.md): two editing teachers and one teacher in two
   sessions both reached an observed PostgreSQL lock barrier; four successful saves retained prose,
-  authors and monotonic versions; historical-row comparisons and cleanup passed. Full C31 pending.
+  authors and monotonic versions; historical-row comparisons and cleanup passed. A separate
+  current HTTP suite added 19 real lock-wait authority-change cases covering account grants/deletes,
+  source retirement, recovery saves and Make Official rollback. Full C31 remains pending.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked

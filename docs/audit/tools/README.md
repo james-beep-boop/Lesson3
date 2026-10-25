@@ -49,6 +49,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Targeted auth budget | `npx tsx tests/audit/c23-auth-budgets.ts`; `LESSON3_AUDIT_AUTH_MODE=target` |
 | Global auth budget | Same, mode `global`; at most 1,005 requests, concurrency four, 120-second deadline |
 | Controlled save races | `node tests/audit/c31-save-barrier.mjs`; private corpus directory and marked target DB URI; holds/releases a plan-row lock, creates/deletes one plan and four candidates |
+| Pending-authority lock waits | `npm run test:http -- tests/http/pendingAuthority.http.spec.ts`; existing HTTP suite against the marked target; real barriers cover revocation during grants/deletes, source retirement, recovery saves and Make Official |
 | Approved-taxonomy rollback | `node tests/audit/c41-taxonomy-wire.mjs`; marked disposable DB with narrowly conditional fault trigger; standard private paths; controller must remove trigger/function in finally |
 | Rich prose sinks | `node tests/audit/c41-content-sinks.mjs`; browser image, marked target network, synthetic source/recipient; stored/unsaved preview, Chromium DOM, DOCX export and Mailpit attachment; helper deletes owned plan |
 | Declared body ceilings | `node tests/audit/c40-body-ceilings.mjs`; private fixture/result paths, marked target network; honest oversized multipart `Content-Length` probes for upload, preview and save-as-new |

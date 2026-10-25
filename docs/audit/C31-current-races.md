@@ -44,10 +44,31 @@ not serialized. The private result retains blocked-backend records, statuses, se
 definitions. The final full C31 sweep must save its before/after fingerprint vectors as artifacts.
 The exact executed helper copy/hash was preserved before formatting.
 
+## Authority changes during lock waits — current HTTP suite pass
+
+The existing `app/tests/http/pendingAuthority.http.spec.ts` was rerun against the marked target
+under the target lock with the pinned dependency wrapper. It passed **19 tests** in 34.30 seconds
+(exit 0), with the raw output retained privately at `logs/c31-pending-authority.log`. These cases
+use real PostgreSQL barriers and then change the caller while its request is waiting. They covered:
+
+- granting Site Administrator and deleting an account after the caller was demoted, disabled,
+  unverified, or signed out (eight cases);
+- source deletion after demotion for both source-owned and non-owned versions (two cases);
+- administrator save with `deleteSource=true` after demotion, disablement, unverification, or
+  sign-out, asserting rollback (four cases); and
+- Make Official while waiting on the plan row after those same four authority changes (four cases).
+
+The suite also confirmed the ordinary teacher self-update path remains allowed. No fixture rows were
+left behind, the target lock released normally, and the application stack remained healthy. This
+closes the authority-change-while-waiting item for the exercised native/version paths; it does not
+close request-editing lock stealing or stale-lock behavior, recovery attribution, Combine races, or
+the required full C31 fingerprint/deletion ledger.
+
 ## Outstanding
 
-This is two bounded concurrency scenarios, not the complete C31 attack run. Remaining: every
-C30 path and role, permitted versus unauthorized deletion ledger, persisted row fingerprint
-artifacts, editing-lock stealing/staleness, source/parent deletion and authority changes while
-waiting, recovery/restore attribution, Combine and Official-pointer races, and reset afterward.
+This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
+unauthorized deletion ledger, persisted row fingerprint artifacts, editing-lock stealing/staleness,
+recovery/restore attribution, Combine and Official-pointer races, and reset afterward. The source/
+parent deletion and authority-change-while-waiting cases now have the bounded evidence described
+above; the complete ledger and final fingerprint artifact are still open.
 Earlier C22/C30 tests are supporting evidence; no full-chunk or independent-review claim is made.
