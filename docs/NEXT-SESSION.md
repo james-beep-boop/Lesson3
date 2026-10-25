@@ -36,7 +36,8 @@ F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-se
 10 minutes after; `/login` 200. **Still open:** the manual checks of the lock warning and Take over
 from two accounts, and one change in Manage → Users.
 
-**Payload 3.92.0 is in (#448, release v1.06).** The six packages moved together, the `undici`
+**Payload 3.92.0 is merged to `main` (#448, `4c78d1b`), but not tagged or deployed.** The operator chose
+2026-10-25 not to tag it yet; the Rock stays on v1.05 (`a68fb74`). The six packages moved together, the `undici`
 override is gone, the typing patch applied unchanged, and the Rock benchmark showed no change from
 v1.05 (40–48 ms per key on both). Results: DECISIONS 2026-10-25 "Payload 3.92.0 tested".
 **First job on return:** the dependency-review follow-ups, each as its own change. Start with
@@ -102,7 +103,7 @@ password manager.
 because new high advisories had turned `audit:prod` red. Why each was accepted, and when each
 override comes out, is in DECISIONS 2026-10-24.
 
-**Done: Payload 3.92.0** (#448, v1.06). On the next Payload upgrade, follow the same checklist:
+**Done: Payload 3.92.0** (#448, merged; not yet released). On the next Payload upgrade, follow the same checklist:
 move `payload` and all five `@payloadcms/*` packages together; confirm or re-derive the #436 patch
 strings (the install fails loudly if they no longer match) and re-run the Rock typing benchmark; review
 each override; full gate plus the browser tests on the version edit page. ⚑ Check the `rowlabel` patch

@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## v1.06 (2026-10-25)
+## Unreleased (on `main`, not tagged or deployed)
 
 - Payload moves from 3.91.0 to 3.92.0, with its five companion packages. The `undici` override is
   no longer needed (Payload pins 7.30.1 itself). The faster-typing patch carries over unchanged, and
