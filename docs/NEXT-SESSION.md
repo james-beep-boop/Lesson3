@@ -40,9 +40,10 @@ from two accounts, and one change in Manage → Users.
 2026-10-25 not to tag it yet; the Rock stays on v1.05 (`a68fb74`). The six packages moved together, the `undici`
 override is gone, the typing patch applied unchanged, and the Rock benchmark showed no change from
 v1.05 (40–48 ms per key on both). Results: DECISIONS 2026-10-25 "Payload 3.92.0 tested".
-**First job on return:** the dependency-review follow-ups, each as its own change. Start with
-`turbopackMinify: false`, which can now go because 3.92.0 contains payloadcms/payload#18775 (prove it
-with `apiErrorMessages.http.spec.ts` against a built app). Then React 19.3 and the majors.
+**Minification back on and React 19.3.1: draft PR #449.** The error-message wire test passes against
+the minified build, client JS drops 1.61 → 0.87 MB gzipped, and Rock typing is unchanged. Results:
+DECISIONS 2026-10-25 "Minification back on". **Next after it:** the majors (Sentry 11, jsdom 30, …),
+each as its own change.
 
 **Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
 evidence, L-C23-01) merged into it 2026-10-25, so no audit PR is open. Not started: the rest of the
@@ -250,9 +251,9 @@ once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 2
   - checking that nothing stored depends on the old `PAYLOAD_SECRET`.
 
   From v1.01's notes: have the updater print the release's ⚑ operator notes.
-- Open from the dependency review: drop `turbopackMinify: false` (Payload 3.92.0 ships
-  payloadcms/payload#18775); React 19.3 and the majors (Sentry 11, jsdom 30, …) each as their own
-  change. Playwright 1.64 is done (#429), and Payload 3.92.0 is done (#448).
+- Open from the dependency review: the majors (Sentry 11, jsdom 30, …) each as their own change.
+  Playwright 1.64 is done (#429), Payload 3.92.0 is done (#448), and minification plus React 19.3.1
+  are in draft PR #449.
 
 **Earlier (2026-10-21):** Mark (ARES) answered the open Insert link questions; the fix merged as #424
 (`8ed85a2`). Tracker addresses are kept as copied (unwrapping

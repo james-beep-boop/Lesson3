@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Minification back on and React 19.3.1 (PR #449): typing speed unchanged on the Rock
+
+`experimental.turbopackMinify: false` and its wiring guard (`tests/unit/nextConfigMinify.spec.ts`) are removed,
+as the 2026-10-08 entry prescribes. Payload 3.92.0 sets every error class's `name` explicitly
+(payloadcms/payload#18775), so the minifier can no longer blank the names that `formatErrors` relies on. React
+and `react-dom` move 19.2.9 → 19.3.1, `@types/react` and `@types/react-dom` → 19.3.0, on the same branch.
+
+**Proof:** `tests/http/apiErrorMessages.http.spec.ts` against the built, minified standalone app passes 3/3 (the
+subject-grade guard's 409 keeps its message).
+
+**Size:** served client JS (all chunks, gzip -9) 1.61 MB → 0.87 MB, raw 7.93 → 2.89 MB; server JS 54 → 17.7 MB;
+the app image 404 → 358 MB.
+
+**Typing patch:** with minification on, the `/*lesson3-patch*/` markers are stripped from the served chunk, so a
+check for the markers no longer works on a built bundle. The logic was checked instead: the `ucs` selection
+check and commit-time ref are present and the unpatched dispatch is gone; the row-label provider reads the
+`useForm` context, not `useWatchForm`. `patch-payload-ui.mjs` itself is unchanged (it patches `node_modules`
+before bundling).
+
+**Gates (cloud, against the built app):** lint, types, format clean; unit 1867 pass; int 334/335, with
+`authRateLimit` "allows up to the budget" timing out at 5 s on the 4-core container and passing with a longer
+timeout. Wire 464 pass, 8 fail, all PDF (no Gotenberg in the container). Browser 138 pass, 7 fail: the 4 Insert
+link PDF-picker tests, and two `discussions` "Add reference" tests plus `editorValidation` (401 vs 400), which
+fail the same way against a production build of `main` in the same container. CI runs both suites with
+Gotenberg.
+
+**Rock benchmark** (same method as above; both commits built on the Rock, five alternating rounds,
+`BENCH_RATES=1`, load 0.4–1.4; all 370 keys delivered):
+
+| Rock, 1× | median | p90 | max | long tasks | wall time for 37 keys |
+|---|---|---|---|---|---|
+| `main` (`4c78d1b`, minify off) | 40 ms | 40–48 ms | 80–112 ms | 0.30–0.41 s | 5.92–5.95 s |
+| PR #449 (`d158e17`, minify on, React 19.3.1) | 40–48 ms | 40–48 ms | 80–88 ms | 0.31–0.36 s | 5.93–5.98 s |
+
+Within noise. The live site was untouched; the perf containers, images and temp files were removed. Docker's
+build cache on the Rock grew 22.4 → 29.7 GB and was left alone (`docker builder prune` is safe if the space is
+wanted).
+
 ## 2026-10-25 — Payload 3.92.0 tested (PR #448): typing speed unchanged on the Rock
 
 Payload and its five `@payloadcms/*` packages moved 3.91.0 → 3.92.0 on a draft branch. The `undici`
