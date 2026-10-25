@@ -1,23 +1,23 @@
-# Operations audit candidates
+# Operations audit finding
 
-Source: `bd5f07863a150cd51245b9c942502efa19d4014d`. These candidates are outside accepted totals
-until their reproduction and sole-auditor recheck are complete. The operator explicitly selected
-a sole auditor without Claude; cross-family review is waived and will not be claimed.
+Source: `bd5f07863a150cd51245b9c942502efa19d4014d`. The operator explicitly selected a sole auditor
+without Claude; cross-family review is waived and is not claimed.
 
 ## F-C70-001 — Restore cache deletion errors are reported as success
 
-- **Severity:** provisional Medium. **Category:** restore / export integrity.
+- **Severity:** Medium. **Category:** restore / export integrity.
 - **Priority:** validate before relying on restore or undo under filesystem faults.
 - **Exposure:** conditional on restore/undo with retained cache files and a cache-deletion failure.
   No affected deployment or active exposure has been established.
 - **Known status:** new candidate. The 2026-10-21 restore decision explicitly requires invalidation
   because database-local version IDs can collide across a restore; failure masking is not documented
   in the inspected decision or restore tests.
-- **Audit status:** author-verified/unreviewed. Author: coordinator (Codex), 2026-10-25.
-  Full-stack failure/recovery validation and a separate sole-auditor recheck remain pending.
-- **Evidence scope:** locally reproduced helper failure; source-confirmed continuation and cache
-  identity. **Confidence:** high for masked deletion failure; downstream export consequence is
-  source-derived and has not been reproduced against a restored full stack.
+- **Audit status:** accepted after sole-auditor full-stack recheck, 2026-10-25. Independent
+  cross-family review is waived by the operator and is not claimed.
+- **Evidence scope:** exact helper failure, isolated full-stack restore/restart, real cache producer,
+  repair and confirmation/discard controls. **Confidence:** high for the masked deletion failure
+  and live restart consequence; a wrong old document was not claimed because the run did not retain
+  a valid colliding artifact.
 - **Location:** `scripts/restore-db.sh:220`, forward restore at line 319 and undo at line 399;
   `app/src/generator/exportArtifacts.ts:39`, `app/src/generator/artifactCache.ts:83`,
   `app/src/endpoints/exportVersion.ts:50`.
@@ -63,6 +63,16 @@ Source SHA is above. Helper file SHA-256:
 Probe SHA-256:
 `c42c3b0942aadded59de084ab3adc9ac476c24ea347cd60a154e1acddca67ee9`.
 
+The full-stack recheck used a private copy of the real restore stack and current production/migration
+images. The exact harness SHA-256 was
+`26008736ac17c6bdef48b7d6d2d4ce4f929d062c75828278f0e8051aba469d42`; it passed **107/107** checks.
+The fault was a read-only bind at one cache filename. The restore's `find ... -delete` reported
+`Resource busy`, but the trailing `true` returned success; the helper reached provisional live state,
+the app restarted, and the real `verify-stage2-export.ts` producer wrote fresh artifacts beside the
+retained stale entry. Repair, `--confirm`, `--discard-previous`, and the drill all passed. Raw output
+is retained privately at
+`/home/james/.local/share/lesson3-audit/2026-10-25-bd5f078/logs/c70-cache-fault-stack-bind-final2.log`.
+
 ### Impact and limits
 
 Exports use `render:<renderer revision>:version:<numeric ID>` as their cache scope. Existing cached
@@ -74,10 +84,10 @@ already recognizes.
 
 The default cache directory normally permits deletion; no default-deployment permission failure has
 been shown. Permission drift, a read-only filesystem, or another deletion fault is a precondition.
-The probe proves the first failure mode only. It does not establish data loss, cross-user disclosure,
-or a production incident. The existing real-stack restore test covers successful invalidation, and
-the fast mock test checks that the helper is called; neither inspected assertion injects a deletion
-failure.
+The full-stack run confirms that the failure is operationally masked and that service startup and
+new cache writes continue while the stale entry remains. It does not establish data loss,
+cross-user disclosure, a production incident, or serving of a wrong old document; that stronger
+claim needs a retained valid artifact with a colliding restored version ID.
 
 ### Remediation and remaining validation
 
@@ -88,7 +98,10 @@ filesystem and prove resume clears the cache before serving the restored version
 database-generation component in cache identity as an alternative design, with migration and cache
 compatibility review.
 
-Next: sole-auditor recheck; reproduce forward restore and undo failure/recovery on a C01-approved
-stack with synthetic colliding version IDs. No product fix or deployment change was made.
+Next: propagate deletion errors and keep writers stopped until invalidation succeeds, then add a
+regression test for forward and undo with a retained readable cache entry. A colliding-ID artifact
+reproduction would refine impact, but is not required to establish this accepted masked-error
+finding. No product fix or deployment change was made.
 
-- **Disposition:** pending review and triage.
+- **Disposition:** accepted Medium, conditional on a cache-deletion fault with retained readable
+  entries; remediation recommended and not implemented in this audit.

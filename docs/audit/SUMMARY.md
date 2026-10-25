@@ -2,8 +2,8 @@
 
 **Incomplete audit — working report.** Current source baseline is
 `bd5f07863a150cd51245b9c942502efa19d4014d` on main, with the same product source as release v1.07
-(`69dd7d2ec1f3d8b9e78bff8c7f0892cdf41a2234`). Three previously known authentication findings
-are accepted after current source/control rechecks: one Medium and two Low. They were explicitly
+(`69dd7d2ec1f3d8b9e78bff8c7f0892cdf41a2234`). Four findings are accepted after current source/control
+rechecks: two Medium and two Low. The three authentication findings were explicitly
 deferred in DECISIONS 2026-10-25; none is counted as newly discovered.
 The operator selected a sole Codex auditor, audit only, no exclusions, Spark testing, and GitHub
 publication. Independent cross-family review is waived and is not claimed.
@@ -15,6 +15,7 @@ publication. Independent cross-family review is waived and is not claimed.
 | P1 | [F-C23-001: shared sign-in budget exhaustion](findings/C23-auth-current.md) | Medium | 1,005 distinct-address attempts in 2.172 s at concurrency four blocked valid teacher and administrator sign-ins. Existing sessions and the separate reset bucket still worked. |
 | P2 | [F-C23-002: targeted account budget exhaustion](findings/C23-auth-current.md) | Low | Twenty victim-address attempts blocked their valid login while another administrator could sign in. Requires the victim address; existing sessions work. |
 | P2 | [F-C23-003: login account enumeration](findings/C23-auth-current.md) | Low | Nine paired timing observations and the sixth-attempt locked-account message revealed registration. Account-presence inference, not recovered credentials. |
+| P1 | [F-C70-001: restore cache-deletion errors are masked](findings/C70-ops.md) | Medium | Exact helper and isolated full-stack run: a deletion fault is reported as success, the stale entry remains while the app restarts and writes fresh artifacts, and repair/confirm/discard recover. Requires retained readable cache entries; wrong-old-document serving was not claimed. |
 
 These are locally reproduced on production builds of the isolated worker stack. Shared deployment
 revision, edge mitigations and delivery parity remain unverified; no independent model confirmation
@@ -23,15 +24,9 @@ public failure/hash-work normalization for F-C23-003 under those controls. Prese
 work, legitimate recovery and trusted proxy identity. An edge limiter alone does not prove protection
 unless its configured budgets prevent exhaustion. No fixes were implemented.
 
-## Candidate outside accepted totals
-
-[F-C70-001: restore cache-deletion errors are masked](findings/C70-ops.md), provisional Medium,
-reproduced against the exact helper with a permissions fault and writable positive control.
-
-This candidate requires a filesystem failure and retained readable cache entries during restore or
-undo. It is not a demonstrated default-deployment failure. The current code continues after the
-deletion error; cache keys reuse numeric version IDs across database replacements. Full-stack impact
-validation is pending. No product fix was made.
+No unreviewed candidate currently sits outside accepted totals. F-C70-001 remains conditional on a
+filesystem deletion fault and retained readable entries; no default-deployment incident or
+wrong-old-document serving was established. No product fix was made.
 
 ## Evidence and scope
 
@@ -42,9 +37,10 @@ validation is pending. No product fix was made.
 - [Reconciliation](continuation-2026-10-25.md): earlier reports, candidates and fixes are kept distinct
   from current-source evidence. The three authentication findings were revalidated; four
   other candidates have fixes present in current source, with current regression/parity checks pending.
-- [Operations review](C70-ops.md): **95 mock/kernel-lock checks**, updater transactions and
-  **104 real-stack restore interruption/recovery checks** passed. Successful restoration does not
-  cover the candidate's failed-deletion path. All runtime data was synthetic and disposable.
+- [Operations review](C70-ops.md): **95 mock/kernel-lock checks**, updater transactions,
+  **104 successful-restore checks**, and a **107-check fault-injected full-stack run** passed.
+  The run confirmed the masked cache-delete failure, live restart, fresh cache writes and repair/
+  confirm/discard controls. All runtime data was synthetic and disposable.
 - [Current baseline](scans/current-baseline.md): lint, types, format, **1,867 unit tests** and
   **339 integration tests** passed; production/migration builds passed. Complementary HTTP runs
   cover **481 passing cases**, including both named no-SMTP complements; the original full run failed

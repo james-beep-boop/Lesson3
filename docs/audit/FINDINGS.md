@@ -1,7 +1,8 @@
 # Current audit findings index
 
 Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`, v1.07 product source. **Partial audit.**
-Accepted counts are one Medium and two Low, all previously known/deferred and locally reproduced.
+Accepted counts are two Medium and two Low; the three authentication findings were previously
+known/deferred, and F-C70-001 is a new conditional operations finding.
 The sole-auditor constraint is recorded in SUMMARY.md; independent review is not claimed.
 
 | ID | Severity | Evidence | Known status | Recheck / disposition |
@@ -9,12 +10,12 @@ The sole-auditor constraint is recorded in SUMMARY.md; independent review is not
 | [F-C23-001](findings/C23-auth-current.md) | Medium | Local production-stack global-budget attack, high confidence | Known | Accepted after source/control recheck; previously deferred redesign |
 | [F-C23-002](findings/C23-auth-current.md) | Low | Local targeted-budget attack, high confidence | Known | Accepted after source/control recheck; previously deferred redesign |
 | [F-C23-003](findings/C23-auth-current.md) | Low | Local timing and locked-message controls, high confidence | Known | Accepted after installed-source/control recheck; previously deferred redesign |
+| [F-C70-001](findings/C70-ops.md) | Medium | Exact helper and isolated full-stack fault run, high confidence for masked deletion failure | New | Accepted after sole-auditor full-stack recheck; conditional on retained readable cache entries |
 
 ## Candidates outside accepted totals
 
-| ID | Provisional severity | Evidence / remaining uncertainty |
-|---|---|---|
-| [F-C70-001](findings/C70-ops.md) | Medium | Exact helper masks deletion failure, locally reproduced; full restore/export/undo consequence and final recheck pending |
+None currently. Remaining leads and coverage gaps are tracked in the chunk register and progress
+report; they are not counted as findings.
 
 ## Previously fixed and unresolved premises
 

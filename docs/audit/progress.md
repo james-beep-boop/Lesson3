@@ -40,13 +40,13 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C61 | Accessibility | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C62 | Performance + load | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C63 | Functional bug hunt | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C70 | Deployment + ops | Partial: C70-ops.md;95 mock/lock checks,104 real-stack restore checks and updater transactions passed; F-C70-001 full fault consequence/recheck pending |
+| C70 | Deployment + ops | Partial: C70-ops.md;95 mock/lock checks,104 successful-restore checks, and a 107/107 read-only-cache fault-injected full-stack run passed; F-C70-001 accepted Medium conditional on retained readable cache entries; deployment parity remains pending |
 | C71 | Docs drift | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C72 | Test-suite quality | Partial: current focused HTTP suites now include apiErrorMessages 3/3 with concrete 409/403/404 error-contract assertions; current access/taxonomy/plan-identity integration adds 37/37 and recovery/migration integration adds 79/79; full test-quality review remains pending |
 | C80 | Cross-cutting reconciliation | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C81 | Vertical-flow pass | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C82 | Blind cross-model review | Independent cross-family blind pass waived by direct operator instruction; replace with a labelled sole-auditor missed-issue sweep; not yet run |
-| C83 | Synthesis + change sweep + roadmap | Working SUMMARY.md and FINDINGS.md published; accepted known auth findings M/L/L; restore candidate separate; remaining coverage and final remote-main sweep pending |
+| C83 | Synthesis + change sweep + roadmap | Working SUMMARY.md and FINDINGS.md published; accepted findings M/M/L/L including conditional restore cache deletion; remaining coverage and final remote-main sweep pending |
 
 ## Completion gates
 

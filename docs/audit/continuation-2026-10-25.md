@@ -90,7 +90,7 @@ Next actions:
 
 ## Subsequent current-baseline evidence
 
-See C20-current-surface.md, C22-current-native.md, C23-current-auth.md and C30-current-save.md. The prior authentication findings are revalidated and accepted with sole-auditor rechecks, not newly discovered or independently reviewed in this cycle. The separate normal restore-stack suite passed104 checks and tore down its target; F-C70-001 still needs an actual deletion-fault/colliding-ID restoration/export reproduction.
+See C20-current-surface.md, C22-current-native.md, C23-current-auth.md and C30-current-save.md. The prior authentication findings are revalidated and accepted with sole-auditor rechecks, not newly discovered or independently reviewed in this cycle. The separate normal restore-stack suite passed 104 checks and tore down its target; the subsequent 107/107 fault-injected full-stack run accepted F-C70-001 for the masked deletion failure and live restart consequence. A wrong-old-document claim still requires a retained valid artifact with a colliding restored ID and is not made.
 
 
 Current C40/C41 evidence is in their named reports:35 HTTP requests across26 prepared upload groups,

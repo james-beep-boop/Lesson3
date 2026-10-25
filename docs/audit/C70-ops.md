@@ -18,7 +18,7 @@
 
 Inspected installer and complete updater, backup generation/upload/pruning, shared environment
 reader, and restore helpers through forward swap and undo (restore source through line 410).
-Remaining restore dispatch/validation paths have not yet been reviewed in this continuation.
+The restore dispatch/validation paths were exercised again in the isolated full-stack run below.
 Inspected the release Compose template and the relevant fast/real-stack restore cache assertions.
 Read artifact cache identity/read semantics and authenticated version-export cache usage for the
 invalidation boundary; this is not full generator or endpoint coverage.
@@ -31,8 +31,9 @@ invalidation boundary; this is not full generator or endpoint coverage.
   backup records, validates positive retention values and checks local destination mount identity.
   Actual restoreability, external-media behavior and remote retention correctness remain unverified.
 - Restore stages database replacement and retains the prior database. Forward and undo paths both
-  depend on successful export-cache invalidation before restarting writers. F-C70-001 records a
-  locally reproduced failure of that dependency; accepted findings remain zero.
+  depend on successful export-cache invalidation before restarting writers. F-C70-001 records the
+  masked deletion failure and its full-stack consequence; the accepted risk remains conditional on
+  a retained readable cache entry and a deletion fault.
 
 ## Execution
 
@@ -51,12 +52,21 @@ using the current production/migration images. A private copy changed only repos
 resolution, Compose project and tools-image names for isolation; assertions and product scripts
 were unchanged. It exercised staging, migration boundaries, interruptions, retained connections,
 forward/undo recovery, startup failure, confirmation/discard and successful cache invalidation.
-Its dedicated target was torn down. It did not inject a cache-deletion failure, so F-C70-001 still
-needs full restore/export consequence validation.
+
+The final private fault run used the same isolated stack and current images, with one read-only bind
+mounted at `probe-stale.bin` in the named artifact-cache volume. Its exact harness SHA-256 is
+`26008736ac17c6bdef48b7d6d2d4ce4f929d062c75828278f0e8051aba469d42`; raw output is retained at
+`/home/james/.local/share/lesson3-audit/2026-10-25-bd5f078/logs/c70-cache-fault-stack-bind-final2.log`.
+The run passed **107 checks, zero failures**, exit 0. The restore helper continued after the cache
+delete returned `Resource busy`, left the stale entry mounted, restarted the app, and the real
+`verify-stage2-export.ts` producer wrote fresh artifacts into the same named volume. The repair
+path removed the injected mount/placeholder, `--confirm` and `--discard-previous` completed, and the
+drill left no journal. The disposable project was torn down; the primary Mailpit target remained
+healthy and unlocked.
 
 ## Resume
 
-Review restore dispatch/validation and deployment/CI/Docker source; run the existing deterministic
-ops suites after checking their isolation. Validate F-C70-001 with full restore/undo and review.
-Keep cross-operation backup/update/restore serialization as an unverified lead until its required
-interleavings and intended policy are established. Deployment edge/header parity is pending.
+Review deployment/CI/Docker source and cross-operation backup/update/restore serialization. The
+F-C70-001 recheck is complete for the masked helper failure and live restart consequence; serving a
+wrong old document requires a retained valid artifact with a colliding restored version ID and was
+not claimed by this run. Deployment edge/header parity is pending.
