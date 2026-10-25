@@ -4,7 +4,8 @@
  * Found 2026-10-08: the Next.js 16.4.0 production build emitted Payload's error classes anonymously, so every
  * thrown `APIError` serialised as `{ errors: [{ message: 'An unknown error occurred.' }] }` and the Manage
  * page lost its guard messages. Nothing at the Local-API or unit level can see this — only the built app.
- * `src/lib/restoreErrorClassNames.ts` is the fix; these tests are why a regression would not ship.
+ * It was worked around with `turbopackMinify: false` until Payload 3.92.0 set every error's `name` explicitly
+ * (payloadcms/payload#18775); minification is back on, and these tests are why a regression would not ship.
  *
  * HOW IT RUNS: same as `endpoints.http.spec.ts` (running production-mode app; `E2E_BASE_URL`).
  */
