@@ -36,9 +36,12 @@ F-C24-001 (favorite on a missing version answered 500) fixed with tests; `dev-se
 10 minutes after; `/login` 200. **Still open:** the manual checks of the lock warning and Take over
 from two accounts, and one change in Manage → Users.
 
-**First job on return: Payload 3.92.0** (checklist under "Pending: Payload 3.92.0" below), then
-the dependency-review follow-ups each as its own change (`turbopackMinify`, React 19.3, the majors).
-Held back from v1.05 on purpose: it touches the typing patch, which needs the Rock benchmark.
+**Payload 3.92.0 is in (#448, release v1.06).** The six packages moved together, the `undici`
+override is gone, the typing patch applied unchanged, and the Rock benchmark showed no change from
+v1.05 (40–48 ms per key on both). Results: DECISIONS 2026-10-25 "Payload 3.92.0 tested".
+**First job on return:** the dependency-review follow-ups, each as its own change. Start with
+`turbopackMinify: false`, which can now go because 3.92.0 contains payloadcms/payload#18775 (prove it
+with `apiErrorMessages.http.spec.ts` against a built app). Then React 19.3 and the majors.
 
 **Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
 evidence, L-C23-01) merged into it 2026-10-25, so no audit PR is open. Not started: the rest of the
@@ -99,17 +102,11 @@ password manager.
 because new high advisories had turned `audit:prod` red. Why each was accepted, and when each
 override comes out, is in DECISIONS 2026-10-24.
 
-**Pending: Payload 3.92.0** (released 2026-10-22). Not yet taken; do it as its own change **after
-the application audit cycle**, which is pinned to Payload 3.91.0. Checklist:
-
-- Move `payload` and all five `@payloadcms/*` packages together.
-- Re-derive or confirm the #436 typing patch strings. `patch-payload-ui.mjs` says they also match
-  3.92.0; the install fails loudly if not. Then re-run the Rock typing benchmark.
-- **Remove the `undici` override**: 3.92.0 pins 7.30.1.
-- **Keep the `happy-dom` override**: 3.92.0 still uses Lexical 0.50.0, and 0.52.0 still wants 20.x.
-- Check whether 3.92.0 contains payloadcms/payload#18775. If it does, drop `turbopackMinify: false`
-  as a separate follow-up (see "Open from the dependency review" below).
-- Full gate, plus the browser tests on the version edit page.
+**Done: Payload 3.92.0** (#448, v1.06). On the next Payload upgrade, follow the same checklist:
+move `payload` and all five `@payloadcms/*` packages together; confirm or re-derive the #436 patch
+strings (the install fails loudly if they no longer match) and re-run the Rock typing benchmark; review
+each override; full gate plus the browser tests on the version edit page. ⚑ Check the `rowlabel` patch
+in the served chunk by its code (`Ge()`, not `bf()`): Turbopack strips its marker comment.
 
 **Application audit in progress** on branch `audit/2026-10-24-review` (PR #437, never meant to
 merge). Two authorization candidates are confirmed at runtime and await Codex's author response:
@@ -252,11 +249,9 @@ once per account (#420), Grades 1–12 (#421), dependency maintenance and Node 2
   - checking that nothing stored depends on the old `PAYLOAD_SECRET`.
 
   From v1.01's notes: have the updater print the release's ⚑ operator notes.
-- Open from the dependency review: drop `turbopackMinify: false` once a Payload 3.x release ships
-  payloadcms/payload#18775, which is merged on 3.x but unreleased (do it as its own change after the
-  Payload bump); React 19.3 and the majors (Sentry 11, jsdom 30, …) each as their own change.
-  Playwright 1.64 is done (#429). The Payload bump itself is now 3.92.0; see "Pending: Payload 3.92.0"
-  above.
+- Open from the dependency review: drop `turbopackMinify: false` (Payload 3.92.0 ships
+  payloadcms/payload#18775); React 19.3 and the majors (Sentry 11, jsdom 30, …) each as their own
+  change. Playwright 1.64 is done (#429), and Payload 3.92.0 is done (#448).
 
 **Earlier (2026-10-21):** Mark (ARES) answered the open Insert link questions; the fix merged as #424
 (`8ed85a2`). Tracker addresses are kept as copied (unwrapping
