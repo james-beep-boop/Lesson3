@@ -8,9 +8,12 @@
  * surfaces" a property of the token rather than a property of two roots that happen to agree today.
  * A future change to either root must not silently rescale the shared system.
  *
- * Per-surface palettes stay native (frontend `--line`/`--muted`, admin `--theme-*`) — the admin
- * follows light/dark and cannot take a fixed hex. Only the brand accent and the three button-system
- * palette values are shared. Scale is shared; colour is not.
+ * Colour (2026-10-25): the semantic palette below (`--app-text`, `--app-border`, …) is the one set of
+ * colour ROLES both surfaces write against. Its values are the frontend's. The admin still re-points
+ * each role at the Payload `--theme-*` value it used before (a temporary block at the top of
+ * `custom.scss`), so introducing the names changed no rendered colour; the navigation and dialog
+ * changes that follow choose one look per role and delete those re-pointings. Button colours stay in
+ * the `--app-btn-*` tokens and are deliberately NOT expressed through these roles yet.
  */
 :root {
   /* ── Type scale ─────────────────────────────────────────────────────────────────────────────
@@ -149,6 +152,22 @@
   --app-diff-delete-ink: #9b1c1c; /* on its own chip ~7.4:1 */
   --app-diff-create-bg: #def7e4;
   --app-diff-create-ink: #046c4e; /* on its own chip ~5.3:1 */
+
+  /* ── Semantic palette (2026-10-25) ──────────────────────────────────────────────────────────
+     Roles, not colours: write `color: var(--app-text-muted)`, never a hex, in either stylesheet.
+     Values are the frontend's (`--ink`, `--muted`, `--line`, … in styles.css are aliases of these).
+     ⚑ The admin overrides five of them, temporarily, to keep its old Payload values — see the top of
+     custom.scss. Remove an override only in a change that means to alter how the admin looks. */
+  --app-text: #1a1a1a;
+  --app-text-muted: #666;
+  --app-border: #e2e2e2;
+  /* Gridlines that carry document structure — WCAG 1.4.11 wants 3:1; #8c8c8c is 3.35:1 on white. */
+  --app-border-strong: #8c8c8c;
+  --app-surface: #fff;
+  --app-surface-soft: #f6f7f8;
+  --app-on-accent: #fff; /* text on an --app-accent fill */
+  --app-danger: #b00020;
+  --app-radius: 6px;
 }
 
 /*

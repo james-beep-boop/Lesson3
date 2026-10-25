@@ -1,18 +1,19 @@
 /* "The App" frontend — clean, lean, role-tailored UI (SPEC §13). Light theme. */
 
+/* The frontend's short names for the shared semantic palette (app-tokens.scss, 2026-10-25). The values
+   live there; these aliases keep every existing rule in this file unchanged. */
 :root {
-  --ink: #1a1a1a;
-  --muted: #666;
-  --line: #e2e2e2;
-  /* Gridlines that carry document structure (rendered lesson tables) — WCAG 1.4.11 wants 3:1 for
-     meaningful graphics; hairline dividers stay --line. #8c8c8c is 3.35:1 on white. (D6) */
-  --line-strong: #8c8c8c;
-  --bg: #fff;
-  --bg-soft: #f6f7f8;
+  --ink: var(--app-text);
+  --muted: var(--app-text-muted);
+  --line: var(--app-border);
+  /* Gridlines that carry document structure (rendered lesson tables); hairline dividers stay --line. (D6) */
+  --line-strong: var(--app-border-strong);
+  --bg: var(--app-surface);
+  --bg-soft: var(--app-surface-soft);
   --accent: var(--app-accent); /* shared brand token (app-tokens.scss) */
-  --accent-ink: #fff;
-  --danger: #b00020;
-  --radius: 6px;
+  --accent-ink: var(--app-on-accent);
+  --danger: var(--app-danger);
+  --radius: var(--app-radius);
 }
 
 /* Inline error text (form/action failures). One token, one class — was three copies of a hardcoded
