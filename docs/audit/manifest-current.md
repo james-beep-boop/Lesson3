@@ -240,18 +240,18 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/endpoints/forgotPassword.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/markMessagesRead.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/moderate.ts` | C5.3–C5.5 | Pending review |
-| `app/src/endpoints/parseFormat.ts` | C5.3–C5.5 | Pending review |
-| `app/src/endpoints/previewParse.ts` | C5.3–C5.5 | Pending review |
+| `app/src/endpoints/parseFormat.ts` | C5.3–C5.5 | Source read 1–39; C40-current-ingest.md; runtime assurance partial |
+| `app/src/endpoints/previewParse.ts` | C5.3–C5.5 | Source read 1–80; C40-current-ingest.md; runtime assurance partial |
 | `app/src/endpoints/previewShared.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/previewVersion.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/recovery.ts` | C5.3–C5.5 | Pending review |
-| `app/src/endpoints/recoveryParse.ts` | C5.3–C5.5 | Pending review |
+| `app/src/endpoints/recoveryParse.ts` | C5.3–C5.5 | Source read 1–149; C40-current-ingest.md; runtime assurance partial |
 | `app/src/endpoints/requestEditing.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/resourceLibrary.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/respond.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/serverTime.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/systemSettingsSave.ts` | C5.3–C5.5 | Pending review |
-| `app/src/endpoints/uploadBundles.ts` | C5.3–C5.5 | Pending review |
+| `app/src/endpoints/uploadBundles.ts` | C5.3–C5.5 | Source read 1–151; C40-current-ingest.md; runtime assurance partial |
 | `app/src/endpoints/userAdminActions.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/userAssignments.ts` | C5.3–C5.5 | Pending review |
 | `app/src/endpoints/userSearch.ts` | C5.3–C5.5 | Pending review |
@@ -273,7 +273,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/generator/htmlDiffCache.ts` | C5.8 | Pending review |
 | `app/src/generator/htmlSectionsCache.ts` | C5.8 | Pending review |
 | `app/src/generator/index.ts` | C5.8 | Pending review |
-| `app/src/generator/previewBundle.ts` | C5.8 | Pending review |
+| `app/src/generator/previewBundle.ts` | C5.8 | Source read 1–71; C40-current-ingest.md; runtime assurance partial |
 | `app/src/generator/proseLinks.ts` | C5.8 | Pending review |
 | `app/src/generator/renderVersion.ts` | C5.8 | Pending review |
 | `app/src/generator/vendor/LICENSE` | C5.8 | Vendor: provenance, byte fidelity, dependencies and boundary checks required; manual exclusion pending |
@@ -294,19 +294,19 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/hooks/messageReference.ts` | C5.6 | Pending review |
 | `app/src/hooks/mutationAuthority.ts` | C5.6 | Pending review |
 | `app/src/hooks/userRoles.ts` | C5.6 | Pending review |
-| `app/src/ingest/ares-contract.schema.json` | C5.2 | Pending review |
-| `app/src/ingest/contentEquality.ts` | C5.2 | Pending review |
-| `app/src/ingest/contract.ts` | C5.2 | Pending review |
-| `app/src/ingest/errors.ts` | C5.2 | Pending review |
-| `app/src/ingest/extract.ts` | C5.2 | Pending review |
-| `app/src/ingest/index.ts` | C5.2 | Pending review |
-| `app/src/ingest/releaseAncestry.ts` | C5.2 | Pending review |
-| `app/src/ingest/releaseFingerprintContext.ts` | C5.2 | Pending review |
-| `app/src/ingest/resourceLinks.ts` | C5.2 | Pending review |
-| `app/src/ingest/taxonomy.ts` | C5.2 | Pending review |
-| `app/src/ingest/toBundle.ts` | C5.2 | Pending review |
-| `app/src/ingest/uploadFiles.ts` | C5.2 | Pending review |
-| `app/src/ingest/validateGeneratable.ts` | C5.2 | Pending review |
+| `app/src/ingest/ares-contract.schema.json` | C5.2 | Source read 1–244; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/contentEquality.ts` | C5.2 | Source read 1–35; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/contract.ts` | C5.2 | Source read 1–156; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/errors.ts` | C5.2 | Source read 1–15; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/extract.ts` | C5.2 | Source read 1–274; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/index.ts` | C5.2 | Source read 1–835; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/releaseAncestry.ts` | C5.2 | Source read 1–73; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/releaseFingerprintContext.ts` | C5.2 | Source read 1–33; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/resourceLinks.ts` | C5.2 | Source read 1–224; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/taxonomy.ts` | C5.2 | Source read 1–144; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/toBundle.ts` | C5.2 | Source read 1–54; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/uploadFiles.ts` | C5.2 | Source read 1–259; C40-current-ingest.md; runtime assurance partial |
+| `app/src/ingest/validateGeneratable.ts` | C5.2 | Source read 1–157; C40-current-ingest.md; runtime assurance partial |
 | `app/src/instrumentation.ts` | C5.13/C71 | Pending review |
 | `app/src/jobs/emailVersionArtifact.ts` | C5.7 | Pending review |
 | `app/src/jobs/expireEditRecovery.ts` | C5.7 | Pending review |
@@ -340,7 +340,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/discussionText.ts` | C5.9 | Pending review |
 | `app/src/lib/discussions.ts` | C5.9 | Pending review |
 | `app/src/lib/displayTitle.ts` | C5.9 | Pending review |
-| `app/src/lib/domWindow.ts` | C5.9 | Pending review |
+| `app/src/lib/domWindow.ts` | C5.9 | Source read 1–17; C40-current-ingest.md; runtime assurance partial |
 | `app/src/lib/editRecovery/draftCombineSuggestion.ts` | C5.9 | Pending review |
 | `app/src/lib/editRecovery/kernel.ts` | C5.9 | Pending review |
 | `app/src/lib/editRecovery/projection.ts` | C5.9 | Pending review |
@@ -381,7 +381,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/renderTimings.ts` | C5.9 | Pending review |
 | `app/src/lib/requestedVersion.ts` | C5.9 | Pending review |
 | `app/src/lib/resolveLessonReferences.ts` | C5.9 | Pending review |
-| `app/src/lib/sanitizeHtml.ts` | C5.9 | Pending review |
+| `app/src/lib/sanitizeHtml.ts` | C5.9 | Source read 1–77; C40-current-ingest.md; runtime assurance partial |
 | `app/src/lib/semver.ts` | C5.9 | Pending review |
 | `app/src/lib/serverActionBodyLimit.ts` | C5.9 | Pending review |
 | `app/src/lib/session.ts` | C5.9 | Pending review |

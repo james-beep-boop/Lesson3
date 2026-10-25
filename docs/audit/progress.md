@@ -19,8 +19,8 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 | C24 | Discussions/messages/favorites/recovery | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C30 | Version write-path analysis | Partial: C30-current-save.md;118 real save checks,8 candidates cleaned; all write paths/concurrency/recovery/Combine reconciliation pending |
 | C31 | Immutability attack run | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C40 | Ingest code review | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C41 | Malicious upload corpus | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C40 | Ingest code review | Partial: C40-current-ingest.md; 20 full source files reviewed, selected tests read, standalone contract gate16/16; dependency/CLI/fault/concurrency/sink checks pending |
+| C41 | Malicious upload corpus | Partial: C41-current-corpus.md;54 files/26 groups,35 web requests,29 static-extractor cases passed; monitored205MiB expansion rejected; remaining corpus/body/sink/transaction checks pending |
 | C42 | Export fidelity + robustness | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.1 | Authorization core | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
 | C5.2 | Ingest & upload boundary | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |

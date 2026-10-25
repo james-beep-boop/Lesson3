@@ -48,6 +48,9 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Save boundary | `npx tsx tests/audit/c30-save-matrix.ts`; eight candidates created/deleted; clean two-plan fixture required for exact patch controls |
 | Targeted auth budget | `npx tsx tests/audit/c23-auth-budgets.ts`; `LESSON3_AUDIT_AUTH_MODE=target` |
 | Global auth budget | Same, mode `global`; at most 1,005 requests, concurrency four, 120-second deadline |
+| Generate upload corpus | `node tests/audit/c41-generate.mjs`; network disabled; absolute private `LESSON3_AUDIT_CORPUS_DIR` outside `/app` |
+| Web upload corpus | `node tests/audit/c41-web-corpus.mjs`; private corpus/fixture/result paths; optional `LESSON3_AUDIT_CORPUS_GROUP` narrows non-control groups; imports/deletes candidate plans |
+| Static CLI extractor corpus | `npx tsx tests/audit/c41-cli-corpus.ts`; private result path, network disabled, no database |
 | Timing/lockout | `npx tsx tests/audit/c23-enumeration.ts`; three wrong passwords per each of three roles, then one account to six attempts |
 
 Restore the approved synthetic dump before/after every auth probe and prove role readiness afterwards.

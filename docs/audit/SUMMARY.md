@@ -56,6 +56,10 @@ validation is pending. No product fix was made.
   failure was distinguished from reaching the immutable-write guard.
 - [Save boundary](C30-current-save.md): **118 checks** passed across both scopes, field split,
   resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
+- [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
+  source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
+  static-extractor cases passed. Monitored205MiB expansion refused; lesson/taxonomy state restored.
+  Body framing, fault/concurrency and browser sinks remain open; observations are not new findings.
 - [Resolved surface inventory](scans/surface-current.md): 16 collections, two globals, four root
   endpoints and five tasks. All **43 catalog chunks** remain tracked in [progress.md](progress.md).
 

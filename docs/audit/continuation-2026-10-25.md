@@ -91,3 +91,16 @@ Next actions:
 ## Subsequent current-baseline evidence
 
 See C20-current-surface.md, C22-current-native.md, C23-current-auth.md and C30-current-save.md. The prior authentication findings are revalidated and accepted with sole-auditor rechecks, not newly discovered or independently reviewed in this cycle. The separate normal restore-stack suite passed104 checks and tore down its target; F-C70-001 still needs an actual deletion-fault/colliding-ID restoration/export reproduction.
+
+
+Current C40/C41 evidence is in their named reports:35 HTTP requests across26 prepared upload groups,
+29 static-extractor cases, contract CLI16/16, plus a narrowly repeated monitored expansion case.
+All expected checks passed and original lesson/taxonomy documents matched after cleanup. Five
+transport/encoding/archive observations are separated from accepted findings; CRC omission is an
+explicit documented decision. Runtime helper source copies/hashes were captured before formatting.
+The first resource sampler was too late; only the labelled follow-up has in-flight samples.
+
+Quota note update: the current session's token-count event now exposes an actual primary allowance
+window, last observed14% used of a10,080-minute window. This supersedes the earlier CLI-only
+unknown-allowance observation, does not measure all possible limits, and is tracked privately.
+No API billing fallback is authorized or used. Continue after bounded checkpoints.
