@@ -13,3 +13,8 @@ Fixture teardown completed and the target lock was clear; raw output is private 
 
 This is focused export endpoint evidence. It does not close the wider export fidelity, generator,
 PDF/browser, queue or deployment-parity catalog.
+
+The focused `endpoints.http.spec.ts -t "JSON export"` selection also passed **3 tests** in 2.73
+seconds (121 other tests skipped; exit 0), covering unauthenticated and unknown-version refusal and
+an authenticated Teacher's Standard AReS JSON download. Raw output is private at
+`logs/c54-json-export-http.log`.

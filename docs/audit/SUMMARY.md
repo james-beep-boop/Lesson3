@@ -97,8 +97,8 @@ validation is pending. No product fix was made.
   job-statistics role/read-write cases and three concrete 409/403/404 error-message cases; broader
   jobs, error taxonomy and test-quality coverage remains open.
 - [Export endpoint](C54-export-endpoint-current.md): the focused current selection passed six
-  DOCX/PDF job, authentication, poll-binding and deduplication cases; broader export fidelity and
-  queue coverage remains open.
+  DOCX/PDF job, authentication, poll-binding and deduplication cases, plus three AReS JSON export
+  cases; broader export fidelity and queue coverage remains open.
 - [Assignment provenance](C5-assignment-provenance-current.md): the current integration suite passed
   three server-stamped grantor/time and relationship-depth cases; broader authorization and utility
   review remains open.
