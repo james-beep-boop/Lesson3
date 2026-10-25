@@ -99,7 +99,8 @@ validation is pending. No product fix was made.
 - [Export endpoint](C54-export-endpoint-current.md): the focused current selection passed six
   DOCX/PDF job, authentication, poll-binding and deduplication cases, plus three AReS JSON export
   and eight per-document serve-only/tag cases; broader export fidelity and queue coverage remains
-  open.
+  open. The focused Preview endpoint selection added five stored/unsaved gate, overlay, structural
+  refusal and script-free HTML cases.
 - [Assignment provenance](C5-assignment-provenance-current.md): the current integration suite passed
   three server-stamped grantor/time and relationship-depth cases; broader authorization and utility
   review remains open.

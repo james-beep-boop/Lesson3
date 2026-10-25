@@ -23,3 +23,8 @@ The focused `endpoints.http.spec.ts -t "per-document export"` selection passed *
 8.96 seconds (116 other tests skipped; exit 0), covering authentication and tag validation, cold
 serve-only refusal, warm DOCX attachment and warm PDF inline delivery, and missing-deliverable
 handling. Raw output is private at `logs/c54-per-document-export-http.log`.
+
+The focused `endpoints.http.spec.ts -t "Preview endpoint"` selection passed **5 tests** in 2.78
+seconds (119 other tests skipped; exit 0), covering unauthenticated/read-only and editing gates,
+stored and unsaved prose overlays, structural-change refusal, and script-free preview behavior. Raw
+output is private at `logs/c54-preview-endpoint-http.log`.
