@@ -23,6 +23,19 @@ editor validation refuses malformed structural edits; recovery/Combine UI bounda
 ownership and merge constraints; idle logout clears visible unsaved-work state; navigation freshness
 uses uncached server state; signup trust and upload helpers enforce their shape/size boundaries; and
 system feature/flag views preserve their state contracts. This closes one real Chromium
-editor-validation flow. Browser navigation breadth, real cookies/CSRF across roles, WebKit
-rendering, accessibility, visual consistency, and full component coverage remain open in
-C5.11/C60/C61.
+editor-validation flow.
+
+The CI-equivalent Chromium run of `tests/e2e/manage.e2e.spec.ts` reached **37/38** tests before one
+assertion failed on all retries. The failing assertion expected `Awaiting approval` for a synthetic
+unverified account, while the rendered state was `Teacher · Unverified`. This is a test-environment
+contract mismatch, not a product finding: the target app was intentionally running with Mailpit
+(`SMTP_HOST=mail`), and `AdminDashboard` derives `emailEnabled` from that variable before passing it
+to `UsersPanel`; `UsersPanel` consequently renders `Unverified` and offers `Mark verified`. The test
+comment and assertion hard-code the no-SMTP branch. The raw log is retained privately at
+`logs/c5-11-manage-e2e-ci-image.log` (SHA-256
+`46f7acc1f7c672e1d83160d2ab412e38dd7c66ace22e4384c996acc6b7240219`). The 37 passing tests still
+exercise account actions, roles, system panels, taxonomy and self display-name behavior. The
+no-SMTP branch needs a separately configured app target before this browser contract can be credited.
+
+Browser navigation breadth, real cookies/CSRF across roles, WebKit rendering, accessibility, visual
+consistency, and full component coverage remain open in C5.11/C60/C61.

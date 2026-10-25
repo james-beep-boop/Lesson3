@@ -490,7 +490,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/e2e/insertLink.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/lessonDetails.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/liveRowLabels.e2e.spec.ts` | C72 | Pending review |
-| `app/tests/e2e/manage.e2e.spec.ts` | C72 | Pending review |
+| `app/tests/e2e/manage.e2e.spec.ts` | C72 | 37/38 CI-equivalent Chromium tests; one no-SMTP assertion run against Mailpit target (harness contract mismatch; see C511-client-current.md) |
 | `app/tests/e2e/messages.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/offlineSignup.e2e.spec.ts` | C72 | Pending review |
 | `app/tests/e2e/publicLibraryDisabled.e2e.spec.ts` | C72 | Pending review |

@@ -92,6 +92,13 @@ Next actions:
 
 See C20-current-surface.md, C22-current-native.md, C23-current-auth.md and C30-current-save.md. The prior authentication findings are revalidated and accepted with sole-auditor rechecks, not newly discovered or independently reviewed in this cycle. The separate normal restore-stack suite passed 104 checks and tore down its target; the subsequent 107/107 fault-injected full-stack run accepted F-C70-001 for the masked deletion failure and live restart consequence. A wrong-old-document claim still requires a retained valid artifact with a colliding restored ID and is not made.
 
+The CI-equivalent Chromium Manage run reached 37/38 tests. Its only failure was the test's hard-coded
+no-SMTP `Awaiting approval` assertion against the Mailpit-enabled audit target, which correctly
+rendered `Unverified` and offered `Mark verified`; the CI workflow's synthetic `.env` omits SMTP, so
+this is recorded as a harness contract mismatch rather than a product finding. A separately configured
+no-SMTP app target is still needed to credit that branch. See C511-client-current.md for the raw-log
+hash and source-contract evidence.
+
 
 Current C40/C41 evidence is in their named reports:35 HTTP requests across26 prepared upload groups,
 29 static-extractor cases, contract CLI16/16, plus a narrowly repeated monitored expansion case.
