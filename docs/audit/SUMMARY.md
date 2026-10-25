@@ -78,6 +78,9 @@ validation is pending. No product fix was made.
 - [Server time and worldwide IDs](C5-server-worldwide-current.md): focused wire suites passed five
   server-clock cases and five identifier visibility/uniqueness/immutability cases; broader export,
   data and frontend wiring coverage remains open.
+- [Teacher-key exports](C58-teacher-key-current.md): the current wire suite passed 12 DOCX/PDF
+  archive, exemplar-isolation, attribution and role-gate cases; broader generator and export
+  coverage remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.

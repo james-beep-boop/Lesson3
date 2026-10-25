@@ -537,7 +537,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/http/serverTime.http.spec.ts` | C72 | Current C5.10 wire evidence: C5-server-worldwide-current.md; 5/5 passed |
 | `app/tests/http/subjectGrades.http.spec.ts` | C72 | Current collection wire evidence: C5-subject-grades-current.md; 13/13 passed |
 | `app/tests/http/systemSettings.http.spec.ts` | C72 | Pending review |
-| `app/tests/http/teacherKey.http.spec.ts` | C72 | Pending review |
+| `app/tests/http/teacherKey.http.spec.ts` | C72 | Current C5.4/C5.8 wire evidence: C58-teacher-key-current.md; 12/12 passed |
 | `app/tests/http/userAdminActions.http.spec.ts` | C72 | Current wire evidence: C5-user-admin-actions-current.md; 36/36 passed |
 | `app/tests/http/userAssignments.http.spec.ts` | C72 | Current wire evidence: C5-user-assignments-current.md; 22/22 passed |
 | `app/tests/http/userSearch.http.spec.ts` | C72 | Pending review |
