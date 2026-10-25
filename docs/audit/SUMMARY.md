@@ -61,7 +61,8 @@ validation is pending. No product fix was made.
   authors and monotonic versions; historical-row comparisons and cleanup passed. Full C31 pending.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
-  static-extractor cases passed. Honest declared body ceilings returned 413 on upload, preview and
+  static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked
+  bundle. Honest declared body ceilings returned 413 on upload, preview and
   save-as-new; chunked oversized preview/save/upload bodies returned the application’s 413/400 caps;
   monitored205MiB expansion refused; lesson/taxonomy state restored.
   Approved taxonomy and actual PostgreSQL fault rollback passed; the Chromium preview, DOCX export

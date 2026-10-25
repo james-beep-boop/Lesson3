@@ -106,6 +106,24 @@ Object prototype sentinel remained unchanged after every case. Input strings wer
 
 Plain template strings and constant concatenation are intentionally accepted. Executable top-level
 statements and unexported dynamic initializers are intentionally ignored and never executed.
+
+### CLI ingest entry point
+
+The real operator path was exercised separately in the pinned Node 24 dependency container with the
+marked runtime database and the synthetic `role-control.json` bundle:
+
+```text
+npx payload run scripts/ingest.ts -- /audit-corpus/role-control.json
+```
+
+It exited 0 and reported one new Official `1.0.0` plan (`ZZ_AUDIT_C41_role_control`, plan 27,
+subject-grade 1), with the expected two non-blocking warnings for intentionally empty
+`FINAL_EXPLANATION` sections and `SUMMARY_TABLE` lesson rows. A Payload Local API cleanup then found
+and deleted exactly that marked plan; the remaining marked-plan query returned zero. Direct database
+counts after cleanup were subjects 1, subject-grades 2, lesson plans 2, and versions 2. The first
+attempt to collect an authenticated pre-count hit the already-known login rate limit (429), so this
+is entry-point and cleanup evidence rather than a full before/after fingerprint proof. The raw
+command log and cleanup output remain private.
 The catalog's broad refusal premise must be read in light of this actual contract; accepting those
 inert statements is not proof of code execution. This probe exercises the extractor, not the full
 CLI filesystem/import/transaction entry point.
@@ -179,7 +197,7 @@ manifest hash: `1c13d671e09809cc88b77c51d5c41c4588ee6154074baa82d4acfba732a5c12f
 
 ## Outstanding mandatory checks
 
-Still pending: full CLI path/corpus import; remaining editor/PDF/WebKit/browser sink checks;
+Still pending: full CLI corpus import and multi-file all-or-nothing sweep; remaining editor/PDF/WebKit/browser sink checks;
 remaining taxonomy-consent shapes; reingest and true
 concurrent write behavior; omitted/chunked/misdeclared request bodies and proxy posture; compressed
 archive/body limits and remaining exact boundary/count combinations; real browser verification.

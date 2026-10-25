@@ -95,9 +95,10 @@ The upload taxonomy tests include mocked write-failure rollback and a taxonomy l
 they do not replace an actual PostgreSQL write-fault or simultaneous HTTP request proof.
 These suites were included in the previously recorded baseline unit/integration passes.
 
-The current standalone contract CLI gate returned **16 passed, zero failed, exit 0** in Node24,
-network disabled. [C41](C41-current-corpus.md) adds 35 first-batch web requests, one monitored
-expansion follow-up with role controls, and 29 DB-free extractor cases. No product edits were made.
+The standalone contract CLI gate returned **16 passed, zero failed, exit 0** in Node24, network
+disabled. [C41](C41-current-corpus.md) adds 35 first-batch web requests, one monitored expansion
+follow-up with role controls, 29 DB-free extractor cases, and one real `scripts/ingest.ts` entry
+point import/cleanup. No product edits were made.
 
 The sanitizer seam uses DOMPurify after Mammoth; JSDOM has no `runScripts` or `resources` option.
 That source check does not yet prove every rendered field, route CSP or browser sink. In particular,
