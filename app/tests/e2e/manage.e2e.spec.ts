@@ -963,11 +963,11 @@ test.describe('Manage page', () => {
   })
 
   test('Site Admin can delete a plan from the Delete panel', async ({ page }, testInfo) => {
-    // Dark, so the admin's paired-button row is proved in both themes (Save settings covers light).
+    // A dark-mode device: the admin is pinned light (2026-10-25), so the row is proved on what it sees.
     await page.emulateMedia({ colorScheme: 'dark' })
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
     await openDeletePanel(page)
 
     await page.getByLabel('Search lesson plans to delete').fill(DELETABLE_TITLE)
@@ -983,7 +983,7 @@ test.describe('Manage page', () => {
     await expect(dialog.getByLabel('Type DELETE to confirm')).toHaveCount(0)
     // The admin surface's danger button once carried an extra margin past the row (Codex, #433).
     await expectPairedAtBothWidths(page, dialog, 'Delete', (w) =>
-      testInfo.outputPath(`delete-plans-dark-${w}.png`),
+      testInfo.outputPath(`delete-plans-dark-device-${w}.png`),
     )
     await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 

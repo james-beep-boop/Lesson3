@@ -110,6 +110,10 @@ export default buildConfig({
     // third party. 'default' renders Payload's built-in initials avatar instead; the app's own nav
     // avatar (AppNav) was always initials-based. Surfaced by the Phase 5 A3 browser check.
     avatar: 'default',
+    // One look everywhere (operator, 2026-10-25): the App pages were only ever built light, so Manage and
+    // the editor are pinned light too instead of following the device's dark mode. Payload's default
+    // ('all') switched to dark on a dark-mode device, so the site flipped between themes page to page.
+    theme: 'light',
     // Brand the admin as "ARES Lesson Plans": titleSuffix sets the browser tab; the Icon
     // graphic replaces the nav mark. (The login-page Logo graphic is gone — /admin/login now
     // redirects to the single frontend login, so it was never seen.)
