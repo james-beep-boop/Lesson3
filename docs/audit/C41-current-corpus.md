@@ -124,6 +124,11 @@ counts after cleanup were subjects 1, subject-grades 2, lesson plans 2, and vers
 attempt to collect an authenticated pre-count hit the already-known login rate limit (429), so this
 is entry-point and cleanup evidence rather than a full before/after fingerprint proof. The raw
 command log and cleanup output remain private.
+
+A second CLI batch passed the same marked valid file alongside `key-constructor-root.json`. Its
+pre-flight rejected the prototype-key drift with exit 1 and reported “nothing was written”; direct
+database counts stayed `2|2` for plans and versions, and the marked-plan title query stayed zero.
+This is a bounded all-or-nothing proof, not the full corpus import sweep.
 The catalog's broad refusal premise must be read in light of this actual contract; accepting those
 inert statements is not proof of code execution. This probe exercises the extractor, not the full
 CLI filesystem/import/transaction entry point.

@@ -56,7 +56,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Generate upload corpus | `node tests/audit/c41-generate.mjs`; network disabled; absolute private `LESSON3_AUDIT_CORPUS_DIR` outside `/app` |
 | Web upload corpus | `node tests/audit/c41-web-corpus.mjs`; private corpus/fixture/result paths; optional `LESSON3_AUDIT_CORPUS_GROUP` narrows non-control groups; imports/deletes candidate plans |
 | Static CLI extractor corpus | `npx tsx tests/audit/c41-cli-corpus.ts`; private result path, network disabled, no database |
-| CLI ingest entry point | `npx payload run scripts/ingest.ts -- /audit-corpus/role-control.json`; pinned Node 24 dependency container, marked runtime database, private cleanup through Payload Local API |
+| CLI ingest entry point | `npx payload run scripts/ingest.ts -- /audit-corpus/role-control.json` (plus valid+prototype-key batch); pinned Node 24 dependency container, marked runtime database, private cleanup through Payload Local API |
 | Timing/lockout | `npx tsx tests/audit/c23-enumeration.ts`; three wrong passwords per each of three roles, then one account to six attempts |
 
 Restore the approved synthetic dump before/after every auth probe and prove role readiness afterwards.
