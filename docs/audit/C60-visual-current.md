@@ -17,4 +17,11 @@ were changed.
 
 This is a current measurement, not a before/after comparison. The `menu-states` and `dialogs`
 measurements, full role/route matrix at 360/768/1280px, screenshot review and accessibility checks
-remain open. No C60 finding is accepted from this slice.
+remain open. The follow-up `menu-states.spec.ts` and `dialogs.spec.ts` measurements also passed **1/1**
+each (10.6 seconds each): menu keyboard focus, badges, dropdown/error/button states, and synthetic/
+real Help, Insert-link and mobile dialogs. Their runner hash is
+`0f49c1548955eafa071d537ccd91376e3abe0c3832b0c192320e4ea5f9e7cf05`; the combined log hash is
+`22c2e1772dd30f184aacea81814a11eea2666b05971f64fe27ea846393b9db20`; private result hashes are
+`f9c479a6dcb952283323ec202c4cf30f5aff84e07f967ae64a645a08a15deb1c` and
+`5a42665d5036ed600408826c9a9063a899861d7cec73e278432d976c6488a9a6`. No C60 finding is accepted from
+this slice.

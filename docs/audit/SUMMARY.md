@@ -138,8 +138,10 @@ wrong-old-document serving was established. No product fix was made.
   breadth, accessibility, visual and full component coverage remain open.
 - [Visual consistency](C60-visual-current.md): the computed-style pages measurement passed 1/1 on
   the Mailpit target, covering login, eight authenticated surfaces, account menus and 390px home/
-  Manage layouts. This is a current dump without a before/after comparison; menu/dialog states,
-  full role/route widths, screenshot review and accessibility remain open.
+  Manage layouts. Follow-up menu-states and dialogs measurements passed 1/1 each, covering keyboard
+  focus, badges, dropdown/error/button states and synthetic/real dialogs. These are current dumps
+  without a before/after comparison; full role/route widths, screenshot review and accessibility
+  remain open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; the current discussions integration suite added

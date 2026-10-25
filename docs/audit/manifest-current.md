@@ -585,10 +585,10 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/verifyBackfill.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/worldwideIds.int.spec.ts` | C72 | Current C5.4/C72 integration evidence: C5-data-auth-jobs-current.md; 6/6 passed |
 | `app/tests/style-snapshot/README.md` | C72 | Pending review |
-| `app/tests/style-snapshot/dialogs.spec.ts` | C60/C72 | Pending current dialog measurement |
+| `app/tests/style-snapshot/dialogs.spec.ts` | C60/C72 | 1/1 current Chromium dialog measurement; see C60-visual-current.md |
 | `app/tests/style-snapshot/diff.mjs` | C60/C72 | Source reviewed; current pages dump has no before/after comparison |
 | `app/tests/style-snapshot/kit.ts` | C60/C72 | Current pages measurement passed 1/1 |
-| `app/tests/style-snapshot/menu-states.spec.ts` | C60/C72 | Pending current menu-state measurement |
+| `app/tests/style-snapshot/menu-states.spec.ts` | C60/C72 | 1/1 current Chromium menu-state measurement; see C60-visual-current.md |
 | `app/tests/style-snapshot/pages.spec.ts` | C60/C72 | Current computed-style pages measurement passed 1/1; see C60-visual-current.md |
 | `app/tests/unit/accessScopes.spec.ts` | C72 | Pending review |
 | `app/tests/unit/accordionPanelCount.spec.tsx` | C72 | Pending review |
