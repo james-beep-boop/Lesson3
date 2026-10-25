@@ -574,13 +574,13 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/officialPointerLock.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/personalVersions.int.spec.ts` | C72 | Current C31/C5.4 integration evidence: C31-personal-versions-current.md; 6/6 passed |
 | `app/tests/int/planIdentityImmutable.int.spec.ts` | C72 | Current C31/C72 integration evidence: C72-access-cascades-current.md; 3/3 passed |
-| `app/tests/int/publicPublication.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/rateLimit.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/reingest.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/publicPublication.int.spec.ts` | C72 | Current C5/C72 integration evidence: C5-publication-ratelimit-current.md; 21/21 passed |
+| `app/tests/int/rateLimit.int.spec.ts` | C72 | Current C23/C72 integration evidence: C5-publication-ratelimit-current.md; 5/5 passed |
+| `app/tests/int/reingest.int.spec.ts` | C72 | Current C40/C41/C72 integration evidence: C40-current-ingest.md; 15/15 passed |
 | `app/tests/int/subjectAdminHandover.int.spec.ts` | C72 | Current C5.3 integration evidence: C5-user-assignments-current.md; 3/3 passed |
 | `app/tests/int/systemSettings.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/taxonomyDelete.int.spec.ts` | C72 | Current C31/C72 integration evidence: C72-access-cascades-current.md; 8/8 passed |
-| `app/tests/int/uploadTaxonomy.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/uploadTaxonomy.int.spec.ts` | C72 | Current C40/C41/C72 integration evidence: C40-current-ingest.md; 5/5 passed |
 | `app/tests/int/userSecurity.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/verifyBackfill.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/worldwideIds.int.spec.ts` | C72 | Pending review |

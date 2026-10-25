@@ -42,6 +42,14 @@ server-side pagination and type/status filters, unknown-filter refusal, grant-la
 and absence of authentication secrets in returned rows. Fixture teardown completed; raw output is
 private at `logs/c23-user-search-http.log`.
 
+The current `app/tests/int/rateLimit.int.spec.ts` suite passed **5/5** tests in the same marked
+target. It exercised the shared PostgreSQL rate-limit store for per-user and non-user keys, exact
+bucket exhaustion, `429` and `Retry-After` responses, unauthenticated refusal and independent-key
+isolation. Raw output is private at
+`logs/c5-ingest-public-ratelimit-integrations.log` (the combined bounded integration command); the
+fixture teardown and target lock completed normally. This is direct store/helper evidence, not a
+complete signup, session, edge-proxy or no-SMTP authentication attack run.
+
 Installed Payload 3.92.0 login/hash implementations were independently opened from the pinned deps
 image, and sanitized resolved user auth defaults were checked. A first config-inspection attempt
 using tsx's CJS eval failed on the config's top-level await; the explicit ESM loader command succeeded.

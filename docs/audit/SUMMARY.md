@@ -159,6 +159,10 @@ validation is pending. No product fix was made.
   and Mailpit attachment sink probe passed with script-like prose rendered as inert text. Omitted or
   public proxy body posture, editor/PDF/WebKit coverage and further concurrency remain open. Observations are not
   new findings.
+- [Publication and rate limits](C5-publication-ratelimit-current.md): current integration suites
+  passed 21 publication and five PostgreSQL rate-limit cases, covering slug lifecycle, visibility,
+  current-Official resolution, role/feature gates, bucket exhaustion, 429/Retry-After behavior and
+  key isolation; edge, browser and complete auth deployment coverage remains open.
 - [Resolved surface inventory](scans/surface-current.md): 16 collections, two globals, four root
   endpoints and five tasks. All **43 catalog chunks** remain tracked in [progress.md](progress.md).
 

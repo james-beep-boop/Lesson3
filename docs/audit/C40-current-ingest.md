@@ -100,6 +100,23 @@ disabled. [C41](C41-current-corpus.md) adds 35 first-batch web requests, one mon
 follow-up with role controls, 29 DB-free extractor cases, and one real `scripts/ingest.ts` entry
 point import/cleanup. No product edits were made.
 
+## Re-ingest, taxonomy approval and concurrency — current integration pass
+
+The current `app/tests/int/reingest.int.spec.ts` suite passed **15/15** tests in the marked target.
+It covered first upload creation and artifact pre-warm, same-substrand major-version attachment,
+release ancestry across teacher patches, migration repair, intra-batch duplicate and ambiguous-match
+refusals, empty-identity behavior, corrected-batch no-op handling, latest-version comparison,
+concurrent identical web imports, valid-peer behavior around parse/contract/taxonomy failures,
+all-invalid preflight, and database-lookup rollback. The current
+`app/tests/int/uploadTaxonomy.int.spec.ts` suite passed **5/5**, covering rollback of newly created
+subject/grade rows, same-subject approval serialization, and unnecessary or malformed approval
+refusals. The private combined log is
+`logs/c5-ingest-public-ratelimit-integrations.log`; the target was left clean and unlocked.
+
+These integration cases close the named re-ingest and taxonomy-approval checks exercised here. Full
+CLI corpus coverage, public proxy posture, parser/resource concurrency and browser/editor/PDF sink
+coverage remain open.
+
 The sanitizer seam uses DOMPurify after Mammoth; JSDOM has no `runScripts` or `resources` option.
 That source check does not yet prove every rendered field, route CSP or browser sink. In particular,
 plain strings resembling HTML should stay safe text through generation, rather than being refused
