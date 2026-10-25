@@ -21,8 +21,12 @@ describe('contractDrift — keys named after built-in object properties', () => 
     expect(drift).toContain(`LESSONS[0].${name}: unexpected key`)
   })
 
-  it('still reports a missing required key when only a built-in name is present', () => {
-    const drift = contractDrift({ META: {}, constructor: 'x' })
-    expect(drift.some((d) => d.endsWith('required field missing'))).toBe(true)
+  // ⚑ The required-key half of the same fix. No required key is a built-in name, so a case built
+  // from built-in names passes under `in` as well (review 2026-10-25). What `in` actually got wrong
+  // is an INHERITED key: it counts one as present. An object whose prototype carries META must still
+  // report META missing — under `in` it did not.
+  it('reports a required key as missing when it is only inherited, not own', () => {
+    const inherited = Object.create({ META: {} }) as Record<string, unknown>
+    expect(contractDrift(inherited)).toContain('META: required field missing')
   })
 })

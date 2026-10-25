@@ -54,8 +54,11 @@ reaches a Payload-native element.
 the computed-style dump). In Manage and the editor: the avatar's fill matches the header instead of a
 darker grey, the account dropdown is the soft grey with the lighter shadow instead of white, and the
 Messages and "Change display name" rows are link blue instead of black (Log Out stays ink, D5). The avatar
-badge was already identical; `.app-nav__badge`, the drifted 1.15rem admin badge, is rendered by no
-component and was dropped rather than reconciled. The five temporary colour-role overrides from step 2
+badge also changed in Manage, to the App's geometry: 1.1rem tall with 0.68rem text at -5px, from 1rem,
+0.62rem and -4px. ⚑ Corrected the same day (Codex review): this entry first said the badge "was already
+identical", which was wrong; the state check compared the two surfaces only after the change, and the
+page dump had no unread message to render a badge. Rule: a "no change" or "already identical" claim needs the BEFORE measured in the same state as the after. `.app-nav__badge`, the drifted 1.15rem admin badge, is
+rendered by no component and was dropped rather than reconciled. The five temporary colour-role overrides from step 2
 stay, so the admin's text and greys still differ from the App's by a shade; they go together, separately.
 
 **Proof:** the computed-style dump from step 2, extended with geometry (size, padding, margin, offsets,

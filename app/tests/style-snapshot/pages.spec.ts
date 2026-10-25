@@ -1,0 +1,120 @@
+// dumps computed colours of every element on representative pages.
+import { test } from '@playwright/test'
+import fs from 'node:fs'
+import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
+import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
+
+let fx: RoleFixture
+test.beforeAll(async () => {
+  fx = await setupRoleFixture()
+})
+test.afterAll(async () => {
+  await fx?.teardown()
+})
+
+const OUT = process.env.STYLE_OUT!
+const PROPS = [
+  'color',
+  'background-color',
+  'border-top-color',
+  'border-right-color',
+  'border-bottom-color',
+  'border-left-color',
+  'outline-color',
+  'box-shadow',
+  'border-top-left-radius',
+  'font-size',
+  'text-decoration-color',
+  'fill',
+  'stroke',
+  'width',
+  'height',
+  'padding-top',
+  'padding-right',
+  'padding-bottom',
+  'padding-left',
+  'margin-top',
+  'margin-left',
+  'top',
+  'right',
+  'line-height',
+  'font-weight',
+  'text-align',
+  'vertical-align',
+  'display',
+  'position',
+]
+const dump = async (page: import('@playwright/test').Page) =>
+  page.evaluate((props) => {
+    const path = (el: Element): string => {
+      const parts: string[] = []
+      for (let e: Element | null = el; e && e !== document.documentElement; e = e.parentElement) {
+        parts.unshift(
+          e.tagName.toLowerCase() +
+            (e.classList.length ? '.' + [...e.classList].sort().join('.') : ''),
+        )
+      }
+      return parts.join('>')
+    }
+    const rows: string[] = []
+    document.querySelectorAll('*').forEach((el) => {
+      const cs = getComputedStyle(el)
+      rows.push(path(el) + ' | ' + props.map((p) => cs.getPropertyValue(p)).join(' ; '))
+    })
+    rows.sort()
+    return rows
+  }, PROPS)
+
+test('snapshot', async ({ page, browser }) => {
+  test.setTimeout(300_000)
+  const out: Record<string, string[]> = {}
+  const anon = await browser.newPage()
+  await anon.goto(`${BASE}/login`)
+  await anon.waitForLoadState('networkidle')
+  out.login = await dump(anon)
+  await loginAs(page, fx, 'siteAdmin')
+  const pages: Record<string, string> = {
+    home: '/',
+    lesson: `/lessons/${fx.plan.id}`,
+    guide: '/guide',
+    discuss: '/discuss',
+    messages: '/messages',
+    admin: '/admin',
+    editor: `/admin/collections/lesson-bundle-versions/${fx.version.id}`,
+    users: '/admin/collections/users',
+  }
+  for (const [k, u] of Object.entries(pages)) {
+    await page.goto(`${BASE}${u}`)
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(800)
+    out[k] = await dump(page)
+    const menu = page.locator('button.user-menu__avatar').first()
+    if (k === 'home' || k === 'admin') {
+      if (await menu.count()) {
+        await menu.click()
+        await page.waitForTimeout(300)
+        out[k + '-menu'] = await dump(page)
+        await page.keyboard.press('Escape')
+      }
+    }
+  }
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 } })
+  await loginAs(phone, fx, 'siteAdmin')
+  for (const [k, u] of [
+    ['phone-home', '/'],
+    ['phone-admin', '/admin'],
+  ] as const) {
+    await phone.goto(`${BASE}${u}`)
+    await phone.waitForLoadState('networkidle')
+    await phone.waitForTimeout(800)
+    out[k] = await dump(phone)
+    const m = phone.locator('button.user-menu__avatar').first()
+    if (await m.count()) {
+      await m.click()
+      await phone.waitForTimeout(300)
+      out[k + '-menu'] = await dump(phone)
+      await phone.keyboard.press('Escape')
+    }
+  }
+  fs.writeFileSync(OUT, JSON.stringify({ __props: PROPS, ...out }, null, 1))
+})
