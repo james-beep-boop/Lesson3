@@ -56,7 +56,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Edit-recovery access integration | `npm run test:int -- tests/int/editRecoveryAccess.int.spec.ts` with target runtime env mounted as `/app/test.env`; current closed collection, uniqueness and source/user/plan-cascade cases |
 | Request-editing wire | `npm run test:http -- tests/http/endpoints.http.spec.ts -t request-editing`; current target selection; teacher-first access-request gates, recipients and daily budget |
 | Messages integration | `npm run test:int -- tests/int/messages.int.spec.ts` with target runtime env mounted as `/app/test.env`; current sender/recipient privacy, ping budgets, best-effort enqueue, references and cascades |
-| Full endpoints wire | `npm run test:http -- tests/http/endpoints.http.spec.ts`; current target suite; 122/124 passed with two explicit no-SMTP complements skipped on the Mailpit target |
+| Full endpoints wire | `npm run test:http -- tests/http/endpoints.http.spec.ts`; Mailpit target 122/124 plus a locked replacement-app run of both named no-SMTP complements (2/2) |
 | Pending-authority lock waits | `npm run test:http -- tests/http/pendingAuthority.http.spec.ts`; existing HTTP suite against the marked target; real barriers cover revocation during grants/deletes, source retirement, recovery saves and Make Official |
 | Native editing locks | `npm run test:http -- tests/http/lockedDocuments.http.spec.ts`; existing HTTP suite against the marked target; forged-create, takeover, holder-only unlock and 423 deletion barrier |
 | Native version authority | `npm run test:http -- tests/http/nativeVersionAuthority.http.spec.ts`; current target suite; Official/delete lock waits after caller demotion, disablement, unverification or sign-out |

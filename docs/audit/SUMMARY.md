@@ -47,7 +47,7 @@ validation is pending. No product fix was made.
   cover the candidate's failed-deletion path. All runtime data was synthetic and disposable.
 - [Current baseline](scans/current-baseline.md): lint, types, format, **1,867 unit tests** and
   **339 integration tests** passed; production/migration builds passed. Complementary HTTP runs
-  cover **479 passing cases**, with two no-SMTP cases still skipped; the original full run failed
+  cover **481 passing cases**, including both named no-SMTP complements; the original full run failed
   on PDF harness configuration. Five moderate dependency entries need reachability triage.
 - [Static scan inventory](scans/static-current.md): npm outdated/ls, suppression, shell and workflow
   action inventories recorded. All 14 workflow action references are SHA-pinned. Knip, jscpd,
@@ -102,8 +102,8 @@ validation is pending. No product fix was made.
   privacy, ping-budget, best-effort enqueue, reference and user-cascade cases; broader C24 coverage
   remains open.
 - [Full endpoints](C5-endpoints-full-current.md): the complete current endpoint file passed 122 of
-  124 cases; the two skipped cases are explicit no-SMTP complements on this Mailpit target, and the
-  broader source-review, browser and parity catalog remains open.
+  124 cases on the Mailpit target, and both named no-SMTP complements passed in a replacement app
+  with SMTP disabled; the broader source-review, browser and parity catalog remains open.
 - [Global jobs and errors](C5-global-errors-current.md): focused wire suites passed 10 global
   job-statistics role/read-write cases and three concrete 409/403/404 error-message cases; broader
   jobs, error taxonomy and test-quality coverage remains open. Current integration checks add one

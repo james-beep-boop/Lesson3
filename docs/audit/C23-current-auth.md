@@ -56,6 +56,12 @@ independent identifiers and equal treatment of unknown addresses. Raw output is 
 `logs/c5-data-auth-jobs-integrations.log`; this does not close the broader session, cookie, edge or
 no-SMTP attack matrix.
 
+The two named no-SMTP endpoint complements also passed under a replacement production app with
+`SMTP_HOST` empty: the valid email-a-doc request returned `503`, and an existing administrator-issued
+reset token survived public forgot-password. The exact orchestration hash and raw log are recorded
+in `C5-endpoints-full-current.md`; this closes those two complements only, not the remaining
+no-SMTP recovery/session and deployment-parity catalog.
+
 Installed Payload 3.92.0 login/hash implementations were independently opened from the pinned deps
 image, and sanitized resolved user auth defaults were checked. A first config-inspection attempt
 using tsx's CJS eval failed on the config's top-level await; the explicit ESM loader command succeeded.

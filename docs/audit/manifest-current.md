@@ -524,7 +524,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/http/combinePreview.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/combineSave.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/discussions.http.spec.ts` | C72 | Pending review |
-| `app/tests/http/endpoints.http.spec.ts` | C72 | Current C5.3/C5.4/C40 wire evidence: C5-endpoints-full-current.md; 122/124 passed, 2 no-SMTP cases skipped |
+| `app/tests/http/endpoints.http.spec.ts` | C72 | Current C5.3/C5.4/C40 wire evidence: C5-endpoints-full-current.md; Mailpit 122/124 plus both named no-SMTP complements 2/2 |
 | `app/tests/http/firstUserBootstrap.http.spec.ts` | C72 | Current C5.3/C5.10 wire evidence: C5-first-bootstrap-current.md; 4/4 passed after isolated empty reset/restore |
 | `app/tests/http/jobStatsGlobal.http.spec.ts` | C72 | Current C5.7 wire evidence: C5-global-errors-current.md; 10/10 passed |
 | `app/tests/http/lockedDocuments.http.spec.ts` | C72 | Pending review |

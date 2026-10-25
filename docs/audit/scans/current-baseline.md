@@ -41,7 +41,7 @@ triage remains C11 work; these entries are scanner observations, not five confir
 Baseline suites cannot establish every role/action cell, race, malicious input, browser state or
 restoration invariant. Audit-specific checks and the file/component evidence register remain required.
 
-HTTP qualifications: the complementary runs cover 479 distinct passing cases, with two no-SMTP
-cases still skipped. They are not a single green full-suite run. Both original failures and the
-intermediate permission failures were harness/configuration errors, not demonstrated product bugs.
-Run the no-SMTP complement in a matched environment; do not erase the original failed outcomes.
+HTTP qualifications: the complementary runs cover 481 distinct passing cases, including the two
+named no-SMTP complements in a matched replacement-app environment. They are not a single green
+full-suite run. Both original failures and the intermediate permission failures were
+harness/configuration errors, not demonstrated product bugs; the original outcomes remain retained.
