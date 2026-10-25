@@ -124,6 +124,9 @@ wrong-old-document serving was established. No product fix was made.
 - [Assignment provenance](C5-assignment-provenance-current.md): the current integration suite passed
   three server-stamped grantor/time and relationship-depth cases; broader authorization and utility
   review remains open.
+- [Utility slice](C59-utilities-current.md): focused artifact-cache, canonical-JSON, email,
+  sanitizer and system-facts tests passed 43/43; rate-limit and session source observations align
+  with the existing shared-store and endpoint evidence. The remaining `src/lib` catalog is open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; the current discussions integration suite added

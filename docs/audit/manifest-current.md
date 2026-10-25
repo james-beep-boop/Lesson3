@@ -263,7 +263,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/fields/lessonContent.ts` | C5.12 | Pending review |
 | `app/src/fields/phases.ts` | C5.12 | Pending review |
 | `app/src/generator/adapter.ts` | C5.8 | Pending review |
-| `app/src/generator/artifactCache.ts` | C5.8 | Pending review |
+| `app/src/generator/artifactCache.ts` | C5.8 | Source read; C59-utilities-current.md; focused cache unit 9/9 and C70 restore fault evidence |
 | `app/src/generator/cacheCodecs.ts` | C5.8 | Pending review |
 | `app/src/generator/config/attribution.yaml` | C5.8 | Pending review |
 | `app/src/generator/deliverables.ts` | C5.8 | Pending review |
@@ -322,7 +322,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/assignmentRoles.ts` | C5.9 | Pending review |
 | `app/src/lib/awaitingApproval.ts` | C5.9 | Pending review |
 | `app/src/lib/backupStatus.ts` | C5.9 | Pending review |
-| `app/src/lib/canonicalJson.ts` | C5.9 | Pending review |
+| `app/src/lib/canonicalJson.ts` | C5.9 | Source read; C59-utilities-current.md; focused unit 6/6 |
 | `app/src/lib/clockSkew.ts` | C5.9 | Pending review |
 | `app/src/lib/combine/ancestry.ts` | C5.9 | Pending review |
 | `app/src/lib/combine/backfill.ts` | C5.9 | Pending review |
@@ -349,7 +349,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/editRecovery/unsavedWork.ts` | C5.9 | Pending review |
 | `app/src/lib/editingViewport.ts` | C5.9 | Pending review |
 | `app/src/lib/editorGroups.ts` | C5.9 | Pending review |
-| `app/src/lib/emailAddress.ts` | C5.9 | Pending review |
+| `app/src/lib/emailAddress.ts` | C5.9 | Source read; C59-utilities-current.md; focused email units 13/13 |
 | `app/src/lib/emailLinkBase.ts` | C5.9 | Pending review |
 | `app/src/lib/enqueue.ts` | C5.9 | Pending review |
 | `app/src/lib/env.ts` | C5.9 | Pending review |
@@ -375,7 +375,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/publicPlan.ts` | C5.9 | Pending review |
 | `app/src/lib/publicPosture.ts` | C5.9 | Pending review |
 | `app/src/lib/publicSlug.ts` | C5.9 | Pending review |
-| `app/src/lib/rateLimit.ts` | C5.9 | Pending review |
+| `app/src/lib/rateLimit.ts` | C5.9 | Source read; C59-utilities-current.md; shared-store integration and focused wire coverage |
 | `app/src/lib/readBundle.ts` | C5.9 | Pending review |
 | `app/src/lib/relId.ts` | C5.9 | Pending review |
 | `app/src/lib/renderTimings.ts` | C5.9 | Pending review |
@@ -384,10 +384,10 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/sanitizeHtml.ts` | C5.9 | Source read 1–77; C40-current-ingest.md; runtime assurance partial |
 | `app/src/lib/semver.ts` | C5.9 | Pending review |
 | `app/src/lib/serverActionBodyLimit.ts` | C5.9 | Pending review |
-| `app/src/lib/session.ts` | C5.9 | Pending review |
+| `app/src/lib/session.ts` | C5.9 | Source read; C59-utilities-current.md; request-scope memoization noted |
 | `app/src/lib/stripIds.ts` | C5.9 | Pending review |
 | `app/src/lib/substrand.ts` | C5.9 | Pending review |
-| `app/src/lib/systemFacts.ts` | C5.9 | Pending review |
+| `app/src/lib/systemFacts.ts` | C5.9 | Source read; C59-utilities-current.md; focused unit 9/9 |
 | `app/src/lib/systemFlagNames.ts` | C5.9 | Pending review |
 | `app/src/lib/systemFlags.ts` | C5.9 | Pending review |
 | `app/src/lib/txDb.ts` | C5.9 | Pending review |
@@ -598,8 +598,8 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/advancedTools.spec.ts` | C72 | Pending review |
 | `app/tests/unit/appVersion.spec.ts` | C72 | Pending review |
 | `app/tests/unit/aresAddress.spec.ts` | C72 | Pending review |
-| `app/tests/unit/artifactCacheBestEffort.spec.ts` | C72 | Pending review |
-| `app/tests/unit/artifactCacheCleanup.spec.ts` | C72 | Pending review |
+| `app/tests/unit/artifactCacheBestEffort.spec.ts` | C72 | C59 focused slice; 7/7 passed |
+| `app/tests/unit/artifactCacheCleanup.spec.ts` | C72 | C59 focused slice; 2/2 passed |
 | `app/tests/unit/authFavoritesWiring.spec.ts` | C72 | Pending review |
 | `app/tests/unit/authFormMessages.spec.ts` | C72 | Pending review |
 | `app/tests/unit/backupStatus.spec.ts` | C72 | Pending review |
@@ -608,7 +608,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/buttonSystem.spec.ts` | C72 | Pending review |
 | `app/tests/unit/canDeleteVersionDoc.spec.ts` | C72 | Pending review |
 | `app/tests/unit/candidateListActions.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/canonicalJson.spec.ts` | C72 | Pending review |
+| `app/tests/unit/canonicalJson.spec.ts` | C72 | C59 focused slice; 6/6 passed |
 | `app/tests/unit/captureDiffAgreement.spec.ts` | C72 | Pending review |
 | `app/tests/unit/classNameStyles.spec.ts` | C72 | Pending review |
 | `app/tests/unit/clockCheck.spec.tsx` | C72 | Pending review |
@@ -650,8 +650,8 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/editingViewport.spec.ts` | C72 | Pending review |
 | `app/tests/unit/editorPlainLanguage.spec.ts` | C72 | Pending review |
 | `app/tests/unit/editorValidation.spec.ts` | C72 | Pending review |
-| `app/tests/unit/emailAddress.spec.ts` | C72 | Pending review |
-| `app/tests/unit/emailFormat.spec.tsx` | C72 | Pending review |
+| `app/tests/unit/emailAddress.spec.ts` | C72 | C59 focused slice; 10/10 passed |
+| `app/tests/unit/emailFormat.spec.tsx` | C72 | C59 focused slice; 3/3 passed |
 | `app/tests/unit/emptyArraySerialization.spec.ts` | C72 | Pending review |
 | `app/tests/unit/enforceAssignmentScope.spec.ts` | C72 | Pending review |
 | `app/tests/unit/enqueueDetached.spec.ts` | C72 | Pending review |
@@ -749,7 +749,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/rolesAccessPanel.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/rowLabel.spec.ts` | C72 | Pending review |
 | `app/tests/unit/rowLabelLive.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/sanitizeHtml.spec.ts` | C72 | Pending review |
+| `app/tests/unit/sanitizeHtml.spec.ts` | C72 | C59 focused slice; 6/6 passed |
 | `app/tests/unit/sectionKeyForFocus.spec.ts` | C72 | Pending review |
 | `app/tests/unit/semverConflict.spec.ts` | C72 | Pending review |
 | `app/tests/unit/serverActionBodyLimit.spec.ts` | C72 | Pending review |
@@ -762,7 +762,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/subjectGradeDelete.spec.ts` | C72 | Pending review |
 | `app/tests/unit/subjectSelectOptions.spec.ts` | C72 | Pending review |
 | `app/tests/unit/substrand.spec.ts` | C72 | Pending review |
-| `app/tests/unit/systemFacts.spec.ts` | C72 | Pending review |
+| `app/tests/unit/systemFacts.spec.ts` | C72 | C59 focused slice; 9/9 passed |
 | `app/tests/unit/systemFeaturesPanel.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/systemFeaturesState.spec.ts` | C72 | Pending review |
 | `app/tests/unit/systemFlags.spec.ts` | C72 | Pending review |
