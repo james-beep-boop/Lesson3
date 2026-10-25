@@ -552,7 +552,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/clearCollapsePrefs.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/combineDraftMigration.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/combineMigration.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/discussions.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/discussions.int.spec.ts` | C72 | Current C24 integration evidence: C24-current-discussions.md; 23/23 passed |
 | `app/tests/int/discussions3b.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/discussions4a.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/draftCombineSuggestion.int.spec.ts` | C72 | Pending review |

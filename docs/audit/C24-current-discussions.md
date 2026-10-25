@@ -18,3 +18,9 @@ seconds (exit 0). It covered anonymous and role-gated message creation, server-s
 whole-lesson versus deleted-version labels, reply preservation of the original label, missing or
 mismatched reference refusal, and no-write guarantees on unavailable versions. Fixture teardown
 completed; raw output is private at `logs/c24-message-references-http.log`.
+
+The current `app/tests/int/discussions.int.spec.ts` integration suite also passed **23 tests** in
+18.02 seconds (exit 0). It independently exercised lock-ordered reply numbering, no-deadlock
+account/thread deletion, activity monotonicity, whole-thread and participation cascades, reference
+clearing, invited-author deletion and forum-off behavior. Raw output is private at
+`logs/c24-discussions-int.log`; teardown and the target lock were clear.

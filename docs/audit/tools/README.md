@@ -96,6 +96,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Assignment provenance integration | `npm run test:int -- tests/int/assignmentProvenance.int.spec.ts` with target runtime env mounted as `/app/test.env`; current grant-stamp persistence and relationship-depth cases |
 | Subject-admin handover integration | `npm run test:int -- tests/int/subjectAdminHandover.int.spec.ts` with target runtime env mounted as `/app/test.env`; current D6a refusal, handover and demotion cases |
 | Discussions wire | `npm run test:http -- tests/http/discussions.http.spec.ts`; current target suite; thread/reply, privacy, participation, forum-off, read/pin/redaction and authority waits |
+| Discussions integration | `npm run test:int -- tests/int/discussions.int.spec.ts` with target runtime env mounted as `/app/test.env`; current lock ordering, deletion/cascade, activity and forum-off cases |
 | Message references wire | `npm run test:http -- tests/http/messageReferences.http.spec.ts`; current target suite; recipient/label authority and no-write reference refusals |
 
 Restore the approved synthetic dump before/after every auth probe and prove role readiness afterwards.
