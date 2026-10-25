@@ -51,6 +51,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Controlled save races | `node tests/audit/c31-save-barrier.mjs`; private corpus directory and marked target DB URI; holds/releases a plan-row lock, creates/deletes one plan and four candidates |
 | Pending-authority lock waits | `npm run test:http -- tests/http/pendingAuthority.http.spec.ts`; existing HTTP suite against the marked target; real barriers cover revocation during grants/deletes, source retirement, recovery saves and Make Official |
 | Native editing locks | `npm run test:http -- tests/http/lockedDocuments.http.spec.ts`; existing HTTP suite against the marked target; forged-create, takeover, holder-only unlock and 423 deletion barrier |
+| Native version authority | `npm run test:http -- tests/http/nativeVersionAuthority.http.spec.ts`; current target suite; Official/delete lock waits after caller demotion, disablement, unverification or sign-out |
 | Native lock expiry | `npx tsx tests/audit/c31-stale-lock.mjs`; private fixture/result paths; fresh lock 423 followed by a measured 600-second stale lock and successful guarded delete |
 | Recovery wire boundary | `npm run test:http -- tests/http/recovery.http.spec.ts`; existing HTTP suite against the marked target; seven-operation gates, owner/CAS/retirement, metadata, unsaved counts and Combine context |
 | Combine preview wire | `npm run test:http -- tests/http/combinePreview.http.spec.ts`; existing HTTP suite against the marked target; ancestry, overlays, conflicts, structure refusal and cross-plan gates |

@@ -82,6 +82,8 @@ validation is pending. No product fix was made.
   18 takeover, holder-only unlock, forged-create and 423 deletion-barrier cases. Full C31 remains
   pending, including the final fingerprint/deletion ledger; a direct probe separately confirmed a
   fresh 423 lock expires after a measured 600-second age and permits the guarded delete. The
+  native version-authority suite added eight Official/delete lock-wait cases, all refusing callers
+  after demotion, disablement, unverification or sign-out while preserving the pointer and version.
   recovery HTTP suite added 35 current owner-only, CAS, retirement, metadata, unsaved-count and
   Combine-context cases, and the current Combine-preview suite added 18 ancestry, conflict,
   structure-refusal and cross-plan cases. Concurrent Combine/Official races and the final ledger

@@ -64,6 +64,16 @@ closes the authority-change-while-waiting item for the exercised native/version 
 close request-editing lock stealing or stale-lock behavior, recovery attribution, Combine races, or
 the required full C31 fingerprint/deletion ledger.
 
+The current `app/tests/http/nativeVersionAuthority.http.spec.ts` suite passed **8 tests** in 16.24
+seconds (exit 0). It held the lesson-plan row while a Site Administrator attempted to promote the
+Official pointer or delete a version, then demoted, disabled, unverified or signed out that caller.
+All eight requests returned 403; the Official pointer stayed unchanged and the candidate version
+remained present. Fixture teardown completed, the target lock released, and raw output is private at
+`logs/c31-native-version-authority-http.log`.
+
+This adds direct native version-authority evidence to the broader pending-authority checks. It does
+not close the complete C31 deletion/fingerprint ledger or simultaneous Official/Combine races.
+
 ## Native editing-lock attack boundary — current HTTP suite pass
 
 The current `app/tests/http/lockedDocuments.http.spec.ts` suite also passed **18 tests** in 2.99
