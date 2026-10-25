@@ -210,6 +210,22 @@ This is direct current-source integration evidence for the load-bearing plan-row
 not reproduce the destructive two-sided promotion/delete interleaving or close the final all-path
 ledger.
 
+## Plan deletion and identity cascades — current integration pass
+
+The current `app/tests/int/access.int.spec.ts`, `app/tests/int/taxonomyDelete.int.spec.ts` and
+`app/tests/int/planIdentityImmutable.int.spec.ts` suites passed **37/37** tests in 7.05 seconds
+(exit 0) under the marked target lock. The access cases deleted a plan containing both an Official
+version and a candidate through the real Site-Admin path without a `23502`, confirmed both child
+versions were removed, and separately confirmed the direct Official-version retention guard still
+refuses deletion. Taxonomy deletion cases covered refusal while content remains, assignment/content
+cascade after prerequisites are cleared, and the related role boundaries. Plan-identity cases
+covered immutable identity and relationship fields.
+
+Raw output is private at `logs/c72-cascade-integrations-locked.log`; the target lock released and
+fixture teardown left the application healthy. This closes the bounded plan-cascade and identity
+integration checks. It does not close every C30 write path, the concurrent promotion/delete or
+Combine races, recovery attribution, or the final all-path fingerprint ledger.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus

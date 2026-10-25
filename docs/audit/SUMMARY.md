@@ -90,6 +90,11 @@ validation is pending. No product fix was made.
 - [Edit recovery access](C31-edit-recovery-access-current.md): the current integration suite passed
   eight closed-collection, uniqueness and source/user/plan-cascade cases; concurrent restore
   attribution and broader recovery coverage remain open.
+- [Access, identity and cascades](C72-access-cascades-current.md): current integration suites passed
+  26 access, eight taxonomy-delete and three plan-identity cases. Plan deletion removed Official and
+  candidate versions without `23502`, direct Official deletion remained blocked, and subject-grade
+  assignment/content cleanup and immutable plan identity checks passed; broader role, migration and
+  browser coverage remains open.
 - [Request editing](C24-request-editing-current.md): the focused endpoint selection passed five
   teacher-first access-request gate, recipient-resolution and daily-budget cases; broader messaging
   and recovery coverage remains open.
@@ -139,8 +144,9 @@ validation is pending. No product fix was made.
   suite added 9 token-retirement, rollback, capture-race and source-cascade cases. A focused deletion
   ledger added ten permitted/refused HTTP outcomes and persisted before/after vectors that compared
   equal after cleanup. The current integration guard also proved the plan-row delete barrier waits
-  and preserves the Official pointer; full all-path and concurrent promotion/deletion coverage remains
-  open.
+  and preserves the Official pointer, and the current access/taxonomy/identity integration pass
+  added 37 plan-cascade and identity checks; full all-path and concurrent promotion/deletion coverage
+  remains open.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked

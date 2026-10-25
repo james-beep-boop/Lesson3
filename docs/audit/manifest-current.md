@@ -542,7 +542,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/http/userAssignments.http.spec.ts` | C72 | Current wire evidence: C5-user-assignments-current.md; 22/22 passed |
 | `app/tests/http/userSearch.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/worldwideIds.http.spec.ts` | C72 | Current C5.4 wire evidence: C5-server-worldwide-current.md; 5/5 passed |
-| `app/tests/int/access.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/access.int.spec.ts` | C72 | Current C31/C72 integration evidence: C72-access-cascades-current.md; 26/26 passed |
 | `app/tests/int/adminResetLinkCarveOut.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/api.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/assignmentProvenance.int.spec.ts` | C72 | Current C5.3/C5.9 integration evidence: C5-assignment-provenance-current.md; 3/3 passed |
@@ -573,13 +573,13 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/nullResources.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/officialPointerLock.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/personalVersions.int.spec.ts` | C72 | Current C31/C5.4 integration evidence: C31-personal-versions-current.md; 6/6 passed |
-| `app/tests/int/planIdentityImmutable.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/planIdentityImmutable.int.spec.ts` | C72 | Current C31/C72 integration evidence: C72-access-cascades-current.md; 3/3 passed |
 | `app/tests/int/publicPublication.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/rateLimit.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/reingest.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/subjectAdminHandover.int.spec.ts` | C72 | Current C5.3 integration evidence: C5-user-assignments-current.md; 3/3 passed |
 | `app/tests/int/systemSettings.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/taxonomyDelete.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/taxonomyDelete.int.spec.ts` | C72 | Current C31/C72 integration evidence: C72-access-cascades-current.md; 8/8 passed |
 | `app/tests/int/uploadTaxonomy.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/userSecurity.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/verifyBackfill.int.spec.ts` | C72 | Pending review |
