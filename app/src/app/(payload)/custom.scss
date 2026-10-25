@@ -5,21 +5,6 @@
 @use '../app-chrome';
 @use '../app-dialog';
 
-// ⚑ TEMPORARY: the admin's colour roles keep their pre-2026-10-25 Payload values. The shared semantic
-// palette (app-tokens.scss) carries the frontend's values; these five re-point the roles at what this
-// file used before the roles existed, so introducing the names changed no rendered colour. The
-// differences are small (black vs #1a1a1a text, #ddd vs #e2e2e2 borders, …). ⚑ Each line is GLOBAL to
-// its role: deleting one re-colours every admin use of that role at once (Manage, the editor, dialogs,
-// the nav), not one component, so retire them together in a change that means to alter the admin's
-// look. `:root`, after the `@use`, so these win over the shared defaults.
-:root {
-  --app-text: var(--theme-elevation-1000);
-  --app-text-muted: var(--theme-elevation-600);
-  --app-border: var(--theme-elevation-150);
-  --app-surface: var(--theme-elevation-0);
-  --app-surface-soft: var(--theme-elevation-50);
-}
-
 // ONE rem root across both surfaces (2026-07-31, docs/DESIGN-visual-system-2026-07-31.md §3.1).
 // Payload's own default is ~13px; this was 15px from 2026-07-12 until 2026-07-31, which left every
 // `rem` value in the admin rendering ~6% smaller than the same value on the frontend — the drift

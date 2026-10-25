@@ -9,7 +9,8 @@
  * A future change to either root must not silently rescale the shared system.
  *
  * Colour (2026-10-25): the semantic palette at the end of the block below is the one set of colour
- * ROLES both surfaces write against; the admin's temporary re-pointing is explained in `custom.scss`.
+ * ROLES both surfaces write against, with the same values on both (the admin's temporary re-pointing
+ * at Payload's greys was retired 2026-10-25).
  */
 :root {
   /* ── Type scale ─────────────────────────────────────────────────────────────────────────────
@@ -125,8 +126,8 @@
   /* The four palette values the button system needs on BOTH surfaces: a control that is meant to look
      identical in the app and the editor cannot take its background from two different palettes.
      ⚑ They equal the colour roles below (`--app-surface-soft`, `--app-border`, `--app-text-muted`,
-     `--app-text`) but are kept as literals on purpose: the admin re-points those roles at Payload's
-     values for now (top of custom.scss), and the buttons must not move with them. Change both together. */
+     `--app-text`) but are kept as literals on purpose, so that re-pointing a role on one surface (as
+     the admin did until 2026-10-25) can never move the buttons with it. Change both together. */
   --app-btn-bg: #f6f7f8;
   --app-btn-quiet-line: #e2e2e2;
   --app-btn-disabled-ink: #666; /* on --app-btn-bg this is ~5.4:1 — AA, and unmistakably inert */
@@ -151,8 +152,9 @@
 
   /* ── Semantic palette (2026-10-25) ──────────────────────────────────────────────────────────
      Roles, not colours: write `color: var(--app-text-muted)`, never a hex, in either stylesheet.
-     Values are the frontend's (`--ink`, `--muted`, `--line`, … in styles.css are aliases of these).
-     ⚑ The admin re-points all five for now; see the top of custom.scss. */
+     Values are the frontend's (`--ink`, `--muted`, `--line`, … in styles.css are aliases of these),
+     and the admin uses them as they are (its temporary re-pointing at Payload's greys came out
+     2026-10-25). */
   --app-text: #1a1a1a;
   --app-text-muted: #666;
   --app-border: #e2e2e2;
