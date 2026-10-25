@@ -87,6 +87,9 @@ validation is pending. No product fix was made.
 - [Favorites](C24-favorites-current.md): the current integration suite passed 15 ownership,
   pointer-following, duplicate/refusal and version/plan/user cascade cases; broader discussions and
   messaging coverage remains open.
+- [Edit recovery access](C31-edit-recovery-access-current.md): the current integration suite passed
+  eight closed-collection, uniqueness and source/user/plan-cascade cases; concurrent restore
+  attribution and broader recovery coverage remain open.
 - [Global jobs and errors](C5-global-errors-current.md): focused wire suites passed 10 global
   job-statistics role/read-write cases and three concrete 409/403/404 error-message cases; broader
   jobs, error taxonomy and test-quality coverage remains open.

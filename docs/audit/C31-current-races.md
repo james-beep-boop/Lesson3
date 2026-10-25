@@ -119,6 +119,12 @@ CAS retirement and attribution boundaries. It does not close every C30 write pat
 restore attribution under concurrent Combine/Official changes, or the final fingerprint/deletion
 ledger.
 
+The current `app/tests/int/editRecoveryAccess.int.spec.ts` suite passed **8 tests** in 3.02 seconds
+(exit 0). It hard-denied collection read/list/create/update/delete to every role, enforced the
+compound owner/source uniqueness constraint, and confirmed recovery rows disappear when their source
+version, owning user or parent lesson plan is deleted. The target lock released and raw output is
+private at `logs/c31-edit-recovery-access-int.log`.
+
 ## Combine ancestry and conflict boundary — current HTTP suite pass
 
 The current `app/tests/http/combinePreview.http.spec.ts` suite passed **18 tests** in 3.84 seconds

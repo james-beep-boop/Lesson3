@@ -556,7 +556,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/int/discussions3b.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/discussions4a.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/draftCombineSuggestion.int.spec.ts` | C72 | Pending review |
-| `app/tests/int/editRecoveryAccess.int.spec.ts` | C72 | Pending review |
+| `app/tests/int/editRecoveryAccess.int.spec.ts` | C72 | Current C24/C31 integration evidence: C31-edit-recovery-access-current.md; 8/8 passed |
 | `app/tests/int/editRecoveryCap.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/editRecoveryCapture.int.spec.ts` | C72 | Pending review |
 | `app/tests/int/editRecoveryExpiry.int.spec.ts` | C72 | Pending review |
