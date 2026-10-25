@@ -6,12 +6,12 @@ Baseline: `bd5f07863a150cd51245b9c942502efa19d4014d`. Sole auditor: Codex. This 
 |---|---|---|
 | C00 | Environment, parity, baseline | In progress: C00-baseline-current.md and scans/current-baseline.md; finish outstanding suites, component map, known issues and CLI/parity checks |
 | C01 | Reseed drill + mail capture | Setup proof passed: C01-current-target.md; namespace/marker/reset/reseed/restore, eight verified logins, unverified refusal, captured mail and lock contention verified |
-| C10 | Run all scans | Partial: all/prod npm advisory scans recorded; remaining scan commands and pinned tool smoke tests pending |
-| C11 | Triage: dependencies | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C12 | Triage: dead code + duplication | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C13 | Triage: lint/types/complexity | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C14 | Triage: CSS static | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
-| C15 | Triage: secrets/shell/Docker/CI | Pending current-baseline execution; follow the complete catalog contract, including named invariants and exit criteria |
+| C10 | Run all scans | Partial: npm audit all/prod, npm outdated/ls, suppression/action/shell inventories recorded in scans/static-current.md; knip/jscpd/gitleaks/shellcheck/hadolint/stylelint and coverage tools unavailable |
+| C11 | Triage: dependencies | Partial: 14 release-age entries and npm ls peer/resolution problems recorded; esbuild advisory triage remains in current-baseline; reachability and clean-install comparison pending |
+| C12 | Triage: dead code + duplication | Pending: knip/jscpd unavailable; no semantic conclusion from text inventory |
+| C13 | Triage: lint/types/complexity | Partial: production lint/typecheck pass; strict report-only lint, suppressions and complexity triage pending |
+| C14 | Triage: CSS static | Pending: stylelint/CSS inventory tool unavailable; manual token/selector review pending |
+| C15 | Triage: secrets/shell/Docker/CI | Partial: 14 workflow actions SHA-pinned and shell cleanup inventory recorded; gitleaks/shellcheck/hadolint unavailable, full history/config triage pending |
 | C20 | Audit harness + surface inventory | Partial: C20-current-surface.md and scans/surface-current.md inventory actual sanitized config/routes; role login/API harness ready; Chromium/WebKit role/XHR crawl pending |
 | C21 | Expected permission matrix | Partial: scans/rbac-expected-current.md rechecks current SPEC/decisions and selected policy rows; full field/endpoint expansion and no-op administrator premise pending |
 | C22 | Actual permission matrix | Partial: C22-current-native.md;70 privacy/GraphQL observations,194 corrected native checks and9 immutability follow-up attempts; snapshots equal; full matrix pending |

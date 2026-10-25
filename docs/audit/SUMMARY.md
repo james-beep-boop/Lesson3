@@ -49,6 +49,9 @@ validation is pending. No product fix was made.
   **339 integration tests** passed; production/migration builds passed. Complementary HTTP runs
   cover **479 passing cases**, with two no-SMTP cases still skipped; the original full run failed
   on PDF harness configuration. Five moderate dependency entries need reachability triage.
+- [Static scan inventory](scans/static-current.md): npm outdated/ls, suppression, shell and workflow
+  action inventories recorded. All 14 workflow action references are SHA-pinned. Knip, jscpd,
+  gitleaks, shellcheck, hadolint and stylelint are unavailable in this worker, so C10–C15 remain partial.
 - [Disposable target proof](C01-current-target.md): reset, reseed, synthetic restore, eight verified
   role logins, unverified-user refusal and internal reset-mail capture passed.
 - [Native authorization/privacy](C22-current-native.md): 70 observations and a corrected **194-check**
