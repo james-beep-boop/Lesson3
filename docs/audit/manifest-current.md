@@ -334,10 +334,10 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/combine/outcome.ts` | C5.9 | Pending review |
 | `app/src/lib/compareGroups.ts` | C5.9 | Pending review |
 | `app/src/lib/conversionLimit.ts` | C5.9 | Pending review |
-| `app/src/lib/discussionComposer.ts` | C5.9 | Pending review |
-| `app/src/lib/discussionPages.ts` | C5.9 | Pending review |
-| `app/src/lib/discussionPaging.ts` | C5.9 | Pending review |
-| `app/src/lib/discussionText.ts` | C5.9 | Pending review |
+| `app/src/lib/discussionComposer.ts` | C5.9 | Discussion/reference unit follow-up; 73/73 across 7 files (see C24-current-discussions.md) |
+| `app/src/lib/discussionPages.ts` | C5.9 | Discussion/reference unit follow-up; 73/73 across 7 files (see C24-current-discussions.md) |
+| `app/src/lib/discussionPaging.ts` | C5.9 | Discussion/reference unit follow-up; 73/73 across 7 files (see C24-current-discussions.md) |
+| `app/src/lib/discussionText.ts` | C5.9 | Discussion/reference unit follow-up; 73/73 across 7 files (see C24-current-discussions.md) |
 | `app/src/lib/discussions.ts` | C5.9 | Pending review |
 | `app/src/lib/displayTitle.ts` | C5.9 | Contract source/test follow-up; 127/127 across 16 focused unit files (see C59-utilities-current.md) |
 | `app/src/lib/domWindow.ts` | C5.9 | Source read 1–17; C40-current-ingest.md; runtime assurance partial |
@@ -364,7 +364,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/src/lib/initials.ts` | C5.9 | Pending review |
 | `app/src/lib/lessonAnchors.ts` | C5.9 | Pending review |
 | `app/src/lib/lessonDetails.ts` | C5.9 | Contract source/test follow-up; 127/127 across 16 focused unit files (see C59-utilities-current.md) |
-| `app/src/lib/lessonReference.ts` | C5.9 | Pending review |
+| `app/src/lib/lessonReference.ts` | C5.9 | Discussion/reference unit follow-up; 73/73 across 7 files (see C24-current-discussions.md) |
 | `app/src/lib/offlineAdminRecovery.ts` | C5.9 | Contract source/test follow-up; 127/127 across 16 focused unit files (see C59-utilities-current.md) |
 | `app/src/lib/personalFavorites.ts` | C5.9 | Pending review |
 | `app/src/lib/personalVersions.ts` | C5.9 | Contract source/test follow-up; 127/127 across 16 focused unit files (see C59-utilities-current.md) |
@@ -629,15 +629,15 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/corpusCheck.spec.ts` | C72 | Pending review |
 | `app/tests/unit/currentSection.spec.ts` | C72 | Pending review |
 | `app/tests/unit/deliverables.spec.ts` | C72 | Pending review |
-| `app/tests/unit/discussionComposer.spec.ts` | C72 | Pending review |
+| `app/tests/unit/discussionComposer.spec.ts` | C72 | 73/73 discussion/reference unit follow-up (see C24-current-discussions.md) |
 | `app/tests/unit/discussionModerationControls.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/discussionModerationPages.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/discussionPages.spec.ts` | C72 | Pending review |
-| `app/tests/unit/discussionPaging.spec.ts` | C72 | Pending review |
+| `app/tests/unit/discussionPages.spec.ts` | C72 | 73/73 discussion/reference unit follow-up (see C24-current-discussions.md) |
+| `app/tests/unit/discussionPaging.spec.ts` | C72 | 73/73 discussion/reference unit follow-up (see C24-current-discussions.md) |
 | `app/tests/unit/discussionReferenceSelection.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/discussionText.spec.ts` | C72 | Pending review |
+| `app/tests/unit/discussionText.spec.ts` | C72 | 73/73 discussion/reference unit follow-up (see C24-current-discussions.md) |
 | `app/tests/unit/discussionThreadDelete.spec.ts` | C72 | Pending review |
-| `app/tests/unit/discussions.spec.ts` | C72 | Pending review |
+| `app/tests/unit/discussions.spec.ts` | C72 | 73/73 discussion/reference unit follow-up (see C24-current-discussions.md) |
 | `app/tests/unit/displayNameForm.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/displayTitle.spec.ts` | C72 | 127/127 contract-unit follow-up (see C59-utilities-current.md) |
 | `app/tests/unit/draftCombineSuggestion.spec.ts` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
@@ -698,13 +698,13 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/lessonControlsSsr.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/lessonControlsVersionIdentity.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/lessonDetails.spec.ts` | C72 | 127/127 contract-unit follow-up (see C59-utilities-current.md) |
-| `app/tests/unit/lessonReference.spec.tsx` | C72 | Pending review |
+| `app/tests/unit/lessonReference.spec.tsx` | C72 | 73/73 discussion/reference unit follow-up (see C24-current-discussions.md) |
 | `app/tests/unit/libraryFilters.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/linkedTextareaLibrary.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/localDbGuard.spec.ts` | C72 | Pending review |
 | `app/tests/unit/lockOrder.spec.ts` | C72 | Pending review |
 | `app/tests/unit/markReadBody.spec.ts` | C72 | Pending review |
-| `app/tests/unit/messageContextLink.spec.ts` | C72 | Pending review |
+| `app/tests/unit/messageContextLink.spec.ts` | C72 | 73/73 discussion/reference unit follow-up (see C24-current-discussions.md) |
 | `app/tests/unit/metaIdentitySplit.spec.ts` | C72 | Pending review |
 | `app/tests/unit/modalChrome.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/moreMenu.spec.tsx` | C72 | Pending review |

@@ -151,8 +151,8 @@ wrong-old-document serving was established. No product fix was made.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; the current discussions integration suite added
-  23 lock-ordering, deletion/cascade, activity and forum-off cases; broader C24 coverage remains
-  open.
+  23 lock-ordering, deletion/cascade, activity and forum-off cases; a pure discussion/reference unit
+  slice added 73/73. Broader C24 coverage remains open.
 - [Save boundary](C30-current-save.md): **118 checks** passed across both scopes, field split,
   resources/provenance, patch versions and stale/shape guards; eight candidates cleaned up.
 - [Controlled save races](C31-current-races.md): two editing teachers and one teacher in two

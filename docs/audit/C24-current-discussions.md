@@ -24,3 +24,11 @@ The current `app/tests/int/discussions.int.spec.ts` integration suite also passe
 account/thread deletion, activity monotonicity, whole-thread and participation cascades, reference
 clearing, invited-author deletion and forum-off behavior. Raw output is private at
 `logs/c24-discussions-int.log`; teardown and the target lock were clear.
+
+The pure discussion/reference unit slice passed **73/73** across seven files in 0.889 seconds:
+discussion page gates, discussion input/content invariants, linkification/text paragraphs, composer
+retry/idempotence states, reply paging/anchors, caller-scoped lesson references and message-context
+link/refusal behavior. The runner hash is
+`9b17b206c72abe375bcc95effa4917eace07fdb8dac23d5fd48e42976085fa0e`; the raw log hash is
+`48086b5eec2713c96f72943c5deb75de69502495a6eab4b0a0ff4ac14dfa28f4`. These pure checks complement
+the wire/integration evidence; broader C24 deployment and browser coverage remains open.
