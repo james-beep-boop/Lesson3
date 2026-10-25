@@ -109,7 +109,9 @@ validation is pending. No product fix was made.
   a reliable two-writer Official race and the final ledger remain open. The save-as-new recovery
   suite added 9 token-retirement, rollback, capture-race and source-cascade cases. A focused deletion
   ledger added ten permitted/refused HTTP outcomes and persisted before/after vectors that compared
-  equal after cleanup; full all-path and concurrent promotion/deletion coverage remains open.
+  equal after cleanup. The current integration guard also proved the plan-row delete barrier waits
+  and preserves the Official pointer; full all-path and concurrent promotion/deletion coverage remains
+  open.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked

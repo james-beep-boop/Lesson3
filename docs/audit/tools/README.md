@@ -50,6 +50,7 @@ where used; static inventory instead takes `LESSON3_AUDIT_SURFACE_FILE`.
 | Global auth budget | Same, mode `global`; at most 1,005 requests, concurrency four, 120-second deadline |
 | Controlled save races | `node tests/audit/c31-save-barrier.mjs`; private corpus directory and marked target DB URI; holds/releases a plan-row lock, creates/deletes one plan and four candidates |
 | Deletion/fingerprint ledger | `node tests/audit/c31-deletion-ledger.mjs`; private fixture/result path and marked target DB URI; records permitted/refused HTTP deletion outcomes and persists before/after table fingerprints |
+| Official pointer lock integration | `npm run test:int -- tests/int/officialPointerLock.int.spec.ts` with target runtime env mounted as `/app/test.env`; current plan-row delete barrier and pointer-preservation guard |
 | Pending-authority lock waits | `npm run test:http -- tests/http/pendingAuthority.http.spec.ts`; existing HTTP suite against the marked target; real barriers cover revocation during grants/deletes, source retirement, recovery saves and Make Official |
 | Native editing locks | `npm run test:http -- tests/http/lockedDocuments.http.spec.ts`; existing HTTP suite against the marked target; forged-create, takeover, holder-only unlock and 423 deletion barrier |
 | Native version authority | `npm run test:http -- tests/http/nativeVersionAuthority.http.spec.ts`; current target suite; Official/delete lock waits after caller demotion, disablement, unverification or sign-out |

@@ -192,6 +192,18 @@ This closes the bounded current deletion-scope and persisted-fingerprint check. 
 every C30 write path, plan-cascade deletion, concurrent delete/promotion race, recovery attribution,
 or the final all-path C31 ledger.
 
+The current `app/tests/int/officialPointerLock.int.spec.ts` integration guard passed **1 test** in
+3.99 seconds (exit 0) after mounting the marked target runtime env over the integration suite's
+localhost test env. Holding the plan row made the version-delete guard remain pending until the
+holder released it; the delete then completed and the Official pointer stayed unchanged. The first
+attempt was a configuration-only miss (the default `app/test.env` pointed at localhost and the test
+never reached its assertion); its raw output is retained privately alongside the passing run at
+`logs/c31-official-pointer-lock-int.log`. The target lock released and fixture teardown completed.
+
+This is direct current-source integration evidence for the load-bearing plan-row lock. It still does
+not reproduce the destructive two-sided promotion/delete interleaving or close the final all-path
+ledger.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
