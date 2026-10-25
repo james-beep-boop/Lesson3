@@ -444,7 +444,8 @@ release and otherwise the highest numeric newer descendant of the draft's versio
 version). After restoring and saving as a
 numbered version, **Combine with {newer}** opens the existing review through `?combineWith=`. It
 never starts Combine automatically. No migration, endpoint, frozen input or state-machine rewrite.
-The full design remains [deferred until teachers need it](DESIGN-update-draft-2026-10-19.md).
+The full design was [dropped on 2026-10-25](archive/DESIGN-update-draft-2026-10-19.md); this hint is the
+whole feature.
 
 ## Remaining work — latest operator order
 
@@ -454,9 +455,9 @@ The full design remains [deferred until teachers need it](DESIGN-update-draft-20
    Use the installation's documented deployment/update procedure so its Gotenberg sidecar updates too.
 3. Next operational priority: validate installation, links, exports, permissions and backup/restore
    on an actual ARES machine, with the operator coordinating access and deployment.
-4. Full phase 4 remains unapproved/deferred; #412 is closed. Keep both designs until teacher use
-   justifies direct updating. The approved Save → Combine flow is retained. Stable row identity is
-   a separate deferred proposal with no assigned phase number.
+4. **Phase 4 is dropped** (operator decision 2026-10-25): not planned, do not build. Both designs are
+   in `docs/archive/` as records. The approved Save → Combine flow and its draft hint are the whole
+   feature. Stable row identity is a separate deferred proposal with no assigned phase number.
 5. Site-wide Standard/Advanced tools shipped in #419; subject-grade/personal overrides,
    connectivity and school networking still need separate proposals and approval (identity foundations
    shipped in #416). Ask ARES about ares.edu; Plan A+ and structural drafts remain deferred.

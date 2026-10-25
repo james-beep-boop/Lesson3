@@ -11,6 +11,22 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Phase 4 dropped
+
+**Operator decision:** phase 4 (merging a newer version straight into a teacher's unsaved private draft)
+is removed from the plans, not merely deferred. It was a large build — a migration for a frozen
+comparison overlay, a preview and an apply endpoint, a Combine state-machine rewrite — for a minor,
+optional convenience. The draft-to-Combine hint shipped on 2026-10-19 already covers the need: the
+teacher saves the draft as a version, then uses Combine, which handles a teacher version against a newer
+ARES release through the release ancestry from #410.
+
+Both designs moved to `docs/archive/` (`DESIGN-phase4-scope-2026-10-19.md`,
+`DESIGN-update-draft-2026-10-19.md`) with a "dropped" banner, as records. Do not revive them on the
+strength of an older "deferred until teacher use justifies it" line; that condition no longer applies.
+Older entries below that call phase 4 "deferred" describe what it was at the time.
+
+---
+
 ## 2026-10-25 — The dialog styled once, in a shared file (CSS step 4)
 
 `Modal` portals the same markup to `document.body` on both surfaces, but its base rules (`.modal-backdrop`,

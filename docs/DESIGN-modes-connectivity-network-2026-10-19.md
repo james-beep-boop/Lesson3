@@ -7,11 +7,12 @@ proposal → operator approval → build, like any other change. (§8's two Comb
 separately and shipped in #410; §8 is now a record.)
 
 **Sequencing (updated 2026-10-19):** the original order put Combine phase 4 first. Phase 4 was
-then deferred until teacher use justifies it (`DESIGN-phase4-scope-2026-10-19.md`; #412 closed), so
-nothing in this document is waiting on it.
+then deferred until teacher use justifies it (#412 closed), and **dropped 2026-10-25** (operator
+decision; record in `docs/archive/DESIGN-phase4-scope-2026-10-19.md`), so nothing in this document is
+waiting on it.
 
 Read with: `SPEC.md` §5/§6 (drafts, Combine), §8 (the three user types), `docs/DESIGN-insert-link-ares-
-2026-10-18.md` (ARES links, `ares.local`), `docs/DESIGN-phase4-scope-2026-10-19.md` (phase 4, deferred), and
+2026-10-18.md` (ARES links, `ares.local`), and
 `globals/SystemSettings.ts` + `lib/systemFlagNames.ts` (the existing settings switchboard).
 
 ---

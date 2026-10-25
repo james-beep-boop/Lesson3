@@ -1,5 +1,9 @@
 # Phase 4 — proposed scope for approval
 
+> ⚑ **DROPPED 2026-10-25 (operator decision). Not planned; do not build.** Kept as a record only.
+> The shipped draft-to-Combine hint (save the draft as a version, then Combine) covers the need.
+> See DECISIONS 2026-10-25 "Phase 4 dropped". The text below is the 2026-10-19 proposal as written.
+
 **Deferred until teacher use justifies it. Operator did not approve this scope (2026-10-19);
 #412 is closed without merging. Keep Save → Combine. No phase 4 implementation is authorized.** The full blueprint in
 [`DESIGN-update-draft-2026-10-19.md`](DESIGN-update-draft-2026-10-19.md) remains deferred. This proposal follows the operator's latest

@@ -1,5 +1,9 @@
 # Update your draft — deferred design
 
+> ⚑ **DROPPED 2026-10-25 (operator decision). Not planned; do not build.** Kept as a record only.
+> The shipped draft-to-Combine hint (save the draft as a version, then Combine) covers the need.
+> See DECISIONS 2026-10-25 "Phase 4 dropped". The text below is the 2026-10-19 design as written.
+
 **Status: deferred until teacher use justifies it. Not approved for implementation.**
 
 Operator reaffirmed this decision on 2026-10-19 and closed #412 without merging. Keep Save →
