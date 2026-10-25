@@ -79,7 +79,8 @@ validation is pending. No product fix was made.
   atomic previous deletion, mandatory/stale consent and role refusal, plus three deleteSource cases
   covering authored-source retirement, source-scope refusal and Official-source preservation. The
   current Combine-save suite added 31 lineage, rollback, source-retirement and authority-wait cases;
-  a reliable two-writer Official race and the final ledger remain open.
+  a reliable two-writer Official race and the final ledger remain open. The save-as-new recovery
+  suite added 9 token-retirement, rollback, capture-race and source-cascade cases.
 - [Ingest/parser review](C40-current-ingest.md) and [input corpus](C41-current-corpus.md):20 complete
   source files read, contract CLI16/16,54 synthetic files across26 groups,35 web requests and29
   static-extractor cases passed; the real CLI ingest entry point imported and cleaned one marked

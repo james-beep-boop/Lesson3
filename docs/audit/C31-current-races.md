@@ -153,6 +153,13 @@ completed and the target lock released; raw output is private at `logs/c31-combi
 This is current write-side Combine and lock-wait evidence. A reliable two-writer Official-pointer
 race and the complete persisted fingerprint/deletion ledger remain open.
 
+The current `app/tests/http/saveAsNewRecovery.http.spec.ts` suite passed **9 tests** in 3.65 seconds
+(exit 0). It covered token-bearing recovery retirement, ordinary saves without a token, half-token
+rejection, database-failure rollback with no orphan version and intact capture, capture-during-save
+conflict with exactly-once retirement semantics, retirement-before-source-cascade ordering, and a
+single session chaining successive recovery tokens. Fixture teardown completed and the target lock
+released; raw output is private at `logs/c31-save-recovery-http.log`.
+
 ## Outstanding
 
 This is still not the complete C31 attack run. Remaining: every C30 path and role, permitted versus
