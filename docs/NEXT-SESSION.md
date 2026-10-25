@@ -43,7 +43,13 @@ typing is unchanged from v1.05 (40–48 ms per key). No migration. Results: DECI
 #452 (shared colour roles), #453 (nav, avatar menu and badges in `app/src/app/app-chrome.scss`). The
 dialog step, #454 (`app/src/app/app-dialog.scss`), is on hold while the review fixes land. Still to do:
 the five temporary admin colour-role overrides at the top of `custom.scss` come out together, as one
-change meant to alter Manage's look (DECISIONS 2026-10-25, CSS step 2). **Next:** the majors (Sentry 11,
+change meant to alter Manage's look (DECISIONS 2026-10-25, CSS step 2). **Deferred by the operator
+(2026-10-25), from the #454 /simplify pass:** (1) a shared "present but not an id → 400" helper in
+`src/lib/relId.ts` — discussion links and message replies already refuse a bad id, and the only hook
+that skips one (`stampVersionLineage`) reads system-only fields, so nothing user-reachable is open;
+(2) moving the danger button's `margin-left: 0.5rem` (`.lp-modal .btn.btn--style-error`) into each
+button row, which would retire the `.modal__actions--pair` reset but touches about eight Manage rows.
+**Next:** the majors (Sentry 11,
 jsdom 30, …), each as its own change.
 
 **Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
