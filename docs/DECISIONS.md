@@ -20,14 +20,16 @@ review found the two stylesheets already style the same React components (`AppNa
 have drifted (nav badge 1.1rem vs 1.15rem, avatar badge offset, dialog radius and body size).
 
 **This step names the roles and changes nothing on screen.** `app-tokens.scss` gains `--app-text`,
-`--app-text-muted`, `--app-border`, `--app-border-strong`, `--app-surface`, `--app-surface-soft`,
-`--app-on-accent`, `--app-danger`, `--app-radius`, with the frontend's values. `styles.css`'s `--ink`,
+`--app-text-muted`, `--app-border`, `--app-surface` and `--app-surface-soft`, with the frontend's values
+(the frontend-only `--line-strong`, `--accent-ink`, `--danger` and `--radius` stay literal in `styles.css`
+until the admin needs them). `styles.css`'s `--ink`,
 `--muted`, `--line`, … become aliases of them. In `custom.scss`, 95 declarations that used Payload's
 `--theme-elevation-*` for one of those roles now use the role (`color` 1000 → text, `color` 600 → muted,
 `border*` 150 → border, `background` 0 → surface, `background` 50 → surface-soft); four uses that are not one
 of those roles stay as they were. A **temporary** `:root` block at the top of `custom.scss` re-points those
-five roles at the old Payload values, so the admin renders exactly as before. Each override is retired by the
-change that unifies the component using it.
+five roles at the old Payload values, so the admin renders exactly as before. Each override is global to its
+role (about 95 uses across the whole admin), so removing one re-colours all of them at once; they go together,
+in a change that means to alter the admin's look, not piecemeal with one component.
 
 **Proof of "no change":** a throwaway Playwright script dumped the computed colour, background, every border
 colour, outline, shadow, radius, font size, text-decoration colour, fill and stroke of every element on 11

@@ -8,12 +8,8 @@
  * surfaces" a property of the token rather than a property of two roots that happen to agree today.
  * A future change to either root must not silently rescale the shared system.
  *
- * Colour (2026-10-25): the semantic palette below (`--app-text`, `--app-border`, …) is the one set of
- * colour ROLES both surfaces write against. Its values are the frontend's. The admin still re-points
- * each role at the Payload `--theme-*` value it used before (a temporary block at the top of
- * `custom.scss`), so introducing the names changed no rendered colour; the navigation and dialog
- * changes that follow choose one look per role and delete those re-pointings. Button colours stay in
- * the `--app-btn-*` tokens and are deliberately NOT expressed through these roles yet.
+ * Colour (2026-10-25): the semantic palette at the end of the block below is the one set of colour
+ * ROLES both surfaces write against; the admin's temporary re-pointing is explained in `custom.scss`.
  */
 :root {
   /* ── Type scale ─────────────────────────────────────────────────────────────────────────────
@@ -126,15 +122,15 @@
   --app-btn-compact-padding-block: 2px;
   --app-btn-compact-padding-inline: 9px;
   --app-btn-compact-font-size: 13px;
-  /* The four palette values the button system needs on BOTH surfaces. Everything else stays
-     per-surface (frontend `--line`/`--muted`, admin `--theme-*`), but a control that is meant to
-     look identical in the app and the editor cannot take its background from two different
-     palettes — that is the drift this file exists to prevent. Values match the frontend's
-     `--bg-soft` / `--line` / `--muted`, which keep their own non-button uses. */
+  /* The four palette values the button system needs on BOTH surfaces: a control that is meant to look
+     identical in the app and the editor cannot take its background from two different palettes.
+     ⚑ They equal the colour roles below (`--app-surface-soft`, `--app-border`, `--app-text-muted`,
+     `--app-text`) but are kept as literals on purpose: the admin re-points those roles at Payload's
+     values for now (top of custom.scss), and the buttons must not move with them. Change both together. */
   --app-btn-bg: #f6f7f8;
   --app-btn-quiet-line: #e2e2e2;
   --app-btn-disabled-ink: #666; /* on --app-btn-bg this is ~5.4:1 — AA, and unmistakably inert */
-  --app-btn-quiet-ink: #1a1a1a; /* the frontend's --ink. A quiet control's ink must be FIXED because its
+  --app-btn-quiet-ink: #1a1a1a; /* = --app-text. A quiet control's ink must be FIXED because its
                                    background (--app-btn-bg) is: in the admin's dark theme a
                                    theme-following ink turned near-white on this light fill, and the
                                    editor's Back rendered as a blank button (2026-10-18). */
@@ -156,18 +152,12 @@
   /* ── Semantic palette (2026-10-25) ──────────────────────────────────────────────────────────
      Roles, not colours: write `color: var(--app-text-muted)`, never a hex, in either stylesheet.
      Values are the frontend's (`--ink`, `--muted`, `--line`, … in styles.css are aliases of these).
-     ⚑ The admin overrides five of them, temporarily, to keep its old Payload values — see the top of
-     custom.scss. Remove an override only in a change that means to alter how the admin looks. */
+     ⚑ The admin re-points all five for now; see the top of custom.scss. */
   --app-text: #1a1a1a;
   --app-text-muted: #666;
   --app-border: #e2e2e2;
-  /* Gridlines that carry document structure — WCAG 1.4.11 wants 3:1; #8c8c8c is 3.35:1 on white. */
-  --app-border-strong: #8c8c8c;
   --app-surface: #fff;
   --app-surface-soft: #f6f7f8;
-  --app-on-accent: #fff; /* text on an --app-accent fill */
-  --app-danger: #b00020;
-  --app-radius: 6px;
 }
 
 /*

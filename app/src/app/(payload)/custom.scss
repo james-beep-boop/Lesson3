@@ -6,9 +6,10 @@
 // ⚑ TEMPORARY: the admin's colour roles keep their pre-2026-10-25 Payload values. The shared semantic
 // palette (app-tokens.scss) carries the frontend's values; these five re-point the roles at what this
 // file used before the roles existed, so introducing the names changed no rendered colour. The
-// differences are small (black vs #1a1a1a text, #ddd vs #e2e2e2 borders, …) and each one is retired
-// by the change that unifies the component using it (navigation, then dialogs). `:root`, after the
-// `@use`, so these win over the shared defaults.
+// differences are small (black vs #1a1a1a text, #ddd vs #e2e2e2 borders, …). ⚑ Each line is GLOBAL to
+// its role: deleting one re-colours every admin use of that role at once (Manage, the editor, dialogs,
+// the nav), not one component, so retire them together in a change that means to alter the admin's
+// look. `:root`, after the `@use`, so these win over the shared defaults.
 :root {
   --app-text: var(--theme-elevation-1000);
   --app-text-muted: var(--theme-elevation-600);
@@ -1594,7 +1595,7 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
   // the frontend's 12px/20px — the header sat 11px shorter and its content edge 1.25px inboard.
   padding: var(--app-header-pad-block) var(--app-header-pad-inline);
   border-bottom: 1px solid var(--app-border);
-  background: var(--app-surface-soft); // the admin analogue of the frontend's --bg-soft
+  background: var(--app-surface-soft);
 
   // The frontend's .brand wordmark (D2): same weight/size, themed for light/dark.
   .brand {
