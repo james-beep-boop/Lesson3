@@ -72,6 +72,9 @@ validation is pending. No product fix was made.
 - [Subject grades](C5-subject-grades-current.md): the current wire suite passed 13 invalid and
   boundary create/update cases, preserving numeric storage and derived display names; broader
   collections and hooks coverage remains open.
+- [First-user bootstrap](C5-first-bootstrap-current.md): after an isolated empty-database reset,
+  the current wire suite passed four setup, budget, concurrent first-register and one-shot closure
+  cases; the synthetic target was restored and the wider signup/session catalog remains open.
 - [Discussions](C24-current-discussions.md): the current wire suite passed 30 thread, privacy,
   participation, forum-off, redaction and authority-wait cases; message-reference coverage added
   12 label, recipient and no-write refusal cases; broader C24 coverage remains open.

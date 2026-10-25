@@ -525,7 +525,7 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/http/combineSave.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/discussions.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/endpoints.http.spec.ts` | C72 | Pending review |
-| `app/tests/http/firstUserBootstrap.http.spec.ts` | C72 | Pending review |
+| `app/tests/http/firstUserBootstrap.http.spec.ts` | C72 | Current C5.3/C5.10 wire evidence: C5-first-bootstrap-current.md; 4/4 passed after isolated empty reset/restore |
 | `app/tests/http/jobStatsGlobal.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/lockedDocuments.http.spec.ts` | C72 | Pending review |
 | `app/tests/http/messageReferences.http.spec.ts` | C72 | Pending review |
