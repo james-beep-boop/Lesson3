@@ -88,8 +88,12 @@ describe('Modal renders into document.body, not where it is called', () => {
 
 // ── The chrome, on both surfaces ─────────────────────────────────────────────────────────────────
 const here = dirname(fileURLToPath(import.meta.url))
+// Each surface as it loads: the frontend layout imports the shared `app-dialog.scss` beside its own
+// `styles.css`; the admin `@use`s it from `custom.scss`. Both must carry the chrome.
 const sheets = {
-  frontend: readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), 'utf8'),
+  frontend:
+    sass.compile(resolve(here, '../../src/app/app-dialog.scss')).css +
+    readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), 'utf8'),
   admin: sass.compile(resolve(here, '../../src/app/(payload)/custom.scss')).css,
 }
 
@@ -107,9 +111,9 @@ const rulesOf = (css: string) => {
 describe.each(Object.entries(sheets))('%s stylesheet', (_surface, css) => {
   const rules = rulesOf(css)
   /**
-   * Matches a selector ENDING in the element, so the frontend's flat `.modal__title` and the admin's
-   * nested `.modal .modal__title` (Sass compiles the nesting in) are both found — and the
-   * `modal--plain` opt-out is excluded, since it is the thing these cases contrast against.
+   * Matches a selector ENDING in the element, so a flat `.modal__title` and a nested
+   * `.modal .modal__title` are both found — and the `modal--plain` opt-out is excluded, since it is
+   * the thing these cases contrast against.
    */
   const forElement = (element: string) =>
     rules.filter((r) =>

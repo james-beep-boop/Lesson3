@@ -15,6 +15,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - The account menu in Manage and the lesson editor now looks the same as on the rest of the site: the
   same grey menu, blue Messages and "Change display name" links, and avatar colour. The top navigation
   and the menu are styled in one shared place, so they can't drift apart again. No database migration.
+- Dialogs look the same everywhere. In Manage and the editor they get the rounder corners and
+  bolder title of the rest of the site; on the rest of the site, text boxes in dialogs match the
+  buttons beside them and show a clear blue outline when selected. No database migration.
 
 ## v1.06 (2026-10-25)
 

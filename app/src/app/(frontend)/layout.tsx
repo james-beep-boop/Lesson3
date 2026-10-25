@@ -7,6 +7,7 @@ import WelcomeDialog from '@/components/WelcomeDialog'
 
 import '../app-tokens.scss'
 import '../app-chrome.scss'
+import '../app-dialog.scss'
 import './styles.css'
 
 export const metadata = {
