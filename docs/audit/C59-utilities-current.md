@@ -64,5 +64,14 @@ counts and ordering. The exact runner hash is
 boundary and projection contracts; they do not close the remaining combine/recovery, resolver,
 transaction, or deployment families.
 
+The high-risk Combine/edit-recovery unit slice then passed **111/111** across eight files:
+`combineEngine`, `combineLineage`, `combineUnavailable`, `draftCombineSuggestion`,
+`editRecoveryProjection`, `recoveryCombineBoundary`, `combineRetry` and `combineVersionChoices`.
+The exact runner hash is
+`abd0227726c83b66b6e14e8f5343f5de4f9ef1987df430af0fd5b32229bea709`; the raw log hash is
+`01f938250b36f019946fe4899496fca45a6701a5862c90481d35bf46a5f462e5`. The unit results reinforce,
+but do not replace, the existing current Combine/recovery HTTP and integration evidence; concurrent
+cross-operation races and deployment behavior remain open.
+
 Remaining C5.9 work includes the other `src/lib` families, expiry/clock utilities, combine and
 recovery primitives outside the already tested suites, and broader deployment/browser coverage.

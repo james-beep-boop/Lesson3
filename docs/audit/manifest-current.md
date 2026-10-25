@@ -616,13 +616,13 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/collapseOnEntry.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/collapsedPanelEntryRule.spec.ts` | C72 | Pending review |
 | `app/tests/unit/combineDraft.spec.ts` | C72 | Pending review |
-| `app/tests/unit/combineEngine.spec.ts` | C72 | Pending review |
+| `app/tests/unit/combineEngine.spec.ts` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
 | `app/tests/unit/combineFields.spec.ts` | C72 | Pending review |
-| `app/tests/unit/combineLineage.spec.ts` | C72 | Pending review |
+| `app/tests/unit/combineLineage.spec.ts` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
 | `app/tests/unit/combineOutcome.spec.ts` | C72 | Pending review |
-| `app/tests/unit/combineRetry.spec.tsx` | C72 | Pending review |
-| `app/tests/unit/combineUnavailable.spec.ts` | C72 | Pending review |
-| `app/tests/unit/combineVersionChoices.spec.tsx` | C72 | Pending review |
+| `app/tests/unit/combineRetry.spec.tsx` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
+| `app/tests/unit/combineUnavailable.spec.ts` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
+| `app/tests/unit/combineVersionChoices.spec.tsx` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
 | `app/tests/unit/compareDiffGroups.spec.ts` | C72 | Pending review |
 | `app/tests/unit/compareFilterDefault.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/compareGroups.spec.ts` | C72 | Pending review |
@@ -640,11 +640,11 @@ This is an inventory, not coverage credit. Historical audit evidence is tracked 
 | `app/tests/unit/discussions.spec.ts` | C72 | Pending review |
 | `app/tests/unit/displayNameForm.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/displayTitle.spec.ts` | C72 | 127/127 contract-unit follow-up (see C59-utilities-current.md) |
-| `app/tests/unit/draftCombineSuggestion.spec.ts` | C72 | Pending review |
+| `app/tests/unit/draftCombineSuggestion.spec.ts` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
 | `app/tests/unit/editJumpNav.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/editRecoveryIndicator.spec.tsx` | C72 | Pending review |
 | `app/tests/unit/editRecoveryMigrationOrder.spec.ts` | C72 | Pending review |
-| `app/tests/unit/editRecoveryProjection.spec.ts` | C72 | Pending review |
+| `app/tests/unit/editRecoveryProjection.spec.ts` | C72 | 111/111 Combine/edit-recovery unit follow-up (see C59-utilities-current.md) |
 | `app/tests/unit/editRecoveryProtocol.spec.ts` | C72 | Pending review |
 | `app/tests/unit/editRecoveryTtlProvenance.spec.ts` | C72 | Pending review |
 | `app/tests/unit/editingViewport.spec.ts` | C72 | 127/127 contract-unit follow-up (see C59-utilities-current.md) |
