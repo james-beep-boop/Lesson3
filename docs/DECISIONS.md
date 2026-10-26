@@ -20,8 +20,10 @@ Agreed with the operator, with Mark's input, while planning
 - **USB is the primary route** for installs, reinstalls and updates; internet (kenyalessons.org, phone
   tether, or a school connection) is supported but never relied on. Data costs Kenyan technicians and
   teachers real money; nothing downloads without stating its size and asking.
-- **Two levels of verification:** program updates must verify (refused otherwise); lesson sets are
-  checked, warned on and never blocked.
+- **Checksums, not signing keys** (decided later the same day): files on sticks and kenyalessons.org are
+  checked by sha256. Program updates whose checksum fails are refused; lesson sets warn and never block.
+  The operator accepts that a checksum cannot prove a file came from ARES if kenyalessons.org itself
+  were taken over; USB updates from a technician are unaffected.
 - **A new ARES release becomes Official automatically**, except where the school made a teacher's version
   Official; the move must be made very clear at the time. **Version numbers stay**, and each ARES
   version also shows its ARES release date (from ARES, never the import time). Versions are never

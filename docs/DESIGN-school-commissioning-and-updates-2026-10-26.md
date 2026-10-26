@@ -11,8 +11,8 @@ land with the code that implements them, not before.
 settings template has keys the school's `.env` lacks. Changes: a stronger proof before "safe to wipe",
 scoped to Lesson3 (§7b); accurate update recovery (§10a); power-cut resumption as a requirement (§7d);
 old-upgrade testing and settings without hand edits (§7c); repeated and interrupted imports (§10b);
-password and signing-key custody (§5, §8); honest wording on USB rotation (§8). Also: the operator
-reports that technicians already back up the other ARES programs' teacher uploads to USB before a
+password custody (§8); checksums instead of signing keys, by operator decision (§5); honest wording
+on USB rotation (§8). Also: the operator reports that technicians already back up the other ARES programs' teacher uploads to USB before a
 full reinstall (§1, §13).
 
 Read with: `docs/DESIGN-backup-recovery-2026-10-21.md` (Phase A, shipped) and
@@ -82,9 +82,8 @@ One layout, on a stick or at `https://www.kenyalessons.org/`:
 ```
 ares-stick/
   STICK.json             what is on this stick, written last (versions, sizes, sha256 of every file)
-  STICK.json.sig         ARES signature over STICK.json
   program/<version>/     release bundle + docker-saved amd64 images (app, migrate, Gotenberg, Postgres)
-  lessons/<release>/     lessons.zip + LESSONS.json (manifest) + LESSONS.json.sig
+  lessons/<release>/     lessons.zip + LESSONS.json (manifest)
   fonts/                 optional; see §9
   recovery/              recover.sh and the printed sheet (Phase B)
 ```
@@ -93,8 +92,8 @@ ares-stick/
   builder (B1) widened to carry lessons. The recovery kit, the update stick and the install stick are
   the same artifact; build it once (`PLAN-phase-b-recovery` already says so).
 - **Images are not GitHub release assets** (several GB, over the 2 GB asset cap). Over the internet,
-  program images still come from the registry, pulled by the digest pins inside the signed bundle, so
-  the registry needs no trust of its own.
+  program images still come from the registry, pulled by the digest pins inside the checksummed bundle,
+  so a damaged or substituted image is refused whichever registry serves it.
 - **The lesson manifest (`LESSONS.json`)** carries what the lesson files themselves cannot:
   - the **ARES release** — an id and a **release date** set by ARES (never the import time; school
     clocks may be wrong, and two schools must show the same date for the same release);
@@ -106,27 +105,36 @@ ares-stick/
 
   The ARES lesson contract itself is unchanged.
 
-## 5. Verification: two levels of strictness
+## 5. Checking downloads and sticks: checksums, no signing keys
 
-- **Program updates: strict.** The update runs with full control of the server. A program that does not
-  verify is refused, with the message to use an ARES stick instead.
-- **Lessons: check, warn, never block.** A lesson file cannot run anything: ingest parses JSON only and
-  validates it, and versions are kept, so a bad set can be undone. A set that fails or lacks a signature
-  shows *"This lesson set could not be verified as coming from ARES. Import anyway?"*; the technician
-  may continue, and the commissioning or update receipt records **unverified**. The existing
-  Manage → upload keeps accepting unsigned zips, as today (Site Administrator only).
-- **Built so it does not fail by accident:**
-  - **No dates in signatures.** `ssh-keygen -Y sign` (already on every Ubuntu) or `minisign`; nothing
-    expires, so a wrong school clock cannot break verification.
-  - **No online check.** The `.sig` travels next to the file.
-  - **Two ARES public keys in the image** (current and spare), so replacing a lost key does not strand
-    machines already in schools.
-  - **Damage is not distrust.** A sha256 mismatch says "download damaged — try again", not "untrusted".
-- **ARES signs when it publishes; nobody else needs the key.** Publishing a program or lesson release
-  (to kenyalessons.org and as a stick master) signs it as the last step, on the machine that holds the
-  ARES signing key. **Building a stick for a visit is a different job:** the stick builder copies
-  already-signed artifacts and verifies them, and never needs or touches the private key. So any
-  technician can make sticks, and the key stays with very few people. Who those are is open (§13).
+**Operator decision, 2026-10-26:** checksums only. Signing keys were proposed in revision 1 and dropped:
+they add a key someone must guard, and the operator judges the risk too small to justify that, given
+how much simpler checksums are for the schools that are online.
+
+- **What is checked.** `STICK.json` (and the same file on kenyalessons.org) lists the sha256 of every
+  file. The tool recomputes each file's sha256 and compares. A program bundle carries the digest pins of
+  its container images, so the images are checked against the bundle wherever they come from.
+- **Two levels of strictness** still apply, now to the checksum:
+  - **Program updates: strict.** A program file whose checksum does not match is refused: *"This update
+    is damaged. Copy it again, or use an ARES stick."*
+  - **Lessons: warn, never block.** A lesson file cannot run anything (ingest parses JSON only and
+    validates it), and versions are kept, so a bad set can be undone. A mismatch shows *"This lesson set
+    looks damaged. Import anyway?"*; the receipt records it. The existing Manage → upload keeps
+    accepting plain zips with no checksum, as today (Site Administrator only).
+- **No dates and no online check,** so a wrong school clock or a missing connection never breaks a check.
+- ⚑ **Accepted risk, stated plainly.** A checksum proves a file was not *damaged*; it does not prove the
+  file came from ARES, because whoever controls kenyalessons.org controls the checksums too. If the site
+  were taken over (bulk automated attacks on websites are common) or the domain lapsed and someone else
+  bought it, a school that updates its **program** over the internet could install something that is not
+  ARES's. USB updates from an ARES technician are unaffected. The operator accepts this risk.
+- **Safeguards that cost nobody any effort:**
+  - **Downloads use `https://` only,** never plain `http://`, so nothing can be swapped on the way.
+  - **Keep kenyalessons.org on auto-renew, registered for several years** (an operator task, not code).
+    A lapsed domain is the likeliest way for a stranger to end up serving files to schools.
+  - **A program update always shows what it is** (version and a one-line summary) and asks before
+    installing; nothing installs on its own.
+- **Signing can be added later without redesign:** it would be one extra file next to `STICK.json` and a
+  check in the tool. Nothing else changes.
 
 ## 6. Seal (on the master, before Clonezilla)
 
@@ -135,7 +143,7 @@ ares-stick/
 1. **Refuses** if `/srv/lesson3/.env` exists or any Lesson3 Docker volume exists, naming what it found.
 2. Checks the image carries what commissioning needs: the release bundle (no `.env`), the amd64 images
    loaded and matching the bundle's digest pins, `age`/`rclone`, and a current lesson set (zip,
-   manifest, signature).
+   manifest, checksums).
 3. Removes per-machine identity: SSH host keys, `/etc/machine-id` (emptied, regenerated on boot), any
    Tailscale state, logs and shell history.
 4. Writes `UNCOMMISSIONED`, and prints "Sealed: safe to copy".
@@ -160,12 +168,12 @@ One command, `sudo lesson3 commission`, in plain steps. It asks first:
 4. **First Site Administrator,** created at the school through the existing one-time form. The command
    waits until it exists.
 5. **Lessons:** import the newest set it can find — the technician's stick, else kenyalessons.org (only
-   if internet was chosen, with the size shown first), else the set on the image. Verification per §5.
+   if internet was chosen, with the size shown first), else the set on the image. Checked per §5.
    They arrive as **1.0.0 Official**. This needs a supported production import command (§12).
 6. **Fonts** from the stick, if present (§9).
 7. **Backups** (§8): destination, backup password, automatic schedule, first backup run and checked.
-8. **Receipt:** installation ID, school name, program version, lesson release (verified or
-   not), backup destination and key fingerprints. Written to the stick and to `out/ops/`.
+8. **Receipt:** installation ID, school name, program version, lesson release (and whether any
+   file looked damaged), backup destination and key fingerprints. Written to the stick and to `out/ops/`.
    ⚑ **The backup password appears only on the printed recovery sheet,** handed to whoever the school
    names as keeper. It is never written to any file: not the receipt, not the stick, not the server.
 
@@ -309,7 +317,7 @@ internet**, **Back up now**, **Status**.
   and their download sizes; and whether this program can accept the lessons available.
 - **Update** does the work, always in this order:
   1. **Backup capability.** If a backup cannot be taken right now, stop. Nothing changes without one.
-  2. **Program first,** if newer, because new lessons may need it. Strict verification. Images are
+  2. **Program first,** if newer, because new lessons may need it. Strict checksum check (§5). Images are
      loaded from the stick (`docker load`, checked against the pins) or pulled over the internet;
      today `update.sh` always pulls, so it needs the same offline mode as `install.sh`. The existing
      `update.sh` takes its pre-update snapshot (refusing to continue without one) and keeps the previous
@@ -423,7 +431,7 @@ internet**, **Back up now**, **Status**.
   and `--go-back`; resumable steps (power cuts); the this-disk destination; backup password and locked
   key, with the password never written to any file; installation marker on destinations; the standing
   rules that migrations are never deleted or squashed and that every new setting has a safe default or
-  a question; the two verification levels; signing at publish, never at stick building.
+  a question; checksum checks at two levels of strictness, with the accepted risk stated (§5).
 - **§8:** none expected (no new authority; the update tool is server-side, the web upload stays Site
   Administrator only).
 
@@ -434,16 +442,15 @@ internet**, **Back up now**, **Status**.
    `prepare-reinstall` ends by printing a short pre-wipe checklist, with Lesson3's line already ticked
    and a line for the other ARES programs' teacher content that Mark's team fills in once. Until a
    combined step exists, Lesson3's "safe to wipe" speaks for Lesson3 only (§7b).
-2. **Signing (§5): the operator wants to discuss a lighter method** than ARES signing keys, on the
-   grounds that nobody is going to target these schools. Under discussion; §5 stands until decided.
 
 **Decided 2026-10-26:**
+- **Checksums only, no signing keys** (§5), with the internet-program-update risk accepted.
 - **Manage → upload follows the same automatic-Official rule** and confirmation list as the server tool
   (§10b).
 - **No hostname change, so no school-code format.** Every ARES lesson's 6,850 resource links point at
   `ares.local`, which is the machine's own name on the school network; renaming the machine would break
-  every one of them. Every school machine keeps the image's name (the one that answers to `ares.local`; to confirm
-  with Mark on a real ARES server). Schools are separate networks, so the same name in two schools
+  every one of them. Every school machine keeps the image's name (the one that answers to
+  `ares.local`; to confirm with Mark on a real ARES server). Schools are separate networks, so the same name in two schools
   never collides. A machine's identity is its Installation ID and school name,
   not its network name.
 
@@ -455,7 +462,7 @@ internet**, **Back up now**, **Status**.
 2. **School name** (field, switchboard, the six places).
 3. **Backups for schools:** this-disk destination, backup password with locked key, installation
    marker, automatic schedule.
-4. **The ARES stick builder + publish-time signing + verification** (shared with Phase B's B1).
+4. **The ARES stick builder + checksums** (shared with Phase B's B1).
 5. **`install.sh` and `update.sh` offline modes; settings defaults instead of hand edits; seal;
    commission (new school)**, all resumable.
 6. **prepare-reinstall (with its throwaway-database proof) + commission (returning school)** (shared
