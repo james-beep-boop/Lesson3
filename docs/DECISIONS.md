@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-25 — Admin colour overrides retired (the last CSS cleanup step)
+
+The operator approved removing the temporary `:root` block at the top of `custom.scss` that re-pointed the five
+shared colour roles at Payload's light-theme greys (CSS step 2, below). The admin now takes the roles' shared
+values from `app-tokens.scss`, so the change is global to the admin and is meant to be visible:
+
+| Role | Was (Payload light) | Now (shared) |
+|---|---|---|
+| `--app-text` | elevation-1000, `#000` | `#1a1a1a` |
+| `--app-text-muted` | elevation-600, `rgb(101,101,101)` | `#666` |
+| `--app-border` | elevation-150, `#ddd` | `#e2e2e2` |
+| `--app-surface` | elevation-0, `#fff` | `#fff` |
+| `--app-surface-soft` | elevation-50, `#f5f5f5` | `#f6f7f8` |
+
+Payload's values were read from the published `@payloadcms/ui@3.92.0` stylesheet, not recalled. The dark
+values never apply, because every page is pinned light (v1.07). Payload's own native components still use
+`--theme-elevation-*` directly and keep Payload's greys; only the declarations that already used a role move.
+The button palette literals in `app-tokens.scss` are unchanged (they already equal the shared values), and
+only the comments that described the re-pointing changed. Muted text on the soft surface is ~5.4:1, the same
+pair the buttons already use.
+
+---
+
 ## 2026-10-25 — Client-scoped sign-in protection (F-C23-001/002/003)
 
 The operator authorized the three sign-in fixes and confirmed the proposed Cloudflare rule was never
@@ -32,6 +55,7 @@ ceilings remain a separate availability limitation. Configuration and upgrade ch
 Payload upgrades; this is workload equalization, not a promise of constant-time network responses.
 
 ---
+
 ## 2026-10-25 — Restore and undo stop when export-cache invalidation fails
 
 F-C70-001 is a real failure-masking bug: the cache deletion shell command ended in `; true`, so a

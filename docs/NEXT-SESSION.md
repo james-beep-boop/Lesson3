@@ -56,9 +56,9 @@ typing is unchanged from v1.05 (40–48 ms per key). No migration. Results: DECI
 colour roles), #453 (nav, avatar menu and badges in `app/src/app/app-chrome.scss`), #454 (the dialog in
 `app/src/app/app-dialog.scss`, plus the Codex review fixes: favorites refuse an invalid version id with
 400, a stronger ingest-contract test, and the style comparison kit in `app/tests/style-snapshot/`). No
-migration. **Deployed to the Rock** (2026-10-25, `5cb64b4` → `69dd7d2`, run by the operator; `/login` 200 showing 1.07; a lesson page and Manage checked signed in). Still to do:
-the five temporary admin colour-role overrides at the top of `custom.scss` come out together, as one
-change meant to alter Manage's look (DECISIONS 2026-10-25, CSS step 2). **Deferred by the operator
+migration. **Deployed to the Rock** (2026-10-25, `5cb64b4` → `69dd7d2`, run by the operator; `/login` 200 showing 1.07; a lesson page and Manage checked signed in). **Unreleased on
+`main`:** the five temporary admin colour-role overrides are gone, so Manage and the editor use the App's
+text, border and grey shades (DECISIONS 2026-10-25, "Admin colour overrides retired"). **Deferred by the operator
 (2026-10-25), from the #454 /simplify pass:** (1) a shared "present but not an id → 400" helper in
 `src/lib/relId.ts` — discussion links and message replies already refuse a bad id, and the only hook
 that skips one (`stampVersionLineage`) reads system-only fields, so nothing user-reachable is open;

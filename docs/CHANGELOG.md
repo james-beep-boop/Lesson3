@@ -8,6 +8,12 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (on `main`, not tagged or deployed)
+
+- Manage and the lesson editor now use exactly the same text, border and grey shades as the rest of
+  the site. The difference is slight: text is a very dark grey instead of pure black, borders are a
+  touch lighter, and shaded areas take a faint cool tint. No database migration.
+
 ## v1.07 (2026-10-25)
 
 - Every page is now light. Manage and the lesson editor used to switch to dark colours on a device

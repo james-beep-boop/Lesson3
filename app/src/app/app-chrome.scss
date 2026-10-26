@@ -8,8 +8,8 @@
  * row blue on one and black on the other. The frontend's look was chosen for every difference (and the
  * admin's `.app-nav__badge`, which no component renders, was dropped). The rules now live only here:
  * imported by the frontend layout (after `app-tokens.scss`, before `styles.css`) and `@use`d by
- * `custom.scss`. The admin still re-points five colour roles at Payload's values for now (top of
- * `custom.scss`), so the text and greys there differ by a shade until that block is retired.
+ * `custom.scss`. Both surfaces use the same colour-role values (the admin's temporary re-pointing at
+ * Payload's greys was retired 2026-10-25), so the rules render identically on both.
  *
  * SCOPE: only the classes these two components own (`.app-nav*`, `.user-menu*`, and the forum's
  * `.disc-dot`, which shares the nav dot's geometry). Nothing here reaches a Payload-native element, and
