@@ -8,7 +8,8 @@ land with the code that implements them, not before.
 
 **Where it stands (2026-10-26, end of day):** every question is answered except one for Mark (§13: how
 `ares.local` is resolved), which affects only parts 5–6. **Part 1 has its own implementation plan,
-`docs/PLAN-lesson-releases-part1-2026-10-26.md`, awaiting approval;** parts 2–3 need no test machine
+`docs/PLAN-lesson-releases-part1-2026-10-26.md`, with the operator's decisions recorded and an
+external review (GPT) pending before approval;** parts 2–3 need no test machine
 and can follow it.
 
 **Revision 2** folds in an external review (GPT, 2026-10-26), whose two code claims were checked against
@@ -365,7 +366,7 @@ internet**, **Back up now**, **Status**.
   ARES's change, and without the original every ARES correction would look like something the teacher
   undid, so merging would put old mistakes back.
 - **Version numbers stay, and each ARES version also shows its ARES release** — e.g. *"2.0.0 · ARES
-  release Nov 2026"* — on the lesson page and in the version details, from the manifest's release date.
+  release 14 Nov 2026"* — on the lesson page and in the version details, from the manifest's release date.
   A version imported without a manifest (a plain zip through Manage → upload) shows *"ARES release: not
   stated"*. Stored as system-only fields on the version.
 - **Official moves automatically, except where the school chose otherwise.** If the plan's current
@@ -374,10 +375,12 @@ internet**, **Back up now**, **Status**.
 - **Made very clear at the time** (operator requirement):
   - **before applying,** the tool lists every lesson whose Official will move, and every lesson where it
     will not and why, and asks the technician to confirm;
-  - **on the lesson page,** *"Official updated to the ARES Nov 2026 release on 3 Dec. Previous Official:
+  - **on the lesson page,** *"Official updated to the ARES release of 14 Nov 2026 on 3 Dec 2026. Previous Official:
     1.0.0 (still in the version history)."*;
   - **to each subject-grade administrator,** an internal message listing what changed in their
-    subject-grade and what is waiting for them.
+    subject-grade and what is waiting for them, **sent from the Site Administrator who confirmed the
+    upload** (operator, 2026-10-26). A command-line import has no signed-in person, so it sends none;
+    the lesson-page notice and the import report cover it.
 - **Teachers who edited the older release** see, when they open the lesson: *"ARES has published a newer
   version of this lesson. Your version 1.0.2 is based on the older one. Combine them?"* It opens the
   existing Combine screen with the right ancestor. Nothing changes without the teacher; the result is a
@@ -392,7 +395,7 @@ internet**, **Back up now**, **Status**.
   have saved since.
 - **A release id is never reused.** If an incoming set carries a release id the school already has, but
   any file's content differs, the import refuses with a plain error ("This lesson set says it is the
-  Nov 2026 release, but its contents differ from the Nov 2026 release already here") and imports nothing.
+  release of 14 Nov 2026, but its contents differ from that release already here") and imports nothing.
 - **Interrupted imports leave nothing behind.** The write is one transaction (as web upload's is today),
   so a power cut means nothing was imported and the re-run starts clean. Messages to administrators are
   sent only after the write commits, once per release per subject-grade.
@@ -448,6 +451,11 @@ internet**, **Back up now**, **Status**.
    `http://ares.local:3001`, sparing the technician the LAN-address question in §7a.
 
 **Decided 2026-10-26:**
+- **Release label shows the full date,** day month year: *"2.0.0 · ARES release 14 Nov 2026"*.
+- **Administrator messages come from the Site Administrator who confirmed the upload;** command-line
+  imports send none.
+- **The lesson-set manifest is optional.** ARES's export does not write one yet; until it does, zips
+  work as today with the release "not stated".
 - **No pre-wipe checklist.** Technicians back up the other ARES programs' teacher content from memory,
   and no written checklist will be made (operator). Lesson3's `prepare-reinstall` therefore prints its
   own "LESSON3 SAFE TO WIPE" result followed by a one-line reminder to back up the other ARES programs'

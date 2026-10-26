@@ -1,6 +1,7 @@
 # Part 1 — ARES lesson releases: import, release dates, automatic Official (implementation plan)
 
-**Status: PROPOSAL for operator approval, 2026-10-26. No code is written.** This is build part 1 of
+**Status: PROPOSAL, 2026-10-26. The operator's three decisions are recorded below; awaiting an
+external review (GPT) before approval. No code is written.** This is build part 1 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§10b, §4's lesson manifest, §14 item 1).
 It is the core that every route uses — commissioning, the update tool and Manage → upload — and needs no
 test machine: everything below runs in the isolated test stack. Mark's open question (how `ares.local`
@@ -46,7 +47,7 @@ Optional. Read from the root of an uploaded zip, or beside the files for the com
 ```
 
 - `release.id` — any short string ARES chooses, unique per release. `release.date` — a calendar date set
-  by ARES (shown as "Nov 2026").
+  by ARES (shown in full, day month year: "14 Nov 2026").
 - `minProgram` — refuse the whole set, importing nothing, if this program is older: *"This lesson set
   needs Lesson3 1.08 or later; this server has 1.07."*
 - `kinds` — kinds this program does not know are listed as "waiting for a program update"; the rest
@@ -71,7 +72,7 @@ Excluded from content equality and from the editable form, like the fingerprint.
 For a file that matches an existing plan:
 
 - **Already imported:** if any version of that plan has the same `releaseFingerprint`, skip it:
-  *"Already here — the same content as version 2.0.0 (ARES release Nov 2026)."* No version, no Official
+  *"Already here — the same content as version 2.0.0 (ARES release 14 Nov 2026)."* No version, no Official
   move, no message. This replaces "matches latest saved version" for ARES content; the latest-version
   comparison stays as a second check, unchanged.
 - **Reused release id:** if the plan already has a version with this `aresReleaseId` but a different
@@ -103,6 +104,17 @@ Same shape as the taxonomy round, and combined with it into one question when bo
 - Resubmit with `confirmOfficial=1` (and taxonomy approvals, as today): import, applying §4.
 - An upload that moves no Official (all new plans, or all waiting) needs no extra round.
 
+### 5a. Messages to subject-grade administrators (web upload only)
+
+After the transaction commits, each subject-grade administrator whose subject-grade had an Official
+moved or a release left waiting gets **one internal message per upload**, **sent from the Site
+Administrator who confirmed it**: what moved (lesson, old and new version, release date) and what is
+waiting for them, with links. A subject-grade with no administrator gets none (the upload report
+already lists it). Sent after commit, so a rolled-back import sends nothing; a message failure is
+logged and reported, and never undoes the import. Uses the existing messages collection; it creates
+no new authority (the Site Administrator may already message anyone). The command-line import sends
+no messages: no person is signed in.
+
 ### 6. A supported command-line import (for commissioning and the update tool)
 
 `app/scripts/import-lessons.ts`, run through the `migrate` service like `recover-site-admin.ts`:
@@ -130,6 +142,8 @@ docker compose run --rm -v /media/stick/lessons:/import:ro migrate \
   → Official moves and pre-warm is queued; with a teacher Official → stays; Official changed between
   preview and write → the write respects it; one-transaction rollback leaves no version, no Official
   move.
+- **Messages:** after a confirmed upload, each affected subject-grade administrator gets exactly one
+  message from the confirming Site Administrator; none on rollback; none from the command line.
 - **Wire (`tests/http`, per CLAUDE.md):** the upload endpoint's 401 (no session), 403 (Teacher,
   Subject-grade administrator), the 409 Official preview, the confirmed happy path, and a combined
   taxonomy + Official round.
@@ -145,11 +159,11 @@ docker compose run --rm -v /media/stick/lessons:/import:ro migrate \
 ## PR 1b — what people see
 
 1. **Release label.** Wherever a version number appears with detail — the lesson page header, the
-   versions list and the version details — an ARES version shows *"2.0.0 · ARES release Nov 2026"*, or
+   versions list and the version details — an ARES version shows *"2.0.0 · ARES release 14 Nov 2026"*, or
    *"ARES release: not stated"*. Teacher versions show nothing extra. The catalogue row is unchanged
    (space on phones).
 2. **"Official updated" notice on the lesson page,** when the Official version is an ARES release whose
-   predecessor release exists: *"Official updated to the ARES Nov 2026 release on 3 Dec. The previous
+   predecessor release exists: *"Official updated to the ARES release of 14 Nov 2026 on 3 Dec 2026. The previous
    release (1.0.0) is still in the version history."* Derived from the version itself (its release
    date, creation date and `sourceVersion`); no new stored state.
 3. **Teacher prompt.** When a teacher with editing access opens a lesson whose Official is a newer ARES
@@ -163,17 +177,17 @@ docker compose run --rm -v /media/stick/lessons:/import:ro migrate \
 **Tests (1b):** unit tests for the label and notice wording; browser tests for the label, the notice
 and the teacher prompt opening Combine; the upload dialog's combined round.
 
-## Decisions needed before building
+## Decisions (operator, 2026-10-26)
 
-1. **Messages to subject-grade administrators** (design §10b). Lesson3 messages need a sender account.
-   Recommended: for a web upload, send them **from the Site Administrator who confirmed it**; for the
-   command-line import (no signed-in person), send none and rely on the lesson-page notice and the
-   import report. This is **left out of 1a/1b** and becomes a small follow-up once you choose.
-2. **The release label's form:** "ARES release Nov 2026" (month and year) as above, or the full date?
-3. **Manifest field names** above are a proposal for ARES to adopt; whoever builds ARES's export would
-   write `LESSONS.json`. Until they do, ARES zips simply have no manifest and work as today.
+1. **Administrator messages:** sent from the Site Administrator who confirmed the upload; none from
+   the command-line import (§5a, in PR 1a).
+2. **Release label:** the full date, day month year — *"ARES release 14 Nov 2026"*.
+3. **Manifest:** optional, as proposed. ARES's export does not write `LESSONS.json` yet; until it does,
+   ARES zips work as today with the release "not stated". The field names above are what ARES's export
+   would adopt.
 
 ## Order and size
 
-1a first (the migration, import rules, upload round, command-line import, tests, SPEC), then 1b. Each is
+1a first (the migration, import rules, upload round, administrator messages, command-line import,
+tests, SPEC), then 1b. Each is
 one PR with the full gate. Roughly two to three days of work for 1a and one to two for 1b.
