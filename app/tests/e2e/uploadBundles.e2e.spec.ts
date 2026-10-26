@@ -138,15 +138,26 @@ test.describe('ZIP upload report', () => {
     await page.screenshot({ path: testInfo.outputPath('release-imported.png'), fullPage: true })
   })
 
-  test('asks before creating missing subjects and grades, then imports', async ({
+  test('confirms Official updates and missing subjects and grades in one round', async ({
     page,
   }, testInfo) => {
     await loginAs(page, fx, 'siteAdmin')
     await page.goto(`${BASE}/admin?open=plans,plans.upload`)
+    const updating = raw('99.combinedRelease')
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'existing.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(updating)),
+    })
+    await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Imported 1 file(s)' })).toBeVisible()
+    updating.LESSONS[0].slo.purpose = 'Updated in the combined confirmation round'
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
     // A new subject that shares the fixture's long MARK prefix with `${MARK}Biology` — so it is
     // "similar" and must be answered — plus a new grade of the existing fixture subject.
     const geography = `${MARK}Geography`
     const zip = new JSZip()
+      .file('updated.json', JSON.stringify(updating))
       .file('geo-a.json', JSON.stringify(raw('99.newTax1', geography, 9)))
       .file('geo-b.json', JSON.stringify(raw('99.newTax2', geography, 9)))
       .file('bio.json', JSON.stringify(raw('99.newTax3', fx.subject.name, 9)))
@@ -157,8 +168,14 @@ test.describe('ZIP upload report', () => {
     })
     await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
 
-    const confirm = page.getByRole('group', { name: 'Create missing subjects and grades?' })
+    const confirm = page.getByRole('group', {
+      name: 'Confirm lesson updates and new subjects or grades',
+    })
     await expect(confirm).toBeVisible()
+    await expect(confirm.getByRole('region', { name: 'Will become Official' })).toContainText(
+      '1.0.0 → 2.0.0 · ARES release: not stated',
+    )
+    expect(await fx.payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
     await expect(confirm.getByText(`Create ${geography} — Grade 9 (2 files)`)).toBeVisible()
     await expect(confirm.getByText(`Create ${fx.subject.name} — Grade 9 (1 file)`)).toBeVisible()
     // The similar-named subject must be answered before anything is sent.
@@ -170,7 +187,7 @@ test.describe('ZIP upload report', () => {
     await confirm.getByRole('button', { name: 'Create 2 and import' }).click()
 
     await expect(
-      page.getByRole('status').filter({ hasText: 'Imported 3 file(s); rejected 0; skipped 0.' }),
+      page.getByRole('status').filter({ hasText: 'Imported 4 file(s); rejected 0; skipped 0.' }),
     ).toBeVisible()
     const created = page.getByRole('list', { name: 'Created subjects and grades' })
     await expect(created.getByRole('listitem')).toHaveText([

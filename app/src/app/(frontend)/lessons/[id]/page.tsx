@@ -25,6 +25,13 @@ import { versionDeliverables } from '@/generator/adapter'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
 import { systemFlagsForRender } from '@/lib/systemFlags'
 import { resolveMode } from '@/lib/advancedTools'
+import {
+  releaseVersionLabel,
+  officialUpdateNotice,
+  newerReleaseSuggestion,
+} from '@/lib/aresReleasePresentation'
+import NewerAresPrompt from '@/components/NewerAresPrompt'
+import OfficialUpdateNotice from '@/components/OfficialUpdateNotice'
 import LessonDetails from '@/components/LessonDetails'
 import { readLessonDetails } from '@/lib/lessonDetails'
 
@@ -54,10 +61,18 @@ export default async function LessonView({
   // rule lives in one place.
   // The forum switch rides along (the render's one reading, shared with the nav): it only decides
   // whether the Share menu offers "Discuss this version".
+  // Edit affordances (Stage 2b, working-copy model): teachers with editing access (and admins) for this plan's
+  // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
+  // Official pointer (Make Official). Known before the version list, so only they load its ancestry
+  // (the newer-release suggestion is theirs alone).
+  const sgId = toId(plan.subjectGrade as never)
+  const canEdit = isEditorFor(user, sgId)
+  const canMakeOfficial = isSubjectAdminFor(user, sgId)
   const [versions, { forumEnabled, advancedTools }] = await Promise.all([
-    findReadableVersions(payload, { planId: plan.id, user }),
+    findReadableVersions(payload, { planId: plan.id, user }, { withAncestry: canEdit }),
     systemFlagsForRender(payload),
   ])
+  const mode = resolveMode({ advancedTools })
 
   const officialId = relId(plan.officialVersion)
   const official = versions.find((v) => v.id === officialId)
@@ -99,12 +114,10 @@ export default async function LessonView({
     .filter(Boolean)
     .join(' · ')
 
-  // Edit affordances (Stage 2b, working-copy model): teachers with editing access (and admins) for this plan's
-  // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
-  // Official pointer (Make Official).
-  const sgId = toId(plan.subjectGrade as never)
-  const canEdit = isEditorFor(user, sgId)
-  const canMakeOfficial = isSubjectAdminFor(user, sgId)
+  const notice = officialUpdateNotice(plan, official, versions)
+  // Shown in Standard and Advanced alike (operator decision 2026-10-26): a new ARES release is when
+  // teachers most need Combine, so this is the one Combine starting point Standard keeps.
+  const combineSuggestion = canEdit ? newerReleaseSuggestion(versions, official, user.id) : null
   // "Continue editing" when the signed-in user has a draft on THIS version (SPEC §5). Only asked of
   // someone who will see the Edit button at all.
   const hasDraft =
@@ -168,7 +181,7 @@ export default async function LessonView({
             UI stays an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): chip +
             Compare render only for editors, and only when there is a real choice. */}
         <p className="lesson-context">
-          {contextLine && `${contextLine} · `}Version {selected.semver ?? `v${selectedId}`}
+          {contextLine && `${contextLine} · `}Version {releaseVersionLabel(selected)}
           {selectedId === officialId && <strong className="official-tag"> · Official</strong>}
           {canEdit && versions.length > 1 && (
             <>
@@ -188,6 +201,13 @@ export default async function LessonView({
         </p>
       </PageHeader>
 
+      {notice && <OfficialUpdateNotice {...notice} />}
+      {combineSuggestion && (
+        <NewerAresPrompt
+          key={`${combineSuggestion.ownId}-${combineSuggestion.officialId}`}
+          {...combineSuggestion}
+        />
+      )}
       {details && <LessonDetails key={selectedId} {...details} />}
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
@@ -233,7 +253,7 @@ export default async function LessonView({
             deliverables={deliverables}
             canDiscuss={forumEnabled}
             smtpEnabled={!!process.env.SMTP_HOST?.trim()}
-            mode={resolveMode({ advancedTools })}
+            mode={mode}
           />
         </div>
         {navItems.length > 0 && (

@@ -101,6 +101,15 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   use.
                 </p>
                 <p>
+                  An ARES version shows its release date beside the version number, for example
+                  <strong> 2.0.0 · ARES release 14 Nov 2026</strong>.{' '}
+                  <strong>ARES release: not stated</strong> means the upload did not supply a
+                  release date. Teacher versions have no ARES release label. An{' '}
+                  <em>Official updated</em> notice shows when an import changed Official and names
+                  the previous Official when it is still available. Its change date is separate from
+                  the ARES release date.
+                </p>
+                <p>
                   Below the version information, choose <em>Show details</em> to see who saved it,
                   its source version, and when it was created and last modified. Choose{' '}
                   <em>Hide details</em> to close the panel. You can inspect details without editing
@@ -403,6 +412,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   on screen. <em>Save as new version</em> saves a Not Official result, keeps both
                   parents, and leaves Official unchanged. Nothing is saved as a numbered version
                   automatically.
+                </p>
+                <p>
+                  A lesson may offer <em>Combine them?</em> when your latest saved version is based
+                  on an older ARES release than Official. This opens Combine with your version and
+                  the current Official.{' '}
+                  <strong>Not now hides the suggestion until you reload the page.</strong> Nothing
+                  is saved until you choose to save a version or draft in the editor.
                 </p>
                 <p>
                   In the editor, Combine versions and Show details appear when Advanced tools is
@@ -726,11 +742,15 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     Submit the upload and review the report. Valid files are imported even if others
                     fail; rejected files include the reason. Unchanged files are skipped, so you can
-                    re-upload a corrected ZIP. New plans receive their first Official version; a new
-                    ARES release replaces an ARES Official after you check the list and confirm. A
-                    teacher’s Official stays unchanged, waiting for the subject-grade administrator.
-                    Repeated releases are skipped even after a teacher saves a version. A release
-                    dated earlier than the newest one already here is not imported.
+                    re-upload a corrected ZIP. The confirmation groups lessons that will become
+                    Official, releases waiting for the subject-grade administrator, and files that
+                    will make no change. Missing subjects and grades appear in the same confirmation
+                    round. Earlier versions stay in the version history. New plans receive their
+                    first Official version; a new ARES release replaces an ARES Official after you
+                    check the list and confirm. A teacher’s Official stays unchanged, waiting for
+                    the subject-grade administrator. Repeated releases are skipped even after a
+                    teacher saves a version. A release dated earlier than the newest one already
+                    here is not imported.
                   </li>
                   <li>
                     An optional LESSONS.json records the release date and checksums; damaged-looking

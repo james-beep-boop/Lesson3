@@ -13,8 +13,9 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ## 2026-10-26 — Part 2: school name shares the settings Save
 
-Implemented the approved school-name plan on `feat/school-name-part2`. The public display reader
-projects only the name and fails to absent; the global remains private. Manage reuses the existing
+Implemented the approved school-name plan on `feat/school-name-part2`. The display read shares the
+flags' one render-cached settings read (`schoolNameForRender` in `lib/systemFlags.ts`; Claude's
+cleanup) and fails to absent; the global remains private. Manage reuses the existing
 password check, settings lock and stale-edit token, and the trusted commissioning command shares
 validation and the lock. School-name changes carry no history; feature-flag provenance is preserved.
 The generated migration adds one nullable column without backfill. The restore rehearsal's older
@@ -25,6 +26,31 @@ Validation on pinned Node 24: production build and fresh migrations; types, lint
 cases (four SMTP-dependent skips), 150 Chromium tests and 125 real restore checks. Two wire suites
 interrupted by a local app restart passed on rerun. Desktop and 375 px display checks pass; phone
 screenshots were inspected. Tests used disposable stacks only.
+
+---
+
+## 2026-10-26 — Combine suggestion shows in Standard too (supersedes the entry below)
+
+The operator decided that the lesson page's **Combine them?** suggestion appears in both Standard and
+Advanced, reversing the same day's Advanced-only ruling below. Schools start in Standard, so the
+Advanced-only version meant no teacher would see it by default — and a new ARES release is exactly when
+teachers need Combine. It is therefore the one way to start a Combine that Standard keeps (SPEC §5);
+editing access is still required, and the More item and other Combine shortcuts stay Advanced.
+
+---
+
+## 2026-10-26 — Part 1b: Combine suggestion belongs to Advanced tools
+
+The operator clarified that “Combine them?” is an Advanced tool. The lesson-page suggestion uses
+`showsAction(resolveMode(flags), 'combineVersions')` alongside the existing editing-access check.
+Dismissal stays in memory until reload. Release labels and the recorded Official-update notice are
+ordinary reading information, visible in Standard too. This changes presentation only, with no new
+endpoint, stored preference or authorization rule.
+
+Part 1b validation on the pinned Node 24 stack: production build and clean migrations; typecheck,
+lint and formatting; 1,937 unit tests, 352 integration tests, 491 wire tests (four SMTP-dependent
+cases skipped) and all 150 Chromium tests. The phone and desktop screenshots were inspected.
+All database/browser tests used isolated disposable databases. No migration or generator change.
 
 ---
 

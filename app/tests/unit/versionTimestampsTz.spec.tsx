@@ -25,6 +25,9 @@ const UPDATED = '2026-07-05T18:00:00.000Z'
 const CREATED = '2026-07-01T09:30:00.000Z'
 
 vi.mock('@payloadcms/ui', () => ({
+  useDocumentInfo: () => ({
+    savedDocumentData: { releaseFingerprint: 'test', aresReleaseDate: '2026-11-14' },
+  }),
   useFormFields: (selector: (args: [Record<string, { value: unknown }>]) => unknown) =>
     selector([{ updatedAt: { value: UPDATED }, createdAt: { value: CREATED } }]),
 }))
@@ -36,6 +39,7 @@ describe('VersionTimestamps is hydration-safe across server/browser timezones', 
     const html = renderToString(<VersionTimestamps />)
     // Exact strings: explicit en-US + explicit UTC must yield this REGARDLESS of the machine TZ
     // this test happens to run under (Mac local, CI UTC, the Rock…).
+    expect(html).toContain('ARES release 14 Nov 2026')
     expect(html).toContain('July 5, 2026 at 6:00 PM UTC')
     expect(html).toContain('July 1, 2026 at 9:30 AM UTC')
   })

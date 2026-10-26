@@ -78,6 +78,15 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'school name never changes top bar or documents',
     claim: 'It never appears in the top bar or generated documents',
   },
+  { what: 'release date missing from an upload', claim: 'ARES release: not stated' },
+  {
+    what: 'Combine suggestion dismissal is temporary',
+    claim: 'Not now hides the suggestion until you reload the page',
+  },
+  {
+    what: 'combined upload confirmation',
+    claim: 'Missing subjects and grades appear in the same confirmation round',
+  },
   {
     what: 'upload preserves a teacher Official',
     claim: 'A teacher’s Official stays unchanged, waiting for the subject-grade administrator',

@@ -2,6 +2,8 @@
 
 import React, { useSyncExternalStore } from 'react'
 
+import { formatCalendarDay, formatDay } from '../../lib/formatDate'
+
 /**
  * An instant in the VIEWER's local time — "today, 2:00 AM (your time)" — for the Backups statements.
  *
@@ -28,11 +30,23 @@ export function formatInstant(iso: string, local: boolean, now: Date = new Date(
   return `${when}, ${time} (your time)`
 }
 
-export function LocalTime({ at }: { at: string }) {
-  const local = useSyncExternalStore(
+/** False on the server and the hydration render, true afterwards — the two-pass switch above. */
+const useAfterHydration = () =>
+  useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   )
-  return <time dateTime={at}>{formatInstant(at, local)}</time>
+
+export function LocalTime({ at }: { at: string }) {
+  return <time dateTime={at}>{formatInstant(at, useAfterHydration())}</time>
+}
+
+/** The same instant at day precision ("03 Dec 2026"): the viewer's day, the UTC day before hydration. */
+export function LocalDay({ at }: { at: string }) {
+  return (
+    <time dateTime={at}>
+      {useAfterHydration() ? formatDay(at) : (formatCalendarDay(at.slice(0, 10)) ?? at)}
+    </time>
+  )
 }

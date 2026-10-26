@@ -3,11 +3,13 @@ import { LocalTime } from './Manage/LocalTime'
 
 /** Native disclosure: keyboard accessible, closed on arrival, and usable without JavaScript. */
 export default function LessonDetails({
+  versionLabel,
   savedBy,
   basedOn,
   createdAt,
   updatedAt,
 }: {
+  versionLabel: string
   savedBy: string
   basedOn: string
   createdAt: string
@@ -20,6 +22,8 @@ export default function LessonDetails({
         <span className="lesson-details__hide">Hide details</span>
       </summary>
       <dl className="lesson-details__fields">
+        <dt>Version</dt>
+        <dd>{versionLabel}</dd>
         <dt>Saved by</dt>
         <dd>{savedBy}</dd>
         <dt>Based on version</dt>

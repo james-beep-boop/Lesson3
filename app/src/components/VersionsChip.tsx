@@ -24,6 +24,7 @@
 import React, { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { releaseVersionLabel } from '@/lib/aresReleasePresentation'
 import FavoriteToggle from './FavoriteToggle'
 import Modal from './Modal'
 import { sortVersionsOfficialFirst } from '@/lib/versionsOrder'
@@ -31,6 +32,8 @@ import { sortVersionsOfficialFirst } from '@/lib/versionsOrder'
 interface PanelVersion {
   id: number
   semver?: string | null
+  releaseFingerprint?: string | null
+  aresReleaseDate?: string | null
   createdAt?: string | null
   author?: { name?: string | null } | number | null
 }
@@ -68,7 +71,7 @@ export default function VersionsChip({
     try {
       const vRes = await fetch(
         `/api/lesson-bundle-versions?where[lessonPlan][equals]=${planId}&depth=1&pagination=false` +
-          `&select[semver]=true&select[createdAt]=true&select[author]=true`,
+          `&select[semver]=true&select[createdAt]=true&select[author]=true&select[releaseFingerprint]=true&select[aresReleaseDate]=true`,
         { credentials: 'same-origin' },
       )
       if (!vRes.ok) throw new Error(`versions fetch failed (${vRes.status})`)
@@ -168,7 +171,7 @@ export default function VersionsChip({
                       onClick={() => openVersion(v.id)}
                     >
                       <span className="vp-semver">
-                        {v.semver ?? `v${v.id}`}
+                        {releaseVersionLabel(v)}
                         {isOfficial && <span className="official-tag"> · Official</span>}
                         {isCurrent && <span className="vp-current-tag"> · viewing</span>}
                       </span>

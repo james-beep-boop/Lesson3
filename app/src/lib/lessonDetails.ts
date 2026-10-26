@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
-import type { User } from '../payload-types'
+import type { LessonBundleVersion, User } from '../payload-types'
 import { findReadableVersion, nullOnNotVisible } from './readBundle'
+import { releaseVersionLabel } from './aresReleasePresentation'
 import { relId } from './relId'
 
 /** Only display values cross into the lesson page; related records keep the caller's access. */
@@ -9,7 +10,10 @@ export async function readLessonDetails(
   args: {
     versionId: number
     user: User
-    versions: readonly { id: number; semver?: string | null }[]
+    versions: readonly Pick<
+      LessonBundleVersion,
+      'id' | 'semver' | 'releaseFingerprint' | 'aresReleaseDate'
+    >[]
   },
 ) {
   const version = await findReadableVersion(payload, {
@@ -39,9 +43,12 @@ export async function readLessonDetails(
   // source must never turn into a different version or reveal a record through an override read.
   const sourceId = relId(version.sourceVersion)
   const source = args.versions.find((v) => v.id === sourceId)
+  const selected = args.versions.find((v) => v.id === args.versionId)
   return {
+    versionLabel: selected ? releaseVersionLabel(selected) : `v${args.versionId}`,
     savedBy,
-    basedOn: sourceId == null ? 'Not recorded' : source?.semver || 'Unavailable',
+    basedOn:
+      sourceId == null ? 'Not recorded' : source ? releaseVersionLabel(source) : 'Unavailable',
     createdAt: version.createdAt,
     updatedAt: version.updatedAt,
   }
