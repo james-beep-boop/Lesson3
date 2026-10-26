@@ -312,6 +312,9 @@ backup destroyed the live data before anything had looked at it. Now:
    Both renames commit together or neither does. The old database keeps refusing connections.
 7. **Empty the export cache** (it is keyed by version id, and the restored database will reuse ids whose
    cached files came from the old one), **start the app**, and repeat the check against the live system.
+   If cache deletion fails, the app stays stopped and the journal remains `swapped`. Fix the cache's
+   permissions or filesystem fault, then run `scripts/restore-db.sh --resume`; it retries invalidation
+   before startup. Undo uses the same gate and remains `undo-swapped` until invalidation succeeds.
 
 Any refusal or failure in steps 1–4 leaves the live database exactly as it was and drops the incoming copy.
 

@@ -61,6 +61,16 @@ case "$args" in
   *"pg_database_size"*) echo "${LIVE_BYTES:-1000}" ;;
   *"df -Pk"*) printf 'Filesystem 1024-blocks Used Available Capacity Mounted\n/dev/x 1 1 %s 1%% /\n' "${VOLUME_FREE_KB:-99999999}" ;;
   *"ps --services"*) echo app ;;
+  *"--entrypoint sh app -c"*)
+    # Execute the real cache helper, including its exit status. Only find's failure is injected,
+    # so a trailing `true` in the production helper would mask it and fail the assertions below.
+    while [[ "$1" != -c ]]; do shift; done
+    sh -c "$2"
+    exit $? ;;
+  *"up -d"*)
+    if [[ "${CHECK_CACHE_EMPTY:-0}" == 1 && -e "$ARTIFACT_CACHE_DIR/stale.bin" ]]; then
+      echo "app startup attempted before cache invalidation" >&2; exit 1
+    fi ;;
   # Everything else (CREATE/DROP, pg_restore, the swap's SQL on stdin): log the input too, so a case
   # can assert a rename was or was not issued.
   *) cat >>"$CALLS" ;;
@@ -85,6 +95,16 @@ EOF
 #!/usr/bin/env bash
 printf 'Filesystem 1024-blocks Used Available Capacity Mounted\n/dev/y 1 1 %s 1%% /tmp\n' "${TMP_FREE_KB:-99999999}"
 EOF
+  cat >"$SANDBOX/home/bin/find" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *-delete* ]]; then
+  case "${CACHE_DELETE_FAIL:-0}" in
+    1) echo "find: injected cache deletion failure" >&2; exit 1 ;;
+    silent) exit 0 ;; # BusyBox's -delete failure can retain the file while returning success.
+  esac
+fi
+exec /usr/bin/find "$@"
+EOF
   # The restore lock. The real one is exercised at the end, where the host has it.
   cat >"$SANDBOX/home/bin/flock" <<'EOF'
 #!/usr/bin/env bash
@@ -92,7 +112,7 @@ echo "flock $*" >>"$CALLS"
 [[ "${LOCK_HELD:-0}" == "1" ]] && exit 1
 exit 0
 EOF
-  chmod +x "$SANDBOX/home/bin/docker" "$SANDBOX/home/bin/age" "$SANDBOX/home/bin/df" "$SANDBOX/home/bin/flock"
+  chmod +x "$SANDBOX/home/bin/docker" "$SANDBOX/home/bin/age" "$SANDBOX/home/bin/df" "$SANDBOX/home/bin/flock" "$SANDBOX/home/bin/find"
 }
 
 # run <stdin-answer> <args…>: run the real script against the stubs. Fixture env vars pass through.
@@ -106,6 +126,8 @@ run() {
     TMP_FREE_KB="${TMP_FREE_KB:-99999999}" VOLUME_FREE_KB="${VOLUME_FREE_KB:-99999999}" \
     LIVE_BYTES="${LIVE_BYTES:-1000}" CHECK_FAILS="${CHECK_FAILS:-0}" RESTORE_APP_WAIT_SECONDS=5 \
     LOCK_HELD="${LOCK_HELD:-0}" \
+    ARTIFACT_CACHE_DIR="$SANDBOX/cache" CACHE_DELETE_FAIL="${CACHE_DELETE_FAIL:-0}" \
+    CHECK_CACHE_EMPTY="${CHECK_CACHE_EMPTY:-0}" \
     bash "$RESTORE" "$@" <"$SANDBOX/answer" >"$SANDBOX/output" 2>&1
   EXIT=$?
   OUTPUT="$(cat "$SANDBOX/output")"
@@ -325,6 +347,53 @@ DBS="lesson3 lesson3_before_restore_20261021T000000Z" run "" --resume
 check "resume of an undo swaps back" called 'RENAME TO "lesson3_undone_20261021T000000Z"'
 check "resume of an undo re-allows connections to the previous database" called 'ALTER DATABASE "lesson3" ALLOW_CONNECTIONS true'
 check "resume of an undo ends undone" state_is undone
+
+# Both swaps must stop before startup if the cache cannot be emptied. Retain a readable artifact,
+# then repair the fault and prove --resume clears it without repeating the database swap.
+for scenario in restore:1 undo:1 restore:silent undo:silent; do
+  direction="${scenario%:*}"; cache_failure="${scenario#*:}"
+  prepare_case
+  mkdir -p "$SANDBOX/cache"
+  printf 'retained readable artifact' >"$SANDBOX/cache/stale.bin"
+  if [[ "$direction" == restore ]]; then
+    journal writers-stopped
+    before_dbs="lesson3 lesson3_incoming_20261021T000000Z"
+    after_dbs="lesson3 lesson3_before_restore_20261021T000000Z"
+    stopped_state=swapped; final_state=provisional
+  else
+    journal undo-backed-up undone=lesson3_undone_20261021T000000Z undoFrom=accepted
+    before_dbs="lesson3 lesson3_before_restore_20261021T000000Z"
+    after_dbs="lesson3 lesson3_undone_20261021T000000Z"
+    stopped_state=undo-swapped; final_state=undone
+  fi
+  CACHE_DELETE_FAIL="$cache_failure" CHECK_CACHE_EMPTY=1 DBS="$before_dbs" run "" --resume
+  check "[$direction] cache deletion failure exits non-zero" failed
+  check "[$direction] cache failure is reported" has 'could not empty the export cache'
+  check "[$direction] failed deletion retains the readable artifact" test -r "$SANDBOX/cache/stale.bin"
+  check "[$direction] cache failure preserves the resumable state" state_is "$stopped_state"
+  check "[$direction] cache failure never starts the app" not_called 'up -d'
+  check "[$direction] cache failure never reaches an app health check" not_called 'fetch('
+  : >"$SANDBOX/calls"
+  CHECK_CACHE_EMPTY=1 DBS="$after_dbs" run "" --resume
+  check "[$direction] resume after cache repair succeeds" passed
+  check "[$direction] resume clears the retained artifact" test ! -e "$SANDBOX/cache/stale.bin"
+  check "[$direction] resume starts the app after invalidation" called 'up -d app'
+  check "[$direction] resume does not swap again" not_called 'RENAME TO'
+  check "[$direction] resume reaches its final state" state_is "$final_state"
+done
+
+prepare_case
+journal swapped
+run "" --resume
+check "a missing cache directory remains harmless" passed
+check "a missing cache directory permits startup" state_is provisional
+
+prepare_case
+mkdir -p "$SANDBOX/cache"
+journal swapped
+run "" --resume
+check "an empty cache directory remains harmless" passed
+check "an empty cache directory permits startup" state_is provisional
 
 prepare_case
 journal provisional
