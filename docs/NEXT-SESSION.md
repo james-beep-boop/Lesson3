@@ -25,9 +25,11 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 [`DESIGN-school-commissioning-and-updates-2026-10-26.md`](DESIGN-school-commissioning-and-updates-2026-10-26.md)
 plans how Mark's cloned school images become unique machines (seal → commission), how a wiped and
 reinstalled school keeps its work (prepare-reinstall → restore), and how program and lesson updates
-arrive by USB or kenyalessons.org. **Planning only; nothing is approved for implementation.** Open
-questions are in its §13 (Mark: other ARES programs' teacher uploads). It shares its stick, restore
+arrive by USB or kenyalessons.org. **Planning only; nothing is approved for implementation.** One open
+question remains in its §13 (Mark: how `ares.local` is resolved). It shares its stick, restore
 command and test machine with the paused Phase B plan.
+**Next:** build part 1 (lesson releases: import rules, release dates, automatic Official) once the
+operator approves `docs/PLAN-lesson-releases-part1-2026-10-26.md`.
 
 ---
 

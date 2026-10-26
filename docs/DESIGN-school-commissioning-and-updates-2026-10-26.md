@@ -6,6 +6,11 @@ here is approved for implementation, and no code is written.** It records an ope
 build part below still needs approval before work starts. SPEC changes it needs are listed in §12 and
 land with the code that implements them, not before.
 
+**Where it stands (2026-10-26, end of day):** every question is answered except one for Mark (§13: how
+`ares.local` is resolved), which affects only parts 5–6. **Part 1 has its own implementation plan,
+`docs/PLAN-lesson-releases-part1-2026-10-26.md`, awaiting approval;** parts 2–3 need no test machine
+and can follow it.
+
 **Revision 2** folds in an external review (GPT, 2026-10-26), whose two code claims were checked against
 `deploy/online/update.sh` and are correct: the updater never rolls back, and it stops when the new
 settings template has keys the school's `.env` lacks. Changes: a stronger proof before "safe to wipe",
