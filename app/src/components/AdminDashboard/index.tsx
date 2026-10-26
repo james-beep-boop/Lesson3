@@ -1,3 +1,5 @@
+import SchoolName from '@/components/SchoolName'
+import { schoolNameForRender } from '@/lib/systemFlags'
 import React from 'react'
 import Link from 'next/link'
 import { Gutter } from '@payloadcms/ui'
@@ -586,6 +588,7 @@ export default async function AdminDashboard({
           docs/DESIGN-user-model-language-2026-07-29.md; why a site admin has no scope line: the ⚑ in
           lib/accessScopes.ts. */}
       <h1 className="lp-admin-dash__title">Manage</h1>
+      <SchoolName name={await schoolNameForRender(payload)} />
       {roleLines.length > 0 && (
         <div className="lp-admin-dash__identity">
           {roleLines.map((line) => (
@@ -816,6 +819,7 @@ export default async function AdminDashboard({
                           ] === true,
                         ]),
                       ) as FeatureValues,
+                      schoolName: systemSettings.schoolName ?? '',
                       updatedAt: systemSettings.updatedAt,
                     }}
                   />

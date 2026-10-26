@@ -1124,6 +1124,19 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 
 ## 11. Operations
 
+- **School name (Part 2, approved 2026-10-26).** The optional `system-settings.schoolName` is trimmed
+  single-line plain text, at most 80 characters, with no control characters. Empty clears it; existing
+  installations have no name and display no placeholder. A Site Administrator sets it through
+  **Manage → System → Features**, using the existing password-confirmed Save, settings lock and
+  freshness token. No change history is kept for this label; the settings' last-saved timestamp remains.
+  The trusted `scripts/set-school-name.ts` operator command uses the same validation and lock for
+  commissioning. Ordinary global REST writes stay forbidden; reads stay Site-Administrator-only.
+  A server-side render-cached projection selects only the name for public display and omits it if the
+  read fails. It appears as the sign-in heading (ARES Lesson Plans underneath), in frontend tab titles,
+  at the top of the avatar menu, and under Lesson Plans, Discussions and Manage headings. The hub may
+  use **Kenya Lessons · all schools**. Never in the top bar, a logo, generated documents, emails or the
+  public Explore page. Without a name, existing headings and titles are unchanged.
+
 - **Wrong-clock warning (added 2026-10-19).** An offline server cannot set its own time and can come
   back years off after a power cut, which breaks draft expiry, dates and sign-in timeouts. Manage
   shows Site Administrators "The server and this device show different times" when the server's clock

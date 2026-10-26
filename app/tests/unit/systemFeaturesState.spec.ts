@@ -5,6 +5,8 @@ describe('pending System settings', () => {
   const initial = {
     saved: { forumEnabled: true, advancedTools: false },
     pending: { forumEnabled: true, advancedTools: false },
+    savedName: 'Kisumu',
+    pendingName: 'Kisumu',
     updatedAt: 'before-save',
   }
 
@@ -30,11 +32,14 @@ describe('pending System settings', () => {
     const state = featuresReducer(initial, {
       type: 'saved',
       features: { forumEnabled: false, advancedTools: true },
+      schoolName: 'Kisumu Boys',
       updatedAt: 'after-save',
     })
     expect(state).toEqual({
       saved: { forumEnabled: false, advancedTools: true },
       pending: { forumEnabled: false, advancedTools: true },
+      savedName: 'Kisumu Boys',
+      pendingName: 'Kisumu Boys',
       updatedAt: 'after-save',
     })
     expect(pendingChanges(state)).toBeNull()
@@ -43,5 +48,13 @@ describe('pending System settings', () => {
         featuresReducer(state, { type: 'toggle', flag: 'forumEnabled', enabled: true }),
       ),
     ).toEqual({ forumEnabled: true })
+  })
+
+  it('the school name is a change only when its trimmed text differs, and an empty one clears it', () => {
+    const rename = (schoolName: string) =>
+      pendingChanges(featuresReducer(initial, { type: 'rename', schoolName }))
+    expect(rename('  Kisumu ')).toBeNull()
+    expect(rename(' Kisumu Boys ')).toEqual({ schoolName: 'Kisumu Boys' })
+    expect(rename('   ')).toEqual({ schoolName: '' })
   })
 })

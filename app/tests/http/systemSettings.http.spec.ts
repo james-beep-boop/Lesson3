@@ -492,3 +492,48 @@ describe('Save endpoint — the password check is not a guessing oracle', () => 
     await expectRefused(checkedToken, 429)
   })
 })
+
+describe('School name — the password-confirmed Save remains the only HTTP writer', () => {
+  it('refuses anonymous and non-administrator writes before changing the name', async () => {
+    await expectRefused(undefined, 401, { changes: { schoolName: 'Unwanted school' } })
+    for (const role of ['teacher', 'editor', 'subjectAdmin'] as const) {
+      await expectRefused(token[role], 403, {
+        changes: { schoolName: 'Unwanted school' },
+        password: fx.password,
+      })
+    }
+  })
+  it('refuses invalid names and a wrong password without writing', async () => {
+    for (const schoolName of [
+      'x'.repeat(81),
+      'School\nName',
+      'School\u0000Name',
+      'School\u0085Name',
+    ]) {
+      await expectRefused(token.siteAdmin, 400, { changes: { schoolName } })
+    }
+    await expectRefused(token.siteAdmin, 401, {
+      changes: { schoolName: 'A valid school' },
+      password: 'incorrect-password',
+    })
+  })
+  it('trims and saves the name, preserves flags and their provenance, rejects stale edits, and clears it', async () => {
+    const before = await stored()
+    const res = await save(
+      token.siteAdmin,
+      bodyFor(before, { changes: { schoolName: '  Kisumu Boys High School  ' } }),
+    )
+    expect(res.status, messageOf(res)).toBe(200)
+    const after = await stored()
+    expect(after.document.schoolName).toBe('Kisumu Boys High School')
+    expect(after.document.features).toEqual(before.document.features)
+    expect(after.document.flagChanges).toEqual(before.document.flagChanges)
+    await expectRefused(token.siteAdmin, 409, {
+      changes: { schoolName: 'Stale school' },
+      expectedUpdatedAt: before.updatedAt,
+    })
+    const clear = await save(token.siteAdmin, bodyFor(after, { changes: { schoolName: '' } }))
+    expect(clear.status, messageOf(clear)).toBe(200)
+    expect((await stored()).document.schoolName).toBe('')
+  })
+})

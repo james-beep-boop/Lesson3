@@ -1,9 +1,10 @@
+import { schoolPageMetadata } from '@/lib/schoolMetadata'
 import React from 'react'
 import Link from 'next/link'
 
 import { VerifyEmail } from './VerifyEmail'
 
-export const metadata = { title: 'Verify email — ARES Lesson Plans' }
+export const generateMetadata = () => schoolPageMetadata('Verify email — ARES Lesson Plans')
 
 /** Landing page for the emailed verification link (?token=…). No redirect-if-signed-in: someone
  *  signed in on a shared machine can still verify a different, fresh account's link. */

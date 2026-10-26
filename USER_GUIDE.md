@@ -245,6 +245,11 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
 - **Switch Discussions on or off:** in **Manage → System → Features**, change **Discussions enabled**
   and choose **Save**. Review the change and enter your password. The switch stays unchanged until
   Save succeeds. If someone else saved settings first, reload before saving.
+- **Name this school:** in **Manage → System → Features**, enter the **School name** and choose
+  **Save**. Review the change and enter your password. Only a Site administrator can set it.
+  The name appears on sign-in, in browser tabs and the account menu, and under Lesson Plans,
+  Discussions and Manage headings. It never appears in the top bar or generated documents.
+  Leave School name empty to hide it. Names can have up to 80 characters, on one line.
 - **Show advanced tools:** Advanced tools is off by default. In **Manage → System → Features**, switch
   on **Advanced tools** and choose **Save** to show *Combine versions* and *Show details* in the editor,
   and *Download as JSON* and *Email all* in a lesson page's *Share* menu. It does not change anyone's

@@ -251,3 +251,21 @@ button.user-menu__item {
     min-height: var(--app-avatar-touch-size);
   }
 }
+
+// One school-label treatment on both surfaces; the avatar slot remains inside its dropdown.
+.school-name {
+  margin: 0.25rem 0 1rem;
+  color: var(--app-text-muted);
+  font-size: var(--app-secondary-size);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.school-name--heading {
+  color: var(--app-text);
+  font-size: var(--app-page-title-size);
+  /* Only the sign-in page uses it, above its centred product name. */
+  text-align: center;
+}
+.user-menu__dropdown .school-name {
+  margin: 0 0 0.5rem;
+}

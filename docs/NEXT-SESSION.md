@@ -34,15 +34,16 @@ with the paused Phase B plan.
   release identity and dates, automatic Official with token-bound confirmation, the Official change
   record, administrator messages, `import-lessons.ts`. Not released or deployed. Open operator choice:
   messages keep the raised 100,000-character limit, or return to 5,000 with "…and N more".
-- **PR 1b in review** ([PR #460](https://github.com/james-beep-boop/Lesson3/pull/460),
-  `feat/lesson-releases-1b`) from
-  [`PLAN-lesson-releases-part1-2026-10-26.md`](PLAN-lesson-releases-part1-2026-10-26.md): release labels,
+- **Part 1b merged** ([PR #460](https://github.com/james-beep-boop/Lesson3/pull/460)): release labels,
   the recorded Official-update notice (shown in the reader's own day), the "Combine them?" suggestion
   (both Standard and Advanced, operator decision 2026-10-26), the final upload confirmation and both
-  Guides.
-- **Approved, ready to build:** [`PLAN-school-name-part2-2026-10-26.md`](PLAN-school-name-part2-2026-10-26.md)
-  (one PR) and [`PLAN-school-backups-part3-2026-10-26.md`](PLAN-school-backups-part3-2026-10-26.md)
-  (3a, then 3b). Each plan records the operator's decisions.
+  Guides, from [`PLAN-lesson-releases-part1-2026-10-26.md`](PLAN-lesson-releases-part1-2026-10-26.md).
+- **Part 2 in review:** [PR #461](https://github.com/james-beep-boop/Lesson3/pull/461)
+  (`feat/school-name-part2`), from
+  [`PLAN-school-name-part2-2026-10-26.md`](PLAN-school-name-part2-2026-10-26.md): the school name,
+  password-confirmed settings Save, operator command, display places and one nullable column.
+- **Approved, ready to build:** [`PLAN-school-backups-part3-2026-10-26.md`](PLAN-school-backups-part3-2026-10-26.md)
+  (3a, then 3b). Its plan records the operator's decisions.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---

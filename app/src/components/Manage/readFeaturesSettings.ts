@@ -3,7 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import type { User } from '../../payload-types'
 
 /**
- * The stored feature flags and freshness token for Manage → System → Features, read as the caller (the
+ * The stored school name, feature flags and freshness token for Manage → System → Features, read as the caller (the
  * global's own read access is Site-Administrator only). Null when the read fails.
  *
  * ⚑ NEVER THROWS (review of #380, 2026-10-11). It is one member of the Manage page's parallel reads, and
@@ -23,7 +23,7 @@ export async function readFeaturesSettings(
       overrideAccess: false,
       user,
       req,
-      select: { features: true, updatedAt: true },
+      select: { features: true, schoolName: true, updatedAt: true },
     })
   } catch (err) {
     payload.logger.error(

@@ -1,3 +1,5 @@
+import SchoolName from '@/components/SchoolName'
+import { schoolNameForRender } from '@/lib/systemFlags'
 import React from 'react'
 import Link from 'next/link'
 
@@ -50,7 +52,9 @@ export default async function DiscussionsPage({
             </Link>
           )
         }
-      />
+      >
+        <SchoolName name={await schoolNameForRender(payload)} />
+      </PageHeader>
       {forumEnabled && (
         <form className="disc-search" action="/discuss" method="get" role="search">
           <label htmlFor="disc-q" className="visually-hidden">

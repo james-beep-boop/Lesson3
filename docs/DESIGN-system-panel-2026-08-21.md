@@ -60,6 +60,13 @@ can act on.
 
 ### `system.features` — real toggles, plus one Save
 
+**School name** (Part 2, approved 2026-10-26) is a text box beside these switches, saved in the same
+password-confirmed, freshness-checked transaction. `system-settings.schoolName` is optional, trimmed,
+single-line text of at most 80 characters; empty clears it. It has no per-change history. The public
+reader selects this field alone; the rest of the global stays Site-Administrator-only. It labels sign-in,
+frontend tabs, the avatar menu and the Lesson Plans / Discussions / Manage headings, never the top
+bar or generated documents. The trusted commissioning command is `scripts/set-school-name.ts`.
+
 | Flag | Real today? | Renders as a toggle only when | Enforced where |
 |---|---|---|---|
 | `publicLibraryLive` | **yes** | `PUBLIC_LIBRARY_ENABLED` is set | inside `lib/publicLibrary.ts`'s existing gate |

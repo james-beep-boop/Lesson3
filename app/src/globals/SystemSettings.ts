@@ -1,6 +1,7 @@
 import type { GlobalConfig, GlobalBeforeChangeHook } from 'payload'
 
 import { siteAdminOnly } from '../access'
+import { parseSchoolName, MAX_SCHOOL_NAME_LENGTH } from '../lib/schoolName'
 import { installationIdField } from '../fields/identity'
 import { saveSystemSettingsEndpoint } from '../endpoints/systemSettingsSave'
 import { SYSTEM_FLAGS, type SystemFlag } from '../lib/systemFlagNames'
@@ -25,8 +26,9 @@ import type { User } from '../payload-types'
  *     Manage → Your saved versions.
  *
  * ⚑ WHO READS AND WRITES THESE (2026-10-09, discussions PR 2). The ONE writer is the Save endpoint,
- * `endpoints/systemSettingsSave.ts`, mounted below; it may change only `SAVEABLE_FLAGS`
- * (`lib/systemFlagNames.ts`). The ONE reader for enforcement is `lib/systemFlags.ts` (fail-closed,
+ * `endpoints/systemSettingsSave.ts`, mounted below; its explicit allowlist is `SAVEABLE_FLAGS`
+ * (`lib/systemFlagNames.ts`) plus `schoolName`. The one exception is the operator's commissioning
+ * command, `scripts/set-school-name.ts`, which sets `schoolName` alone under the same lock. The ONE reader for enforcement is `lib/systemFlags.ts` (fail-closed,
  * never cached across requests).
  * `publicLibraryLive` still has no enforcement reader — `PUBLIC_LIBRARY_ENABLED` alone governs public
  * discovery — so it is stored but not saveable. Nothing on the panel renders a switch yet: the
@@ -179,12 +181,18 @@ export const SystemSettings: GlobalConfig = {
   admin: { group: 'System', hidden: true },
   versions: false,
   hooks: { beforeChange: [stampFlagChanges] },
-  // POST /api/globals/system-settings/save — the sole writer (see `access.update` above).
+  // POST /api/globals/system-settings/save — the only writer on the wire (see `access.update` above).
   endpoints: [saveSystemSettingsEndpoint],
   fields: [
     // This installation's worldwide id (2026-10-19, `fields/identity.ts`). Read with the rest of the
     // global (Site Administrators); never written by Save — only by the migration and the reset script.
     installationIdField,
+    {
+      name: 'schoolName',
+      type: 'text',
+      maxLength: MAX_SCHOOL_NAME_LENGTH,
+      hooks: { beforeValidate: [({ value }) => (value == null ? null : parseSchoolName(value))] },
+    },
     {
       name: 'features',
       type: 'group',
