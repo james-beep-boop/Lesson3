@@ -1,17 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import {
   aresReleaseLabel,
-  releaseDateLabel,
   releaseVersionLabel,
   officialUpdateNotice,
-  newerOfficialForTeacher,
+  newerReleaseSuggestion,
 } from '../../src/lib/aresReleasePresentation'
+import { formatCalendarDay } from '../../src/lib/formatDate'
 
-const first = { id: 1, semver: '1.0.0', releaseFingerprint: 'first', aresReleaseDate: null }
-const teacher = { id: 2, semver: '1.0.2', author: 7, lineage: [1], releaseFingerprint: null }
+const createdAt = '2026-11-20T00:00:00Z'
+const first = {
+  id: 1,
+  semver: '1.0.0',
+  createdAt,
+  releaseFingerprint: 'first',
+  aresReleaseDate: null,
+}
+const teacher = {
+  id: 2,
+  semver: '1.0.2',
+  createdAt,
+  author: 7,
+  lineage: [1],
+  releaseFingerprint: null,
+}
 const official = {
   id: 3,
   semver: '2.0.0',
+  createdAt,
   releaseFingerprint: 'second',
   aresReleaseDate: '2026-11-14',
   lineage: [1],
@@ -31,18 +46,20 @@ describe('ARES release presentation', () => {
       releaseVersionLabel({ ...teacher, semver: '3.0.0', aresReleaseDate: '2026-11-14' }),
     ).toBe('3.0.0')
     expect(aresReleaseLabel(teacher)).toBeNull()
-    expect(releaseDateLabel('2026-02-30')).toBeNull()
-    expect(releaseDateLabel('bad')).toBeNull()
-    expect(releaseDateLabel('2028-02-29')).toBe('29 Feb 2028')
+    expect(formatCalendarDay('2026-02-30')).toBeNull()
+    expect(formatCalendarDay('bad')).toBeNull()
+    expect(formatCalendarDay('2028-02-29')).toBe('29 Feb 2028')
   })
 
-  it('dates the notice from the Official change and names its actual previous Official', () => {
-    expect(officialUpdateNotice(change, official, history)).toBe(
-      'Official updated to the ARES release of 14 Nov 2026 on 3 Dec 2026. The previous Official (1.0.2) is still in the version history.',
-    )
+  it('takes the notice from the Official change record and names its actual previous Official', () => {
+    expect(officialUpdateNotice(change, official, history)).toEqual({
+      release: '14 Nov 2026',
+      changedAt: '2026-12-03T15:00:00Z',
+      previousSemver: '1.0.2',
+    })
     // sourceVersion/creation timestamps are deliberately different and cannot supply either claim.
     const unrelated = { ...official, sourceVersion: 1, createdAt: '2026-11-15T00:00:00Z' }
-    expect(officialUpdateNotice(change, unrelated, history)).toBe(
+    expect(officialUpdateNotice(change, unrelated, history)).toEqual(
       officialUpdateNotice(change, official, history),
     )
   })
@@ -60,21 +77,25 @@ describe('ARES release presentation', () => {
     for (const previous of [null, 99]) {
       expect(
         officialUpdateNotice({ ...change, officialChangedFrom: previous }, first, history),
-      ).toBe('Official updated to an ARES release (date not stated) on 3 Dec 2026.')
+      ).toEqual({ release: null, changedAt: '2026-12-03T15:00:00Z', previousSemver: null })
     }
   })
 
   it('suggests the caller’s own latest save, only when its surviving ARES base is older', () => {
-    expect(newerOfficialForTeacher(history, official, 7)).toBe(teacher)
-    expect(newerOfficialForTeacher(history, official, 8)).toBeNull()
-    expect(newerOfficialForTeacher(history, first, 7)).toBeNull()
-    expect(newerOfficialForTeacher(history, teacher, 7)).toBeNull()
-    expect(newerOfficialForTeacher(history, undefined, 7)).toBeNull()
+    expect(newerReleaseSuggestion(history, official, 7)).toEqual({
+      ownId: 2,
+      ownSemver: '1.0.2',
+      officialId: 3,
+    })
+    expect(newerReleaseSuggestion(history, official, 8)).toBeNull()
+    expect(newerReleaseSuggestion(history, first, 7)).toBeNull()
+    expect(newerReleaseSuggestion(history, teacher, 7)).toBeNull()
+    expect(newerReleaseSuggestion(history, undefined, 7)).toBeNull()
     const currentSave = { ...teacher, id: 4, semver: '2.0.1', lineage: [1, 3] }
-    expect(newerOfficialForTeacher([...history, currentSave], official, 7)).toBeNull()
-    expect(newerOfficialForTeacher([teacher, official], official, 7)).toBeNull()
+    expect(newerReleaseSuggestion([...history, currentSave], official, 7)).toBeNull()
+    expect(newerReleaseSuggestion([teacher, official], official, 7)).toBeNull()
     expect(
-      newerOfficialForTeacher([{ ...teacher, lineage: null }, official], official, 7),
+      newerReleaseSuggestion([{ ...teacher, lineage: null }, official], official, 7),
     ).toBeNull()
   })
 })

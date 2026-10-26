@@ -2053,14 +2053,8 @@ a {
   color: var(--muted);
 }
 
-/* Release provenance and the optional Advanced Combine suggestion share one quiet notice. */
-.lesson-release-notice {
-  margin: var(--app-space-3) 0;
-  padding: var(--app-space-3);
-  border: 1px solid var(--app-border);
-  border-radius: 4px;
-  background: var(--app-surface-soft);
-}
+/* Release provenance and the optional Advanced Combine suggestion. The look is the app-standard
+   attention treatment (`.disc-notice`, above); only their own spacing and action row live here. */
 .lesson-release-notice p {
   margin-top: 0;
 }

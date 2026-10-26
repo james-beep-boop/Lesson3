@@ -346,6 +346,8 @@ describe('Official-only confirmation', () => {
                 willMove: true,
                 previousSemver: '1.0.0',
                 incomingSemver: '2.0.0',
+                fingerprint: 'ares-content-v1:sha256:a',
+                release: null,
               },
             ],
           },

@@ -1,69 +1,61 @@
 import type { LessonBundleVersion, LessonPlan } from '../payload-types'
+import { newestAncestor } from './combine/ancestry'
+import { formatCalendarDay } from './formatDate'
 import { relId } from './relId'
 import { compareSemver } from './semver'
 
-type Release = Pick<LessonBundleVersion, 'releaseFingerprint' | 'aresReleaseDate'>
-type Version = Release & { id: number; semver?: string | null }
+type Release = Partial<Pick<LessonBundleVersion, 'releaseFingerprint' | 'aresReleaseDate'>>
+type LabelledVersion = Release & { id: number; semver?: string | null }
+type ListedVersion = Pick<LessonBundleVersion, 'id' | 'semver' | 'createdAt'> & Release
 
-/** ARES dates are calendar dates, never the reader's local midnight or the import time. */
-export function releaseDateLabel(value: string | null | undefined): string | null {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
-  const date = new Date(`${value}T00:00:00Z`)
-  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return null
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
-}
-
+/** "ARES release 14 Nov 2026" for a version created from an ARES upload; null for a teacher's save. */
 export function aresReleaseLabel(version: Release): string | null {
   if (!version.releaseFingerprint) return null
-  const date = releaseDateLabel(version.aresReleaseDate)
+  const date = formatCalendarDay(version.aresReleaseDate)
   return date ? `ARES release ${date}` : 'ARES release: not stated'
 }
 
-export function releaseVersionLabel(version: Version): string {
+export function releaseVersionLabel(version: LabelledVersion): string {
   return [version.semver ?? `v${version.id}`, aresReleaseLabel(version)].filter(Boolean).join(' · ')
 }
 
-/** The audit record alone supplies when, from which Official and who made the change. */
+/**
+ * The parts of "Official updated to the ARES release of … on …". The audit record alone supplies
+ * when, from which Official and who made the change; the date is rendered in the reader's own zone.
+ */
 export function officialUpdateNotice(
   plan: Pick<LessonPlan, 'officialChangedAt' | 'officialChangedFrom' | 'officialChangedBy'>,
-  official: Version | undefined,
-  versions: readonly Version[],
-): string | null {
+  official: ListedVersion | undefined,
+  versions: readonly ListedVersion[],
+): { release: string | null; changedAt: string; previousSemver: string | null } | null {
   if (!plan.officialChangedAt || plan.officialChangedBy != null || !official?.releaseFingerprint)
     return null
-  const at = new Date(plan.officialChangedAt)
-  if (!Number.isFinite(at.getTime())) return null
-  const changed = releaseDateLabel(at.toISOString().slice(0, 10))!
-  const release = releaseDateLabel(official.aresReleaseDate)
-  const previous = versions.find((v) => v.id === relId(plan.officialChangedFrom))
-  return (
-    `Official updated to ${release ? `the ARES release of ${release}` : 'an ARES release (date not stated)'} on ${changed}.` +
-    (previous?.semver
-      ? ` The previous Official (${previous.semver}) is still in the version history.`
-      : '')
-  )
+  if (!Number.isFinite(Date.parse(plan.officialChangedAt))) return null
+  return {
+    release: formatCalendarDay(official.aresReleaseDate),
+    changedAt: plan.officialChangedAt,
+    previousSemver: versions.find((v) => v.id === relId(plan.officialChangedFrom))?.semver ?? null,
+  }
 }
 
-type AncestryVersion = Version & Pick<LessonBundleVersion, 'author' | 'lineage'>
-
-/** A suggestion only: use readable ancestry to prove the caller's latest save has an older base. */
-export function newerOfficialForTeacher(
-  versions: readonly AncestryVersion[],
-  official: AncestryVersion | undefined,
+/**
+ * A suggestion only: the caller's latest save, when the newest ARES release in its readable ancestry
+ * is older than the current Official release. Returns what the prompt needs, or null.
+ */
+export function newerReleaseSuggestion(
+  versions: readonly (ListedVersion & Pick<LessonBundleVersion, 'author' | 'lineage'>)[],
+  official: ListedVersion | undefined,
   userId: number,
-): AncestryVersion | null {
-  if (!official?.releaseFingerprint || !official.semver) return null
-  const own = versions
-    .filter((v) => relId(v.author) === userId && !v.releaseFingerprint)
-    .sort((a, b) => compareSemver(b.semver ?? '', a.semver ?? ''))[0]
-  if (!own || own.id === official.id || own.lineage?.includes(official.id)) return null
-  const base = versions
-    .filter((v) => v.releaseFingerprint && own.lineage?.includes(v.id))
-    .sort((a, b) => compareSemver(b.semver ?? '', a.semver ?? ''))[0]
-  return base?.semver && compareSemver(official.semver, base.semver) > 0 ? own : null
+): { ownId: number; ownSemver: string; officialId: number } | null {
+  if (!official?.releaseFingerprint) return null
+  const own = newestAncestor(
+    versions.filter((v) => relId(v.author) === userId && !v.releaseFingerprint),
+  )
+  if (!own) return null
+  const base = newestAncestor(
+    versions.filter((v) => v.releaseFingerprint && own.lineage?.includes(v.id)),
+  )
+  return base && compareSemver(official.semver, base.semver) > 0
+    ? { ownId: own.id, ownSemver: own.semver, officialId: official.id }
+    : null
 }

@@ -628,13 +628,15 @@ resolver (`resolveMode`, today the site switch alone) decides the mode.
 - A lesson-page **Official updated** notice reads only `officialChangedAt`, `officialChangedFrom` and
   `officialChangedBy` for change provenance. It appears for a recorded system change to an ARES
   Official, never for a human change or an unstamped legacy plan. It uses the current Official's ARES
-  release date, separately from the recorded change date (UTC day). It names the true previous
+  release date, separately from the recorded change date (the reader's own day: `LocalDay`, the
+  UTC day only before hydration). It names the true previous
   Official only if that version is still readable in this plan; it never substitutes `sourceVersion`
   or a creation date. First ingest can show a notice without a previous-Official sentence.
 - In Advanced mode, a Teacher with editing access whose own latest saved version has a surviving
   ARES ancestor older than the current ARES Official sees **Combine them?**. A version already based
-  on the current Official has no suggestion. Missing/unproven ancestry yields no suggestion. The link
-  opens the existing Combine preview on their saved version with Official as the other parent.
+  on the current Official has no suggestion. Missing/unproven ancestry yields no suggestion. The button
+  opens the existing Combine preview on their saved version with Official as the other parent; at
+  640px or narrower it explains the wider-screen requirement instead, as Edit does.
   **Not now** dismisses the suggestion until reload, in component state only; nothing is stored.
 - The upload confirmation groups **Will become Official**, **Waiting for the subject-grade
   administrator** and **No change**, with full release dates, before/after versions and older-content

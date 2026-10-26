@@ -29,14 +29,11 @@ const fmt = (v: unknown, local: boolean): string => {
 }
 
 export default function VersionTimestamps() {
+  // The saved version's release, never the form's: release fields are system-only and not edited.
+  const release = aresReleaseLabel(useDocumentInfo().savedDocumentData ?? {})
   // Select each scalar separately: `useFormFields` is `useContextSelector`, which re-renders on
   // Object.is inequality — returning a fresh `{...}` object would re-render on every keystroke in the
   // form. Two primitive selectors only re-render when a timestamp's value actually changes.
-  const { savedDocumentData } = useDocumentInfo()
-  const release = aresReleaseLabel({
-    releaseFingerprint: savedDocumentData?.releaseFingerprint,
-    aresReleaseDate: savedDocumentData?.aresReleaseDate,
-  })
   const updatedAt = useFormFields(([fields]) => fields?.updatedAt?.value)
   const createdAt = useFormFields(([fields]) => fields?.createdAt?.value)
 

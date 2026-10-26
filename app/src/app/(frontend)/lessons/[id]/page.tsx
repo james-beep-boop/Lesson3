@@ -28,9 +28,10 @@ import { resolveMode, showsAction } from '@/lib/advancedTools'
 import {
   releaseVersionLabel,
   officialUpdateNotice,
-  newerOfficialForTeacher,
+  newerReleaseSuggestion,
 } from '@/lib/aresReleasePresentation'
 import NewerAresPrompt from '@/components/NewerAresPrompt'
+import OfficialUpdateNotice from '@/components/OfficialUpdateNotice'
 import LessonDetails from '@/components/LessonDetails'
 import { readLessonDetails } from '@/lib/lessonDetails'
 
@@ -60,10 +61,18 @@ export default async function LessonView({
   // rule lives in one place.
   // The forum switch rides along (the render's one reading, shared with the nav): it only decides
   // whether the Share menu offers "Discuss this version".
+  // Edit affordances (Stage 2b, working-copy model): teachers with editing access (and admins) for this plan's
+  // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
+  // Official pointer (Make Official). Known before the version list, so only they load its ancestry
+  // (the newer-release suggestion is theirs alone).
+  const sgId = toId(plan.subjectGrade as never)
+  const canEdit = isEditorFor(user, sgId)
+  const canMakeOfficial = isSubjectAdminFor(user, sgId)
   const [versions, { forumEnabled, advancedTools }] = await Promise.all([
-    findReadableVersions(payload, { planId: plan.id, user }),
+    findReadableVersions(payload, { planId: plan.id, user }, { withAncestry: canEdit }),
     systemFlagsForRender(payload),
   ])
+  const mode = resolveMode({ advancedTools })
 
   const officialId = relId(plan.officialVersion)
   const official = versions.find((v) => v.id === officialId)
@@ -105,16 +114,10 @@ export default async function LessonView({
     .filter(Boolean)
     .join(' · ')
 
-  // Edit affordances (Stage 2b, working-copy model): teachers with editing access (and admins) for this plan's
-  // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
-  // Official pointer (Make Official).
-  const sgId = toId(plan.subjectGrade as never)
-  const canEdit = isEditorFor(user, sgId)
-  const canMakeOfficial = isSubjectAdminFor(user, sgId)
   const notice = officialUpdateNotice(plan, official, versions)
   const combineSuggestion =
-    canEdit && showsAction(resolveMode({ advancedTools }), 'combineVersions')
-      ? newerOfficialForTeacher(versions, official, user.id)
+    canEdit && showsAction(mode, 'combineVersions')
+      ? newerReleaseSuggestion(versions, official, user.id)
       : null
   // "Continue editing" when the signed-in user has a draft on THIS version (SPEC §5). Only asked of
   // someone who will see the Edit button at all.
@@ -199,22 +202,14 @@ export default async function LessonView({
         </p>
       </PageHeader>
 
-      {notice && (
-        <p className="lesson-release-notice" role="note">
-          {notice}
-        </p>
-      )}
-      {combineSuggestion && official && (
+      {notice && <OfficialUpdateNotice {...notice} />}
+      {combineSuggestion && (
         <NewerAresPrompt
-          key={`${combineSuggestion.id}-${official.id}`}
-          ownId={combineSuggestion.id}
-          ownSemver={combineSuggestion.semver!}
-          officialId={official.id}
+          key={`${combineSuggestion.ownId}-${combineSuggestion.officialId}`}
+          {...combineSuggestion}
         />
       )}
-      {details && (
-        <LessonDetails key={selectedId} {...details} versionLabel={releaseVersionLabel(selected)} />
-      )}
+      {details && <LessonDetails key={selectedId} {...details} />}
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
           revising declutter L1) and have NOT come back. What returned on 2026-08-30 is the primary
@@ -259,7 +254,7 @@ export default async function LessonView({
             deliverables={deliverables}
             canDiscuss={forumEnabled}
             smtpEnabled={!!process.env.SMTP_HOST?.trim()}
-            mode={resolveMode({ advancedTools })}
+            mode={mode}
           />
         </div>
         {navItems.length > 0 && (

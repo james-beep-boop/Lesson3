@@ -2228,6 +2228,22 @@ a.btn.lp-btn {
   border-radius: 4px;
   min-width: 0;
 
+  // The Official preview's groups (`UploadBundles/OfficialPreviewList`).
+  &__section {
+    margin-block: var(--app-space-3);
+    h3 {
+      font-size: 1rem;
+      margin-bottom: var(--app-space-2);
+    }
+    li {
+      padding-block: var(--app-space-2);
+      overflow-wrap: anywhere;
+    }
+    p {
+      margin-block: var(--app-space-1);
+    }
+  }
+
   legend {
     font-weight: 600;
     padding: 0 var(--app-space-1);
@@ -2893,22 +2909,4 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   to {
     transform: rotate(360deg);
   }
-}
-
-.lp-upload-confirm__section {
-  margin-block: var(--app-space-3);
-  h3 {
-    font-size: 1rem;
-    margin-bottom: var(--app-space-2);
-  }
-  li {
-    padding-block: var(--app-space-2);
-    overflow-wrap: anywhere;
-  }
-  p {
-    margin-block: var(--app-space-1);
-  }
-}
-.lp-upload-confirm__warning {
-  font-weight: 600;
 }

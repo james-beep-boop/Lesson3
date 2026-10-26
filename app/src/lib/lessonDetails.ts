@@ -10,10 +10,10 @@ export async function readLessonDetails(
   args: {
     versionId: number
     user: User
-    versions: readonly (Pick<
+    versions: readonly Pick<
       LessonBundleVersion,
-      'id' | 'releaseFingerprint' | 'aresReleaseDate'
-    > & { semver?: string | null })[]
+      'id' | 'semver' | 'releaseFingerprint' | 'aresReleaseDate'
+    >[]
   },
 ) {
   const version = await findReadableVersion(payload, {
@@ -43,14 +43,12 @@ export async function readLessonDetails(
   // source must never turn into a different version or reveal a record through an override read.
   const sourceId = relId(version.sourceVersion)
   const source = args.versions.find((v) => v.id === sourceId)
+  const selected = args.versions.find((v) => v.id === args.versionId)
   return {
+    versionLabel: selected ? releaseVersionLabel(selected) : `v${args.versionId}`,
     savedBy,
     basedOn:
-      sourceId == null
-        ? 'Not recorded'
-        : source?.semver
-          ? releaseVersionLabel(source)
-          : 'Unavailable',
+      sourceId == null ? 'Not recorded' : source ? releaseVersionLabel(source) : 'Unavailable',
     createdAt: version.createdAt,
     updatedAt: version.updatedAt,
   }

@@ -92,7 +92,7 @@ test('release dates appear in headers, version lists and details without overflo
   await page.goto(`${BASE}/lessons/${fx.plan.id}`)
   await expect(page.locator('.lesson-context')).toContainText('3.0.0 · ARES release 14 Nov 2026')
   await expect(page.getByRole('note')).toHaveText(
-    'Official updated to the ARES release of 14 Nov 2026 on 3 Dec 2026. The previous Official (2.0.0) is still in the version history.',
+    'Official updated to the ARES release of 14 Nov 2026 on 03 Dec 2026. The previous Official (2.0.0) is still in the version history.',
   )
   await page.locator('.lesson-details summary').click()
   await expect(page.locator('.lesson-details dl')).toContainText('3.0.0 · ARES release 14 Nov 2026')
@@ -136,7 +136,13 @@ test('only Advanced offers the teacher’s own version, dismissal resets on relo
   await expect(prompt).toHaveCount(0)
   await page.reload()
   await expect(prompt).toBeVisible()
-  await prompt.getByRole('link', { name: 'Combine them?' }).click()
+  // Below the editing width it explains itself instead of opening the editor, as Edit does.
+  await page.setViewportSize({ width: 390, height: 850 })
+  await prompt.getByRole('button', { name: 'Combine them?' }).click()
+  await expect(page.getByRole('dialog')).toContainText('wider screen')
+  await page.getByRole('button', { name: 'Got it' }).click()
+  await page.setViewportSize({ width: 1280, height: 850 })
+  await prompt.getByRole('button', { name: 'Combine them?' }).click()
   await expect(page).toHaveURL(new RegExp(`/${ownId}\\?combineWith=${officialId}$`))
   await expect(page.getByRole('button', { name: 'Continue in editor', exact: true })).toBeVisible()
   expect(await fx.payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
@@ -149,7 +155,7 @@ test('a reader without editing access sees the notice and no Combine suggestion 
   await loginAs(page, fx, 'teacher')
   await page.goto(`${BASE}/lessons/${fx.plan.id}`)
   await expect(page.getByRole('note')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Combine them?' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Combine them?' })).toHaveCount(0)
 })
 
 test('legacy unstamped plans and human Official changes have no import notice', async ({
