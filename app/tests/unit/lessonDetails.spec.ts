@@ -51,6 +51,7 @@ describe('lesson reading details', () => {
       { collection: 'users', overrideAccess: false, user, depth: 0, select: { name: true } },
     ])
     expect(details).toEqual({
+      versionLabel: '1.0.1',
       savedBy: 'A teacher',
       basedOn: '1.0.0',
       createdAt: record.createdAt,

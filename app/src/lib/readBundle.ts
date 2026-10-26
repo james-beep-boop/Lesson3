@@ -51,7 +51,16 @@ export async function findReadablePlan(
  *  not a silent runtime `undefined`. Widen the `select` and this type together. */
 export type ReadableVersionListItem = Pick<
   LessonBundleVersion,
-  'id' | 'semver' | 'title' | 'createdAt' | 'finalExplanation' | 'summaryTable'
+  | 'id'
+  | 'semver'
+  | 'title'
+  | 'createdAt'
+  | 'finalExplanation'
+  | 'summaryTable'
+  | 'releaseFingerprint'
+  | 'aresReleaseDate'
+  | 'author'
+  | 'lineage'
 > & {
   meta?: Pick<NonNullable<LessonBundleVersion['meta']>, 'subject' | 'grade' | 'substrand_name'>
 }
@@ -67,9 +76,16 @@ export type ReadableVersionListItem = Pick<
 export async function findReadableVersions(
   payload: Payload,
   args: { planId: number | string; user: User | null },
+  /** `lineage` is up to MAX_LINEAGE ids per version, read through a join: load it only for the
+   *  caller who can use it (the lesson page's newer-release suggestion, editing access only). */
+  { withAncestry = false }: { withAncestry?: boolean } = {},
 ): Promise<ReadableVersionListItem[]> {
   return (await findPlanVersions(payload, args, {
     semver: true,
+    releaseFingerprint: true,
+    aresReleaseDate: true,
+    author: true,
+    ...(withAncestry ? { lineage: true } : {}),
     title: true,
     createdAt: true,
     meta: { subject: true, grade: true, substrand_name: true },

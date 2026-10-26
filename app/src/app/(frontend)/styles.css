@@ -2052,3 +2052,14 @@ a {
 .welcome-checklist__note {
   color: var(--muted);
 }
+
+/* Release provenance and the optional Advanced Combine suggestion. The look is the app-standard
+   attention treatment (`.disc-notice`, above); only their own spacing and action row live here. */
+.lesson-release-notice p {
+  margin-top: 0;
+}
+.lesson-release-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}

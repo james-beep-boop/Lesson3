@@ -1,8 +1,9 @@
 # Part 1 — ARES lesson releases: import, release dates, automatic Official (implementation plan)
 
-**Status: APPROVED by the operator, 2026-10-26 (revision 2). Ready to build, starting with PR 1a.**
+**Status: APPROVED by the operator, 2026-10-26 (revision 2). PR 1a merged; PR 1b built for review.**
 Revision 2 answers an external review (GPT) of revision 1; all four operator decisions are recorded
-under "Decisions". PR 1a is implemented in [PR #459](https://github.com/james-beep-boop/Lesson3/pull/459) for review; PR 1b is not built. This is build part 1 of
+under "Decisions". PR 1a is merged in [PR #459](https://github.com/james-beep-boop/Lesson3/pull/459).
+PR 1b is implemented on `feat/lesson-releases-1b` for review. This is build part 1 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§10b, §4's lesson manifest, §14 item 1).
 It is the core that every route uses — commissioning, the update tool and Manage → upload — and needs no
 test machine: everything below runs in the isolated test stack. Mark's open question (how `ares.local`
@@ -259,7 +260,8 @@ moved by import under the locks).
 3. **Teacher prompt.** When a teacher with editing access opens a lesson whose Official is a newer ARES
    release than the one their own latest version is based on: *"ARES has published a newer version of
    this lesson. Your version 1.0.2 is based on the older one. Combine them?"* — opening Combine through
-   the existing `?combineWith=`. "Not now" hides it until the page is reloaded. Nothing is stored.
+   the existing `?combineWith=`. **Advanced tools only** (operator clarification, 2026-10-26), using
+   the existing `combineVersions` display gate. "Not now" hides it until the page is reloaded. Nothing is stored.
 4. **Upload screen:** 1a's minimum confirmation screen gets its final wording and layout, in the same
    dialog as the taxonomy question.
 5. **Guide and `USER_GUIDE.md`** updated in the same PR (the parity tests enforce it).

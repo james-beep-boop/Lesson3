@@ -18,6 +18,7 @@
 import React, { useRef, useState } from 'react'
 import { Button, toast, useAuth, useConfig } from '@payloadcms/ui'
 import type { OfficialPreview } from '../../ingest/releaseDecision'
+import OfficialPreviewList from './OfficialPreviewList'
 import { useRouter } from 'next/navigation'
 
 type UploadResult = {
@@ -235,28 +236,19 @@ export default function UploadBundles() {
       {missing && (
         <fieldset className="lp-upload-confirm" disabled={busy}>
           <legend>
-            {groups.length ? 'Create missing subjects and grades?' : 'Confirm Official updates'}
+            {groups.length === 0
+              ? 'Confirm Official updates'
+              : report?.official?.some((p) => p.willMove)
+                ? 'Confirm lesson updates and new subjects or grades'
+                : 'Create missing subjects and grades?'}
           </legend>
           {report?.confirmationChanged && (
             <p role="alert">Something changed since you looked. Please check the list again.</p>
           )}
-          {(report?.official?.length ?? 0) > 0 && (
-            <ul>
-              {report?.official?.map((p) => (
-                <li key={p.file}>
-                  <strong>{p.title}</strong>:{' '}
-                  {p.willMove
-                    ? `Will become Official: ${p.previousSemver ?? 'none'} → ${p.incomingSemver}.`
-                    : p.reason}{' '}
-                  ARES release {p.release ? `${p.release.id}, ${p.release.date}` : 'not stated'}.
-                  {p.olderContent &&
-                    ` Same content as version ${p.olderContent} (an earlier release). ${p.willMove ? 'Importing it will make this content Official again.' : ''}`}
-                </li>
-              ))}
-            </ul>
-          )}
+          {report?.official && <OfficialPreviewList preview={report.official} />}
           <p className="lp-manage__desc">
             Nothing has been imported yet.{' '}
+            {report?.official?.length ? 'Existing versions stay in the version history. ' : ''}
             {groups.length
               ? 'Tick what to create; files for anything left unticked are rejected. A new grade has no Subject Administrator until you assign one.'
               : 'Confirm to apply these Official updates.'}
