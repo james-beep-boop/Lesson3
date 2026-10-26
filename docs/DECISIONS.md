@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — School machines: decisions agreed in discussion (plan pending approval)
+
+Agreed with the operator, with Mark's input, while planning
+`DESIGN-school-commissioning-and-updates-2026-10-26.md`. The plan itself is not yet approved.
+
+- **School images are Intel/AMD (amd64) only.** The Rock is the only ARM machine.
+- **USB is the primary route** for installs, reinstalls and updates; internet (kenyalessons.org, phone
+  tether, or a school connection) is supported but never relied on. Data costs Kenyan technicians and
+  teachers real money; nothing downloads without stating its size and asking.
+- **Two levels of verification:** program updates must verify (refused otherwise); lesson sets are
+  checked, warned on and never blocked.
+- **A new ARES release becomes Official automatically**, except where the school made a teacher's version
+  Official; the move must be made very clear at the time. **Version numbers stay**, and each ARES
+  version also shows its ARES release date (from ARES, never the import time). Versions are never
+  overwritten in place: Combine needs the original release as the common ancestor.
+- **Backups to the server's own disk are acceptable when there is no USB drive**, worded honestly.
+  Backups are unlocked by a **password**, with ARES's key as the safety net.
+- **School name** on the sign-in page, tab title, avatar menu and under the Lesson Plans, Discussions and
+  Manage headings; **never the top bar, no logo, never on generated documents.** The hub is shown as
+  **Kenya Lessons · all schools**.
+- **Fonts:** a USB route is provided; the licensing question is set aside, not resolved.
+
+---
+
 ## 2026-10-25 — Admin colour overrides retired (the last CSS cleanup step)
 
 The operator approved removing the temporary `:root` block at the top of `custom.scss` that re-pointed the five
