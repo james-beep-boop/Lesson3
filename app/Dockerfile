@@ -48,6 +48,9 @@ RUN npm ci --include=dev
 RUN npx playwright install --with-deps chromium
 
 FROM base AS builder
+# The supported lesson import runs in this image, so it needs the release tag too.
+ARG APP_RELEASE_VERSION
+ENV APP_RELEASE_VERSION=$APP_RELEASE_VERSION
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

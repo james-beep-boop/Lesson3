@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — Production lesson import uses the installed program version
+
+PR #459 review identified that `APP_RELEASE_VERSION` was baked only into the runner image. The
+supported import runs in the builder/migrate image, so it fell back to the development compatibility
+version even in a tagged release. Both Docker stages now retain the release build argument, and
+local Compose passes the same argument to both builds. The publishing workflow already supplies the
+tag to both targets. Untagged development builds keep their existing fallback.
+
+Two wiring regressions were demonstrated failing before the fix and passing afterwards. A real
+builder image built with `APP_RELEASE_VERSION=v1.42`, run without a runtime version override, accepts
+a set requiring 1.41 and refuses one requiring 1.43, reporting 1.42. Compose resolves both build
+arguments to that same tag. No import write-path or message behavior changes.
+
+---
+
 ## 2026-10-26 — Part 1a implementation: confirmation, migrations and messages
 
 Built from the approved `PLAN-lesson-releases-part1-2026-10-26.md` on
