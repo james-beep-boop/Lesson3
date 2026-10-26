@@ -11,6 +11,27 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — Part 1 (ARES lesson releases) approved
+
+The operator approved `docs/PLAN-lesson-releases-part1-2026-10-26.md` (revision 2, after two external
+GPT reviews) for building, PR 1a first. Decisions recorded in it:
+
+- **Release identity is the release id** from the lesson-set manifest; content is compared only with the
+  plan's latest **ARES release**, and only when there is no manifest. Matching content against the whole
+  history was rejected: ARES may deliberately restore an earlier text in a later release.
+- **Teachers' versions never suppress a release** (amends SPEC §7's "matches latest saved version").
+- **A release dated earlier than a plan's newest release is not imported**, so an old stick cannot undo
+  a newer release.
+- **A reused release id with different content refuses the whole set.**
+- **Every duplicate, conflict and Official check runs again under the write locks;** the Official
+  confirmation is bound to a preview token and asks again if anything changed.
+- **Official changes are recorded when they happen** (when, from which version, by whom); the lesson-page
+  notice reads that record, never creation dates.
+- **Administrator messages come from the confirming Site Administrator;** the release label shows the full
+  date; the manifest is optional.
+
+---
+
 ## 2026-10-26 — School machines: decisions agreed in discussion (plan pending approval)
 
 Agreed with the operator, with Mark's input, while planning

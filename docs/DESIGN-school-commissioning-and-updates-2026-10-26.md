@@ -1,15 +1,15 @@
 # School machines: commissioning, reinstall and updates — design (proposal)
 
-**Status: PROPOSAL for operator approval, 2026-10-26 (revision 2, same day). Planning only — nothing
-here is approved for implementation, and no code is written.** It records an operator discussion of
+**Status: DIRECTION APPROVED, 2026-10-26 (revision 3, same day). Part 1 is approved for building (its own
+plan, below). Every other part still needs its own approval before work starts.** It records an operator discussion of
 2026-10-25/26 (with Mark's input on how ARES installs and visits schools) and turns it into a plan. Each
 build part below still needs approval before work starts. SPEC changes it needs are listed in §12 and
 land with the code that implements them, not before.
 
 **Where it stands (2026-10-26, end of day):** every question is answered except one for Mark (§13: how
 `ares.local` is resolved), which affects only parts 5–6. **Part 1 has its own implementation plan,
-`docs/PLAN-lesson-releases-part1-2026-10-26.md`, revised after two external reviews,
-awaiting one operator decision (older releases) and approval;** parts 2–3 need no test machine
+`docs/PLAN-lesson-releases-part1-2026-10-26.md`, revised after two external reviews and
+**approved by the operator on 2026-10-26**;** parts 2–3 need no test machine
 and can follow it.
 
 **Revision 3 (same day)** answers a second external review (GPT): release identity, re-checks under the
@@ -415,7 +415,7 @@ internet**, **Back up now**, **Status**.
   release. Matching content against the whole history would be wrong: ARES may deliberately restore an
   earlier text in a later release, and that must import. Details: the Part 1 plan, §3.
 - **An older release does not replace a newer one.** A release dated earlier than the newest release a
-  plan already has is not imported (proposed; Part 1 plan, "Decisions"), so a technician carrying an old
+  plan already has is not imported (operator decision; Part 1 plan, "Decisions"), so a technician carrying an old
   stick cannot quietly undo a newer release.
 - **A release id is never reused.** If an incoming set carries a release id the school already has, but
   any file's content differs, the import refuses with a plain error ("This lesson set says it is the

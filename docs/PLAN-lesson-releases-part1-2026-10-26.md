@@ -1,14 +1,14 @@
 # Part 1 — ARES lesson releases: import, release dates, automatic Official (implementation plan)
 
-**Status: PROPOSAL, 2026-10-26 (revision 2). The operator's decisions are recorded below. Revision 2
-answers an external review (GPT) of revision 1; one new decision is needed (§"Decisions"). No code is
-written.** This is build part 1 of
+**Status: APPROVED by the operator, 2026-10-26 (revision 2). Ready to build, starting with PR 1a.**
+Revision 2 answers an external review (GPT) of revision 1; all four operator decisions are recorded
+under "Decisions". No code is written yet. This is build part 1 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§10b, §4's lesson manifest, §14 item 1).
 It is the core that every route uses — commissioning, the update tool and Manage → upload — and needs no
 test machine: everything below runs in the isolated test stack. Mark's open question (how `ares.local`
 is resolved) does not touch it.
 
-Proposed as **two PRs**: 1a (import behaviour, plus the minimum confirmation screen so uploads keep
+Built as **two PRs**: 1a (import behaviour, plus the minimum confirmation screen so uploads keep
 working) and 1b (what people see). 1a is useful on its own; 1b depends on it.
 
 **Revision 2 (after review):** release identity is the release id, not "any matching content" (§3);
@@ -92,7 +92,7 @@ import and move Official. For a file that matches an existing plan:
 |---|---|---|
 | Release id **R** | a version with release id R and the **same** content | **Already here.** Nothing created, moved or sent. |
 | Release id **R** | a version with release id R and **different** content | **The whole set is refused** (below). |
-| Release id **R**, dated **earlier** than the plan's newest dated ARES release | — | **Older release, not imported.** Reported, nothing created (proposed; see "Decisions"). |
+| Release id **R**, dated **earlier** than the plan's newest dated ARES release | — | **Older release, not imported.** Reported, nothing created (operator decision 4). |
 | Release id **R**, new to this plan | — | **New release:** created, §4 decides Official — even if its content equals an older release (the January case). |
 | No manifest | its latest **ARES release** has the same content (fingerprint) | **Already here** (unchanged). |
 | No manifest | anything else | **New release**, as today. |
@@ -276,14 +276,38 @@ and the teacher prompt opening Combine; the upload dialog's combined round.
    ARES zips work as today with the release "not stated". The field names above are what ARES's export
    would adopt.
 
-**Needed (new in revision 2):**
-
-4. **An older stick after a newer release.** Proposed: a release dated earlier than the plan's newest
-   dated ARES release is **not imported**, and the report says *"Older than the release already here
+4. **An older stick after a newer release** (decided with revision 2): a release dated earlier than the
+   plan's newest dated ARES release is **not imported**, and the report says *"Older than the release already here
    (14 Nov 2026 is older than 2 Dec 2026)."* Nothing moves. ARES's deliberate corrections always come as
-   a new, later-dated release, so nothing legitimate is lost. The alternative — import it as a new
-   version and let the confirmation list show the move — risks a technician with an old stick quietly
-   undoing a newer release.
+   a new, later-dated release, so nothing legitimate is lost. Importing it instead and relying on the
+   confirmation list was rejected: a technician with an old stick could quietly undo a newer release.
+   Equal dates are not "older". Releases with no date (no manifest) cannot be compared and follow §3's
+   no-manifest rows.
+
+## For the implementer
+
+Whoever builds this (Claude, Codex or another assistant) works under the repository's rules. The ones
+this part touches most:
+
+- **Read first:** `CLAUDE.md` (operating rules), `AGENTS.md` (stack, commands, the isolated test stack),
+  SPEC §6–§8, and the newest `docs/DECISIONS.md` entries plus any that mention ingest, upload or Official.
+- **Work on a branch and open a PR;** do not push code to `main`. One PR per part (1a, then 1b).
+- **SPEC, the Guide and `USER_GUIDE.md` change in the same PR** as the behaviour they describe (the parity
+  tests enforce the Guide).
+- **Every changed endpoint ships with `tests/http` coverage** of 401/403 and the happy path (CLAUDE.md
+  "Working process"). The upload endpoint authorizes the caller and then writes with
+  `overrideAccess: true`; the tests prove the gate runs first.
+- **Migrations and generated types** are made in the pinned deps container (`scripts/in-deps.sh`, see
+  `AGENTS.md`), never by hand edits to generated files.
+- **New system-only fields follow `releaseFingerprint`'s pattern** (`fields/identity.ts`): set on create
+  through `req.context` by ingest alone, kept on every other write, unreachable from any API or form.
+- **Keep the load-bearing comments in `ingest/index.ts` true** (the `overrideAccess` note, the lock
+  order). Surgical edits: do not refactor stable ingest code in passing.
+- **Vocabulary:** the three user types (Teacher, Subject-grade administrator, Site administrator); never
+  call a teacher with editing access an "Editor" in UI text, docs, test names or failure messages
+  (CLAUDE.md, "Where the word may and may not appear").
+- **Prove it before calling it done:** lint, types, unit, integration, wire and browser suites in the
+  isolated stack, with the regression cases in §7 shown failing first where they describe a current bug.
 
 ## Order and size
 

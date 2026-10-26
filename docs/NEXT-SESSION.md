@@ -20,16 +20,17 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# Proposal awaiting approval 2026-10-26 — school commissioning, reinstall and updates
+# Approved 2026-10-26 — school commissioning, reinstall and updates (part 1 ready to build)
 
 [`DESIGN-school-commissioning-and-updates-2026-10-26.md`](DESIGN-school-commissioning-and-updates-2026-10-26.md)
 plans how Mark's cloned school images become unique machines (seal → commission), how a wiped and
 reinstalled school keeps its work (prepare-reinstall → restore), and how program and lesson updates
-arrive by USB or kenyalessons.org. **Planning only; nothing is approved for implementation.** One open
+arrive by USB or kenyalessons.org. **Direction approved; only part 1 is approved for building.** One open
 question remains in its §13 (Mark: how `ares.local` is resolved). It shares its stick, restore
 command and test machine with the paused Phase B plan.
-**Next:** build part 1 (lesson releases: import rules, release dates, automatic Official) once the
-operator approves `docs/PLAN-lesson-releases-part1-2026-10-26.md`.
+**Next:** build part 1, PR 1a first, from the approved
+[`PLAN-lesson-releases-part1-2026-10-26.md`](PLAN-lesson-releases-part1-2026-10-26.md) (its "For the
+implementer" section lists the repository rules it touches). The operator may hand the coding to GPT.
 
 ---
 
