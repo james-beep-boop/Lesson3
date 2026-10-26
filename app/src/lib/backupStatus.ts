@@ -260,6 +260,8 @@ export function parseAgreement(raw: string | undefined): Agreement {
 
 export interface BackupSettings {
   diskDir?: string
+  /** BACKUP_DISK_DIR was set explicitly (the default directory alone keeps an old install's page). */
+  diskDirSet?: boolean
   usbMaxAge?: string
   destinationKind?: BackupDestination
   destination?: string
@@ -280,6 +282,7 @@ export const backupSettingsFromEnv = (): BackupSettings => ({
     process.env.BACKUP_DISK_DIR === undefined
       ? '/var/lib/lesson3-backups'
       : process.env.BACKUP_DISK_DIR.trim() || undefined,
+  diskDirSet: !!process.env.BACKUP_DISK_DIR?.trim(),
   usbMaxAge: process.env.BACKUP_USB_MAX_AGE?.trim() || '30d',
   destination: process.env.BACKUP_RCLONE_REMOTE?.trim() || undefined,
   maxDataLoss: process.env.BACKUP_MAX_DATA_LOSS,
@@ -330,6 +333,9 @@ const STAGE_WORDS: Record<FailureStage, (removable: boolean) => string> = {
   space: () => 'the server disk is nearly full',
 }
 
+const DISK_CAVEAT =
+  ' This backup is on the server’s own disk. It will not survive disk failure, theft, fire or a reinstall wipe.'
+
 const shortKey = (key: string): string =>
   key.length > 20 ? `${key.slice(0, 10)}…${key.slice(-6)}` : key
 
@@ -354,7 +360,7 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
     label: 'Backup up to date',
     state,
     value,
-    detail,
+    detail: settings.destinationKind === 'disk' ? [...(detail ?? []), DISK_CAVEAT] : detail,
   })
   if (!haveRecords) {
     statements.push(
@@ -420,6 +426,7 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
           [
             `Backup overdue — the newest backup holds work up to ${ago(newestCovers, now)} ` +
               `(${settings.destinationKind === 'usb' ? 'USB limit' : 'agreed'}: ${limit.words})`,
+            ...(settings.destinationKind === 'usb' ? ['. Plug in the backup drive.'] : []),
           ],
           covered,
         ),
@@ -823,30 +830,23 @@ export async function collectBackupEvidence(settings: BackupSettings) {
     old.find((r) => r.record?.lastSuccess)?.record?.lastSuccess?.destination ??
     legacy?.destination
   const externalKind = isRemovableDestination(externalPath) ? 'usb' : 'remote'
+  const oldRecords = old.flatMap((f) => (f.record ? [f.record] : []))
   const grouped: DestinationEvidence[] = fresh.flatMap(({ kind, files }) => {
-    const configured =
-      kind === 'disk' ? settings.diskDir : kind === externalKind && settings.destination
-    if (
-      !configured &&
-      !files.some((f) => f.found) &&
-      !(kind === externalKind && (legacy || old.some((r) => r.record)))
-    )
-      return []
+    const own = files.some((f) => f.found)
+    const external = kind === externalKind
+    const configured = kind === 'disk' ? settings.diskDir : external && settings.destination
+    // Only the external destination inherits pre-3a evidence, and only until it has its own.
+    const inherits = external && !own
+    if (!configured && !own && !(inherits && (legacy || oldRecords.length))) return []
     const records = files.flatMap((file, i) => {
-      const record = file.found ? file.record : kind === externalKind ? old[i].record : null
+      const record = file.found ? file.record : external ? old[i].record : null
       return record ? [record] : []
     })
-    return [
-      {
-        kind,
-        records,
-        legacy: kind === externalKind && !files.some((f) => f.found) ? legacy : null,
-      },
-    ]
+    return [{ kind, records, legacy: inherits ? legacy : null }]
   })
   return {
     grouped,
-    old: old.flatMap((f) => (f.record ? [f.record] : [])),
+    old: oldRecords,
     legacy,
     journal,
     hasDestinationRecords: fresh.some(({ files }) => files.some((f) => f.found)),
@@ -871,7 +871,7 @@ export function deriveDestinationBackupStatus(
       ...settings,
       destinationKind: kind,
       destination: kind === 'disk' ? settings.diskDir : settings.destination,
-      maxDataLoss: kind === 'usb' ? (settings.usbMaxAge ?? '30d') : settings.maxDataLoss,
+      maxDataLoss: kind === 'usb' ? settings.usbMaxAge : settings.maxDataLoss,
     }
     const result = deriveBackupStatus({
       records,
@@ -881,15 +881,6 @@ export function deriveDestinationBackupStatus(
       now,
     })
     for (const statement of result.statements.filter((s) => PER_DESTINATION.has(s.key))) {
-      const value =
-        statement.key === 'freshness' &&
-        kind === 'usb' &&
-        statement.state === 'attention' &&
-        statement.value.some(
-          (part) => typeof part === 'string' && part.startsWith('Backup overdue'),
-        )
-          ? [...statement.value, '. Plug in the backup drive.']
-          : statement.value
       statements.push({
         ...statement,
         key: `${kind}:${statement.key}` as BackupStatement['key'],
@@ -897,14 +888,6 @@ export function deriveDestinationBackupStatus(
           statement.key === 'freshness'
             ? `${label} backup`
             : `${label} ${statement.label.toLowerCase()}`,
-        value,
-        detail:
-          kind === 'disk' && statement.key === 'freshness'
-            ? [
-                ...(statement.detail ?? []),
-                ' This backup is on the server’s own disk. It will not survive disk failure, theft, fire or a reinstall wipe.',
-              ]
-            : statement.detail,
       })
     }
     technical.push(...result.technical.map((row) => ({ ...row, label: `${label}: ${row.label}` })))
@@ -920,7 +903,7 @@ export async function collectBackupStatus(now = new Date()): Promise<BackupStatu
   const evidence = await collectBackupEvidence(settings)
   // Old installs keep their existing presentation until 3a writes a destination record, or disk
   // backup is explicitly configured. Old stream evidence remains scoped to the external target.
-  if (!evidence.hasDestinationRecords && !process.env.BACKUP_DISK_DIR?.trim()) {
+  if (!evidence.hasDestinationRecords && !settings.diskDirSet) {
     return deriveBackupStatus({
       records: evidence.old,
       legacy: evidence.legacy,

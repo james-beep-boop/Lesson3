@@ -25,6 +25,8 @@ BACKUP_RECORD_DIR="$REPO_DIR/out/ops/backup"
 LOCK_WAIT="$(env_get BACKUP_LOCK_WAIT_SECONDS)"; LOCK_WAIT="${LOCK_WAIT:-3600}"
 LABEL=""; [[ "${1:-}" != --label || -z "${2:-}" ]] || LABEL="$2"
 STREAM=""; STAGE=setup; FAIL_REASON=""; LOCKED=0; RECORD_TMP=""; TMP=""
+# Free space kept back on the server disk, both for the disk copy and for staging: 256 MiB.
+RESERVE_BYTES=268435456
 declare -A ROOTS DONE FDS MOUNTS
 TARGETS=()
 [[ -z "$DISK_DIR" ]] || { TARGETS+=(disk); ROOTS[disk]="$DISK_DIR"; }
@@ -47,7 +49,6 @@ reject_unsupported_json_controls() {
   done
 }
 
-
 json_escape() {
   local value="$1" field="$2"
   reject_unsupported_json_controls "$value" "$field"
@@ -59,8 +60,6 @@ json_escape() {
   printf '%s' "$value"
 }
 
-
-RECORD_TMP=""
 ISO_RE='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'
 
 previous_group() { # key — the previous record's JSON value for that group, or null
@@ -110,7 +109,6 @@ write_record() { # success|failure|notConnected
   RECORD_TMP=""
 }
 
-
 select_destination() {
   KIND="$1"; DEST_ROOT="${ROOTS[$KIND]}"
   RECORD_FILE="$BACKUP_RECORD_DIR/$KIND/$STREAM.json"
@@ -119,13 +117,18 @@ select_destination() {
   if [[ "$KIND" != disk && ! -e "$RECORD_FILE" ]]; then SOURCE_RECORD="$BACKUP_RECORD_DIR/$STREAM.json"; fi
 }
 
+# Best effort: a failure to record must never mask the failure being recorded.
+record_failure() { # exit-status
+  write_record failure "${FAIL_REASON:-stopped during $STAGE (exit $1)}" 2>/dev/null || true
+}
+
 cleanup() {
   local status=$?
   if [[ "$status" -ne 0 && "$LOCKED" -eq 1 && -n "$STREAM" ]]; then
     for target in "${TARGETS[@]}"; do
       [[ "${DONE[$target]:-0}" == 1 ]] && continue
       select_destination "$target"
-      write_record failure "${FAIL_REASON:-stopped during $STAGE (exit $status)}" 2>/dev/null || true
+      record_failure "$status"
     done
   fi
   [[ -z "$RECORD_TMP" ]] || rm -f "$RECORD_TMP"
@@ -136,11 +139,14 @@ trap cleanup EXIT
 # A destination worker owns only its own record. Its error never prevents the other worker running.
 destination_exit() {
   local status=$?
-  if [[ "$status" -ne 0 && "$STAGE" != done ]]; then
-    write_record failure "${FAIL_REASON:-stopped during $STAGE (exit $status)}" 2>/dev/null || true
-  fi
+  [[ "$status" -eq 0 || "$STAGE" == done ]] || record_failure "$status"
   [[ -z "$RECORD_TMP" ]] || rm -f "$RECORD_TMP"
 }
+
+# Runs one destination's worker in its own subshell and leaves its status in RESULT. ⚑ Call it as a
+# plain command, never as `isolated … || …`: bash ignores `set -e` throughout a `||` list, subshell
+# included, so the worker would carry on past its first error.
+isolated() { set +e; (set -e; "$@"); RESULT=$?; set -e; }
 
 case "$LABEL" in
   '') STREAM=daily ;;
@@ -204,6 +210,9 @@ not_connected() {
   exit 10
 }
 
+# What a USB destination is mounted from, recorded once and compared before every write and prune.
+mount_identity() { findmnt -T "$DEST_ROOT" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN; }
+
 # Linux's open directory fd anchors local writes, even if a mount is lazily removed during a copy.
 open_local() {
   [[ "$DEST_ROOT" == /* ]] || die 'local backup destination must be an absolute path'
@@ -222,7 +231,7 @@ open_local() {
       not_connected
     fi
     [[ -f "$DEST_ROOT/.lesson3-backup-volume" ]] || die 'USB destination needs a regular .lesson3-backup-volume sentinel'
-    MOUNT_INFO="$(findmnt -T "$DEST_ROOT" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN)" || die 'cannot identify the USB filesystem'
+    MOUNT_INFO="$(mount_identity)" || die 'cannot identify the USB filesystem'
     root_device="$(findmnt -T / -n -o MAJ:MIN)" || die 'cannot identify the root filesystem'
     [[ -n "$MOUNT_INFO" && -n "$root_device" && "${MOUNT_INFO##* }" != "$root_device" ]] || die 'USB destination is backed by the root filesystem'
   fi
@@ -233,7 +242,7 @@ open_local() {
 verify_mount() {
   [[ "$KIND" == usb ]] || return 0
   local current
-  current="$(findmnt -T "$DEST_ROOT" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN)" || die 'backup filesystem disappeared'
+  current="$(mount_identity)" || die 'backup filesystem disappeared'
   [[ "$current" == "$MOUNT_INFO" ]] || die "local backup destination's mounted filesystem changed during backup"
 }
 
@@ -275,9 +284,9 @@ claim_marker() {
 check_space() {
   [[ "$KIND" == disk ]] || return 0
   local available margin
-  margin="$(env_get BACKUP_DISK_MIN_FREE_BYTES)"; margin="${margin:-268435456}"
+  margin="$(env_get BACKUP_DISK_MIN_FREE_BYTES)"; margin="${margin:-$RESERVE_BYTES}"
   positive_int BACKUP_DISK_MIN_FREE_BYTES "$margin"
-  available="$(df -Pk "$WRITE_ROOT" | awk 'NR==2 {print $4}')" || die 'cannot read free disk space'
+  available="$(free_kb "$WRITE_ROOT")" || die 'cannot read free disk space'
   [[ "$available" =~ ^[0-9]+$ ]] || die 'cannot read free disk space'
   STAGE=space
   (( available * 1024 >= ${SIZE:-0} + margin )) || die 'disk nearly full — not writing this backup'
@@ -299,10 +308,7 @@ prepare_destination() (
 
 READY=(); ANY_ERROR=0
 for target in "${TARGETS[@]}"; do
-  set +e
-  (set -e; prepare_destination "$target")
-  result=$?
-  set -e
+  isolated prepare_destination "$target"; result=$RESULT
   if [[ "$result" -eq 0 ]]; then
     if [[ "$target" != remote ]]; then
       if ! exec {destination_fd}<"${ROOTS[$target]}"; then
@@ -330,9 +336,9 @@ COVERS_UNTIL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # Bound the encrypted staging file too: the destination check alone cannot protect /tmp's disk.
 # Bash's file-size limit is inherited by age and stops it before it consumes the free-space reserve.
 STAGE=encrypt
-TEMP_AVAILABLE="$(df -Pk "$TMP" | awk 'NR==2 {print $4}')"
+TEMP_AVAILABLE="$(free_kb "$TMP")"
 [[ "$TEMP_AVAILABLE" =~ ^[0-9]+$ ]] || die 'cannot read staging disk space'
-TEMP_RESERVE_KIB=262144
+TEMP_RESERVE_KIB=$((RESERVE_BYTES / 1024))
 (( TEMP_AVAILABLE > TEMP_RESERVE_KIB )) || die 'disk nearly full — no room to stage an encrypted backup'
 TEMP_LIMIT_KIB=$((TEMP_AVAILABLE - TEMP_RESERVE_KIB))
 STAGE=dump
@@ -381,10 +387,7 @@ copy_destination() (
 )
 SUCCESS_COUNT=0
 for target in "${READY[@]}"; do
-  set +e
-  (set -e; copy_destination "$target")
-  result=$?
-  set -e
+  isolated copy_destination "$target"; result=$RESULT
   DONE[$target]=1
   if [[ "$result" -eq 0 ]]; then SUCCESS_COUNT=$((SUCCESS_COUNT+1)); else ANY_ERROR=1; fi
 done

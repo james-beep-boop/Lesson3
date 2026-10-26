@@ -12,6 +12,9 @@ export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 REPO_DIR="${BACKUP_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$REPO_DIR"
 
+# Free space in KiB on the filesystem holding a path (backup-db.sh's space checks, restore-db.sh's staging).
+free_kb() { df -Pk "$1" | awk 'NR==2 {print $4}'; }
+
 # Read ONE key from .env WITHOUT sourcing it — a value with spaces or a stray word would otherwise be run
 # as a shell command. Precedence: an already-set environment variable wins over the .env value;
 # surrounding single/double quotes are stripped. Must be called from the repo root (lib.sh cd's there).
