@@ -1,5 +1,5 @@
 import SchoolName from '@/components/SchoolName'
-import { schoolNameForRender } from '@/lib/schoolName'
+import { schoolNameForRender } from '@/lib/systemFlags'
 import React from 'react'
 import Link from 'next/link'
 

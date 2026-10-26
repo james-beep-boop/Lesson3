@@ -1,6 +1,7 @@
 /**
  * The System panel's Save — the SOLE writer of the `system-settings` global
- * (`docs/DESIGN-system-panel-2026-08-21.md`, "THE SAVE ENDPOINT MUST BE THE SOLE WRITER" and "Save").
+ * (`docs/DESIGN-system-panel-2026-08-21.md`, "THE SAVE ENDPOINT MUST BE THE SOLE WRITER" and "Save"),
+ * apart from the operator's `scripts/set-school-name.ts`, which takes the same lock.
  *
  *   POST /api/globals/system-settings/save
  *   body: { changes: { forumEnabled: boolean }, password: string, expectedUpdatedAt: string }

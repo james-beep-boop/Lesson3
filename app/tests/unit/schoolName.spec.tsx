@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { Payload } from 'payload'
 import SchoolName from '../../src/components/SchoolName'
-import { parseSchoolName, readSchoolName } from '../../src/lib/schoolName'
+import { parseSchoolName } from '../../src/lib/schoolName'
+import { readSystemSettings } from '../../src/lib/systemFlags'
 import { parseSaveBody } from '../../src/endpoints/systemSettingsSave'
 
 const body = { password: 'pw', expectedUpdatedAt: '2026-10-26T10:00:00Z' }
@@ -44,23 +45,24 @@ describe('school name', () => {
     expect(html).toContain('&lt;img')
     expect(html).not.toContain('<img')
   })
-  it('selects only the public label and shows nothing for missing, invalid or failed reads', async () => {
+  it('reads with the flags and shows nothing for missing, invalid or failed reads', async () => {
     const findGlobal = vi
       .fn()
       .mockResolvedValueOnce({ schoolName: 'Kisumu' })
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ schoolName: 'A\nB' })
       .mockRejectedValueOnce(new Error('database offline'))
-    const payload = { findGlobal } as unknown as Payload
-    expect(await readSchoolName(payload)).toBe('Kisumu')
+    const payload = { findGlobal, logger: { error: vi.fn() } } as unknown as Payload
+    const name = async () => (await readSystemSettings(payload)).schoolName
+    expect(await name()).toBe('Kisumu')
     expect(findGlobal).toHaveBeenCalledWith({
       slug: 'system-settings',
       depth: 0,
       overrideAccess: true,
-      select: { schoolName: true },
+      select: { features: true, schoolName: true },
     })
-    expect(await readSchoolName(payload)).toBeNull()
-    expect(await readSchoolName(payload)).toBeNull()
-    expect(await readSchoolName(payload)).toBeNull()
+    expect(await name()).toBeNull()
+    expect(await name()).toBeNull()
+    expect(await name()).toBeNull()
   })
 })

@@ -31,6 +31,7 @@ afterEach(() => {
 })
 
 const INITIAL = {
+  schoolName: '',
   features: { forumEnabled: true, advancedTools: false },
   updatedAt: '2026-10-11T01:00:00.000Z',
 }
@@ -56,6 +57,7 @@ describe('System Features Save', () => {
     const fetch = vi.fn(async () =>
       Response.json({
         updatedAt: '2026-10-11T02:00:00.000Z',
+        schoolName: '',
         features: { forumEnabled: false, advancedTools: false },
       }),
     )
@@ -80,6 +82,7 @@ describe('System Features Save', () => {
     const fetch = vi.fn(async () =>
       Response.json({
         updatedAt: '2026-10-11T02:00:00.000Z',
+        schoolName: '',
         features: { forumEnabled: true, advancedTools: true },
       }),
     )

@@ -182,6 +182,8 @@ OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 LATEST_MIGRATION='20261026_195602_school_name'
 # Its down(): remove the newest nullable school-name column.
 ONE_MIGRATION_BEHIND="ALTER TABLE system_settings DROP COLUMN school_name; DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
+# Counts the newest migration's schema change: 1 once applied (the incoming copy), 0 before (live).
+SCHEMA_PROBE="SELECT count(*) FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'school_name';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
 variant "$NEW" "INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"
@@ -247,9 +249,9 @@ check "[checked] the run reached the confirmation" eq "$(state)" checked
 check "[checked] the schema check counted the pending migration" has "1 to apply"
 check "[checked] the in-server check rendered DOCX and PDF" has "rendered PDF through Gotenberg"
 check "[checked] incoming got the migration" eq "$(sql "$INCOMING" "SELECT count(*) FROM payload_migrations WHERE name = '$LATEST_MIGRATION';")" 1
-check "[checked] incoming got its schema change" eq "$(sql "$INCOMING" "SELECT count(*) FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'school_name';")" 1
+check "[checked] incoming got its schema change" eq "$(sql "$INCOMING" "$SCHEMA_PROBE")" 1
 check "[checked] live did NOT get the migration" eq "$(sql lesson3 "SELECT count(*) FROM payload_migrations WHERE name = '$LATEST_MIGRATION';")" 0
-check "[checked] live did NOT get the schema change" eq "$(sql lesson3 "SELECT count(*) FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'school_name';")" 0
+check "[checked] live did NOT get the schema change" eq "$(sql lesson3 "$SCHEMA_PROBE")" 0
 check "[checked] the lock file survives the kill" test -f "$SANDBOX/out/ops/.restore.lock"
 restore "" --resume
 check "[checked] the kill left no lock to clear" bad_lock_message

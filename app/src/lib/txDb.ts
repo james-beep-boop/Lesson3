@@ -204,7 +204,8 @@ export const ADVISORY_LOCKS = {
   firstRegister: { classifier: 1280527187, key: 1 },
   /** The administrator-count invariant — `hooks/userRoles.ts` (`ADMIN_COUNT_LOCK`). */
   adminCount: { classifier: 1280527187, key: 2 },
-  /** The System Save endpoint's check-and-write — `endpoints/systemSettingsSave.ts`. */
+  /** The System Save endpoint's check-and-write — `endpoints/systemSettingsSave.ts` — and the
+   *  commissioning command's school-name write (`lib/setSchoolName.ts`). */
   systemSettings: { classifier: 1398362964, key: 1 },
   /** Upload-approved Subject/SubjectGrade creation — `ingest/index.ts` (`createApprovedTaxonomy`).
    *  Classifier is ASCII "TAXO". */

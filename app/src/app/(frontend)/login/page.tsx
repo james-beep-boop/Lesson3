@@ -9,7 +9,7 @@ import { isPublicLibraryEnabled } from '@/lib/publicLibrary'
 import { FirstUserForm } from './FirstUserForm'
 import { LoginForm } from './LoginForm'
 import SchoolName from '@/components/SchoolName'
-import { schoolNameForRender } from '@/lib/schoolName'
+import { schoolNameForRender } from '@/lib/systemFlags'
 import AppVersion from '@/components/AppVersion'
 
 export const generateMetadata = () => schoolPageMetadata('Sign in — ARES Lesson Plans')
@@ -17,8 +17,10 @@ export const generateMetadata = () => schoolPageMetadata('Sign in — ARES Lesso
 export default async function LoginPage() {
   const { payload, user } = await getSession()
   if (user) redirect('/')
-  const schoolName = await schoolNameForRender(payload)
-  const initialized = await hasRegisteredUsers(payload)
+  const [schoolName, initialized] = await Promise.all([
+    schoolNameForRender(payload),
+    hasRegisteredUsers(payload),
+  ])
   // Same test as Sign up and Forgot password: without SMTP, accounts wait for administrator approval.
   const emailEnabled = !!process.env.SMTP_HOST?.trim()
   return (

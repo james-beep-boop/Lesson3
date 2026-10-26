@@ -10,10 +10,15 @@ import { apiBaseFrom } from '../../lib/apiBase'
 import { wireErrorMessage } from '../../lib/wireError'
 import Modal from '../Modal'
 import { SAVEABLE_FLAGS, type SaveableFlag } from '../../lib/systemFlagNames'
-import { featuresReducer, pendingChanges, type FeatureValues } from './systemFeaturesState'
+import {
+  featuresReducer,
+  pendingChanges,
+  type FeatureValues,
+  type SettingsChanges,
+} from './systemFeaturesState'
 
 export interface FeaturesSnapshot {
-  schoolName?: string
+  schoolName: string
   features: FeatureValues
   updatedAt: string
 }
@@ -31,6 +36,15 @@ const SWITCHES: Record<SaveableFlag, { name: string; label: string; description?
 const change = (flag: SaveableFlag, enabled: boolean) =>
   `switch ${SWITCHES[flag].name} ${enabled ? 'on' : 'off'}`
 const sentence = (text: string) => `${text[0].toUpperCase()}${text.slice(1)}.`
+/** One pending change, as a clause: "switch Discussions off", "set school name to “Kisumu”". */
+const describe = (changes: SettingsChanges) =>
+  Object.entries(changes).map(([key, value]) =>
+    key === 'schoolName'
+      ? value
+        ? `set school name to “${value}”`
+        : 'clear the school name'
+      : change(key as SaveableFlag, value as boolean),
+  )
 
 /** School name and the saveable switches share the password-confirmed Save. */
 export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) {
@@ -42,6 +56,8 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
   const [state, dispatch] = useReducer(featuresReducer, {
     saved: initial.features,
     pending: initial.features,
+    savedName: initial.schoolName,
+    pendingName: initial.schoolName,
     updatedAt: initial.updatedAt,
   })
   const [open, setOpen] = useState(false)
@@ -50,20 +66,7 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
   const [needsReload, setNeedsReload] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const [schoolName, setSchoolName] = useState(initial.schoolName ?? '')
-  const [savedSchoolName, setSavedSchoolName] = useState(initial.schoolName ?? '')
-  const flagChanges = pendingChanges(state)
-  const nameChanged = schoolName.trim() !== savedSchoolName
-  const changes =
-    flagChanges || nameChanged
-      ? { ...flagChanges, ...(nameChanged ? { schoolName: schoolName.trim() } : {}) }
-      : null
-  const summary = (key: string, value: boolean | string) =>
-    key === 'schoolName'
-      ? value
-        ? `set school name to “${value}”`
-        : 'clear the school name'
-      : change(key as SaveableFlag, value as boolean)
+  const changes = pendingChanges(state)
 
   const close = () => {
     if (inFlight.current) return
@@ -100,19 +103,19 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
       const result = await response.json()
       if (
         typeof result.updatedAt !== 'string' ||
+        typeof result.schoolName !== 'string' ||
         SAVEABLE_FLAGS.some((flag) => typeof result.features?.[flag] !== 'boolean')
       )
         throw new Error('Unconfirmed Save response')
-      if (nameChanged && typeof result.schoolName !== 'string')
-        throw new Error('Unconfirmed school name')
-      if (nameChanged) {
-        setSavedSchoolName(result.schoolName)
-        setSchoolName(result.schoolName)
-      }
       const saved = Object.fromEntries(
         SAVEABLE_FLAGS.map((flag) => [flag, result.features[flag] as boolean]),
       ) as FeatureValues
-      dispatch({ type: 'saved', features: saved, updatedAt: result.updatedAt })
+      dispatch({
+        type: 'saved',
+        features: saved,
+        schoolName: result.schoolName,
+        updatedAt: result.updatedAt,
+      })
       setMessage(
         Object.keys(changes)
           .map((flag) =>
@@ -149,11 +152,11 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
           id={schoolNameId}
           className="lp-users__input"
           type="text"
-          value={schoolName}
+          value={state.pendingName}
           maxLength={MAX_SCHOOL_NAME_LENGTH}
           disabled={busy || needsReload}
           onChange={(event) => {
-            setSchoolName(event.target.value)
+            dispatch({ type: 'rename', schoolName: event.target.value })
             setMessage(null)
           }}
         />
@@ -202,10 +205,7 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
       {changes && (
         <p className="lp-manage__desc" role="status">
           {Object.keys(changes).length === 1 ? 'Unsaved change: ' : 'Unsaved changes: '}
-          {Object.entries(changes)
-            .map(([flag, enabled]) => summary(flag, enabled as boolean | string))
-            .join('; ')}
-          .
+          {describe(changes).join('; ')}.
         </p>
       )}
       {message && <p role="status">{message}</p>}
@@ -228,10 +228,7 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
               void save()
             }}
           >
-            {changes &&
-              Object.entries(changes).map(([flag, enabled]) => (
-                <p key={flag}>{sentence(summary(flag, enabled as boolean | string))}</p>
-              ))}
+            {changes && describe(changes).map((text) => <p key={text}>{sentence(text)}</p>)}
             <label className="modal__field" htmlFor={passwordId}>
               Your password
               <input

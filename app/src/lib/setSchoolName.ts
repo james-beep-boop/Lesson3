@@ -5,12 +5,11 @@ import {
   killTransaction,
   type Payload,
 } from 'payload'
-import { parseSchoolName } from './schoolName'
 import { takeAdvisoryLock } from './txDb'
 
-/** Trusted operator path. Shares Save's lock so an open Manage form becomes stale after commissioning. */
-export async function setSchoolName(payload: Payload, value: unknown): Promise<string> {
-  const schoolName = parseSchoolName(value)
+/** Trusted operator path. Shares Save's lock so an open Manage form becomes stale after commissioning.
+ *  The field's own hook validates the name, so a bad one is refused here as everywhere else. */
+export async function setSchoolName(payload: Payload, schoolName: string): Promise<void> {
   const req = await createLocalReq({}, payload)
   const shouldCommit = await initTransaction(req)
   try {
@@ -22,7 +21,6 @@ export async function setSchoolName(payload: Payload, value: unknown): Promise<s
       req,
     })
     if (shouldCommit) await commitTransaction(req)
-    return schoolName
   } catch (e) {
     await killTransaction(req)
     throw e

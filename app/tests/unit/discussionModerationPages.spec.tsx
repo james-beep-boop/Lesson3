@@ -21,6 +21,7 @@ vi.mock('../../src/lib/discussionPages', () => ({
   searchTopics: state.search,
   loadThread: state.loadThread,
 }))
+vi.mock('../../src/lib/systemFlags', () => ({ schoolNameForRender: async () => null }))
 vi.mock('../../src/components/Discussions/ReplyComposer', () => ({
   default: () => <span>Reply composer</span>,
 }))
