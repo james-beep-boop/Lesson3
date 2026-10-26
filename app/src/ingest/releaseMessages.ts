@@ -3,7 +3,8 @@ import type { IngestReport } from './index'
 import { relId } from '../lib/relId'
 
 /** Called by the authorized web endpoint only, after the import transaction has committed.
- * One message per affected subject-grade. Body links are plain text (the messages grammar).
+ * One message per affected subject-grade. Each lesson's `/lessons/<id>` path is plain text, which
+ * the messages page turns into a link.
  * Delivery failures are reported without retrying or undoing the committed lesson set.
  */
 export async function sendReleaseMessages(
@@ -14,7 +15,9 @@ export async function sendReleaseMessages(
   const warnings: string[] = []
   const byGrade = new Map<number, typeof report.bundles>()
   for (const bundle of report.bundles.filter((b) => b.action === 'revised')) {
-    byGrade.set(bundle.subjectGrade, [...(byGrade.get(bundle.subjectGrade) ?? []), bundle])
+    const group = byGrade.get(bundle.subjectGrade)
+    if (group) group.push(bundle)
+    else byGrade.set(bundle.subjectGrade, [bundle])
   }
   for (const [grade, bundles] of byGrade) {
     try {

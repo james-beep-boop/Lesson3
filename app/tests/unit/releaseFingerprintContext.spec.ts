@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 
 import { ARES_RELEASE_CONTEXT, RELEASE_FINGERPRINT_CONTEXT } from '../../src/fields/identity'
 import { withReleaseFingerprint } from '../../src/ingest/releaseFingerprintContext'
+import { releaseFingerprint } from '../../src/lib/identity/releaseFingerprint'
 
 /** What Payload does to a shared request during a create. */
 const replaceContext = (req: { context?: unknown }) => {
@@ -19,7 +20,7 @@ describe('withReleaseFingerprint', () => {
   it('offers the fingerprint during the create and leaves none on the live request after', async () => {
     const req: { context?: unknown } = { context: { unrelated: true } }
     let seen: unknown
-    await withReleaseFingerprint(req, { title: 'T' }, async () => {
+    await withReleaseFingerprint(req, releaseFingerprint({ title: 'T' }), async () => {
       replaceContext(req)
       seen = (req.context as Record<string, unknown>)[RELEASE_FINGERPRINT_CONTEXT]
     })
@@ -32,7 +33,7 @@ describe('withReleaseFingerprint', () => {
       const req: { context?: unknown } = { context: { unrelated: true } }
       const create = withReleaseFingerprint(
         req,
-        { title: 'T' },
+        releaseFingerprint({ title: 'T' }),
         async () => {
           replaceContext(req)
           expect((req.context as Record<string, unknown>)[ARES_RELEASE_CONTEXT]).toEqual({
@@ -52,7 +53,7 @@ describe('withReleaseFingerprint', () => {
   it('clears it when the create fails, too', async () => {
     const req: { context?: unknown } = {}
     await expect(
-      withReleaseFingerprint(req, { title: 'T' }, async () => {
+      withReleaseFingerprint(req, releaseFingerprint({ title: 'T' }), async () => {
         replaceContext(req)
         throw new Error('database said no')
       }),

@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto'
+import { canonicalJson } from '../lib/canonicalJson'
 import { compareSemver } from '../lib/semver'
-import type { AresRelease } from './lessonManifest'
+import { sha256, type AresRelease } from './lessonManifest'
 
 export type ReleaseVersion = {
   id: number
@@ -31,7 +31,7 @@ export function decideRelease(
     const newestDated = releases
       .filter((v) => v.aresReleaseDate)
       .sort((a, b) => b.aresReleaseDate!.localeCompare(a.aresReleaseDate!))[0]
-    if (newestDated?.aresReleaseDate && release.date < newestDated.aresReleaseDate)
+    if (newestDated && release.date < newestDated.aresReleaseDate!)
       return { action: 'olderNotImported', version: newestDated }
   } else {
     if (releases[0]?.releaseFingerprint === fingerprint)
@@ -43,10 +43,10 @@ export function decideRelease(
 }
 export type OfficialPreview = {
   file: string
-  plan: number | null
+  plan: number
   title: string
   currentOfficial: number | null
-  incomingSemver?: string
+  incomingSemver: string
   previousSemver: string | null
   release: AresRelease | null
   fingerprint: string
@@ -66,13 +66,17 @@ export const officialDecision = (
           ? 'A teacher’s version is Official; waiting for the subject-grade administrator.'
           : 'No Official version; waiting for the subject-grade administrator.',
       }
-/** Canonical ordering makes file picker and archive order irrelevant; content is bound too. */
+/** Canonical ordering makes file picker, archive and object-key order irrelevant; content is bound too. */
 export function previewToken(preview: OfficialPreview[]): string {
-  return createHash('sha256')
-    .update(
-      JSON.stringify(
-        [...preview].sort((a, b) => a.file.localeCompare(b.file) || (a.plan ?? 0) - (b.plan ?? 0)),
-      ),
-    )
-    .digest('hex')
+  return sha256(
+    canonicalJson([...preview].sort((a, b) => a.file.localeCompare(b.file) || a.plan - b.plan)),
+  )
 }
+
+/**
+ * The one gate on moving Official, used by pre-flight and again under the write locks: a move needs
+ * the token of exactly these decisions, and a supplied token must still match even if nothing moves.
+ */
+export const confirmationRequired = (preview: OfficialPreview[], confirmOfficial?: string) =>
+  confirmOfficial !== previewToken(preview) &&
+  (confirmOfficial !== undefined || preview.some((p) => p.willMove))

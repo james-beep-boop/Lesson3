@@ -14,6 +14,7 @@ const done = {
   rejected: [],
   missing: [],
   needsConfirmation: false,
+  setRefused: [],
 }
 async function run(reports: unknown[], yes = true, answer = true) {
   const root = await mkdtemp(path.join(tmpdir(), 'lessons-'))

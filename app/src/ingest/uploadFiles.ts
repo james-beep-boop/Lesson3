@@ -5,7 +5,16 @@ import type { Readable } from 'node:stream'
 import type { IngestItem, IngestRejection } from './index'
 import { IngestError } from './errors'
 import { extractAresJson } from './extract'
-import { parseLessonManifest, checksumWarning, type LessonManifest } from './lessonManifest'
+import {
+  checksumWarning,
+  classifyLessonSetEntry,
+  MANIFEST_NAME,
+  missingFromManifest,
+  MISSING_FROM_SET,
+  parseLessonManifest,
+  waitingMessage,
+  type LessonManifest,
+} from './lessonManifest'
 
 /**
  * ⚑ SIZED FROM A REAL EXPORT (2026-10-11). The current ARES archive is 7.4 MB holding 95 JSON lesson plans,
@@ -140,13 +149,7 @@ function readEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Buffer> {
       chunks.push(chunk)
     })
     stream.on('error', reject)
-    stream.on('end', () => {
-      try {
-        resolve(Buffer.concat(chunks))
-      } catch (error) {
-        reject(error)
-      }
-    })
+    stream.on('end', () => resolve(Buffer.concat(chunks)))
   })
 }
 
@@ -244,9 +247,7 @@ export async function prepareUploadFiles(
     const entries = Object.values(zip.files)
     let manifest: LessonManifest | undefined
     try {
-      const root = entries.find(
-        (e) => !e.dir && (e.unsafeOriginalName ?? e.name) === 'LESSONS.json',
-      )
+      const root = entries.find((e) => !e.dir && (e.unsafeOriginalName ?? e.name) === MANIFEST_NAME)
       manifest = parseLessonManifest(
         root ? (await readEntry(root, budget)).toString('utf8') : undefined,
       )
@@ -255,32 +256,22 @@ export async function prepareUploadFiles(
       setRefused.push({ file: file.name, error: e instanceof Error ? e.message : String(e) })
       continue
     }
-    if (manifest) {
-      const names = new Set(
-        entries.filter((e) => !e.dir).map((e) => e.unsafeOriginalName ?? e.name),
-      )
-      for (const name of Object.keys(manifest.files))
-        if (!names.has(name)) {
-          warnings.push({
-            file: `${file.name}/${name}`,
-            error: 'Listed in LESSONS.json but missing from the lesson set.',
-          })
-        }
-    }
+    const listed = new Set(entries.filter((e) => !e.dir).map((e) => e.unsafeOriginalName ?? e.name))
+    for (const name of missingFromManifest(manifest, listed))
+      warnings.push({ file: `${file.name}/${name}`, error: MISSING_FROM_SET })
     let found = false
     for (const entry of entries) {
       if (entry.dir) continue
       const originalName = entry.unsafeOriginalName ?? entry.name
       const name = `${file.name}/${originalName}`
-      if (originalName === 'LESSONS.json') continue
-      const declared = manifest?.files[originalName]
-      if (manifest && !Object.hasOwn(manifest.files, originalName))
-        warnings.push({ file: name, error: 'Not listed in LESSONS.json.' })
-      if (declared?.kind && declared.kind !== 'lesson-plan') {
+      const kind = classifyLessonSetEntry(manifest, originalName)
+      if (kind.as === 'manifest') continue
+      for (const error of kind.warnings) warnings.push({ file: name, error })
+      if (kind.as === 'waiting') {
         if (originalName.toLowerCase().endsWith('.json')) countJson()
         // Check bytes, never parse an unknown kind. The same inflation caps still apply.
         try {
-          for (const error of checksumWarning(await readEntry(entry, budget), declared.sha256))
+          for (const error of checksumWarning(await readEntry(entry, budget), kind.declared.sha256))
             warnings.push({ file: name, error })
         } catch (e) {
           if (budget.remaining < 0) throw overBudget(budget.limit)
@@ -289,22 +280,19 @@ export async function prepareUploadFiles(
             error: `Checksum could not be checked: ${e instanceof Error ? e.message : String(e)}`,
           })
         }
-        waitingForProgram.push({
-          file: name,
-          error: `Waiting for a program update (kind: ${declared.kind}).`,
-        })
+        waitingForProgram.push({ file: name, error: waitingMessage(kind.declared.kind) })
         continue
       }
-      if (!originalName.toLowerCase().endsWith('.json') || originalName.startsWith('__MACOSX/')) {
+      if (kind.as === 'notLessonPlan') {
         skipped.push({ file: name, error: 'Not a JSON lesson-plan file' })
         continue
       }
       found = true
       countJson()
-      const fileWarnings: string[] = []
+      // A checksum warning is reported once, in the set's warnings, even if the file is then rejected.
       const outcome = readEntry(entry, budget).then((bytes) => {
-        fileWarnings.push(...checksumWarning(bytes, declared?.sha256))
-        for (const error of fileWarnings) warnings.push({ file: name, error })
+        for (const error of checksumWarning(bytes, kind.declared?.sha256))
+          warnings.push({ file: name, error })
         return extractAresJson(bytes.toString('utf8'))
       })
       // Read now, in order, so the archive can be released; an over-budget upload stops here.
@@ -316,7 +304,6 @@ export async function prepareUploadFiles(
         ...settledItem(name, outcome),
         release: manifest?.release,
         setId,
-        warnings: fileWarnings,
       })
     }
     if (!found && !manifest)

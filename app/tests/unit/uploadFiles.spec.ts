@@ -320,7 +320,12 @@ describe('LESSONS.json envelope', () => {
     ])
     expect(report.items).toHaveLength(2)
     expect(report.items[0].release).toEqual(manifest.release)
-    expect(report.items[0].warnings?.[0]).toMatch(/Looks damaged/)
+    // Reported once, in the set's warnings (not again on the item).
+    expect(report.items[0].warnings).toBeUndefined()
+    expect(report.warnings).toContainEqual({
+      file: 'set.zip/lesson.json',
+      error: expect.stringMatching(/Looks damaged/),
+    })
     expect(report.waitingForProgram).toHaveLength(1)
     expect(report.warnings).toHaveLength(4)
     expect(report.rejected).toEqual([])

@@ -102,8 +102,14 @@ export const uploadBundlesEndpoint: Endpoint = {
       if (e instanceof IngestError) throw new APIError(e.message, 400)
       throw e
     }
-    const rejected = [...inputs.rejected, ...report.rejected]
-    const skipped = [...inputs.skipped, ...report.skipped]
+    // Reported in both the confirmation (409) and the completed (200/422) responses.
+    const common = {
+      rejected: [...inputs.rejected, ...report.rejected],
+      skipped: [...inputs.skipped, ...report.skipped],
+      setRefused: [...inputs.setRefused, ...report.setRefused],
+      waitingForProgram: inputs.waitingForProgram,
+      warnings: inputs.warnings,
+    }
     if (report.needsConfirmation) {
       return Response.json(
         {
@@ -116,17 +122,12 @@ export const uploadBundlesEndpoint: Endpoint = {
           count: 0,
           bundles: [],
           created: [],
-          rejected,
-          skipped,
-          setRefused: [...inputs.setRefused, ...(report.setRefused ?? [])],
-          waitingForProgram: inputs.waitingForProgram,
-          warnings: inputs.warnings,
+          ...common,
         },
         { status: 409 },
       )
     }
-    report.messageWarnings = await sendReleaseMessages(req.payload, Number(req.user.id), report)
-    const setRefused = [...inputs.setRefused, ...(report.setRefused ?? [])]
+    const messageWarnings = await sendReleaseMessages(req.payload, Number(req.user.id), report)
     const ok =
       report.bundles.length > 0 || report.skipped.length > 0 || inputs.waitingForProgram.length > 0
     return Response.json(
@@ -135,16 +136,12 @@ export const uploadBundlesEndpoint: Endpoint = {
         count: report.bundles.length,
         bundles: report.bundles,
         created: report.created,
-        rejected,
-        skipped,
+        ...common,
         officialMoved: report.bundles.filter((b) => b.outcome === 'officialMoved'),
         officialKept: report.bundles.filter((b) => b.outcome === 'officialKept'),
         alreadyHere: report.alreadyHere ?? [],
         olderNotImported: report.olderNotImported ?? [],
-        waitingForProgram: inputs.waitingForProgram,
-        warnings: inputs.warnings,
-        setRefused,
-        messageWarnings: report.messageWarnings,
+        messageWarnings,
         ...(ok ? {} : { error: 'No files were imported. See the rejection report.' }),
       },
       { status: ok ? 200 : 422 },

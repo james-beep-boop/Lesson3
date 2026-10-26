@@ -21,6 +21,7 @@ const report = (bundles: IngestResult[]): IngestReport => ({
   created: [],
   missing: [],
   needsConfirmation: false,
+  setRefused: [],
 })
 function fake() {
   const find = vi.fn().mockResolvedValue({

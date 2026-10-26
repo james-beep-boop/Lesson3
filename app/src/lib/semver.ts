@@ -97,8 +97,20 @@ async function nextSemverForPlanBumped(
     overrideAccess: true,
     req,
   })
-  const max = docs
-    .map((d) => (d as { semver?: string | null }).semver ?? '0.0.0')
-    .reduce((acc, s) => (compareSemver(s, acc) > 0 ? s : acc), '0.0.0')
+  return nextSemverFrom(
+    docs.map((d) => (d as { semver?: string | null }).semver),
+    bump,
+  )
+}
+
+/** (max of these semvers) bumped — the pure half of `nextSemverForPlanBumped`, for loaded history. */
+export function nextSemverFrom(
+  semvers: (string | null | undefined)[],
+  bump: 'major' | 'minor' | 'patch',
+): string {
+  const max = semvers.reduce<string>(
+    (acc, s) => (compareSemver(s ?? '0.0.0', acc) > 0 ? (s ?? '0.0.0') : acc),
+    '0.0.0',
+  )
   return bumpSemver(max, bump)
 }

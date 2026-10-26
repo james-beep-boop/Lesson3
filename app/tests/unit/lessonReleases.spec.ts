@@ -92,6 +92,7 @@ describe('release identity', () => {
       plan: 1,
       title: 'A',
       currentOfficial: 1,
+      incomingSemver: '2.0.0',
       previousSemver: '1.0.0',
       release: null,
       fingerprint: 'A',

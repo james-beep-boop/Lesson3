@@ -1,6 +1,9 @@
 /** Lesson-set envelope. This capability version advances with the supported import format. */
 import { createHash } from 'node:crypto'
+import { releaseTagVersion } from '../lib/appVersion'
+import { compareSemver } from '../lib/semver'
 import { IngestError } from './errors'
+import { isObject as object } from './resourceLinks'
 
 export const LESSON_PROGRAM_VERSION = '1.08'
 export type AresRelease = { id: string; date: string }
@@ -9,8 +12,9 @@ export type LessonManifest = {
   release: AresRelease
   schemaVersion: string
   minProgram: string
-  files: Record<string, { sha256: string; kind?: string }>
+  files: Record<string, ManifestFile>
 }
+export type ManifestFile = { sha256: string; kind?: string }
 export class LessonSetRefused extends IngestError {
   constructor(
     message: string,
@@ -19,22 +23,10 @@ export class LessonSetRefused extends IngestError {
     super(message)
   }
 }
-const object = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === 'object' && !Array.isArray(v)
 const numericVersion = (v: string) => /^\d+\.\d+(?:\.\d+)?$/.test(v)
-const newer = (a: string, b: string) => {
-  const av = a.split('.').map(Number),
-    bv = b.split('.').map(Number)
-  for (let i = 0; i < 3; i++) {
-    if ((av[i] ?? 0) !== (bv[i] ?? 0)) return (av[i] ?? 0) > (bv[i] ?? 0)
-  }
-  return false
-}
 export function parseLessonManifest(
   text: string | undefined,
-  program = /^v\d+\.\d+(?:\.\d+)?$/.test(process.env.APP_RELEASE_VERSION ?? '')
-    ? process.env.APP_RELEASE_VERSION!.slice(1)
-    : LESSON_PROGRAM_VERSION,
+  program = releaseTagVersion(process.env.APP_RELEASE_VERSION) ?? LESSON_PROGRAM_VERSION,
 ): LessonManifest | undefined {
   if (text === undefined) return undefined
   let v: unknown
@@ -65,7 +57,11 @@ export function parseLessonManifest(
     !numericVersion(v.minProgram)
   )
     return bad('invalid schemaVersion or minProgram')
-  if (Number(v.format) > 1 || v.schemaVersion !== '1.0.0' || newer(v.minProgram, program)) {
+  if (
+    Number(v.format) > 1 ||
+    v.schemaVersion !== '1.0.0' ||
+    compareSemver(v.minProgram, program) > 0
+  ) {
     throw new LessonSetRefused(
       `This lesson set needs a newer Lesson3. Update the program first. Set: format ${v.format}, schema ${v.schemaVersion}, minimum program ${v.minProgram}; this program: ${program}, format 1, schema 1.0.0.`,
     )
@@ -92,3 +88,37 @@ export const checksumWarning = (bytes: Uint8Array | string, expected?: string): 
   expected && sha256(bytes) !== expected.toLowerCase()
     ? ['Looks damaged: sha256 does not match LESSONS.json.']
     : []
+
+export const MANIFEST_NAME = 'LESSONS.json'
+
+/** How one entry of a lesson set (zip or directory) is handled, shared by the web upload and the CLI. */
+export type LessonSetEntry =
+  | { as: 'manifest' }
+  | { as: 'waiting'; declared: ManifestFile & { kind: string }; warnings: string[] }
+  | { as: 'notLessonPlan'; warnings: string[] }
+  | { as: 'lessonPlan'; declared?: ManifestFile; warnings: string[] }
+
+export function classifyLessonSetEntry(
+  manifest: LessonManifest | undefined,
+  name: string,
+): LessonSetEntry {
+  if (name === MANIFEST_NAME) return { as: 'manifest' }
+  const declared = manifest?.files[name]
+  const warnings =
+    manifest && !Object.hasOwn(manifest.files, name) ? ['Not listed in LESSONS.json.'] : []
+  // A declared kind this program does not import is never parsed; only its checksum is checked.
+  if (declared?.kind && declared.kind !== 'lesson-plan')
+    return { as: 'waiting', declared: { ...declared, kind: declared.kind }, warnings }
+  if (!name.toLowerCase().endsWith('.json') || name.startsWith('__MACOSX/'))
+    return { as: 'notLessonPlan', warnings }
+  return { as: 'lessonPlan', declared, warnings }
+}
+
+/** Files LESSONS.json lists that the set does not contain. */
+export const missingFromManifest = (
+  manifest: LessonManifest | undefined,
+  names: ReadonlySet<string>,
+): string[] => Object.keys(manifest?.files ?? {}).filter((name) => !names.has(name))
+
+export const waitingMessage = (kind: string) => `Waiting for a program update (kind: ${kind}).`
+export const MISSING_FROM_SET = 'Listed in LESSONS.json but missing from the lesson set.'

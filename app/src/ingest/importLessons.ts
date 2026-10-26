@@ -4,7 +4,16 @@ import path from 'node:path'
 import type { Payload } from 'payload'
 import { ingestUploadItems, type IngestItem } from './index'
 import { extractAresJson } from './extract'
-import { parseLessonManifest, checksumWarning, LessonSetRefused } from './lessonManifest'
+import {
+  checksumWarning,
+  classifyLessonSetEntry,
+  LessonSetRefused,
+  MANIFEST_NAME,
+  missingFromManifest,
+  MISSING_FROM_SET,
+  parseLessonManifest,
+  waitingMessage,
+} from './lessonManifest'
 import type { TaxonomyKey } from './taxonomy'
 
 export type ImportIO = {
@@ -32,35 +41,31 @@ export async function importLessons(
     await walk(root)
     names.sort()
     const manifest = parseLessonManifest(
-      names.includes('LESSONS.json')
-        ? await readFile(path.join(root, 'LESSONS.json'), 'utf8')
+      names.includes(MANIFEST_NAME)
+        ? await readFile(path.join(root, MANIFEST_NAME), 'utf8')
         : undefined,
     )
-    for (const name of Object.keys(manifest?.files ?? {}))
-      if (!names.includes(name)) io.print(`Warning: ${name} is listed in LESSONS.json but missing.`)
+    for (const name of missingFromManifest(manifest, new Set(names)))
+      io.print(`${name}: ${MISSING_FROM_SET}`)
     const items: IngestItem[] = []
     for (const name of names) {
-      if (name === 'LESSONS.json') continue
-      const declared = manifest?.files[name]
-      if (manifest && !Object.hasOwn(manifest.files, name))
-        io.print(`Warning: ${name} is not listed in LESSONS.json.`)
-      if (declared?.kind && declared.kind !== 'lesson-plan') {
-        for (const warning of checksumWarning(
-          await readFile(path.join(root, name)),
-          declared.sha256,
-        ))
-          io.print(`${name}: ${warning}`)
-        io.print(`${name}: waiting for a program update (kind: ${declared.kind}).`)
-        continue
-      }
-      if (!name.toLowerCase().endsWith('.json')) continue
+      const kind = classifyLessonSetEntry(manifest, name)
+      if (kind.as === 'manifest') continue
+      for (const warning of kind.warnings) io.print(`${name}: ${warning}`)
+      if (kind.as === 'notLessonPlan') continue
       // I/O failures abort before any write. Malformed JSON remains a per-file rejection.
       const bytes = await readFile(path.join(root, name))
+      if (kind.as === 'waiting') {
+        for (const warning of checksumWarning(bytes, kind.declared.sha256))
+          io.print(`${name}: ${warning}`)
+        io.print(`${name}: ${waitingMessage(kind.declared.kind)}`)
+        continue
+      }
       items.push({
         name,
         setId: root,
         release: manifest?.release,
-        warnings: checksumWarning(bytes, declared?.sha256),
+        warnings: checksumWarning(bytes, kind.declared?.sha256),
         extract: () => extractAresJson(bytes.toString('utf8')),
       })
     }
@@ -68,7 +73,7 @@ export async function importLessons(
     let token: string | undefined
     for (;;) {
       const report = await ingestUploadItems(payload, items, approvals, token)
-      if (report.setRefused?.length) {
+      if (report.setRefused.length) {
         for (const issue of report.setRefused) io.print(issue.error)
         return 3
       }
@@ -111,13 +116,7 @@ export async function importLessons(
         !(await io.ask('Confirm these Official updates?', false))
       )
         return 4
-      if (
-        !io.yes &&
-        report.missing.length &&
-        approvals.length === 0 &&
-        items.length &&
-        !report.official?.some((p) => p.plan != null)
-      )
+      if (!io.yes && report.missing.length && approvals.length === 0 && !report.official?.length)
         return 4
       token = report.previewToken
     }

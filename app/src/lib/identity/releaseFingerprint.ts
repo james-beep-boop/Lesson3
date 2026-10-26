@@ -7,8 +7,8 @@
  *
  *   ares-content-v1:sha256:<64 lowercase hex>
  *
- * ⚑ FROZEN. These rules are deliberately a COPY, not a call into `ingest/contentEquality.ts`
- * (`comparableIngestContent`) or `lib/versionContent.ts` (`comparableContent`): those may change with
+ * ⚑ FROZEN. These rules are deliberately a COPY, not a call into `lib/versionContent.ts`
+ * (`comparableContent`): that may change with
  * the product, and a fingerprint that silently changed would stop matching every copy already stored
  * at every school. The test vectors in `tests/unit/releaseFingerprint.spec.ts` pin the output. A rule
  * change is a NEW format (`ares-content-v2`) alongside this one — never an edit here.
