@@ -86,6 +86,32 @@ Built from the approved `PLAN-lesson-releases-part1-2026-10-26.md` on
 
 ---
 
+## 2026-10-26 — Parts 2 (school name) and 3 (school backups) approved
+
+The operator approved both plans, with these decisions:
+- **School name:** no change history (unlike the switchboard's flags); it is a label set at commissioning.
+- **USB backup overdue after 30 days** (`BACKUP_USB_MAX_AGE` default `30d`), not the proposed 7: the
+  drive usually stays plugged in and is taken away when someone can.
+- **Disk retention 7 daily / 4 weekly / 3 monthly** on the server's own disk.
+- **Password suggestions from the EFF large word list** (CC BY 3.0, credited in `NOTICE`).
+
+---
+
+## 2026-10-26 — Lesson3's address on school machines is `http://ares.local:3001`
+
+Mark confirmed that the ARES server announces `ares.local` itself through Avahi (mDNS), recognised by
+virtually every router of the last decade, and that every server is meant to be converted when Lesson3 is
+installed. So commissioning sets `ADMIN_URL=http://ares.local:3001` and asks the technician no address
+question; for an unconverted server it falls back to the server's own LAN address, found automatically.
+A replacement server must keep the **name**, not an IP address.
+
+⚑ **The address is never taken from the request's `Host` header** (Mark suggested PHP's
+`$_SERVER['HTTP_HOST']`). `ADMIN_URL` builds password-reset links, and a header the visitor controls
+would let a forged request send a victim a reset link to an attacker's site (password-reset poisoning).
+Settle it once, on the server, at commissioning.
+
+---
+
 ## 2026-10-26 — Part 1 (ARES lesson releases) approved
 
 The operator approved `docs/PLAN-lesson-releases-part1-2026-10-26.md` (revision 2, after two external

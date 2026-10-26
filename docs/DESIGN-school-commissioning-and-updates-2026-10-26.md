@@ -171,12 +171,15 @@ One command, `sudo lesson3 commission`, in plain steps. It asks first:
 1. **Machine identity:** new SSH host keys and machine-id. ⚑ **The machine keeps the name it has
    on the image**, the one that answers to `ares.local`: ARES lessons link there, so renaming the machine
    would break every resource link (§13).
-2. **Questions:** the school's name; the server's LAN address (as `install.sh` asks today); **internet:**
-   *none / phone tether when needed / school connection*; backup destination (USB drive, or this
-   server's disk if none — §8).
+2. **Questions:** the school's name; **internet:** *none / phone tether when needed / school
+   connection*; backup destination (USB drive, or this server's disk if none — §8). **No address
+   question** (Mark, 2026-10-26): the address is `http://ares.local:3001`, checked automatically (step 3).
 3. **Install** with the existing `install.sh`, with a new **offline mode**: it verifies the pre-loaded
    images against the pins and downloads nothing. (Today it always runs `docker compose pull`.) New
-   secrets, `ADMIN_URL` from the LAN address. A fresh database gets its own Installation ID.
+   secrets. `ADMIN_URL` is `http://ares.local:3001` when `ares.local` resolves on the server (the ARES
+   server announces it through Avahi/mDNS); for the rare server where it does not, commissioning uses the
+   server's own LAN address, found automatically, and says so. A fresh database gets its own
+   Installation ID.
 4. **First Site Administrator,** created at the school through the existing one-time form. The command
    waits until it exists.
 5. **Lessons:** import the newest set it can find — the technician's stick, else kenyalessons.org (only
@@ -472,12 +475,21 @@ internet**, **Back up now**, **Status**.
 
 ## 13. Open questions
 
-1. **How teachers' devices find `ares.local`** (for Mark): does the server announce its own name on the
-   network, or does the school's router map the name to a fixed address? It decides what a replacement
-   server must keep (its name, or its address), and whether Lesson3's own address can simply be
-   `http://ares.local:3001`, sparing the technician the LAN-address question in §7a.
+None remain for this design. Each build part still needs its own plan approved.
 
 **Decided 2026-10-26:**
+- **`ares.local` is announced by the server itself** (Mark): the ARES server runs Avahi (mDNS), which
+  virtually every router of the last ten years recognises, and the conversion is meant to be done on
+  every server when Lesson3 is installed. So Lesson3's address is **`http://ares.local:3001`**,
+  commissioning asks no address question, and a replacement server must keep the **name**, not an IP
+  address. For an unconverted server, commissioning falls back to the server's own LAN address, found
+  automatically (§7a step 3).
+  ⚑ **Not from the request's `Host` header.** Mark suggested PHP's `$_SERVER['HTTP_HOST']` (Lesson3's
+  equivalent is the request `Host` header) to find the address without asking. It is the right instinct
+  for *displaying* an address, but `ADMIN_URL` builds password-reset links, and taking those from a
+  header the visitor controls is a known attack (password-reset poisoning: a forged `Host` sends a
+  victim a reset link to the attacker's site). The address is therefore settled once, on the server, at
+  commissioning, with no question asked.
 - **Release label shows the full date,** day month year: *"2.0.0 · ARES release 14 Nov 2026"*.
 - **Administrator messages come from the Site Administrator who confirmed the upload;** command-line
   imports send none.

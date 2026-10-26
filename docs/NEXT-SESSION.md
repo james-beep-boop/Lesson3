@@ -20,21 +20,31 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# Approved 2026-10-26 — school commissioning, reinstall and updates (part 1 ready to build)
+# Approved 2026-10-26 — school commissioning, reinstall and updates (part 1a merged)
 
 [`DESIGN-school-commissioning-and-updates-2026-10-26.md`](DESIGN-school-commissioning-and-updates-2026-10-26.md)
 plans how Mark's cloned school images become unique machines (seal → commission), how a wiped and
 reinstalled school keeps its work (prepare-reinstall → restore), and how program and lesson updates
-arrive by USB or kenyalessons.org. **Direction approved; only part 1 is approved for building.** One open
-question remains in its §13 (Mark: how `ares.local` is resolved). It shares its stick, restore
-command and test machine with the paused Phase B plan.
-**Current:** PR 1a is merged in [PR #459](https://github.com/james-beep-boop/Lesson3/pull/459), with all CI gates green.
-PR 1b is implemented on `feat/lesson-releases-1b` for review: release labels, recorded Official-update
-notices, the Advanced-only “Combine them?” suggestion, final upload confirmation layout and both Guides.
-It follows the approved
-[`PLAN-lesson-releases-part1-2026-10-26.md`](PLAN-lesson-releases-part1-2026-10-26.md) (its "For the
-implementer" section lists the repository rules it touches). Later design parts still require their own approval.
+arrive by USB or kenyalessons.org. **Direction approved; each part is approved separately.** No open
+questions remain in it: Mark confirmed `ares.local` is announced by the server (Avahi/mDNS), so
+Lesson3's address is `http://ares.local:3001`. It shares its stick, restore command and test machine
+with the paused Phase B plan.
 
+- **Part 1a merged** ([PR #459](https://github.com/james-beep-boop/Lesson3/pull/459), `879cba0`):
+  release identity and dates, automatic Official with token-bound confirmation, the Official change
+  record, administrator messages, `import-lessons.ts`. Not released or deployed. Open operator choice:
+  messages keep the raised 100,000-character limit, or return to 5,000 with "…and N more".
+- **PR 1b in review** ([PR #460](https://github.com/james-beep-boop/Lesson3/pull/460),
+  `feat/lesson-releases-1b`) from
+  [`PLAN-lesson-releases-part1-2026-10-26.md`](PLAN-lesson-releases-part1-2026-10-26.md): release labels,
+  the recorded Official-update notice (shown in the reader's own day), the "Combine them?" suggestion
+  (both Standard and Advanced, operator decision 2026-10-26), the final upload confirmation and both
+  Guides.
+- **Approved, ready to build:** [`PLAN-school-name-part2-2026-10-26.md`](PLAN-school-name-part2-2026-10-26.md)
+  (one PR) and [`PLAN-school-backups-part3-2026-10-26.md`](PLAN-school-backups-part3-2026-10-26.md)
+  (3a, then 3b). Each plan records the operator's decisions.
+- ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
+  `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---
 
 # Sign-in and restore fixes merged 2026-10-25
