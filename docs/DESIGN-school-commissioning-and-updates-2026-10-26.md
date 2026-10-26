@@ -8,14 +8,20 @@ land with the code that implements them, not before.
 
 **Where it stands (2026-10-26, end of day):** every question is answered except one for Mark (§13: how
 `ares.local` is resolved), which affects only parts 5–6. **Part 1 has its own implementation plan,
-`docs/PLAN-lesson-releases-part1-2026-10-26.md`, with the operator's decisions recorded and an
-external review (GPT) pending before approval;** parts 2–3 need no test machine
+`docs/PLAN-lesson-releases-part1-2026-10-26.md`, revised after two external reviews,
+awaiting one operator decision (older releases) and approval;** parts 2–3 need no test machine
 and can follow it.
+
+**Revision 3 (same day)** answers a second external review (GPT): release identity, re-checks under the
+write locks and the token-bound confirmation are now specified in the Part 1 plan and summarised in
+§10b; going back restores through the previous release's migrations (§10a); disk and USB backups get
+separate status (§8).
 
 **Revision 2** folds in an external review (GPT, 2026-10-26), whose two code claims were checked against
 `deploy/online/update.sh` and are correct: the updater never rolls back, and it stops when the new
 settings template has keys the school's `.env` lacks. Changes: a stronger proof before "safe to wipe",
-scoped to Lesson3 (§7b); accurate update recovery (§10a); power-cut resumption as a requirement (§7d);
+scoped to Lesson3 (§7b); accurate update recovery (§10a), with going back done through the previous
+release's migrations (revision 3); power-cut resumption as a requirement (§7d);
 old-upgrade testing and settings without hand edits (§7c); repeated and interrupted imports (§10b);
 password custody (§8); checksums instead of signing keys, by operator decision (§5); honest wording
 on USB rotation (§8). Also: the operator reports that technicians already back up the other ARES programs' teacher uploads to USB before a
@@ -292,6 +298,11 @@ prepare-reinstall and update:
      names. No receipt, log, stick or server file ever contains it (§7a step 8).
 - **ARES's key is the safety net.** Every backup is also locked to ARES's key, as today, so a forgotten
   school password is not fatal. ARES's public key is the same at every school, by design.
+- **Each destination has its own status.** A school with both a USB drive and the disk backup must see
+  each one's state separately: a fresh disk backup must never hide an overdue USB backup. Today's
+  records are per *stream* (daily, weekly, monthly, pre-update), not per destination, so part 3 adds the
+  destination to every record and to Manage → System's statements, e.g. *"Disk backup: up to date. USB
+  backup: overdue — last one 9 days ago; plug in the backup drive."*
 - **One installation per destination.** The destination gets a marker naming the installation;
   `backup-db.sh` refuses to write to or prune a destination marked for another installation. This makes
   §2's "schools delete each other's backups" impossible rather than unlikely.
@@ -337,10 +348,19 @@ internet**, **Back up now**, **Status**.
   keeps the pre-update backup and the previous files, and says so. Re-running the same update resumes it.
   For a school, where nobody can read that output, the tool adds one plain choice:
   - **"Try the update again"** — resumes from the journal (the usual fix after a power cut, §7d);
-  - **"Go back to the previous version"** — `sudo lesson3 update --go-back`: stops the app, restores the
-    **paired pre-update backup** through the A1 staged restore, reinstates the previous deployment files
-    and starts the **previous images**. Work saved after the update started is lost by going back, and the
-    tool says so before asking.
+  - **"Go back to the previous version"** — `sudo lesson3 update --go-back`. Work saved after the update
+    started is lost by going back, and the tool says so before asking. **The order matters:**
+    1. stop the app;
+    2. reinstate the **previous** deployment files, so the previous release's images, scripts and
+       **migrate image** are the installed ones;
+    3. restore the **paired pre-update backup** through the A1 staged restore — which now runs the
+       *previous* release's migrations against it, so the backup is accepted as it is and nothing
+       migrates it forward again;
+    4. start the previous images.
+
+    ⚑ Restoring first, through the *new* release, would be wrong: A1 applies the installed migrations to
+    the incoming database, so the backup would be migrated forward and then handed to old software
+    (external review, 2026-10-26).
 
   ⚑ Going back offline needs the previous images still on the machine, so **the update never deletes the
   previous release's images** until a later update has succeeded; the stick also keeps them. This is new
@@ -388,21 +408,28 @@ internet**, **Back up now**, **Status**.
 - **Unsaved drafts** get the notice that already shipped (save the draft as a version, then Combine).
   Phase 4 is dropped (DECISIONS 2026-10-25).
 - **Repeated imports do nothing.** Importing a release a school already has creates no versions, moves
-  no Official and sends no messages; it reports "already imported". ⚑ Today's "unchanged upload" check
+  no Official and sends no messages; it reports "already here". ⚑ Today's "unchanged upload" check
   compares a file only with the plan's **latest** version, so once a teacher has saved 2.0.1, re-importing
-  the 2.0.0 release would create a duplicate 3.0.0. The check must instead look for the same content
-  among the plan's existing **ARES releases** (by release id and content fingerprint), whatever teachers
-  have saved since.
+  the 2.0.0 release would create a duplicate 3.0.0. **A release is recognised by its release id**
+  (from the manifest), and only without a manifest by comparing content with the plan's latest ARES
+  release. Matching content against the whole history would be wrong: ARES may deliberately restore an
+  earlier text in a later release, and that must import. Details: the Part 1 plan, §3.
+- **An older release does not replace a newer one.** A release dated earlier than the newest release a
+  plan already has is not imported (proposed; Part 1 plan, "Decisions"), so a technician carrying an old
+  stick cannot quietly undo a newer release.
 - **A release id is never reused.** If an incoming set carries a release id the school already has, but
   any file's content differs, the import refuses with a plain error ("This lesson set says it is the
   release of 14 Nov 2026, but its contents differ from that release already here") and imports nothing.
 - **Interrupted imports leave nothing behind.** The write is one transaction (as web upload's is today),
   so a power cut means nothing was imported and the re-run starts clean. Messages to administrators are
   sent only after the write commits, once per release per subject-grade.
-- **The Official decision is made again at the moment of writing.** The confirmation list is a preview.
-  When the import writes, it re-checks each plan's current Official inside the existing subject-grade
-  lock, so an administrator who made a teacher's version Official in between is respected. Any plan
-  whose answer changed is reported afterwards.
+- **The Official decision is made again at the moment of writing, and bound to what was confirmed.**
+  The confirmation list is a preview carrying a token. When the import writes, it recomputes every
+  decision inside the existing subject-grade and plan locks. If anything differs from what was confirmed
+  — an administrator made a teacher's version Official, or a waiting plan became eligible to move — it
+  writes nothing and shows the new list for confirmation again.
+- **Every Official change is recorded when it happens** (when, from which version, by whom), so the
+  lesson-page notice gives the true date even when a release waited and was made Official later.
 - **One implementation, two routes.** The server tool and Manage → upload share the same import code,
   the same automatic-Official rule and the same confirmation list. (The reviewer agrees with this
   recommendation; the operator decided yes, 2026-10-26.)
@@ -476,8 +503,8 @@ internet**, **Back up now**, **Status**.
    the core that every route uses, including repeated-import matching and the write-time Official
    re-check. Testable now in the isolated stack.
 2. **School name** (field, switchboard, the six places).
-3. **Backups for schools:** this-disk destination, backup password with locked key, installation
-   marker, automatic schedule.
+3. **Backups for schools:** this-disk destination, separate status per destination, backup password
+   with locked key, installation marker, automatic schedule.
 4. **The ARES stick builder + checksums** (shared with Phase B's B1).
 5. **`install.sh` and `update.sh` offline modes; settings defaults instead of hand edits; seal;
    commission (new school)**, all resumable.
