@@ -38,11 +38,10 @@ with the paused Phase B plan.
   the recorded Official-update notice (shown in the reader's own day), the "Combine them?" suggestion
   (both Standard and Advanced, operator decision 2026-10-26), the final upload confirmation and both
   Guides, from [`PLAN-lesson-releases-part1-2026-10-26.md`](PLAN-lesson-releases-part1-2026-10-26.md).
-- **Part 2 in review:** [PR #461](https://github.com/james-beep-boop/Lesson3/pull/461)
-  (`feat/school-name-part2`), from
+- **Part 2 merged** ([PR #461](https://github.com/james-beep-boop/Lesson3/pull/461)), from
   [`PLAN-school-name-part2-2026-10-26.md`](PLAN-school-name-part2-2026-10-26.md): the school name,
   password-confirmed settings Save, operator command, display places and one nullable column.
-- **Approved, ready to build:** [`PLAN-school-backups-part3-2026-10-26.md`](PLAN-school-backups-part3-2026-10-26.md)
+- **Next — approved, ready to build:** [`PLAN-school-backups-part3-2026-10-26.md`](PLAN-school-backups-part3-2026-10-26.md)
   (3a, then 3b). Its plan records the operator's decisions.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
