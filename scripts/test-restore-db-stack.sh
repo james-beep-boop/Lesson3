@@ -117,6 +117,7 @@ GOTENBERG_TIMEOUT_MS=120000
 ARTIFACT_CACHE_DIR=/var/cache/lesson3
 JOBS_AUTORUN_CRON=0 0 1 1 *
 BACKUP_AGE_RECIPIENT=$RECIPIENT
+BACKUP_DISK_DIR=$SANDBOX/disk-backups
 BACKUP_RCLONE_REMOTE=probe:$SANDBOX/backups
 EOF
 
@@ -160,8 +161,25 @@ dc up -d app >/dev/null 2>&1 || die "app did not start"
 # ─── Backups to restore from ─────────────────────────────────────────────────────────────────────────
 say "backups: current schema (plan A only), older schema, newer schema"
 T bash scripts/backup-db.sh >/dev/null 2>&1 || die "backup-db.sh failed"
+# Production backups are private (0700 directories, 0600 files). The root tools container writes
+# them; hand fixture ownership back to the developer for host-side assertions and copies.
+T chown -R "$(id -u):$(id -g)" "$SANDBOX/disk-backups" "$SANDBOX/backups"
 B1="$(ls "$SANDBOX/backups/daily/" | head -n1)"
 [[ -n "$B1" ]] || die "no backup written"
+check "disk and remote contain identical encrypted bytes" cmp -s "$SANDBOX/disk-backups/daily/$B1" "$SANDBOX/backups/daily/$B1"
+INSTALLATION_ID="$(sql lesson3 'SELECT installation_id FROM system_settings LIMIT 1;')"
+check "disk marker holds the database identity" eq "$(cat "$SANDBOX/disk-backups/.lesson3-installation")" "$INSTALLATION_ID"
+check "remote marker holds the database identity" eq "$(cat "$SANDBOX/backups/.lesson3-installation")" "$INSTALLATION_ID"
+check "disk has its own record" test -s "$SANDBOX/out/ops/backup/disk/daily.json"
+check "remote has its own record" test -s "$SANDBOX/out/ops/backup/remote/daily.json"
+restore "" --local-file "$SANDBOX/disk-backups/daily/$B1" --into probe_disk_check
+check "disk copy restores through the real drill" has "RESTORE DRILL PASSED"
+check "disk restore holds plan A" eq "$(sql probe_disk_check 'SELECT count(*) FROM lesson_plans;')" 1
+sql postgres 'DROP DATABASE probe_disk_check;' >/dev/null
+restore "" --local-file "$SANDBOX/backups/daily/$B1" --into probe_remote_check
+check "remote copy restores through the real drill" has "RESTORE DRILL PASSED"
+check "remote restore holds plan A" eq "$(sql probe_remote_check 'SELECT count(*) FROM lesson_plans;')" 1
+sql postgres 'DROP DATABASE probe_remote_check;' >/dev/null
 cp "$SANDBOX/backups/daily/$B1" "$SANDBOX/$B1"
 B1_DATE="$(echo "$B1" | sed -E 's/.*-([0-9]{4})([0-9]{2})([0-9]{2})T.*/\1-\2-\3/')"
 seed "Probe plan B (after the backup)" || die "seeding plan B failed"
@@ -293,6 +311,7 @@ sql lesson3 "UPDATE lesson_plans SET title = 'Work saved after the restore went 
 T_ENV="-e RESTORE_TEST_INTERRUPT_AFTER=undo-backed-up" restore "undo" --undo
 check "[undo] the warning says post-restore work will be lost" has "WORK SAVED AFTER THE RESTORED DATABASE WENT LIVE WILL BE LOST BY UNDOING"
 check "[undo-backed-up] the undo stopped there" eq "$(state)" undo-backed-up
+T chown -R "$(id -u):$(id -g)" "$SANDBOX/backups"
 UNDO_BACKUP="$(ls "$SANDBOX/backups/premigrate/" 2>/dev/null | grep prerestore-undo | head -n1)"
 check "[undo-backed-up] a prerestore-undo backup was taken" test -n "$UNDO_BACKUP"
 restore "" --resume

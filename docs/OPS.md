@@ -48,15 +48,33 @@ explicit backup/versioning policy before these files become records of value.
 
 ---
 
-## Backups (encrypted, to Google Drive or a rotated removable drive)
+## Backups (encrypted, to server disk and USB or cloud)
 
-`pg_dump` (in the postgres container) → `age` encrypt (on the host) → `rclone` to the configured
-destination. Internet-connected installations use Google Drive; offline schools may use rotated USB
-drives. Four streams under either destination, grandfather-father-son retention: `daily/` (keep newest
-`BACKUP_DAILY_KEEP`, default 7), `weekly/` (`BACKUP_WEEKLY_KEEP`, default 4), and `monthly/`
-(`BACKUP_MONTHLY_KEEP`, default 12) — these prune by **count** (newest N; exact and robust to a missed
-run) — plus `premigrate/` (pre-deploy snapshots, pruned by **age**, `BACKUP_PREMIGRATE_RETENTION_DAYS`,
-default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/deploy.sh`.
+`scripts/backup-db.sh` takes one `pg_dump` through the Postgres container and encrypts it once with
+`age`. It independently copies those encrypted bytes to `BACKUP_DISK_DIR` (default
+`/var/lib/lesson3-backups`) and, when configured, `BACKUP_RCLONE_REMOTE` (USB or cloud).
+An explicit empty destination disables it; at least one must be enabled. Existing cloud-only installs
+can set `BACKUP_DISK_DIR=` to keep that setup; otherwise prepare the default disk folder before the
+next scheduled backup. Keep the disk folder outside
+Docker volumes. It may be on the server's root device; a USB destination may not.
+**The disk copy will not survive disk failure, theft, fire or a reinstall wipe.**
+
+A real destination error makes the command exit nonzero **after trying both destinations**. An
+unplugged USB drive is a neutral "not connected", so the disk backup can succeed while it is away.
+Do not mistake this for an off-site copy: take the USB drive away when possible.
+
+Each destination holds `daily/`, `weekly/`, `monthly/`, and `premigrate/`. Disk count retention is
+7/4/3 (overrides `BACKUP_DISK_DAILY_KEEP`, `BACKUP_DISK_WEEKLY_KEEP`,
+`BACKUP_DISK_MONTHLY_KEEP`); external count retention is 7/4/12 (`BACKUP_DAILY_KEEP`,
+`BACKUP_WEEKLY_KEEP`, `BACKUP_MONTHLY_KEEP`). Premigrate retention is age-based, default 90 days
+(`BACKUP_PREMIGRATE_RETENTION_DAYS`). Disk space must cover the encrypted copy plus a 256 MiB
+margin (`BACKUP_DISK_MIN_FREE_BYTES`); shortage records "disk nearly full" and still tries the external
+copy. The staging file is size-limited to preserve 256 MiB on its filesystem too.
+
+The first run writes `.lesson3-installation` at each destination root using the database's installation
+UUID. Old unmarked backups are adopted. A marker for another installation **refuses writes and
+pruning**. Do not remove or replace a foreign marker to make the check pass: select that school's own
+backup folder. Invalid markers also refuse writes; a failed database identity read permits no copies.
 
 ### One-time setup
 
@@ -81,7 +99,9 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
    Manage → System → Backups' "School recovery key" statement reports which state an installation
    is in, and where `BACKUP_KEY_HELD_BY` says the private key is kept.
 
-3. **Choose and prepare the destination.**
+3. **Prepare the destinations.** Ensure the operator running cron can create/write the disk folder
+   (for example, have an administrator create `/var/lib/lesson3-backups` owned by that operator with
+   mode `0700`). Configure a USB or cloud destination as well when available.
 
    **Google Drive (headless OAuth):** on your **Mac** (has a browser):
 
@@ -104,7 +124,8 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
 
    Then use `BACKUP_RCLONE_REMOTE=/media/lesson3-backup/lesson3-backups`. A plain local path must be
    absolute, resolve onto a mount backed by a different device from `/`, and contain that
-   regular, non-symlink sentinel **before** `pg_dump`; otherwise the script aborts. It keeps the
+   regular, non-symlink sentinel **before** `pg_dump`. An absent drive is recorded as not connected;
+   an unsafe connected destination is refused while the disk destination is still attempted. It keeps the
    destination directory open and checks the mount identity around upload, so an absent or changed
    drive cannot silently redirect a dump onto the boot disk. (`findmnt`, supplied by `util-linux`, is
    required for local destinations.)
@@ -114,14 +135,18 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
 
    ```dotenv
    BACKUP_AGE_RECIPIENT=age1xxxxxxxx...
-   # Choose ONE:
+   BACKUP_DISK_DIR=/var/lib/lesson3-backups
+   BACKUP_USB_MAX_AGE=30d
+   # Optional external destination; choose ONE:
    BACKUP_RCLONE_REMOTE=drive:lesson3-backups
    # BACKUP_RCLONE_REMOTE=/media/lesson3-backup/lesson3-backups
    # optional overrides: BACKUP_DAILY_KEEP, BACKUP_WEEKLY_KEEP, BACKUP_MONTHLY_KEEP, BACKUP_PREMIGRATE_RETENTION_DAYS
    # optional (monitoring): HEALTHCHECK_BACKUP_URL=https://hc-ping.com/<uuid>
    ```
 
-   These are read by the scripts only; they are NOT app config (the app ignores them).
+   Retention and encryption are acted on by the scripts. The app reads destination, age and school
+   recipient settings only to report their state. Setup automation and password-locked keys are
+   planned for Part 3b; this PR keeps the manual key and cron procedure.
 
 5. **Cron — nightly + weekly + monthly** (`crontab -e`; the box is `America/Los_Angeles`, so these fire
    at 02:00 Pacific). Nightly → `daily/`, Sundays → `weekly/`, the 1st of the month → `monthly/`:
@@ -152,31 +177,38 @@ windows it applied); counts before/after via
 ### Run / verify
 
 - Manual backup: `scripts/backup-db.sh` (writes to `daily/`).
-- List backups: `scripts/restore-db.sh --list` (or `--list daily` / `--list premigrate`).
-- **Records, one per stream (design A2, 2026-10-21).** Every run writes
-  `out/ops/backup/<stream>.json` (`daily`, `weekly`, `monthly`, `premigrate`), replaced atomically:
+- List external backups: `scripts/restore-db.sh --list` (or `--list daily` / `--list premigrate`).
+  For disk-only recovery, use `BACKUP_RCLONE_REMOTE=/var/lib/lesson3-backups scripts/restore-db.sh --list`.
+  Restore a disk file with `scripts/restore-db.sh --local-file /var/lib/lesson3-backups/daily/<file> --into lesson3_test`
+  for a drill; the live replacement flags below are unchanged.
+- **Records, one per destination and stream (Part 3a).** Every attempted destination writes
+  `out/ops/backup/<disk|usb|remote>/<stream>.json` (`daily`, `weekly`, `monthly`, `premigrate`), replaced atomically:
   - **`lastSuccess`**, with `coversUntil` (the moment `pg_dump` began, so the newest work the backup is
     sure to hold), `completedAt`, file, size and destination;
   - **`seq`** on every success and failure: one counter for all streams, advanced under the lock, so
     the page knows which attempt came last even when two share a second;
-  - **`lastFailure`**: time, stage (`setup`, `destination`, `dump`, `encrypt`, `upload`, `record`) and
+  - **`lastFailure`**: time, stage (`setup`, `destination`, `dump`, `encrypt`, `upload`, `record`, `space`) and
     one line of reason, written by an exit trap — so a backup that fails every night under cron no
     longer looks the same as one never set up. (A run that gives up waiting for the lock writes
     nothing: the run holding it owns the record.);
+  - **`lastNotConnected`**: optional time, sequence and reason for an absent USB (not a failure);
   - **`history`**: the last 31 `coversUntil` values, and `recordingSince`.
 
   A success keeps the stream's last failure line and a failure keeps its last success, byte for byte;
   the page compares their times. `backup-db.sh` holds an `flock` on `out/ops/backup/.lock` for the whole
   run, so two backups never run at once: the second waits (`BACKUP_LOCK_WAIT_SECONDS`, default 3600)
   and both records survive. `out/ops/backup-status.json` (version 1) is no longer written; the page
-  reads it only until the first per-stream record exists, and calls freshness "Unknown — history
+  reads it as older external-destination evidence until new records exist, and calls freshness "Unknown — history
   incomplete" meanwhile. ⚑ `out/ops`, not `out`, is mounted into the app, read-only (narrowed
   2026-08-21: `out/` holds unrelated host artifacts).
 - **Manage → System → Backups** turns those records into separate statements, each up to date,
   attention or unknown. There is no overall "Protected":
-  - **Backup up to date:** the newest *routine* `coversUntil`, judged against `BACKUP_MAX_DATA_LOSS`;
+  - **Backup up to date:** each destination's newest *routine* `coversUntil`; disk/cloud use
+    `BACKUP_MAX_DATA_LOSS`, USB uses `BACKUP_USB_MAX_AGE` (default `30d`). Fresh disk never hides
+    overdue USB. Old `backup/<stream>.json` remains external-only fallback until that stream gets its
+    destination record; malformed new records never revive old evidence;
   - **Routine backups:** how many of the last 7 days had one;
-  - **Last attempt:** the newest success or failure of any stream;
+  - **Last attempt:** each destination’s newest success, failure or neutral not-connected event;
   - **Agreed recovery time:** `RECOVERY_TARGET_TIME`;
   - **Full recovery:** "Not yet tested" until Phase B;
   - **Who recovers:** `BACKUP_RECOVERY_CONTACT`;

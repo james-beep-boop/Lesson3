@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 #
 # Branch cover for backup-db.sh's destination safety and per-stream record contract (version 2, design
-# A2: `out/ops/backup/<stream>.json` — last success with `coversUntil`, last failure with its stage,
+# A2/Part 3a: `out/ops/backup/<destination>/<stream>.json` — last success with `coversUntil`, last failure with its stage,
 # the last 31 `coversUntil` values). The real backup
 # script runs with docker/age/rclone stubbed, in a throwaway repo, so no daemon, database or remote is
 # touched. This pins the two deployment shapes SPEC §11 permits:
 #   * configured rclone remote (today Google Drive) — no local sentinel;
 #   * absolute local path (rotated USB drive) — non-root mount + sentinel required BEFORE pg_dump.
 set -uo pipefail
+# Cron may run with a private umask; the app must still be able to read operational records.
+umask 077
 
 BACKUP="${BACKUP_SH:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-db.sh}"
 pass=0 fail=0
@@ -25,6 +27,7 @@ prepare_case() {
   cat >"$SANDBOX/home/bin/docker" <<EOF
 #!/usr/bin/env bash
 echo "docker \$*" >>"$SANDBOX/calls"
+if [[ " \$* " == *" psql "* ]]; then printf '%s\n' "\${TEST_INSTALLATION_ID-11111111-1111-1111-1111-111111111111}"; exit 0; fi
 if [[ "\$1 \$2" == "compose exec" ]]; then
   [[ "\${FAIL_DUMP:-}" == "1" ]] && { echo "pg_dump: error: connection refused" >&2; exit 3; }
   printf 'postgres custom-format bytes'
@@ -46,7 +49,28 @@ EOF
   cat >"$SANDBOX/home/bin/rclone" <<EOF
 #!/usr/bin/env bash
 echo "rclone \$*" >>"$SANDBOX/calls"
-if [[ "\$1" == "copyto" && "\${FAIL_COPY:-}" == "1" ]]; then exit 9; fi
+if [[ "\$1" == copyto ]]; then
+  case "\${FAIL_COPY:-}" in
+    1) exit 9 ;;
+    disk) [[ "\$3" != /proc/self/fd/* ]] || exit 9 ;;
+    remote) [[ "\$3" != drive:* ]] || exit 9 ;;
+  esac
+fi
+case "\$1" in
+  lsf)
+    if [[ " \$* " == *".lesson3-installation"* ]]; then
+      [[ ! -f "$SANDBOX/remote-marker" ]] || echo '.lesson3-installation'
+    elif [[ "\$2" == /proc/self/fd/* ]]; then
+      for file in "\$2"lesson3-*.dump.age; do [[ ! -f "\$file" ]] || basename "\$file"; done
+    fi ;;
+  deletefile) [[ "\$2" != /proc/self/fd/* ]] || rm -f "\$2" ;;
+  copy) cp "\$2/.lesson3-installation" "$SANDBOX/remote-marker" ;;
+  cat) cat "$SANDBOX/remote-marker" ;;
+  copyto)
+    [[ "\$3" != /proc/self/fd/* ]] || { mkdir -p "\${3%/*}"; cp "\$2" "\$3"; }
+    ;;
+
+esac
 exit 0
 EOF
 
@@ -73,7 +97,7 @@ EOF
 }
 
 run_case() {
-  env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
+  env -i BACKUP_DISK_DIR="" HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
     BACKUP_AGE_RECIPIENT="${RECIPIENT-age1testrecipient}" BACKUP_RCLONE_REMOTE="$1" \
     FAIL_COPY="${2:-0}" BACKUP_DB_NAME="${3:-}" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
     FAIL_DUMP="${FAIL_DUMP:-0}" FAIL_AGE="${FAIL_AGE:-0}" LOCK_HELD="${LOCK_HELD:-0}" \
@@ -81,20 +105,22 @@ run_case() {
   EXIT=$?
   CALLS="$(cat "$SANDBOX/calls")"
   OUTPUT="$(cat "$SANDBOX/output")"
-  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
+  STATUS="$SANDBOX/repo/out/ops/backup/remote/premigrate.json"
+  [[ "$1" != /* ]] || STATUS="$SANDBOX/repo/out/ops/backup/usb/premigrate.json"
 }
 
 # Same as run_case, but with the school's second recipient set — so the two-recipient cases can assert
 # what reaches `age` without changing the signature every other case uses.
 run_case_with_school() {
-  env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
+  env -i BACKUP_DISK_DIR="" HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
     BACKUP_AGE_RECIPIENT="age1testrecipient" BACKUP_AGE_RECIPIENT_SCHOOL="$2" \
     BACKUP_RCLONE_REMOTE="$1" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
     bash "$BACKUP" --label "premigrate-test" >"$SANDBOX/output" 2>&1
   EXIT=$?
   CALLS="$(cat "$SANDBOX/calls")"
   OUTPUT="$(cat "$SANDBOX/output")"
-  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
+  STATUS="$SANDBOX/repo/out/ops/backup/remote/premigrate.json"
+  [[ "$1" != /* ]] || STATUS="$SANDBOX/repo/out/ops/backup/usb/premigrate.json"
 }
 
 # Record helpers: one group per line, as backup-db.sh writes it.
@@ -139,6 +165,8 @@ check "record starts the history with this backup" "expected one coversUntil in 
   "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 1 ]] && echo 0 || echo 1)"
 check "record notes when recording began" "expected recordingSince" \
   "$(grep -Eq "\"recordingSince\": \"$ISO\"" "$STATUS" && echo 0 || echo 1)"
+check "status mount is readable by the app under a private umask" "expected traversable ops directory" \
+  "$([[ $(ls -ld "$SANDBOX/repo/out/ops") == drwxr-xr-x* ]] && echo 0 || echo 1)"
 check "a success leaves no failure" "expected lastFailure null" \
   "$([[ "$(group lastFailure)" == '  "lastFailure": null,' ]] && echo 0 || echo 1)"
 check "record follows upload" "expected uploaded log before recorded log" \
@@ -149,50 +177,50 @@ check "the version 1 file is no longer written" "backup-status.json must not app
   "$([[ ! -e "$SANDBOX/repo/out/ops/backup-status.json" ]] && echo 0 || echo 1)"
 check "the run took the lock" "flock must run" "$([[ "$CALLS" == *"flock -n 8"* ]] && echo 0 || echo 1)"
 
-# 2. A missing/unmounted removable drive must abort before pg_dump, not write onto the root disk.
+# 2. A missing/unmounted removable drive is neutral and never writes onto the root disk.
 prepare_case
 USB="$SANDBOX/usb/lesson3-backups"
 run_case "$USB"
-check "missing USB sentinel fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
-check "missing USB fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+check "missing USB is neutral" "expected zero exit" "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
+check "missing USB skips pg_dump" "pg_dump must not run" \
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 check "missing USB records no success" "lastSuccess must stay null" "$(ok no_success)"
-check "missing USB records a destination failure" "lastFailure stage must be destination" "$(ok failed_at destination)"
-check "missing USB's reason names the sentinel" "reason must say what was missing" \
-  "$(group lastFailure | grep -q sentinel && echo 0 || echo 1)"
+check "missing USB is recorded separately from failure" "lastNotConnected must be set" "$(group lastNotConnected | grep -q '"seq":' && echo 0 || echo 1)"
+check "missing USB reason is not connected" "reason must say not connected" \
+  "$(group lastNotConnected | grep -q 'not connected' && echo 0 || echo 1)"
 
 prepare_case
 run_case "relative/lesson3-backups"
 check "relative local path fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "relative path fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 prepare_case
 run_case "$SANDBOX/usb/path:with-colon"
-check "absolute path with colon stays local" "expected local validation failure" \
-  "$([[ $EXIT -ne 0 && "$OUTPUT" == *"sentinel"* ]] && echo 0 || echo 1)"
-check "absolute colon path fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+check "absolute path with colon stays local" "expected not connected" \
+  "$([[ $EXIT -eq 0 && "$OUTPUT" == *"not connected"* ]] && echo 0 || echo 1)"
+check "absent absolute colon path skips pg_dump" "pg_dump must not run" \
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 prepare_case
 run_case $'drive:lesson3-\bbackups'
 check "unsupported JSON control fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "unsupported control fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 prepare_case
 run_case "drive:lesson3-backups" 0 $'lesson3-\bunsafe'
 check "DB-name JSON control fails" "expected named validation error" \
   "$([[ $EXIT -ne 0 && "$OUTPUT" == *"BACKUP_DB_NAME"* ]] && echo 0 || echo 1)"
 check "DB-name control fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 prepare_case
 run_case "drive:lesson3-backups" 0 "" $'premigrate-\bunsafe'
 check "label JSON control fails" "expected named validation error" \
   "$([[ $EXIT -ne 0 && "$OUTPUT" == *"--label"* ]] && echo 0 || echo 1)"
 check "label control fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 prepare_case
 USB="$SANDBOX/usb/lesson3-backups"
@@ -201,7 +229,7 @@ ln -s "$SANDBOX/not-a-volume" "$USB/.lesson3-backup-volume"
 run_case "$USB"
 check "symlink USB sentinel fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "symlink sentinel fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 prepare_case
 USB="$SANDBOX/usb/lesson3-backups"
@@ -214,7 +242,7 @@ chmod +x "$SANDBOX/home/bin/findmnt"
 run_case "$USB"
 check "root-filesystem destination fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "root destination fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 prepare_case
 USB="$SANDBOX/usb/lesson3-backups"
@@ -233,7 +261,7 @@ chmod +x "$SANDBOX/home/bin/findmnt"
 run_case "$USB"
 check "root-backed bind mount fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "root-backed bind fails before pg_dump" "docker must not run" \
-  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+  "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 # 3. A mounted/identified USB drive uses the same encrypted rclone path and writes the same evidence.
 prepare_case
@@ -352,7 +380,7 @@ LOCK_HELD=1 run_case "drive:lesson3-backups"
 check "a lock never freed fails the run" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "a run without the lock writes no record" "the holder owns the record" "$([[ ! -e "$STATUS" ]] && echo 0 || echo 1)"
 check "a held lock waits before giving up" "flock -w must run" "$([[ "$CALLS" == *"flock -w"* ]] && echo 0 || echo 1)"
-check "a held lock dumps nothing" "docker must not run" "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+check "a held lock dumps nothing" "docker must not run" "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 # 6e. A setup failure is recorded — but only once the lock is held, never before (review 2026-10-21).
 prepare_case
@@ -367,16 +395,16 @@ check "a failure without the lock writes nothing" "no record may appear" "$([[ !
 
 # 6e'. A bad retention setting is recorded too: the check runs after the lock (review 2026-10-22).
 prepare_case
-env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="age1testrecipient" \
+env -i BACKUP_DISK_DIR="" HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="age1testrecipient" \
   BACKUP_RCLONE_REMOTE="drive:lesson3-backups" BACKUP_WEEKLY_KEEP=0 PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
   bash "$BACKUP" --label weekly >"$SANDBOX/output" 2>&1
 EXIT=$?; CALLS="$(cat "$SANDBOX/calls")"; OUTPUT="$(cat "$SANDBOX/output")"
-STATUS="$SANDBOX/repo/out/ops/backup/weekly.json"
+STATUS="$SANDBOX/repo/out/ops/backup/remote/weekly.json"
 check "a bad retention setting fails the run" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "a bad retention setting is recorded as setup" "lastFailure stage must be setup" "$(ok failed_at setup)"
 check "the record names the setting" "reason must mention keep-count" \
   "$(group lastFailure | grep -q 'keep-count' && echo 0 || echo 1)"
-check "a bad retention setting dumps nothing" "docker must not run" "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+check "a bad retention setting dumps nothing" "docker must not run" "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 # 6f. Attempts are ordered by a number, not a time: whole seconds can tie (review 2026-10-21).
 prepare_case
@@ -388,7 +416,7 @@ check "the next attempt's number is higher" "seq 2 on the failure that followed"
   "$(group lastFailure | grep -Fq '"seq": 2,' && echo 0 || echo 1)"
 run_case "drive:lesson3-backups" 0 "" "weekly"
 check "one counter serves every stream" "the weekly success is attempt 3" \
-  "$(grep -Fq '"seq": 3,' "$SANDBOX/repo/out/ops/backup/weekly.json" && echo 0 || echo 1)"
+  "$(grep -Fq '"seq": 3,' "$SANDBOX/repo/out/ops/backup/remote/weekly.json" && echo 0 || echo 1)"
 
 # ── Two recipients (SPEC §11: an offline school must be able to recover without ARES) ──────────────
 #
@@ -468,6 +496,7 @@ else
   cat >"$SANDBOX/home/bin/docker" <<EOF
 #!/usr/bin/env bash
 echo "docker \$*" >>"$SANDBOX/calls"
+if [[ " \$* " == *" psql "* ]]; then printf '11111111-1111-1111-1111-111111111111\n'; exit 0; fi
 if [[ "\$1 \$2" == "compose exec" ]]; then
   [[ -e "$SANDBOX/dumping" ]] && echo "OVERLAP" >>"$SANDBOX/calls"
   : >"$SANDBOX/dumping"; sleep 2; rm -f "$SANDBOX/dumping"
@@ -476,7 +505,7 @@ fi
 EOF
   chmod +x "$SANDBOX/home/bin/docker"
   concurrent() { # label output-file
-    env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="age1testrecipient" \
+    env -i BACKUP_DISK_DIR="" HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="age1testrecipient" \
       BACKUP_RCLONE_REMOTE="drive:lesson3-backups" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
       bash "$BACKUP" --label "$1" >"$2" 2>&1
   }
@@ -486,16 +515,16 @@ EOF
   concurrent weekly "$SANDBOX/out3" & P3=$!
   wait "$P1"; E1=$?; wait "$P2"; E2=$?; wait "$P3"; E3=$?
   OUTPUT="$(cat "$SANDBOX/out1" "$SANDBOX/out2" "$SANDBOX/out3")"; CALLS="$(cat "$SANDBOX/calls")"; EXIT="$E1/$E2/$E3"
-  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
+  STATUS="$SANDBOX/repo/out/ops/backup/remote/premigrate.json"
   check "two at once: every run succeeds" "expected all exits 0" "$([[ "$EXIT" == 0/0/0 ]] && echo 0 || echo 1)"
   check "two at once: a later run waited for the lock" "expected the waiting message" \
     "$(grep -q "another backup is running; waiting" "$SANDBOX/out2" "$SANDBOX/out3" && echo 0 || echo 1)"
   check "two at once: the same stream kept both" "premigrate history must hold two entries" \
     "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 2 ]] && echo 0 || echo 1)"
   check "two at once: the other stream's record survives" "weekly.json must have a success" \
-    "$(grep -q '"lastSuccess": {' "$SANDBOX/repo/out/ops/backup/weekly.json" && echo 0 || echo 1)"
+    "$(grep -q '"lastSuccess": {' "$SANDBOX/repo/out/ops/backup/remote/weekly.json" && echo 0 || echo 1)"
   check "two at once: all three dumps ran" "three pg_dump calls expected" \
-    "$([[ "$(grep -c '^docker compose exec' <<<"$CALLS")" == 3 ]] && echo 0 || echo 1)"
+    "$([[ "$(grep -c '^docker compose exec.*pg_dump' <<<"$CALLS")" == 3 ]] && echo 0 || echo 1)"
   check "two at once: the dumps never overlapped" "no dump may start while another runs" \
     "$([[ "$CALLS" != *OVERLAP* ]] && echo 0 || echo 1)"
 
@@ -506,6 +535,7 @@ EOF
   cat >"$SANDBOX/home/bin/docker" <<EOF
 #!/usr/bin/env bash
 echo "docker \$*" >>"$SANDBOX/calls"
+if [[ " \$* " == *" psql "* ]]; then printf '11111111-1111-1111-1111-111111111111\n'; exit 0; fi
 if [[ "\$1 \$2" == "compose exec" ]]; then sleep 2; printf 'postgres custom-format bytes'; fi
 EOF
   chmod +x "$SANDBOX/home/bin/docker"
@@ -514,12 +544,12 @@ EOF
     >"$SANDBOX/repo/out/ops/backup/premigrate.json"
   concurrent premigrate-succeeds "$SANDBOX/out1" & P1=$!
   sleep 0.5
-  env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="" \
+  env -i BACKUP_DISK_DIR="" HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_AGE_RECIPIENT="" \
     BACKUP_RCLONE_REMOTE="drive:lesson3-backups" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
     bash "$BACKUP" --label premigrate-fails >"$SANDBOX/out2" 2>&1; E2=$?
   wait "$P1"; E1=$?
   OUTPUT="$(cat "$SANDBOX/out1" "$SANDBOX/out2")"; CALLS="$(cat "$SANDBOX/calls")"; EXIT="$E1/$E2"
-  STATUS="$SANDBOX/repo/out/ops/backup/premigrate.json"
+  STATUS="$SANDBOX/repo/out/ops/backup/remote/premigrate.json"
   check "fail during success: the success succeeds and the failure fails" "expected 0/1" \
     "$([[ "$EXIT" == 0/1 ]] && echo 0 || echo 1)"
   check "fail during success: the history keeps both entries" "two entries expected" \
@@ -529,6 +559,112 @@ EOF
   check "fail during success: the failure is recorded after it" "the failure must be attempt 2" \
     "$(group lastFailure | grep -q '"seq": 2,' && echo 0 || echo 1)"
 fi
+
+# Part 3a: destinations are independent, while dump and encryption happen once.
+run_dual() {
+  env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
+    BACKUP_DISK_DIR="$SANDBOX/disk" BACKUP_RCLONE_REMOTE="$1" \
+    BACKUP_AGE_RECIPIENT=age1testrecipient PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+    BACKUP_DISK_MIN_FREE_BYTES="${TEST_MARGIN:-1}" FAIL_COPY="${TEST_COPY_FAILURE:-0}" \
+    TEST_INSTALLATION_ID="${TEST_ID-11111111-1111-1111-1111-111111111111}" \
+    bash "$BACKUP" ${TEST_LABEL:+--label "$TEST_LABEL"} >"$SANDBOX/output" 2>&1
+  EXIT=$?; CALLS="$(cat "$SANDBOX/calls")"; OUTPUT="$(cat "$SANDBOX/output")"
+  STATUS="$SANDBOX/repo/out/ops/backup/disk/daily.json"
+}
+prepare_case
+run_dual 'drive:backups'
+check 'disk and cloud both succeed' 'expected zero exit' "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
+check 'two destinations use one pg_dump' 'expected one dump' "$([[ $(grep -c 'docker .*pg_dump' "$SANDBOX/calls") == 1 ]] && echo 0 || echo 1)"
+check 'two destinations use one encryption' 'expected one age call' "$([[ $(grep -c '^age ' "$SANDBOX/calls") == 1 ]] && echo 0 || echo 1)"
+check 'two destinations receive the same encrypted source' 'expected one source and two copies' \
+  "$(awk '/^rclone copyto /{sources[$3]=1; n++} END{exit !(length(sources)==1 && n==2)}' "$SANDBOX/calls" && echo 0 || echo 1)"
+check 'disk has its own success record' 'expected daily disk evidence' "$(group lastSuccess | grep -q '"seq":' && echo 0 || echo 1)"
+check 'cloud has its own success record' 'expected daily cloud evidence' "$(grep -q '"lastSuccess": {"seq":' "$SANDBOX/repo/out/ops/backup/remote/daily.json" && echo 0 || echo 1)"
+check 'disk marker contains the database identity' 'expected UUID' "$([[ $(cat "$SANDBOX/disk/.lesson3-installation") == 11111111-1111-1111-1111-111111111111 ]] && echo 0 || echo 1)"
+check 'disk copied through its held directory' 'expected an actual encrypted file' "$(compgen -G "$SANDBOX/disk/daily/*.dump.age" >/dev/null && echo 0 || echo 1)"
+
+prepare_case
+run_dual "$SANDBOX/absent-usb"
+check 'unplugged USB does not fail disk backup' 'expected zero exit' "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
+check 'disk succeeds with unplugged USB' 'expected disk success' "$(group lastSuccess | grep -q '"seq":' && echo 0 || echo 1)"
+check 'unplugged USB has a neutral record' 'expected notConnected and no failure' \
+  "$(grep -q '"lastNotConnected": {"seq":' "$SANDBOX/repo/out/ops/backup/usb/daily.json" && grep -q '"lastFailure": null' "$SANDBOX/repo/out/ops/backup/usb/daily.json" && echo 0 || echo 1)"
+check 'unplugged USB folder is not created' 'expected no directory on root filesystem' "$([[ ! -e "$SANDBOX/absent-usb" ]] && echo 0 || echo 1)"
+
+prepare_case
+mkdir -p "$SANDBOX/disk/daily"
+printf '22222222-2222-2222-2222-222222222222\n' >"$SANDBOX/disk/.lesson3-installation"
+printf 'old backup' >"$SANDBOX/disk/daily/lesson3-20200101T000000Z.dump.age"
+run_dual 'drive:backups'
+check 'foreign disk marker fails the run' 'expected nonzero after trying cloud' "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+check 'foreign disk marker is not overwritten' 'expected foreign identity' "$([[ $(cat "$SANDBOX/disk/.lesson3-installation") == 22222222-2222-2222-2222-222222222222 ]] && echo 0 || echo 1)"
+check 'foreign disk backups are untouched' 'expected only the original file' "$([[ $(ls "$SANDBOX/disk/daily" | wc -l) == 1 ]] && echo 0 || echo 1)"
+check 'foreign disk does not prevent cloud backup' 'expected cloud success' "$(grep -q '"lastSuccess": {"seq":' "$SANDBOX/repo/out/ops/backup/remote/daily.json" && echo 0 || echo 1)"
+check 'foreign disk is never pruned' 'expected no delete calls' "$([[ "$CALLS" != *'rclone delete'* ]] && echo 0 || echo 1)"
+
+prepare_case
+printf '22222222-2222-2222-2222-222222222222\n' >"$SANDBOX/remote-marker"
+run_dual 'drive:backups'
+check 'foreign cloud fails after disk succeeds' 'expected nonzero and disk success' "$([[ $EXIT -ne 0 ]] && group lastSuccess | grep -q '"seq":' && echo 0 || echo 1)"
+check 'foreign cloud is never written or pruned' 'expected only disk copy' "$([[ $(grep -c '^rclone copyto' "$SANDBOX/calls") == 1 && "$CALLS" != *'rclone delete'* ]] && echo 0 || echo 1)"
+
+prepare_case
+mkdir -p "$SANDBOX/disk/daily"
+printf 'old backup' >"$SANDBOX/disk/daily/lesson3-20200101T000000Z.dump.age"
+run_dual ''
+check 'unmarked old disk is adopted' 'expected success and installation marker' "$([[ $EXIT -eq 0 && -f "$SANDBOX/disk/.lesson3-installation" ]] && echo 0 || echo 1)"
+check 'adoption preserves existing backups within retention' 'expected original backup' "$([[ -f "$SANDBOX/disk/daily/lesson3-20200101T000000Z.dump.age" ]] && echo 0 || echo 1)"
+
+prepare_case
+TEST_MARGIN=999999999999999 run_dual 'drive:backups'
+check 'insufficient disk space is a real error' 'expected nonzero' "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+check 'insufficient disk space is recorded' 'expected space failure' "$(ok failed_at space)"
+check 'insufficient disk space does not stop cloud' 'expected cloud success' "$(grep -q '"lastSuccess": {"seq":' "$SANDBOX/repo/out/ops/backup/remote/daily.json" && echo 0 || echo 1)"
+
+prepare_case
+TEST_ID='' run_dual 'drive:backups'
+check 'missing database identity refuses all writes' 'expected nonzero and no rclone call or disk' "$([[ $EXIT -ne 0 && "$CALLS" != *rclone* && ! -e "$SANDBOX/disk" ]] && echo 0 || echo 1)"
+
+prepare_case
+mkdir "$SANDBOX/disk"
+printf '11111111-1111-1111-1111-111111111111\n' >"$SANDBOX/elsewhere"
+ln -s "$SANDBOX/elsewhere" "$SANDBOX/disk/.lesson3-installation"
+run_dual ''
+check 'symlink installation marker is refused' 'expected nonzero without a dump' "$([[ $EXIT -ne 0 && "$CALLS" != *pg_dump* ]] && echo 0 || echo 1)"
+
+prepare_case
+TEST_COPY_FAILURE=disk run_dual 'drive:backups'
+check 'disk copy failure does not stop the later cloud copy' 'expected nonzero and cloud success' \
+  "$([[ $EXIT -ne 0 ]] && grep -q '"lastSuccess": {"seq":' "$SANDBOX/repo/out/ops/backup/remote/daily.json" && echo 0 || echo 1)"
+check 'disk copy failure records the upload stage' 'expected disk upload failure' "$(ok failed_at upload)"
+
+prepare_case
+USB="$SANDBOX/usb/backups"
+mkdir -p "$USB"; touch "$USB/.lesson3-backup-volume"
+run_dual "$USB"
+check 'disk and connected USB both succeed' 'expected zero and two actual archive copies' \
+  "$([[ $EXIT -eq 0 && $(grep -c '^rclone copyto' "$SANDBOX/calls") == 2 ]] && compgen -G "$USB/daily/*.dump.age" >/dev/null && echo 0 || echo 1)"
+
+prepare_case
+cat >"$SANDBOX/home/bin/df" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *'/proc/self/fd/'* ]]; then
+  printf 'Filesystem 1024-blocks Used Available Capacity Mounted\n/dev/test 100 99 1 99%% /\n'
+else exec /usr/bin/df "$@"; fi
+EOF
+chmod +x "$SANDBOX/home/bin/df"
+TEST_MARGIN=1000 run_dual 'drive:backups'
+check 'space check includes encrypted size after preflight passes' 'expected disk space failure and only cloud copied' \
+  "$([[ $EXIT -ne 0 && $(grep -c '^rclone copyto' "$SANDBOX/calls") == 1 ]] && failed_at space && echo 0 || echo 1)"
+
+prepare_case
+mkdir -p "$SANDBOX/disk/monthly"
+for month in 01 02 03 04; do
+  printf old >"$SANDBOX/disk/monthly/lesson3-2020${month}01T000000Z-monthly.dump.age"
+done
+TEST_LABEL=monthly run_dual ''
+check 'disk monthly retention keeps three copies' 'expected newest three including this backup' \
+  "$([[ $EXIT -eq 0 && $(ls "$SANDBOX/disk/monthly" | wc -l) == 3 && ! -e "$SANDBOX/disk/monthly/lesson3-20200101T000000Z-monthly.dump.age" && -e "$SANDBOX/disk/monthly/lesson3-20200401T000000Z-monthly.dump.age" ]] && echo 0 || echo 1)"
 
 echo
 printf 'backup status: %d passed, %d failed\n' "$pass" "$fail"

@@ -278,3 +278,12 @@ encryption, recipients or retention. No off-box monitoring service.
   statements limited to what the records show, including an unknown state; per-stream records with
   locking and `coversUntil` freshness; a Phase B owner and completion condition; an explicit school
   agreement instead of default schedules.
+
+## School destinations (Part 3a, 2026-10-26)
+
+The approved [school-backup plan](PLAN-school-backups-part3-2026-10-26.md) extends Phase A to an
+independent server-disk copy plus USB/cloud, destination-scoped version-2 records and installation
+markers. Old stream records remain external-only fallback. Phase B recovery uses the same encrypted
+bytes and installation identity; a disk copy is not evidence of recovery after losing the machine.
+Part 3b will add setup and password-locked school identities; the existing restore seam accepts those
+identities through `AGE_IDENTITY` without changing the data format.

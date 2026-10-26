@@ -1,6 +1,7 @@
 # Part 3 — Backups for school machines (implementation plan)
 
-**Status: APPROVED by the operator, 2026-10-26. Ready to build, 3a first. No code is written yet.** Build part 3 of
+**Status: APPROVED by the operator, 2026-10-26. PR 3a implemented on `feat/school-backups-3a`,
+awaiting review and merge. PR 3b remains approved and next after 3a.** Builds part 3 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§8). Needs no test machine: everything
 below runs in the existing restore/backup stack tests. Commissioning (part 5) will call the setup command
 this part adds; until then a technician or operator runs it by hand.
@@ -42,7 +43,8 @@ and what Manage → System says).
      drives is unchanged.
    - `BACKUP_RCLONE_REMOTE` (existing): the USB drive's mount point (or a cloud remote).
    - One `pg_dump` and one encryption per run; the encrypted file is then copied to each destination.
-     A destination that fails does not stop the other.
+     A destination that fails does not stop the other. After both are attempted, any real destination
+     error produces a nonzero exit; an absent USB remains neutral (operator decision).
 2. **A missing USB drive is "not connected", not a failure.** The run records it and carries on to the
    disk. Whether that matters is judged by age (step 4), because a drive that is rightly kept away from
    the server will often be absent at 02:00.

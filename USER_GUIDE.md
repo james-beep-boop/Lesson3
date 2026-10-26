@@ -281,6 +281,15 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   says the backup drive is not connected, connect the school’s backup drive and run the backup, then
   take the drive away from the server.
 
+  Disk and USB/cloud backups are reported separately once the updated backup script has run.
+  A disk backup protects against bad updates and accidental deletion, but will not survive disk
+  failure, theft, fire or a reinstall wipe. A fresh disk copy never hides an overdue USB copy.
+  USB backups are overdue after 30 days by default (`BACKUP_USB_MAX_AGE`); plug in the drive and
+  run a backup, then take it away when possible. “Not connected” is neutral while the drive is away;
+  its backup age still matters. The server operator can restore a disk copy with
+  `scripts/restore-db.sh --local-file /var/lib/lesson3-backups/daily/BACKUP.dump.age --into lesson3_test`
+  for a drill. A backup folder marked for another installation is refused; use the correct folder.
+
   Before attempting recovery, check what *Manage → System → Backups* shows under
   **School recovery key**:
 
