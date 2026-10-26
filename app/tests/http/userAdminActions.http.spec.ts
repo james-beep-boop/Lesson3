@@ -25,7 +25,7 @@ import {
   type RoleFixture,
   type RoleKey,
 } from '../helpers/fixtures.js'
-import { clearRateLimitBuckets, drizzleOf } from '../helpers/db.js'
+import { clearLoginTargetBudget, drizzleOf } from '../helpers/db.js'
 import { stillPendingAfterWindow, whileLockHeld } from '../helpers/rowLocks.js'
 import { ADVISORY_LOCKS } from '../../src/lib/txDb.js'
 // `HTTP_BASE`/`url`/`login` from the shared wire helper — its own docblock records that it exists
@@ -75,7 +75,8 @@ async function freshUpdatedAt(): Promise<string> {
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  const tokens = await Promise.all(ROLES.map((k) => login(fx.users[k].email, fx.password)))
+  const tokens: string[] = []
+  for (const k of ROLES) tokens.push(await login(fx.users[k].email, fx.password))
   ROLES.forEach((k, i) => (token[k] = tokens[i]!))
 
   const target = await fx.payload.create({
@@ -380,7 +381,7 @@ describe('account actions — permissions changed while waiting', () => {
           // was written".
           expect(await freshUpdatedAt()).toBe(before)
         } finally {
-          await clearRateLimitBuckets(fx.payload, `login:${caller.email.toLowerCase()}`)
+          await clearLoginTargetBudget(fx.payload, caller.email.toLowerCase())
           await deleteUserFixture(fx.payload, caller.id)
         }
       }, 30_000)

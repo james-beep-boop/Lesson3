@@ -69,4 +69,4 @@ exec docker run --rm --init --name lesson3-dev-server \
   --env PUBLIC_LIBRARY_ENABLED \
   --env SERVER_URL \
   --env RENDER_TIMINGS \
-  lesson3-deps npx next dev -H 0.0.0.0
+  lesson3-deps npm run dev -- -H 0.0.0.0

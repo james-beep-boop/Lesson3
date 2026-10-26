@@ -7,7 +7,7 @@
  */
 import type { Page } from '@playwright/test'
 
-import { clearRateLimitBuckets } from './db'
+import { clearLoginTargetBudget } from './db'
 import { login } from './login'
 import type { RoleFixture, RoleKey } from './fixtures'
 import { welcomeDismissedKey } from '../../src/lib/welcomeDismissal'
@@ -28,7 +28,7 @@ export const E2E_BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').re
  * traces and video. The only constraint this imposes is one role per test, which is how every spec here
  * already worked.
  *
- * ⚑ IT CLEARS THE USER'S SIGN-IN BUDGET FIRST. Sign-in is throttled per address, 20 an hour
+ * ⚑ IT CLEARS THE USER'S SIGN-IN BUDGET FIRST. Sign-in is throttled per client+address, 20 an hour
  * (`hooks/authRateLimit.ts`), and a spec shares one fixture across its tests — `manage.e2e.spec.ts` signs
  * its Site Administrator in 23 times. The 21st got a 429, which the login form shows as "Invalid email or
  * password", and the test passed on retry only because a retry starts a new worker with a fresh fixture
@@ -54,7 +54,7 @@ export async function loginUser(
   user: { id: number; email: string },
   opts: { showWelcome?: boolean } = {},
 ): Promise<void> {
-  await clearRateLimitBuckets(fx.payload, `login:${user.email.toLowerCase()}`)
+  await clearLoginTargetBudget(fx.payload, user.email.toLowerCase())
   // ⚑ THE WELCOME DIALOG IS PRE-DISMISSED. Fixture accounts are brand new every run, so the first-login
   // dialog — a modal over the whole page — appeared on every page these specs open and intercepted
   // their clicks: 28 failures across Discussions, Manage and Messages (2026-10-17). These specs test

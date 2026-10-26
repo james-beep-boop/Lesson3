@@ -17,6 +17,8 @@ import type { Instrumentation } from 'next'
 
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { installLoginClientTracking } = await import('../scripts/login-client.mjs')
+    installLoginClientTracking(process.env.AUTH_TRUSTED_PROXY_CIDRS ?? '')
     const { initErrorTracking } = await import('./lib/errorTracking')
     initErrorTracking()
   }

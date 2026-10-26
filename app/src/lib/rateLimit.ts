@@ -139,19 +139,15 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_MESSAGE_PING_RECIPIENT_MAX', 20),
     windowMs: positiveIntEnv('RATE_LIMIT_MESSAGE_PING_RECIPIENT_WINDOW_MS', 86_400_000),
   },
-  // AUTH operations (SPEC §11 "generation, auth"; audit 2026-07-04) — enforced by the Users
-  // beforeOperation hook (hooks/authRateLimit.ts). Login is keyed by the TARGET identifier
-  // (lowercased email), bounding both distributed guessing and the lockout-DoS blast radius
-  // (Payload's maxLoginAttempts:5 lockout guards single-account brute force; this throttles the
-  // hammering itself). Budgets sit far above legitimate use: a real user logs in a handful of
-  // times per hour, and 5 reset mails per address per day is generous.
+  // Login counters are per client+requested email and per client, never account-wide or site-wide.
+  // Signup and forgot-password retain their separate outbound-mail budgets.
   login: {
     max: positiveIntEnv('RATE_LIMIT_LOGIN_MAX', 20),
     windowMs: positiveIntEnv('RATE_LIMIT_LOGIN_WINDOW_MS', 3_600_000),
   },
-  loginGlobal: {
-    max: positiveIntEnv('RATE_LIMIT_LOGIN_GLOBAL_MAX', 1000),
-    windowMs: positiveIntEnv('RATE_LIMIT_LOGIN_GLOBAL_WINDOW_MS', 3_600_000),
+  loginClient: {
+    max: positiveIntEnv('RATE_LIMIT_LOGIN_CLIENT_MAX', 60),
+    windowMs: positiveIntEnv('RATE_LIMIT_LOGIN_CLIENT_WINDOW_MS', 60_000),
   },
   // forgot-password sends REAL outbound mail per request (unauthenticated-triggered) — the same
   // egress class as email-a-doc, so it gets the same two-tier cap shape: per-target-address and

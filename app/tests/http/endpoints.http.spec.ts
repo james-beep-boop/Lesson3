@@ -178,8 +178,9 @@ const makeColdVersion = (tag: string, semver: string) =>
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  // Independent logins → run concurrently (one HTTP round-trip each).
-  const tokens = await Promise.all(ROLES.map((key) => login(fx.users[key].email, fx.password)))
+  // One test client signs in each role sequentially under the per-client capacity bound.
+  const tokens: string[] = []
+  for (const key of ROLES) tokens.push(await login(fx.users[key].email, fx.password))
   ROLES.forEach((key, i) => (token[key] = tokens[i]))
 }, 120_000)
 

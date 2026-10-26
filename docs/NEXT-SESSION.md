@@ -20,6 +20,19 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
+# Sign-in fixes prepared 2026-10-25
+
+Branch `fix/sign-in-abuse-controls` addresses the login portions of F-C23-001/002/003. The operator
+confirmed the Cloudflare WAF rule was never added. See [SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md)
+for required trusted-proxy configuration before deployment, defaults, tests and residual limits.
+No merge, deployment or Cloudflare change is included. Existing signup/forgot-password mail ceilings
+are unchanged. Historical deferred-finding text below describes the previous release.
+
+The v1.07 audit remains on PR #456, unmerged by design. Restore-cache invalidation is a separate
+fix on PR #457. These fixes do not merge the audit findings into main.
+
+---
+
 # SHELVED 2026-10-25 — read this block first
 
 The operator put the project away after one last wrap-up: one PR of quick fixes, then **v1.05**
