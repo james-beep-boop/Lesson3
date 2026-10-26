@@ -1,10 +1,19 @@
 # School machines: commissioning, reinstall and updates — design (proposal)
 
-**Status: PROPOSAL for operator approval, 2026-10-26. Planning only — nothing here is approved for
-implementation, and no code is written.** It records an operator discussion of 2026-10-25/26 (with
-Mark's input on how ARES installs and visits schools) and turns it into a plan. Each build part below
-still needs approval before work starts. SPEC changes it needs are listed in §12 and land with the code
-that implements them, not before.
+**Status: PROPOSAL for operator approval, 2026-10-26 (revision 2, same day). Planning only — nothing
+here is approved for implementation, and no code is written.** It records an operator discussion of
+2026-10-25/26 (with Mark's input on how ARES installs and visits schools) and turns it into a plan. Each
+build part below still needs approval before work starts. SPEC changes it needs are listed in §12 and
+land with the code that implements them, not before.
+
+**Revision 2** folds in an external review (GPT, 2026-10-26), whose two code claims were checked against
+`deploy/online/update.sh` and are correct: the updater never rolls back, and it stops when the new
+settings template has keys the school's `.env` lacks. Changes: a stronger proof before "safe to wipe",
+scoped to Lesson3 (§7b); accurate update recovery (§10a); power-cut resumption as a requirement (§7d);
+old-upgrade testing and settings without hand edits (§7c); repeated and interrupted imports (§10b);
+password and signing-key custody (§5, §8); honest wording on USB rotation (§8). Also: the operator
+reports that technicians already back up the other ARES programs' teacher uploads to USB before a
+full reinstall (§1, §13).
 
 Read with: `docs/DESIGN-backup-recovery-2026-10-21.md` (Phase A, shipped) and
 `docs/PLAN-phase-b-recovery-2026-10-22.md` (Phase B, paused for test machines), which this design
@@ -28,13 +37,14 @@ shares its stick, its restore path and its acceptance test with; `docs/DESIGN-mo
   the Teacher Council a stipend partly to cover the data their meetings use). A technician with a
   working, slightly older version will usually skip a download. Mark expects to add cheap, very slow
   internet to some schools, mainly to monitor usage.
-- **The other ARES programs on the server also hold teacher-uploaded content.** How it survives a wipe
-  today is an open question for Mark (§13).
+- **The other ARES programs on the server also hold teacher-uploaded content.** Before a full
+  reinstall, the technicians already back it up to USB (operator, 2026-10-26). How exactly is still to
+  be confirmed with Mark (§13); Lesson3's step joins that existing routine rather than replacing it.
 
 **What follows from this:** USB is the primary route for everything. Internet is supported for the
-cases where it helps, and is never assumed. Every school has to protect its own work between visits
-with nobody's help, and must upgrade cleanly from however old its software is when a technician
-finally arrives.
+cases where it helps, and is never assumed. Every school's backups must run between visits without
+anyone starting them, and every school must upgrade cleanly from however old its software is when a
+technician finally arrives.
 
 ## 2. What goes wrong if the image is simply copied (why this design exists)
 
@@ -111,8 +121,11 @@ ares-stick/
   - **Two ARES public keys in the image** (current and spare), so replacing a lost key does not strand
     machines already in schools.
   - **Damage is not distrust.** A sha256 mismatch says "download damaged — try again", not "untrusted".
-- **Signing is part of publishing.** The script that writes the stick or uploads to kenyalessons.org
-  signs as its last step. Who holds the private signing key is an open question (§13).
+- **ARES signs when it publishes; nobody else needs the key.** Publishing a program or lesson release
+  (to kenyalessons.org and as a stick master) signs it as the last step, on the machine that holds the
+  ARES signing key. **Building a stick for a visit is a different job:** the stick builder copies
+  already-signed artifacts and verifies them, and never needs or touches the private key. So any
+  technician can make sticks, and the key stays with very few people. Who those are is open (§13).
 
 ## 6. Seal (on the master, before Clonezilla)
 
@@ -149,22 +162,34 @@ One command, `sudo lesson3 commission`, in plain steps. It asks first:
 6. **Fonts** from the stick, if present (§9).
 7. **Backups** (§8): destination, backup password, automatic schedule, first backup run and checked.
 8. **Receipt:** installation ID, hostname, school name, program version, lesson release (verified or
-   not), backup destination and key fingerprints. Written to the stick and to `out/ops/`, and printed
-   as a sheet that includes the backup password.
+   not), backup destination and key fingerprints. Written to the stick and to `out/ops/`.
+   ⚑ **The backup password appears only on the printed recovery sheet,** handed to whoever the school
+   names as keeper. It is never written to any file: not the receipt, not the stick, not the server.
 
 ### 7b. Returning school (reinstall)
 
 **Before the wipe — `sudo lesson3 prepare-reinstall`:**
 
-1. Takes a final backup **onto the technician's stick**.
-2. **Proves it:** decrypts it, checks every table's row count, records school name, Installation ID
-   and backup time.
-3. Prints **"SAFE TO WIPE — <school>, backup of <time>"** only if all of that passed; otherwise **"DO
-   NOT WIPE"** with the reason.
+1. **Writes the recovery set onto the technician's stick:**
+   - a final backup;
+   - the school's settings (Phase B's recovery manifest: name, address, backup destination, recipients,
+     agreement and contact settings; never `PAYLOAD_SECRET` or `POSTGRES_PASSWORD`, which are made new);
+   - the school's password-locked recovery key.
+2. **Proves it by using it, not by inspecting it.** It reads the backup back **from the stick**, restores
+   it into a **throwaway database** on this server (the staging half of the A1 restore, with no swap),
+   checks every table's row count, then reads a known lesson plan from that database and generates its
+   DOCX and PDF. The throwaway database is then removed. It checks for disk space first.
+3. Prints **"LESSON3 SAFE TO WIPE — <school>, backup of <time>"** only if every step passed; otherwise
+   **"LESSON3: DO NOT WIPE"** with the reason.
 
-⚑ This is the hardest stop in the design. Wiping without a proven backup destroys every teacher's work
-at that school, and the backup on the server's own disk is destroyed by the same wipe. **The stick stays
-with the technician until step 4 below has passed.**
+⚑ This is the hardest stop in the design. Wiping without a proven backup destroys every teacher's
+Lesson3 work at that school, and the backup on the server's own disk is destroyed by the same wipe.
+**The stick stays with the technician until "Confirm" below has passed.**
+
+⚑ **The message speaks for Lesson3 only.** The wipe also destroys the other ARES programs' teacher
+uploads, which the technicians back up by their existing routine. Lesson3 cannot see those, so it never
+declares the *machine* safe to wipe. The message ends: *"Back up the other ARES programs' teacher content
+as usual before wiping."* If Mark wants one combined check later, this step is built to sit inside it.
 
 **Wipe and install the new image** (Mark's process).
 
@@ -185,20 +210,55 @@ the fallback (§8). This is the same command as Phase B recovery; build it once.
 
 A forgotten school may be several program versions and lesson releases behind.
 
-- **Program:** a restore must accept a backup from **any** older Lesson3. Restores already migrate
-  forward step by step, so this holds as long as **no migration is ever deleted or squashed**. Proposed
-  as a standing rule (SPEC change, §12), with a test that restores the oldest data in the field into the newest
-  program.
+- **Program:** a restore must accept a backup from **any** older Lesson3. Restores migrate forward step
+  by step, so **no migration may ever be deleted or squashed** (a standing rule, SPEC change §12). That is
+  necessary, not sufficient: database versions, migration dependencies and settings changes can each
+  break an old upgrade on their own. So:
+  - **Test representative old releases, not just the oldest.** Keep a backup made on every release that
+    reached a school; each new release must restore each of them, on the school stack, before it ships.
+  - **Database version jumps** (e.g. Postgres 16 → 17) are covered by the same test: backups are
+    `pg_dump` files, which restore forward into a newer Postgres, never data directories.
+- **Settings without hand edits.** Today `update.sh` stops when the new settings template has keys the
+  school's `.env` lacks, and asks for them to be added by hand. At a school there is nobody to do that.
+  For school installs:
+  - **every new setting ships with a safe default**, and the update tool adds missing keys with those
+    defaults, records what it added, and carries on;
+  - a setting that truly has no safe default is **asked by the tool** in plain words, as commissioning
+    asks its questions;
+  - a test fails the build if `.env.example` gains a key that has neither a default nor a question.
 - **Lessons:** skipped releases are fine. The newest release is linked to whatever release the school
   last had (release ancestry, #410), and teachers are offered Combine against that.
 
+### 7d. Power cuts
+
+School power fails often, so **every long step is resumable** — commission (new and returning),
+prepare-reinstall and update:
+
+- Each keeps a **journal** (as the A1 restore does) and records each step when it completes. Re-running
+  the same command after a power cut **continues from the journal**; it never starts over.
+- **Anything unique is created once and kept:** machine identity, secrets, Installation ID and the
+  school's recovery key are written to disk (atomically) before they are used, and a re-run reuses them.
+  A re-run never creates a second installation, new secrets for an existing database, or a new key that
+  would orphan backups already made.
+- **The backup password:** nothing is locked with it until the technician has typed it back to confirm
+  they wrote it down. A cut before that point simply asks again; a cut after it finds the locked key
+  already saved.
+- **Acceptance tests cut the power** (kill the machine, not the process) at chosen points in each of
+  the three commands, and prove the re-run finishes correctly.
+
 ## 8. Backups for school machines
 
-- **Automatic from commissioning, with no attention needed.** Between visits nothing else protects the
-  school. The schedule is installed by commissioning, not added by hand (`docs/OPS.md` step 5 today).
+- **The schedule is automatic from commissioning** (installed by commissioning, not added by hand as in
+  `docs/OPS.md` step 5 today). The *protection* is not automatic, and the wording must not say it is:
+  - backups to **this server's disk** need nobody, but are the weaker protection;
+  - backups to a **USB drive** need someone at the school to plug it in and take it away again. When
+    nobody does, Manage → System says the USB backup is overdue (Phase A's statements), and the disk
+    backup still runs.
 - **Destinations:**
-  - **USB drive** when the school has one: best, and taken away from the server after each run.
-  - **This server's own disk** when there is no USB drive. Today `backup-db.sh` refuses a destination on
+  - **USB drive** when the school has one: best, and taken away from the server after each run. Both
+    destinations can be on at once; the disk backup is always on.
+  - **This server's own disk**: always on, and the only destination when there is no USB drive (operator:
+    "fine if no USB available"). Today `backup-db.sh` refuses a destination on
     the same device as `/`; this adds an explicit "this disk" setting. It protects against a bad update,
     an accidental deletion or a corrupted database, **not** against disk failure, theft, fire, or a
     reinstall wipe. Manage → System says so in those words: *"Backups are on this server's own disk.
@@ -211,6 +271,8 @@ A forgotten school may be several program versions and lesson releases behind.
      the locked copy is stored beside every backup (server, backup drive, technician's stick).
   3. The server holds only the half that can lock backups, never the half that unlocks them.
   4. **Recovery needs only a backup and the password.**
+  5. **The password exists only on paper:** the printed recovery sheet, kept by the person the school
+     names. No receipt, log, stick or server file ever contains it (§7a step 8).
 - **ARES's key is the safety net.** Every backup is also locked to ARES's key, as today, so a forgotten
   school password is not fatal. ARES's public key is the same at every school, by design.
 - **One installation per destination.** The destination gets a marker naming the installation;
@@ -244,12 +306,28 @@ internet**, **Back up now**, **Status**.
   and their download sizes; and whether this program can accept the lessons available.
 - **Update** does the work, always in this order:
   1. **Backup capability.** If a backup cannot be taken right now, stop. Nothing changes without one.
-  2. **Program first,** if newer, because new lessons may need it. Strict verification; the existing
-     `update.sh` takes its pre-update snapshot and handles the rollback.
+  2. **Program first,** if newer, because new lessons may need it. Strict verification. Images are
+     loaded from the stick (`docker load`, checked against the pins) or pulled over the internet;
+     today `update.sh` always pulls, so it needs the same offline mode as `install.sh`. The existing
+     `update.sh` takes its pre-update snapshot (refusing to continue without one) and keeps the previous
+     deployment files and the backup's record. **It does not roll back** (see "If an update fails" below).
   3. **Lesson compatibility:** the set's `schemaVersion` and minimum program version against this
      program. Too old: *"This lesson set needs program 1.12 or later; you have 1.07"*, and nothing is
      imported. Unknown content kinds: import what is understood, list what is waiting.
   4. **Backup** (a pre-update snapshot), then **import** the lessons (§10b).
+- **If an update fails.** `update.sh` deliberately never rolls back on its own: once it reaches the point
+  where a migration may have run, the old program must not be started against the new database. It stops,
+  keeps the pre-update backup and the previous files, and says so. Re-running the same update resumes it.
+  For a school, where nobody can read that output, the tool adds one plain choice:
+  - **"Try the update again"** — resumes from the journal (the usual fix after a power cut, §7d);
+  - **"Go back to the previous version"** — `sudo lesson3 update --go-back`: stops the app, restores the
+    **paired pre-update backup** through the A1 staged restore, reinstates the previous deployment files
+    and starts the **previous images**. Work saved after the update started is lost by going back, and the
+    tool says so before asking.
+
+  ⚑ Going back offline needs the previous images still on the machine, so **the update never deletes the
+  previous release's images** until a later update has succeeded; the stick also keeps them. This is new
+  work: today the operator would do all of this by hand.
 - **Data is precious.** The internet route downloads a manifest of a few KB first, then **states the size
   and asks** before every download. Program images download only layers not already present, so the real
   size can be smaller than stated. Nothing ever downloads on its own. A school on slow internet can check
@@ -290,9 +368,25 @@ internet**, **Back up now**, **Status**.
   new Not Official version. "Not now" hides it for the session only — no new stored state.
 - **Unsaved drafts** get the notice that already shipped (save the draft as a version, then Combine).
   Phase 4 is dropped (DECISIONS 2026-10-25).
-- ⚑ **Open: should Manage → upload apply the same automatic-Official rule?** A technician may upload a
-  newer zip from a laptop rather than use the server tool. Recommendation: yes, with the same
-  confirmation list, so the two routes behave the same (§13).
+- **Repeated imports do nothing.** Importing a release a school already has creates no versions, moves
+  no Official and sends no messages; it reports "already imported". ⚑ Today's "unchanged upload" check
+  compares a file only with the plan's **latest** version, so once a teacher has saved 2.0.1, re-importing
+  the 2.0.0 release would create a duplicate 3.0.0. The check must instead look for the same content
+  among the plan's existing **ARES releases** (by release id and content fingerprint), whatever teachers
+  have saved since.
+- **A release id is never reused.** If an incoming set carries a release id the school already has, but
+  any file's content differs, the import refuses with a plain error ("This lesson set says it is the
+  Nov 2026 release, but its contents differ from the Nov 2026 release already here") and imports nothing.
+- **Interrupted imports leave nothing behind.** The write is one transaction (as web upload's is today),
+  so a power cut means nothing was imported and the re-run starts clean. Messages to administrators are
+  sent only after the write commits, once per release per subject-grade.
+- **The Official decision is made again at the moment of writing.** The confirmation list is a preview.
+  When the import writes, it re-checks each plan's current Official inside the existing subject-grade
+  lock, so an administrator who made a teacher's version Official in between is respected. Any plan
+  whose answer changed is reported afterwards.
+- **One implementation, two routes.** The server tool and Manage → upload share the same import code,
+  the same automatic-Official rule and the same confirmation list. (The reviewer agrees with this
+  recommendation; it is still the operator's decision, §13.)
 
 ### 10c. New content kinds (presentations, quizzes)
 
@@ -318,21 +412,24 @@ internet**, **Back up now**, **Status**.
 - **§7 Upload / import:** a supported production import command (today's CLI is dev-only and stops on
   missing taxonomy) that creates missing Subjects and SubjectGrades by the web upload's rules (exact
   names; near-miss names refused); the lesson-set manifest; the automatic-Official rule; the ARES
-  release label.
+  release label; repeated imports matched against existing ARES releases (amending today's
+  "latest saved version" rule); release ids never reused with different content.
 - **§6 Versioning:** ARES release id and date as system-only version fields; the automatic Official
-  move and its exception.
-- **§11 Operations:** seal, commission (new/returning), prepare-reinstall, the update tool; the
-  this-disk destination; backup password and locked key; installation marker on destinations; the
-  standing rule that migrations are never deleted or squashed; the two verification levels.
+  move and its exception, re-checked under the subject-grade lock at write time.
+- **§11 Operations:** seal, commission (new/returning), prepare-reinstall and its proof, the update tool
+  and `--go-back`; resumable steps (power cuts); the this-disk destination; backup password and locked
+  key, with the password never written to any file; installation marker on destinations; the standing
+  rules that migrations are never deleted or squashed and that every new setting has a safe default or
+  a question; the two verification levels; signing at publish, never at stick building.
 - **§8:** none expected (no new authority; the update tool is server-side, the web upload stays Site
   Administrator only).
 
 ## 13. Open questions
 
-1. **Other ARES programs' teacher uploads (for Mark).** Where do they live, do technicians save them
-   before wiping today, and should one "save everything before wiping" step cover them and Lesson3 on
-   the same stick? Lesson3's `prepare-reinstall` is designed to sit inside a wider checklist, but nothing
-   is planned for the other programs' data until Mark says how it is handled.
+1. **Other ARES programs' teacher uploads (for Mark).** The technicians already back these up to USB
+   before a full reinstall (operator, 2026-10-26). Still to confirm: is that a written checklist, and
+   should Lesson3's `prepare-reinstall` be added to it as a named step (recommended), or should one
+   combined command cover both later? Until then Lesson3's "safe to wipe" speaks for Lesson3 only (§7b).
 2. **Who holds the ARES signing keys** (current and spare), and where.
 3. **Manage → upload and the automatic-Official rule** (§10b). Recommended: same rule both routes.
 4. **School code format** for the hostname (e.g. the ministry's school code, if one exists).
@@ -340,19 +437,23 @@ internet**, **Back up now**, **Status**.
 ## 14. Build order (each its own PR, with its tests and docs)
 
 1. **Lesson-set manifest + production import command + ARES release fields + automatic Official** —
-   the core that every route uses. Testable now in the isolated stack.
+   the core that every route uses, including repeated-import matching and the write-time Official
+   re-check. Testable now in the isolated stack.
 2. **School name** (field, switchboard, the six places).
 3. **Backups for schools:** this-disk destination, backup password with locked key, installation
    marker, automatic schedule.
-4. **The ARES stick builder + signing + verification** (shared with Phase B's B1).
-5. **`install.sh` offline mode, seal, commission (new school).**
-6. **prepare-reinstall + commission (returning school)** (shared with Phase B's B3).
-7. **The update tool** and the read-only Manage → System report.
+4. **The ARES stick builder + publish-time signing + verification** (shared with Phase B's B1).
+5. **`install.sh` and `update.sh` offline modes; settings defaults instead of hand edits; seal;
+   commission (new school)**, all resumable.
+6. **prepare-reinstall (with its throwaway-database proof) + commission (returning school)** (shared
+   with Phase B's B3).
+7. **The update tool, `--go-back`,** and the read-only Manage → System report.
 8. **Fonts from USB** (after the mount spike).
 
 Parts 1–3 can be built and tested in containers now. Parts 4–7 need **one amd64 test machine** to run the
-full seal → Clonezilla → commission → prepare-reinstall → wipe → restore cycle. That is the same machine
-Phase B is waiting for; the two acceptance runs should share it.
+full seal → Clonezilla → commission → prepare-reinstall → wipe → restore cycle, with power cut at chosen
+points in each command (§7d), and the old-release restore matrix (§7c). That is the same machine Phase B
+is waiting for; the two acceptance runs should share it.
 
 ## 15. Out of scope
 
