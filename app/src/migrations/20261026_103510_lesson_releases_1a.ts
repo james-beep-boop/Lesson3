@@ -17,9 +17,9 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "lesson_plans" DROP CONSTRAINT "lesson_plans_official_changed_from_id_lesson_bundle_versions_id_fk";
-  
+
   ALTER TABLE "lesson_plans" DROP CONSTRAINT "lesson_plans_official_changed_by_id_users_id_fk";
-  
+
   DROP INDEX "lesson_plans_official_changed_from_idx";
   DROP INDEX "lesson_plans_official_changed_by_idx";
   DROP INDEX "lesson_bundle_versions_ares_release_id_idx";
