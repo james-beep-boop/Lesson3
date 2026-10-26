@@ -291,7 +291,17 @@ function MessageCard({
         {direction === 'in' ? 'From' : 'To'} <strong>{name}</strong> · {when}
         {isNew && <span className="msg-new-tag">New</span>}
       </p>
-      <p className="msg-body">{m.body}</p>
+      <p className="msg-body">
+        {m.body.split(/(\/lessons\/\d+\b)/g).map((part, i) =>
+          /^\/lessons\/\d+$/.test(part) ? (
+            <a key={i} href={part}>
+              {part}
+            </a>
+          ) : (
+            part
+          ),
+        )}
+      </p>
       {reference && <LessonReference reference={reference} className="msg-link" />}
       {direction === 'in' && senderId != null && (
         <ReplyBox recipientId={senderId} recipientName={name} messageId={m.id} />

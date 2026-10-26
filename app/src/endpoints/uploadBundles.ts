@@ -23,6 +23,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isSiteAdmin } from '../access'
 import { enforceUserRateLimit } from '../lib/rateLimit'
+import { sendReleaseMessages } from '../ingest/releaseMessages'
 import { ingestUploadItems } from '../ingest'
 import { IngestError } from '../ingest/errors'
 import type { TaxonomyKey } from '../ingest/taxonomy'
@@ -83,40 +84,64 @@ export const uploadBundlesEndpoint: Endpoint = {
 
     const approvals = parseApprovals(form.get('createTaxonomy'))
 
+    const confirmation = form.get('confirmOfficial')
+    if (confirmation !== null && (typeof confirmation !== 'string' || confirmation.length > 200)) {
+      throw new APIError('confirmOfficial must be a preview token', 400)
+    }
+
     // Trusted system path: authorization was enforced before buffering or inspecting any input.
     let report: Awaited<ReturnType<typeof ingestUploadItems>>
     try {
-      report = await ingestUploadItems(req.payload, inputs.items, approvals)
+      report = await ingestUploadItems(
+        req.payload,
+        inputs.items,
+        approvals,
+        typeof confirmation === 'string' ? confirmation : undefined,
+      )
     } catch (e) {
       if (e instanceof IngestError) throw new APIError(e.message, 400)
       throw e
     }
-    const rejected = [...inputs.rejected, ...report.rejected]
-    const skipped = [...inputs.skipped, ...report.skipped]
+    // Reported in both the confirmation (409) and the completed (200/422) responses.
+    const common = {
+      rejected: [...inputs.rejected, ...report.rejected],
+      skipped: [...inputs.skipped, ...report.skipped],
+      setRefused: [...inputs.setRefused, ...report.setRefused],
+      waitingForProgram: inputs.waitingForProgram,
+      warnings: inputs.warnings,
+    }
     if (report.needsConfirmation) {
       return Response.json(
         {
           ok: false,
           needsConfirmation: true,
           missing: report.missing,
+          official: report.official,
+          previewToken: report.previewToken,
+          confirmationChanged: report.confirmationChanged,
           count: 0,
           bundles: [],
           created: [],
-          rejected,
-          skipped,
+          ...common,
         },
         { status: 409 },
       )
     }
-    const ok = report.bundles.length > 0 || report.skipped.length > 0
+    const messageWarnings = await sendReleaseMessages(req.payload, Number(req.user.id), report)
+    const ok =
+      report.bundles.length > 0 || report.skipped.length > 0 || inputs.waitingForProgram.length > 0
     return Response.json(
       {
         ok,
         count: report.bundles.length,
         bundles: report.bundles,
         created: report.created,
-        rejected,
-        skipped,
+        ...common,
+        officialMoved: report.bundles.filter((b) => b.outcome === 'officialMoved'),
+        officialKept: report.bundles.filter((b) => b.outcome === 'officialKept'),
+        alreadyHere: report.alreadyHere ?? [],
+        olderNotImported: report.olderNotImported ?? [],
+        messageWarnings,
         ...(ok ? {} : { error: 'No files were imported. See the rejection report.' }),
       },
       { status: ok ? 200 : 422 },

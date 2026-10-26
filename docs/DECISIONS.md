@@ -11,6 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — Production lesson import uses the installed program version
+
+PR #459 review identified that `APP_RELEASE_VERSION` was baked only into the runner image. The
+supported import runs in the builder/migrate image, so it fell back to the development compatibility
+version even in a tagged release. Both Docker stages now retain the release build argument, and
+local Compose passes the same argument to both builds. The publishing workflow already supplies the
+tag to both targets. Untagged development builds keep their existing fallback.
+
+Two wiring regressions were demonstrated failing before the fix and passing afterwards. A real
+builder image built with `APP_RELEASE_VERSION=v1.42`, run without a runtime version override, accepts
+a set requiring 1.41 and refuses one requiring 1.43, reporting 1.42. Compose resolves both build
+arguments to that same tag. No import write-path or message behavior changes.
+
+---
+
+## 2026-10-26 — Part 1a implementation: confirmation, migrations and messages
+
+Built from the approved `PLAN-lesson-releases-part1-2026-10-26.md` on
+`feat/lesson-releases-1a`, for review through a PR. Part 1b is separate.
+
+- Web upload and the supported production CLI use the same release decisions and locked write path.
+  The dev-only atomic ingest tool retains its existing explicit revision behavior. Two regression
+  tests were run against the original code and failed: repeating an ARES release behind a changed
+  teacher save, and suppressing a new release because a teacher save happened to match it. Both pass
+  after the fix.
+- First creation of 1.0.0 replaces no Official and needs no Official confirmation. New plans are
+  omitted from the replacement preview, so declining new taxonomy does not invalidate the token for
+  existing plans. Concurrent creation is still re-resolved under the subject-grade lock. Every
+  existing-plan decision, including an already-here or waiting decision, is bound to the token.
+- A refused ZIP never imports its other files. Other sets may still import when refusal is found in
+  pre-flight. A conflict or changed confirmation discovered under the locks rolls back the whole
+  request, including approved taxonomy, pointer changes, audit stamps and prewarm jobs.
+- Generated migration `20261026_103510_lesson_releases_1a` adds five nullable fields, their indexes
+  and nullable relationships, without backfill. Types were regenerated in the pinned deps image.
+  A clean-install rehearsal exposed a historical migration problem: the worldwide-id fingerprint
+  backfill read the full *current* model, selecting release columns that its later migration had not
+  added yet. Its read now explicitly selects only the content/provenance fields it needs. This is a
+  compatibility repair to the read, without changing its historical SQL or fingerprint rules.
+- Administrator summaries are sent through Payload's existing messages collection only after
+  commit, from the uploading Site Administrator. Ordinary messages retain their 5,000-character
+  limit; trusted system messages permit 100,000 characters so one upload's maximum 500 lessons can
+  fit in one summary. Internal lesson paths render as links and retain the lesson route's access.
+  Delivery failures appear in the upload report and do not undo imported lessons.
+- The actual Payload 3.92 CLI rewrites `process.argv` before importing a script and unconditionally
+  exits 0 afterwards. The production import reads its rewritten arguments and explicitly exits
+  with its result after destroying Payload. A closed prompt is never approval. The integration
+  tests execute the real command, including a repeat `--yes` run and nonzero exit codes.
+
+---
+
 ## 2026-10-26 — Part 1 (ARES lesson releases) approved
 
 The operator approved `docs/PLAN-lesson-releases-part1-2026-10-26.md` (revision 2, after two external

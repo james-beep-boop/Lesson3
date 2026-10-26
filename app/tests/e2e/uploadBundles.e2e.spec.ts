@@ -112,6 +112,32 @@ test.describe('ZIP upload report', () => {
     await expect(page.getByText(/lessons.zip\/folder\/last.json · New/)).toHaveCount(0)
   })
 
+  test('shows the Official list and imports only after confirmation', async ({
+    page,
+  }, testInfo) => {
+    await loginAs(page, fx, 'siteAdmin')
+    await page.goto(`${BASE}/admin?open=plans,plans.upload`)
+    const content = raw('99.releaseBrowser')
+    const file = () => ({
+      name: 'release.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(content)),
+    })
+    await page.locator('input[type=file]').setInputFiles(file())
+    await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Imported 1 file(s)' })).toBeVisible()
+    content.LESSONS[0].slo.purpose = 'New ARES release purpose'
+    await page.locator('input[type=file]').setInputFiles(file())
+    await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
+    await expect(page.getByRole('group', { name: 'Confirm Official updates' })).toBeVisible()
+    await expect(page.getByText(/Will become Official/)).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('release-confirmation.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Confirm', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Imported 1 file(s)' })).toBeVisible()
+    await expect(page.getByText(/release.json · Revised/)).toContainText('2.0.0, Official')
+    await page.screenshot({ path: testInfo.outputPath('release-imported.png'), fullPage: true })
+  })
+
   test('asks before creating missing subjects and grades, then imports', async ({
     page,
   }, testInfo) => {

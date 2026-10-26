@@ -314,6 +314,48 @@ describe('re-ingest (SPEC §7)', () => {
     expect(await officialOf(planId)).toBe(first)
   })
 
+  it('does not re-import the latest ARES release after a teacher changes its prose', async () => {
+    const raw = rawBundle('97.301', 'Repeat behind teacher save')
+    const [plan] = await ingestItems(payload, [item('release.json', raw)])
+    await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(raw as never),
+        lessonPlan: plan.id,
+        subjectGrade: plan.subjectGrade,
+        semver: '1.0.1',
+        lessons: asRows(rawToBundle(raw as never).lessons).map((l) => ({
+          ...l,
+          teacherReflection: 'My notes',
+        })),
+      } as never,
+    })
+    const report = await ingestUploadItems(payload, [item('release.json', raw)])
+    expect(report.bundles).toEqual([])
+    expect(report.skipped).toHaveLength(1)
+    expect(await versionsOf(plan.id)).toEqual(['1.0.0', '1.0.1'])
+  })
+
+  it('a teacher save with matching incoming prose cannot suppress an ARES release', async () => {
+    const raw = rawBundle('97.302', 'Teacher coincidence')
+    const [plan] = await ingestItems(payload, [item('release.json', raw)])
+    const changed = structuredClone(raw)
+    ;(changed.LESSONS as Record<string, unknown>[])[0].overview = 'New release prose'
+    await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(changed as never),
+        lessonPlan: plan.id,
+        subjectGrade: plan.subjectGrade,
+        semver: '1.0.1',
+      } as never,
+    })
+    const report = await ingestUploadItems(payload, [item('release.json', changed)])
+    // Preview is read-only, but must identify a release awaiting confirmation, not skip the file.
+    expect(report.skipped).toEqual([])
+    expect(report.needsConfirmation || report.bundles.length === 1).toBe(true)
+  })
+
   it('a batch with two files for the SAME sub-strand fails pre-flight (writes nothing)', async () => {
     await expect(
       ingestItems(payload, [
@@ -394,8 +436,8 @@ describe('partial web ingest', () => {
     expect(corrected.bundles.map((r) => r.file)).toEqual(['fixed.json'])
     expect(corrected.rejected).toEqual([])
     expect(corrected.skipped).toEqual([
-      { file: 'first.json', error: 'Unchanged — matches latest saved version 1.0.0' },
-      { file: 'last.json', error: 'Unchanged — matches latest saved version 1.0.0' },
+      { file: 'first.json', error: 'Unchanged — ARES release already here, version 1.0.0' },
+      { file: 'last.json', error: 'Unchanged — ARES release already here, version 1.0.0' },
     ])
     const before = await payload.count({ collection: 'lesson-bundle-versions' })
     const repeated = await ingestUploadItems(payload, files)
@@ -408,7 +450,7 @@ describe('partial web ingest', () => {
     }
   })
 
-  it('compares the latest numeric version, including Not Official content, and retains CLI revisions', async () => {
+  it('allocates beyond teacher versions without using them for duplicate detection, and retains dev CLI revisions', async () => {
     const original = rawBundle('97.93', 'Latest version')
     const [plan] = await ingestItems(payload, [item('latest.json', original)])
     // Include 2.0.0 so a lexical sort would incorrectly choose it over 10.0.0.
@@ -426,21 +468,43 @@ describe('partial web ingest', () => {
     })
     const same = await ingestUploadItems(payload, [item('latest.json', changed)])
     expect(same.bundles).toEqual([])
-    expect(same.skipped[0].error).toContain('10.0.0')
-    const revision = await ingestUploadItems(payload, [item('latest.json', original)])
+    expect(same.skipped).toEqual([])
+    expect(same.needsConfirmation).toBe(true)
+    const confirmed = await ingestUploadItems(
+      payload,
+      [item('latest.json', changed)],
+      undefined,
+      same.previewToken,
+    )
+    expect(confirmed.bundles[0].semver).toBe('11.0.0')
+    const preview = await ingestUploadItems(payload, [item('latest.json', original)])
+    expect(preview.official?.[0].olderContent).toBe('2.0.0')
+    const revision = await ingestUploadItems(
+      payload,
+      [item('latest.json', original)],
+      undefined,
+      preview.previewToken,
+    )
     expect(revision.bundles[0]).toMatchObject({
       action: 'revised',
-      semver: '11.0.0',
-      official: false,
+      semver: '12.0.0',
+      official: true,
     })
     const [cli] = await ingestItems(payload, [item('latest.json', original)])
-    expect(cli.semver).toBe('12.0.0')
-    expect(await versionsOf(plan.id)).toEqual(['1.0.0', '2.0.0', '10.0.0', '11.0.0', '12.0.0'])
+    expect(cli.semver).toBe('13.0.0')
+    expect(await versionsOf(plan.id)).toEqual([
+      '1.0.0',
+      '2.0.0',
+      '10.0.0',
+      '11.0.0',
+      '12.0.0',
+      '13.0.0',
+    ])
     const official = await payload.findByID({
       collection: 'lesson-bundle-versions',
       id: (await officialOf(plan.id))!,
     })
-    expect(official.semver).toBe('1.0.0')
+    expect(official.semver).toBe('12.0.0')
   })
 
   it('serializes concurrent identical web imports without making an extra version', async () => {
@@ -542,5 +606,277 @@ describe('partial web ingest', () => {
     expect(report.bundles).toEqual([])
     expect(report.rejected).toHaveLength(1)
     expect(await payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
+  })
+})
+
+describe('ARES releases with locked confirmation', () => {
+  const releaseItem = (id: string, text: string, releaseId: string, date: string): IngestItem => ({
+    ...item('lesson.json', rawBundle(id, text)),
+    setId: 'set',
+    release: { id: releaseId, date },
+  })
+  const upload = async (files: IngestItem[]) => {
+    const first = await ingestUploadItems(payload, files)
+    return first.needsConfirmation
+      ? ingestUploadItems(payload, files, undefined, first.previewToken)
+      : first
+  }
+  const plan = (id: number) => payload.findByID({ collection: 'lesson-plans', id, depth: 0 })
+  it('January may restore November content, then an old stick cannot replace it', async () => {
+    const nov = releaseItem('97.401', 'A', 'Nov', '2026-11-14')
+    const first = await upload([nov])
+    const id = first.bundles[0].id
+    const originalOfficial = await officialOf(id)
+    const initial = await plan(id)
+    expect(initial.officialChangedAt).toBeTruthy()
+    expect(initial.officialChangedFrom).toBeNull()
+    await upload([releaseItem('97.401', 'B', 'Dec', '2026-12-02')])
+    const secondOfficial = await officialOf(id)
+    expect(secondOfficial).not.toBe(originalOfficial)
+    const jan = releaseItem('97.401', 'A', 'Jan', '2027-01-01')
+    const preview = await ingestUploadItems(payload, [jan])
+    expect(preview.official?.[0]).toMatchObject({ willMove: true, olderContent: null })
+    const imported = await ingestUploadItems(payload, [jan], undefined, preview.previewToken)
+    expect(imported.bundles[0]).toMatchObject({ semver: '3.0.0', official: true })
+    const after = await plan(id)
+    expect(relId(after.officialChangedFrom)).toBe(secondOfficial)
+    expect(after.officialChangedBy).toBeNull()
+    const version = await payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: (await officialOf(id))!,
+      depth: 0,
+    })
+    expect(version).toMatchObject({ aresReleaseId: 'Jan', aresReleaseDate: '2027-01-01' })
+    expect(await enqueuedKindsFor(payload, version.id)).toEqual(new Set(['docx', 'pdf']))
+    const old = await upload([releaseItem('97.401', 'old', 'Oct', '2026-10-01')])
+    expect(old.olderNotImported).toHaveLength(1)
+    expect(await plan(id)).toEqual(after)
+    expect(await versionsOf(id)).toEqual(['1.0.0', '2.0.0', '3.0.0'])
+    expect((await upload([jan])).alreadyHere).toHaveLength(1)
+  })
+  it('a conflicting release id refuses its entire set, while unrelated sets still import', async () => {
+    await upload([releaseItem('97.402', 'A', 'Nov', '2026-11-14')])
+    const result = await upload([
+      releaseItem('97.402', 'conflict', 'Nov', '2026-11-14'),
+      releaseItem('97.403', 'peer', 'Nov', '2026-11-14'),
+      {
+        ...releaseItem('97.404', 'other set', 'Other', '2026-11-14'),
+        name: 'other.json',
+        setId: 'other',
+      },
+    ])
+    expect(result.setRefused).toHaveLength(1)
+    expect(result.bundles).toHaveLength(1)
+    expect(result.bundles[0].file).toBe('other.json')
+    expect(
+      (
+        await payload.count({
+          collection: 'lesson-bundle-versions',
+          where: { 'meta.substrand_id': { equals: '97.403' } },
+        })
+      ).totalDocs,
+    ).toBe(0)
+  })
+  it('waits behind a teacher Official; a later administrator move records its actual time and author', async () => {
+    const first = await upload([releaseItem('97.405', 'A', 'Nov', '2026-11-14')])
+    const id = first.bundles[0].id
+    const teacher = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(rawBundle('97.405', 'teacher') as never),
+        lessonPlan: id,
+        subjectGrade: first.bundles[0].subjectGrade,
+        semver: '1.0.1',
+      } as never,
+    })
+    await payload.update({ collection: 'lesson-plans', id, data: { officialVersion: teacher.id } })
+    const next = await upload([releaseItem('97.405', 'B', 'Dec', '2026-12-02')])
+    expect(next.bundles[0]).toMatchObject({ official: false, outcome: 'officialKept' })
+    expect(await officialOf(id)).toBe(teacher.id)
+    const newRelease = (
+      await payload.find({
+        collection: 'lesson-bundle-versions',
+        where: { lessonPlan: { equals: id } },
+        sort: '-id',
+        depth: 0,
+      })
+    ).docs[0]
+    const user = await createUserVerified(payload, {
+      name: `${MARK}Release admin`,
+      email: `${MARK}release-admin@example.com`,
+      password: 'ReleaseAdmin-Str0ng!',
+      roles: ['siteAdmin'],
+    })
+    await payload.update({
+      collection: 'lesson-plans',
+      id,
+      data: { officialVersion: newRelease.id },
+      user,
+    })
+    const stamped = await plan(id)
+    expect(relId(stamped.officialChangedBy)).toBe(user.id)
+    expect(relId(stamped.officialChangedFrom)).toBe(teacher.id)
+    expect(Date.parse(stamped.officialChangedAt!)).toBeGreaterThanOrEqual(
+      Date.parse(newRelease.createdAt),
+    )
+    // A forged audit record is ignored even through the trusted API.
+    await payload.update({
+      collection: 'lesson-plans',
+      id,
+      data: { officialChangedAt: '2000-01-01T00:00:00Z', officialChangedBy: null },
+    })
+    expect((await plan(id)).officialChangedAt).toBe(stamped.officialChangedAt)
+    await deleteUserFixture(payload, user.id)
+  })
+  it('rejects a stale token after an Official change and writes no release', async () => {
+    const first = await upload([releaseItem('97.406', 'A', 'Nov', '2026-11-14')])
+    const id = first.bundles[0].id
+    const files = [releaseItem('97.406', 'B', 'Dec', '2026-12-02')]
+    const preview = await ingestUploadItems(payload, files)
+    const teacher = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(rawBundle('97.406', 'teacher') as never),
+        lessonPlan: id,
+        subjectGrade: first.bundles[0].subjectGrade,
+        semver: '1.0.1',
+      } as never,
+    })
+    await payload.update({ collection: 'lesson-plans', id, data: { officialVersion: teacher.id } })
+    const stale = await ingestUploadItems(payload, files, undefined, preview.previewToken)
+    expect(stale).toMatchObject({ needsConfirmation: true, confirmationChanged: true, bundles: [] })
+    expect(stale.previewToken).not.toBe(preview.previewToken)
+    expect(await versionsOf(id)).toEqual(['1.0.0', '1.0.1'])
+  })
+  it('rechecks after locks: a waiting preview cannot silently become an Official move', async () => {
+    const first = await upload([releaseItem('97.407', 'A', 'Nov', '2026-11-14')])
+    const id = first.bundles[0].id
+    const release = await officialOf(id)
+    const teacher = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(rawBundle('97.407', 'Teacher') as never),
+        lessonPlan: id,
+        subjectGrade: first.bundles[0].subjectGrade,
+        semver: '1.0.1',
+      } as never,
+    })
+    await payload.update({ collection: 'lesson-plans', id, data: { officialVersion: teacher.id } })
+    const originalFind = payload.find.bind(payload)
+    let changed = false
+    const spy = vi.spyOn(payload, 'find').mockImplementation((async (args: {
+      collection: string
+      select?: Record<string, boolean>
+      req?: Partial<PayloadRequest>
+    }) => {
+      const result = await originalFind(args as never)
+      if (
+        !changed &&
+        args.collection === 'lesson-bundle-versions' &&
+        args.select?.aresReleaseId &&
+        !args.req?.transactionID
+      ) {
+        changed = true
+        // The read-only preview has already read the teacher pointer. Before writePrepared can
+        // take its locks, another administrator restores the ARES Official.
+        await payload.update({ collection: 'lesson-plans', id, data: { officialVersion: release } })
+      }
+      return result
+    }) as never)
+    try {
+      const result = await ingestUploadItems(payload, [
+        releaseItem('97.407', 'B', 'Dec', '2026-12-02'),
+      ])
+      expect(changed).toBe(true)
+      expect(result).toMatchObject({
+        needsConfirmation: true,
+        confirmationChanged: true,
+        bundles: [],
+      })
+      expect(result.official?.[0].willMove).toBe(true)
+      expect(await versionsOf(id)).toEqual(['1.0.0', '1.0.1'])
+    } finally {
+      spy.mockRestore()
+    }
+  })
+  it('rolls back a release, pointer, audit record and prewarm jobs together', async () => {
+    const first = await upload([releaseItem('97.408', 'A', 'Nov', '2026-11-14')])
+    const id = first.bundles[0].id
+    const before = await plan(id)
+    const files = [
+      releaseItem('97.408', 'B', 'Dec', '2026-12-02'),
+      { ...releaseItem('97.409', 'new', 'Dec', '2026-12-02'), name: 'last.json' },
+    ]
+    const preview = await ingestUploadItems(payload, files)
+    const original = payload.create.bind(payload)
+    const spy = vi
+      .spyOn(payload, 'create')
+      .mockImplementation(((args: { collection: string }) =>
+        args.collection === 'lesson-plans'
+          ? Promise.reject(new Error('last plan failed'))
+          : original(args as never)) as never)
+    try {
+      await expect(
+        ingestUploadItems(payload, files, undefined, preview.previewToken),
+      ).rejects.toThrow('last plan failed')
+    } finally {
+      spy.mockRestore()
+    }
+    expect(await plan(id)).toEqual(before)
+    expect(await versionsOf(id)).toEqual(['1.0.0'])
+  })
+  it('serializes simultaneous same-release and conflicting-release imports without partial writes', async () => {
+    const files = [releaseItem('97.410', 'A', 'Nov', '2026-11-14')]
+    const same = await Promise.all([upload(files), upload(files)])
+    expect(same.flatMap((r) => r.bundles)).toHaveLength(1)
+    expect(same.flatMap((r) => r.alreadyHere ?? [])).toHaveLength(1)
+    const [left, right] = await Promise.all([
+      upload([releaseItem('97.411', 'A', 'Nov', '2026-11-14')]),
+      upload([releaseItem('97.411', 'B', 'Nov', '2026-11-14')]),
+    ])
+    expect([...left.bundles, ...right.bundles]).toHaveLength(1)
+    expect([...(left.setRefused ?? []), ...(right.setRefused ?? [])]).toHaveLength(1)
+  })
+})
+
+describe('release metadata cannot be copied or forged', () => {
+  it('uses ingest context only, and clears it from the live request after each create', async () => {
+    const files: IngestItem[] = [
+      {
+        ...item('provenance.json', rawBundle('97.501', 'Provenance')),
+        release: { id: 'Nov', date: '2026-11-14' },
+      },
+    ]
+    const result = await ingestUploadItems(payload, files)
+    const plan = result.bundles[0]
+    const original = await payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: (await officialOf(plan.id))!,
+      depth: 0,
+    })
+    const copy = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...rawToBundle(rawBundle('97.501', 'Teacher') as never),
+        lessonPlan: plan.id,
+        subjectGrade: plan.subjectGrade,
+        semver: '1.0.1',
+        aresReleaseId: 'forged',
+        aresReleaseDate: '2099-01-01',
+      } as never,
+    })
+    expect(copy.aresReleaseId).toBeNull()
+    expect(copy.aresReleaseDate).toBeNull()
+    await payload.update({
+      collection: 'lesson-bundle-versions',
+      id: original.id,
+      data: { aresReleaseId: 'forged', aresReleaseDate: '2099-01-01' },
+    })
+    const kept = await payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: original.id,
+      depth: 0,
+    })
+    expect(kept).toMatchObject({ aresReleaseId: 'Nov', aresReleaseDate: '2026-11-14' })
   })
 })

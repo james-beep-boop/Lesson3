@@ -37,6 +37,8 @@ services:
     build:
       context: ./app
       target: builder
+      args:
+        APP_RELEASE_VERSION: "${APP_RELEASE_VERSION:-}"
     command: ["npx", "payload", "migrate"]
     env_file: .env
     logging: *default-logging

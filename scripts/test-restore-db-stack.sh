@@ -179,8 +179,9 @@ variant() { # file-name sql
 OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 # One migration behind = the NEWEST migration undone. ⚑ Update this when a newer migration lands, or the
 # backup has a gap instead of a missing tail and the restore (rightly) refuses it as "not a prefix".
-LATEST_MIGRATION='20261024_094011_native_lock_scope'
-ONE_MIGRATION_BEHIND="ALTER TABLE payload_locked_documents_rels ADD COLUMN favorites_id integer, ADD COLUMN messages_id integer, ADD COLUMN edit_recovery_id integer, ADD COLUMN discussion_topics_id integer, ADD COLUMN discussion_replies_id integer, ADD COLUMN discussion_participation_id integer; DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
+LATEST_MIGRATION='20261026_103510_lesson_releases_1a'
+# Its down(): dropping the columns also drops their indexes and foreign keys.
+ONE_MIGRATION_BEHIND="ALTER TABLE lesson_plans DROP COLUMN official_changed_at, DROP COLUMN official_changed_from_id, DROP COLUMN official_changed_by_id; ALTER TABLE lesson_bundle_versions DROP COLUMN ares_release_id, DROP COLUMN ares_release_date; DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
 variant "$NEW" "INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"
@@ -246,9 +247,9 @@ check "[checked] the run reached the confirmation" eq "$(state)" checked
 check "[checked] the schema check counted the pending migration" has "1 to apply"
 check "[checked] the in-server check rendered DOCX and PDF" has "rendered PDF through Gotenberg"
 check "[checked] incoming got the migration" eq "$(sql "$INCOMING" "SELECT count(*) FROM payload_migrations WHERE name = '$LATEST_MIGRATION';")" 1
-check "[checked] incoming got its schema change" eq "$(sql "$INCOMING" "SELECT count(*) FROM information_schema.columns WHERE table_name = 'payload_locked_documents_rels' AND column_name = 'favorites_id';")" 0
+check "[checked] incoming got its schema change" eq "$(sql "$INCOMING" "SELECT count(*) FROM information_schema.columns WHERE table_name = 'lesson_bundle_versions' AND column_name = 'ares_release_id';")" 1
 check "[checked] live did NOT get the migration" eq "$(sql lesson3 "SELECT count(*) FROM payload_migrations WHERE name = '$LATEST_MIGRATION';")" 0
-check "[checked] live did NOT get the schema change" eq "$(sql lesson3 "SELECT count(*) FROM information_schema.columns WHERE table_name = 'payload_locked_documents_rels' AND column_name = 'favorites_id';")" 1
+check "[checked] live did NOT get the schema change" eq "$(sql lesson3 "SELECT count(*) FROM information_schema.columns WHERE table_name = 'lesson_bundle_versions' AND column_name = 'ares_release_id';")" 0
 check "[checked] the lock file survives the kill" test -f "$SANDBOX/out/ops/.restore.lock"
 restore "" --resume
 check "[checked] the kill left no lock to clear" bad_lock_message

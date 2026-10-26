@@ -327,3 +327,41 @@ describe('missing subjects and grades (SPEC §7, amended 2026-10-21)', () => {
     )
   })
 })
+
+describe('Official-only confirmation', () => {
+  it('asks for the Official move and resubmits its token without offering taxonomy creation', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            needsConfirmation: true,
+            missing: [],
+            previewToken: 'bound-token',
+            official: [
+              {
+                file: 'a.json',
+                title: 'Cell structure',
+                willMove: true,
+                previousSemver: '1.0.0',
+                incomingSemver: '2.0.0',
+              },
+            ],
+          },
+          { status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(Response.json(okResponse))
+    vi.stubGlobal('fetch', fetchMock)
+    const { container } = render(<UploadBundles />)
+    pickFile(container.querySelector('input[type=file]') as HTMLInputElement, 'a.json')
+    fireEvent.click(screen.getByRole('button', { name: /^Upload/ }))
+    await screen.findByRole('button', { name: /^Confirm$/ })
+    expect(container.textContent).not.toContain('Tick what to create')
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm$/ }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect((fetchMock.mock.calls[1][1]!.body as FormData).get('confirmOfficial')).toBe(
+      'bound-token',
+    )
+  })
+})

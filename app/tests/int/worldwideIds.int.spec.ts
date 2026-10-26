@@ -152,7 +152,7 @@ describe('creation', () => {
     // ONE request for both creates, as ingest's batch shares one — real Payload replaces
     // `req.context` during each create, which is what left the key behind before the fix.
     const req = await createLocalReq({}, payload)
-    const stamped = await withReleaseFingerprint(req, release, () =>
+    const stamped = await withReleaseFingerprint(req, releaseFingerprint(release as never), () =>
       payload.create({
         collection: 'lesson-bundle-versions',
         data: data('1.0.7'),

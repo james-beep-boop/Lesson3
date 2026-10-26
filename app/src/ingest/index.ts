@@ -4,23 +4,23 @@
  * web uploads reject invalid files and commit the valid subset in one transaction. The two input formats carry deep-equal data for a sub-strand, so only the
  * read step differs (`.json` → JSON.parse; `.js` → safe AST parse) — see `extract.ts`.
  *
- * ENTRY POINTS (both trusted, never teacher-facing): the dev-only CLI (`app/scripts/ingest.ts`)
- * and the Site-Administrator-only JSON/ZIP upload endpoint (`src/endpoints/uploadBundles.ts`) — both
- * share validation and writes below: the CLI is atomic, while web uploads reject invalid files
- * and commit the valid subset. Both run as a TRUSTED Local-API system
- * call (no `req.user` → the version field-split treats it as a system path and lets it set all
- * fields), so **callers MUST enforce authorization first**: the CLI is dev-only; the endpoint
- * gates on Site Admin server-side (`isSiteAdmin`) and parses JSON data only. The untrusted-input risk
- * lives in `extract.ts` (parse-never-execute for `.js`; structural guards for `.json`); see its
- * security contract.
+ * ENTRY POINTS (trusted, never teacher-facing): the supported import-lessons CLI, the dev-only
+ * ingest CLI, and the Site-Administrator-only JSON/ZIP upload endpoint. The dev CLI is atomic;
+ * supported imports and web uploads commit their valid subset. All use a TRUSTED Local-API system
+ * call (no `req.user` → the field-split permits system-owned fields), so callers MUST enforce
+ * authorization first: command-line access is operational authority; the endpoint gates on Site
+ * Admin server-side (`isSiteAdmin`). The untrusted-input risk lives in `extract.ts` (parse-never-
+ * execute for the dev CLI's `.js`; structural guards for JSON). Neither supported import nor web
+ * upload executes input.
  *
  * Lifecycle: valid uploads create version 1.0.0 and immediately mark that exact snapshot
  * Official via the parent LessonPlan. Later edits create additional non-official snapshots;
- * Site Admins / matching Subject Admins move the official pointer when a later version is ready.
+ * A confirmed new ARES release replaces an ARES Official under the locks. A teacher Official stays
+ * unchanged for administrator review.
  *
  * SubjectGrade: resolved by EXACT (Subject.name, grade) match, and nothing is ever created silently.
- * The CLI treats missing taxonomy as a hard, actionable failure (seed taxonomy first). The web upload
- * (SPEC §7, amended 2026-10-21) reports every missing item across the request and writes nothing until
+ * The dev CLI requires existing taxonomy. Supported imports ask like the web upload, which
+ * reports every missing item across the request and writes nothing until
  * the Site Administrator approves; the resubmitted upload then creates exactly the approved items the
  * files need, in the same transaction as the plans. Near-miss names: see `taxonomy.ts`.
  */
@@ -36,8 +36,16 @@ import { IngestError } from './errors'
 import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
-import { bumpSemver, compareSemver, nextMajorForPlan } from '../lib/semver'
-import { comparableIngestContent } from './contentEquality'
+import { nextMajorForPlan, nextSemverFrom } from '../lib/semver'
+import { releaseFingerprint } from '../lib/identity/releaseFingerprint'
+import { LessonSetRefused, type AresRelease } from './lessonManifest'
+import {
+  confirmationRequired,
+  decideRelease,
+  officialDecision,
+  previewToken,
+  type OfficialPreview,
+} from './releaseDecision'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 import { latestRelease } from './releaseAncestry'
@@ -64,10 +72,14 @@ export interface IngestResult {
   semver: string
   official: boolean
   /** 'created' = new lesson plan at 1.0.0 Official; 'revised' = next-major version of an existing
-   *  plan (SPEC §7 re-ingest), arriving Not Official for admin review. */
+   *  plan (SPEC §7). Web/supported import may move an ARES Official after confirmation. */
   action: 'created' | 'revised'
   /** Non-blocking deliverable warnings (e.g. missing FINAL_EXPLANATION / SUMMARY_TABLE). */
   warnings: string[]
+  outcome?: 'officialMoved' | 'officialKept'
+  previousSemver?: string | null
+  releaseDate?: string | null
+  reason?: string
 }
 
 /**
@@ -315,6 +327,8 @@ const extractDataFile = (file: string, source: string): Record<string, unknown> 
 
 type Prepared = {
   name: string
+  release?: AresRelease
+  setId?: string
   data: IngestBundleData
   /** Null = approved new taxonomy, created and filled in by `writePrepared`. */
   subjectGrade: number | null
@@ -324,6 +338,8 @@ type Prepared = {
   /** Existing plan to attach to as the next major (SPEC §7 re-ingest), or null to create a new one. */
   existingPlanId: number | null
   warnings: string[]
+  /** `releaseFingerprint(data)`, computed once: the release decision and the create both use it. */
+  fingerprint: string
 }
 
 /**
@@ -336,6 +352,9 @@ type Prepared = {
  */
 export type IngestItem = {
   name: string
+  release?: AresRelease
+  setId?: string
+  warnings?: string[]
   extract: () => Record<string, unknown> | Promise<Record<string, unknown>>
 }
 
@@ -346,35 +365,135 @@ export type IngestReport = {
   skipped: IngestRejection[]
   /** Subjects/SubjectGrades this upload created on the Site Administrator's approval. */
   created: CreatedTaxonomy[]
-  /** True when nothing was written because missing taxonomy awaits approval (`missing`). */
+  /** Nothing written: taxonomy and/or the Official preview awaits confirmation. */
   needsConfirmation: boolean
   missing: MissingTaxonomy[]
+  official?: OfficialPreview[]
+  previewToken?: string
+  confirmationChanged?: boolean
+  alreadyHere?: IngestRejection[]
+  olderNotImported?: IngestRejection[]
+  setRefused: IngestRejection[]
 }
 
-/** Fetch only the highest numeric semver's content, using the locked write transaction. */
-async function latestVersionForPlan(payload: Payload, planId: number, req: IngestReq) {
-  const { docs } = await payload.find({
-    collection: 'lesson-bundle-versions',
-    where: { lessonPlan: { equals: planId } },
+/**
+ * Each existing plan's release decision and Official preview, from metadata only: one query for the
+ * plans and one for their histories, however many files. Fingerprints identify ARES releases,
+ * irrespective of teacher saves. A reused release id refuses its whole set; that comes back as data
+ * so pre-flight can drop the set and the locked write can abort, each by its own policy.
+ */
+async function releasePreview(
+  payload: Payload,
+  prepared: Prepared[],
+  req: IngestReq,
+): Promise<{ preview: OfficialPreview[]; refused: LessonSetRefused[] }> {
+  // Initial 1.0.0 creation replaces no Official, so only existing plans belong in the preview.
+  const existing = prepared.filter((p) => p.existingPlanId != null)
+  if (existing.length === 0) return { preview: [], refused: [] }
+  const planIds = [...new Set(existing.map((p) => p.existingPlanId!))]
+  const { docs: plans } = await payload.find({
+    collection: 'lesson-plans',
+    where: { id: { in: planIds } },
     pagination: false,
     depth: 0,
-    select: { semver: true },
     overrideAccess: true,
     req,
+    select: { officialVersion: true },
   })
-  const latest = docs.reduce<(typeof docs)[number] | undefined>(
-    (max, doc) => (!max || compareSemver(doc.semver, max.semver) > 0 ? doc : max),
-    undefined,
-  )
-  return latest
-    ? payload.findByID({
-        collection: 'lesson-bundle-versions',
-        id: latest.id,
-        depth: 0,
-        overrideAccess: true,
-        req,
-      })
-    : null
+  const { docs: versions } = await payload.find({
+    collection: 'lesson-bundle-versions',
+    where: { lessonPlan: { in: planIds } },
+    pagination: false,
+    depth: 0,
+    overrideAccess: true,
+    req,
+    select: {
+      lessonPlan: true,
+      semver: true,
+      releaseFingerprint: true,
+      aresReleaseId: true,
+      aresReleaseDate: true,
+    },
+  })
+  const officialOf = new Map(plans.map((plan) => [plan.id, relId(plan.officialVersion)]))
+  const historyOf = new Map<number, typeof versions>()
+  for (const v of versions) {
+    const plan = relId(v.lessonPlan)!
+    const history = historyOf.get(plan)
+    if (history) history.push(v)
+    else historyOf.set(plan, [v])
+  }
+  const refused = new Map<string | undefined, LessonSetRefused>()
+  const entries: { setId?: string; entry: OfficialPreview }[] = []
+  for (const p of existing) {
+    const planId = p.existingPlanId!
+    const history = historyOf.get(planId) ?? []
+    const decision = decideRelease(history, p.fingerprint, p.release)
+    if (decision.action === 'conflict') {
+      // The set's first conflict names it, as the report has always done.
+      if (!refused.has(p.setId))
+        refused.set(
+          p.setId,
+          new LessonSetRefused(
+            `This lesson set says it is ARES release ${p.release!.id}, but its contents differ from the ${p.release!.id} release already here (e.g. '${p.data.title}', version ${decision.version!.semver}). Nothing from this set was imported.`,
+            p.setId,
+          ),
+        )
+      continue
+    }
+    const official = history.find((v) => v.id === officialOf.get(planId))
+    const move = officialDecision(official)
+    entries.push({
+      setId: p.setId,
+      entry: {
+        file: p.name,
+        plan: planId,
+        title: p.data.title,
+        incomingSemver: nextSemverFrom(
+          history.map((v) => v.semver),
+          'major',
+        ),
+        currentOfficial: officialOf.get(planId) ?? null,
+        previousSemver: official?.semver ?? null,
+        release: p.release ?? null,
+        fingerprint: p.fingerprint,
+        decision: decision.action,
+        willMove: decision.action === 'new' && move.willMove,
+        reason:
+          decision.action === 'alreadyHere'
+            ? `Unchanged — ARES release already here, version ${decision.version!.semver}`
+            : decision.action === 'olderNotImported'
+              ? `Older than the release already here (${p.release!.date} is older than ${decision.version!.aresReleaseDate}).`
+              : move.reason,
+        olderContent: decision.olderContent?.semver ?? null,
+      },
+    })
+  }
+  return {
+    // A refused set contributes nothing, including files decided before its conflict was found.
+    preview: entries.filter((e) => !refused.has(e.setId)).map((e) => e.entry),
+    refused: [...refused.values()],
+  }
+}
+
+/** The decisions changed under the write locks; nothing was written, ask again with these. */
+class ConfirmOfficial extends Error {
+  constructor(readonly official: OfficialPreview[]) {
+    super('The Official preview changed before writing.')
+  }
+}
+
+const refusalOf = (e: LessonSetRefused): IngestRejection => ({
+  file: e.setId ?? 'Lesson set',
+  error: e.message,
+})
+
+/** Ask only about the missing taxonomy that surviving files still need. */
+const narrowMissing = (missing: MissingTaxonomy[], kept: Prepared[]): MissingTaxonomy[] => {
+  const names = new Set(kept.map((p) => p.name))
+  return missing
+    .map((m) => ({ ...m, files: m.files.filter((f) => names.has(f)) }))
+    .filter((m) => m.files.length > 0)
 }
 
 /**
@@ -417,7 +536,7 @@ async function prepareItems(
     }
     return hit
   }
-  for (const { name, extract } of items) {
+  for (const { name, extract, release, setId, warnings: inputWarnings = [] } of items) {
     let inputValidated = false
     try {
       const raw = await extract()
@@ -434,6 +553,7 @@ async function prepareItems(
         throw new IngestError(`contract drift:\n    - ${drift.join('\n    - ')}`)
       }
       inputValidated = true
+      const fingerprint = releaseFingerprint(data as unknown as Record<string, unknown>)
       const resolved = await resolveTaxonomyCached(raw)
       const taxonomy = { subject: resolved.subject, grade: resolved.grade }
       const substrandId = substrandIdOf(raw)
@@ -445,10 +565,13 @@ async function prepareItems(
         // A new subject-grade has no plans, so there is no re-ingest target to resolve here.
         pending.push({
           name,
+          release,
+          setId,
           data,
           taxonomy,
           substrandId,
-          warnings: deliverableWarnings(data),
+          warnings: [...inputWarnings, ...deliverableWarnings(data)],
+          fingerprint,
           subjectExists: resolved.subjectId != null,
         })
         continue
@@ -463,12 +586,15 @@ async function prepareItems(
       )
       prepared.push({
         name,
+        release,
+        setId,
         data,
         subjectGrade,
         taxonomy,
         substrandId,
         existingPlanId,
-        warnings: deliverableWarnings(data),
+        warnings: [...inputWarnings, ...deliverableWarnings(data)],
+        fingerprint,
       })
     } catch (e) {
       // Missing taxonomy and ambiguous identities are input rejections. An unexpected database
@@ -583,13 +709,7 @@ async function prepareItems(
     }
   }
   const kept = prepared.filter((p) => !duplicates.has(p))
-  if (needsConfirmation) {
-    // Ask only about what surviving files still need.
-    const keptNames = new Set(kept.map((p) => p.name))
-    missing = missing
-      .map((m) => ({ ...m, files: m.files.filter((f) => keptNames.has(f)) }))
-      .filter((m) => m.files.length > 0)
-  }
+  if (needsConfirmation) missing = narrowMissing(missing, kept)
   return {
     prepared: kept,
     rejected,
@@ -622,28 +742,63 @@ export async function ingestUploadItems(
   payload: Payload,
   items: IngestItem[],
   approvals?: TaxonomyKey[],
+  confirmOfficial?: string,
 ): Promise<IngestReport> {
-  const { prepared, rejected, missing, needsConfirmation } = await prepareItems(
+  const preflight = await prepareItems(payload, items, true, approvals)
+  const { rejected } = preflight
+  // A zip/directory is one set. A refused set never prevents unrelated sets' valid files.
+  const { preview: official, refused } = await releasePreview(payload, preflight.prepared, {
     payload,
-    items,
-    true,
-    approvals,
-  )
-  if (needsConfirmation) {
-    return { bundles: [], skipped: [], created: [], rejected, missing, needsConfirmation }
+  })
+  const refusedSets = new Set(refused.map((e) => e.setId))
+  const prepared = preflight.prepared.filter((p) => !refusedSets.has(p.setId))
+  const missing = narrowMissing(preflight.missing, prepared)
+  const base: IngestReport = {
+    bundles: [],
+    skipped: [],
+    created: [],
+    rejected,
+    missing,
+    needsConfirmation: preflight.needsConfirmation && missing.length > 0,
+    setRefused: refused.map(refusalOf),
   }
-  const written =
-    prepared.length > 0
-      ? await writePrepared(payload, prepared, true)
-      : { bundles: [], skipped: [], created: [] }
-  return { ...written, rejected, missing: [], needsConfirmation: false }
+  const awaitConfirmation = (preview: OfficialPreview[], changed: boolean): IngestReport => ({
+    ...base,
+    needsConfirmation: true,
+    official: preview,
+    previewToken: previewToken(preview),
+    confirmationChanged: changed,
+  })
+  if (base.needsConfirmation || confirmationRequired(official, confirmOfficial)) {
+    const changed = confirmOfficial !== undefined && confirmOfficial !== previewToken(official)
+    return awaitConfirmation(official, changed)
+  }
+  try {
+    const written =
+      prepared.length > 0
+        ? await writePrepared(payload, prepared, { confirmOfficial })
+        : { bundles: [], skipped: [], created: [], alreadyHere: [], olderNotImported: [] }
+    return { ...base, ...written, missing: [], needsConfirmation: false }
+  } catch (e) {
+    if (e instanceof ConfirmOfficial) return awaitConfirmation(e.official, true)
+    if (e instanceof LessonSetRefused)
+      return { ...base, setRefused: [...base.setRefused, refusalOf(e)] }
+    throw e
+  }
 }
 
+/**
+ * `upload` set = the release rules (web upload and supported import): release decisions, the
+ * token-bound Official confirmation and automatic Official moves. Unset = the dev CLI's atomic
+ * import, which never moves an existing plan's Official.
+ */
 async function writePrepared(
   payload: Payload,
   preparedIn: Prepared[],
-  skipUnchanged = false,
-): Promise<Pick<IngestReport, 'bundles' | 'skipped' | 'created'>> {
+  upload?: { confirmOfficial?: string },
+): Promise<
+  Pick<IngestReport, 'bundles' | 'skipped' | 'created' | 'alreadyHere' | 'olderNotImported'>
+> {
   // Phase 2 — write all bundles in one transaction.
   const req: IngestReq = { payload }
   await initTransaction(req)
@@ -674,34 +829,48 @@ async function writePrepared(
       req.transactionID,
       prepared.map((p) => p.subjectGrade),
     )
+    // LOCK ORDER: taxonomy advisory → sorted subject-grades → sorted plans. Re-resolve even
+    // known plans after the subject-grade lock; no preview or id survives as a write authority.
+    for (const p of prepared)
+      p.existingPlanId = await findExistingPlan(payload, p.subjectGrade, p.substrandId, req)
+    await lockRows(
+      req,
+      'lesson_plans',
+      prepared.flatMap((p) => (p.existingPlanId == null ? [] : [p.existingPlanId])),
+    )
+    const { preview: official, refused } = upload
+      ? await releasePreview(payload, prepared, req)
+      : { preview: [], refused: [] }
+    if (refused[0]) throw refused[0]
+    if (upload && confirmationRequired(official, upload.confirmOfficial))
+      throw new ConfirmOfficial(official)
     const results: IngestResult[] = []
     const skipped: IngestRejection[] = []
-    for (const { name, data, subjectGrade, substrandId, warnings, ...p } of prepared) {
-      const existingPlanId =
-        p.existingPlanId ??
-        (substrandId ? await findExistingPlan(payload, subjectGrade, substrandId, req) : null)
+    const alreadyHere: IngestRejection[] = []
+    const olderNotImported: IngestRejection[] = []
+    for (const {
+      name,
+      data,
+      subjectGrade,
+      substrandId,
+      warnings,
+      release,
+      fingerprint,
+      existingPlanId,
+    } of prepared) {
+      const decision = official.find((o) => o.file === name && o.plan === existingPlanId)
+      if (decision && decision.decision !== 'new') {
+        const issue = { file: name, error: decision.reason }
+        skipped.push(issue)
+        ;(decision.decision === 'alreadyHere' ? alreadyHere : olderNotImported).push(issue)
+        continue
+      }
       if (existingPlanId != null) {
-        // Share the deletion/save lock before choosing a surviving predecessor.
-        await lockRows(req, 'lesson_plans', [existingPlanId])
-        const latest = skipUnchanged
-          ? await latestVersionForPlan(payload, existingPlanId, req)
-          : null
-        if (latest && comparableIngestContent(data) === comparableIngestContent(latest)) {
-          skipped.push({
-            file: name,
-            error: `Unchanged — matches latest saved version ${latest.semver}`,
-          })
-          continue
-        }
-        // RE-INGEST (SPEC §7): attach as the next MAJOR version of the existing plan, arriving
-        // Not Official. The Official pointer is NOT moved and the plan title is NOT refreshed — the
-        // canonical (Official) content is unchanged until a Subject/Site Admin promotes this
-        // candidate via Make Official. sourceVersion records the previous ingested release, never a
-        // teacher patch or Official pointer. nextMajorForPlan sees the plan's committed versions;
-        // the unique (lessonPlan, semver) index is the backstop.
-        const semver = latest
-          ? bumpSemver(latest.semver, 'major')
-          : await nextMajorForPlan(payload, existingPlanId, req)
+        // Existing plans allocate the next whole major; teacher saves never suppress a release.
+        // The dev-only atomic CLI retains its explicit revision behaviour (no Official moves).
+        // The preview computed it from this plan's history under the same locks.
+        const semver =
+          decision?.incomingSemver ?? (await nextMajorForPlan(payload, existingPlanId, req))
         const { docs: history } = await payload.find({
           collection: 'lesson-bundle-versions',
           where: { lessonPlan: { equals: existingPlanId } },
@@ -721,26 +890,44 @@ async function writePrepared(
           })),
           substrandId,
         )
-        await withReleaseFingerprint(req, data, () =>
-          payload.create({
-            collection: LESSON_BUNDLE_VERSIONS,
-            data: {
-              ...data,
-              lessonPlan: existingPlanId,
-              subjectGrade,
-              semver,
-              sourceVersion: predecessor?.id ?? null,
-            } as never,
-            req,
-          }),
+        const version = await withReleaseFingerprint(
+          req,
+          fingerprint,
+          () =>
+            payload.create({
+              collection: LESSON_BUNDLE_VERSIONS,
+              data: {
+                ...data,
+                lessonPlan: existingPlanId,
+                subjectGrade,
+                semver,
+                sourceVersion: predecessor?.id ?? null,
+              } as never,
+              req,
+            }),
+          release,
         )
+        if (decision?.willMove) {
+          await payload.update({
+            collection: LESSON_PLANS,
+            id: existingPlanId,
+            data: { officialVersion: version.id, title: data.title } as never,
+            overrideAccess: true,
+            req,
+          })
+          await prewarmVersionArtifacts(req, Number(version.id))
+        }
         results.push({
           file: name,
           id: existingPlanId,
           title: data.title,
           subjectGrade,
           semver,
-          official: false,
+          official: decision?.willMove ?? false,
+          outcome: decision?.willMove ? 'officialMoved' : 'officialKept',
+          previousSemver: decision?.previousSemver,
+          reason: decision?.reason,
+          releaseDate: release?.date ?? null,
           action: 'revised',
           warnings,
         })
@@ -771,18 +958,22 @@ async function writePrepared(
         overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
         req,
       })
-      const version = await withReleaseFingerprint(req, data, () =>
-        payload.create({
-          collection: LESSON_BUNDLE_VERSIONS,
-          data: {
-            ...data,
-            lessonPlan: plan.id,
-            subjectGrade,
-            semver: '1.0.0',
-          } as never,
-          overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
-          req,
-        }),
+      const version = await withReleaseFingerprint(
+        req,
+        fingerprint,
+        () =>
+          payload.create({
+            collection: LESSON_BUNDLE_VERSIONS,
+            data: {
+              ...data,
+              lessonPlan: plan.id,
+              subjectGrade,
+              semver: '1.0.0',
+            } as never,
+            overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
+            req,
+          }),
+        release,
       )
       await payload.update({
         collection: LESSON_PLANS,
@@ -808,7 +999,7 @@ async function writePrepared(
       })
     }
     await commitTransaction(req)
-    return { bundles: results, skipped, created }
+    return { bundles: results, skipped, created, alreadyHere, olderNotImported }
   } catch (e) {
     await killTransaction(req)
     throw e

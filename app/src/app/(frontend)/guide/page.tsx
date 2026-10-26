@@ -726,9 +726,21 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     Submit the upload and review the report. Valid files are imported even if others
                     fail; rejected files include the reason. Unchanged files are skipped, so you can
-                    re-upload a corrected ZIP. New plans receive their first Official version;
-                    changed content for existing sub-strands receives a Not Official revision for
-                    review.
+                    re-upload a corrected ZIP. New plans receive their first Official version; a new
+                    ARES release replaces an ARES Official after you check the list and confirm. A
+                    teacher’s Official stays unchanged, waiting for the subject-grade administrator.
+                    Repeated releases are skipped even after a teacher saves a version. A release
+                    dated earlier than the newest one already here is not imported.
+                  </li>
+                  <li>
+                    An optional LESSONS.json records the release date and checksums; damaged-looking
+                    files warn, and lesson sets needing a newer program are refused. The report
+                    lists files waiting for a program update. A reused release id with different
+                    content refuses that entire set. Without a manifest, content matching an older
+                    release is flagged before confirmation. If something changes while you review,
+                    check the new list and confirm again. After import, affected subject-grade
+                    administrators receive one internal message from you; a message failure appears
+                    in the report and does not undo the lessons.
                   </li>
                 </ol>
               </GuideAccordionPanel>

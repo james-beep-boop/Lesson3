@@ -56,6 +56,19 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
       collection: 'lesson-bundle-versions',
       // No filter on the fingerprint: filling one would move it out of a filtered result and shift
       // every later page. All rows in id order; the guarded UPDATE skips any already filled.
+      // Pin the fields that existed at this migration. A current-config full read also selects
+      // columns added by later migrations, breaking a clean install before those migrations run.
+      select: {
+        semver: true,
+        author: true,
+        mergedFrom: true,
+        title: true,
+        meta: true,
+        unit: true,
+        lessons: true,
+        finalExplanation: true,
+        summaryTable: true,
+      },
       depth: 0,
       limit: 25,
       page,

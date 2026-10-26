@@ -610,6 +610,14 @@ resolver (`resolveMode`, today the site switch alone) decides the mode.
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
 
+- **Release provenance:** `aresReleaseId` (indexed text) and `aresReleaseDate` (calendar date text)
+  are system-only, ingest-context-set on create, immutable thereafter, null on teacher saves and
+  legacy releases. They are excluded from content equality and editable forms.
+- **Official change record:** system-only `officialChangedAt`, `officialChangedFrom` and
+  `officialChangedBy` are stamped by field `beforeChange` hooks whenever the pointer changes,
+  including first ingest, import and Make Official. A system import has no actor; related deletions
+  clear the nullable references. Existing rows are not backfilled. Submitted audit values are ignored.
+
 ### Combine versions (approved 2026-10-17; phase 3b adds the screen)
 
 Two teachers can each save from the same version (e.g. 1.0.1 and 1.0.2 from 1.0.0). **Combine
@@ -765,7 +773,48 @@ version remains a later phase, alongside stable row identity and support for str
   - **The dev CLI is unchanged:** missing taxonomy remains a hard, actionable failure there. Seed taxonomy before importing with the CLI.
 - Create the Lesson Plan and version snapshot via Payload's Local API. The **CLI stays all-or-nothing**; bulk import supports a file or directory. **Web uploads accept JSON files and ZIP archives containing JSON, including nested folders, and import every valid file even when others are malformed** (amended 2026-10-11). Read-only pre-flight validates and resolves each file; invalid files are rejected individually, and the valid subset is written in one transaction. A database/write failure still rolls back that transaction. The response and UI report imported files with version/action, rejected files with reasons, and skipped non-JSON archive entries. If there are neither imports nor unchanged matches, the response is 422; otherwise it is 200, including an entirely unchanged upload. Limits (sized 2026-10-11 from a real export: 95 JSON files, 7.4 MB zipped, 33 MB expanded; archives of ~20 MB are expected): 500 JSON files and 200 MiB of expanded JSON across the request, 5 MiB per expanded JSON, 50 MiB per ZIP, and 1000 entries per ZIP, counted from the archive's actual directory records (never its declared count) before it is parsed. Inflation stops at the actual JSON byte limits. Archives are read one at a time and released. Archives that cannot be read are rejected individually; exceeding the combined JSON count or expanded budget rejects the request before writes.
 - **Upload/import creates version 1.0.0 as Official.** Later edits create additional Not Official versions by default. Site Admins and matching Subject Admins can make any retained version Official; doing so only moves the official pointer and does not duplicate content.
-- **Re-ingest of an existing sub-strand (decided 2026-07-04, refined 2026-07-05; implemented — `app/src/ingest/index.ts`).** A web upload whose content matches the latest saved version (highest numeric semver, Official or Not Official) is skipped and reported as unchanged. Comparison happens inside the subject-grade write lock and excludes storage-added row IDs, empty optional-field padding and derived row numbers; meaningful content and array order are preserved. The CLI retains its previous revision behavior. Otherwise, an upload whose **`(subjectGrade, META.substrand_id)`** matches an existing lesson plan attaches to that SAME plan as the **next MAJOR version** (a 1.x plan gets `2.0.0`, a 2.x plan gets `3.0.0`), arriving **Not Official**. It is a candidate for review: a Subject/Site Admin promotes it via **Make Official** when ready, so a re-upload never silently supersedes the live Official content, and the library keeps showing the current Official until promotion. All prior versions are retained (never overwritten); the plan `title` is **not** refreshed on re-ingest (it mirrors the Official content, which is unchanged until promotion). Pre-flight rejects a file when the key matches **more than one** existing plan (legacy duplicates — resolve first) or when **two files in one batch** target the same key. Web uploads reject every member of a duplicate group and import unrelated valid files; CLI pre-flight still rejects the whole batch. An **empty `META.substrand_id`** can't be matched, so it always creates a new plan.
+- **ARES releases (Part 1a, approved 2026-10-26).** The optional root `LESSONS.json` describes
+  one ZIP or supported-import directory: `format: 1`, `release: {id, date}` (calendar `YYYY-MM-DD`),
+  `schemaVersion: "1.0.0"`, `minProgram` (numeric program version) and `files` mapping relative paths
+  to `{sha256, kind?}`. Missing kind means `lesson-plan`. Unknown kinds wait for a program update
+  without parsing. Unsupported format, contract or minimum program, or a malformed manifest refuses
+  that set. Missing/unlisted files warn. A checksum mismatch warns "Looks damaged" and still validates
+  and imports the file. Without a manifest the release is not stated.
+- **Release identity and age.** With a manifest, the release id identifies a release per plan:
+  same id and fingerprint is already here; same id with different content refuses the whole set.
+  A new id is a new release even if its content restores an earlier release. A date earlier than
+  the plan's newest dated ARES release is not imported; equal dates are allowed. Without a manifest,
+  compare only with the latest ARES release's fingerprint. Teacher saves never suppress a release.
+  Content equal to an older ARES release is flagged in the confirmation preview. Versions are never
+  overwritten. The existing `(subjectGrade, META.substrand_id)` identity selects the plan; ambiguous
+  existing plans and duplicate files in a batch are rejected. An empty sub-strand id creates a new plan.
+- **Official on import.** A new plan starts at 1.0.0 Official. A new release of an existing plan uses
+  the next whole major across all its versions. If its current Official has a release fingerprint,
+  import moves Official to the new release and pre-warms artifacts; a teacher Official or absent
+  Official stays unchanged, waiting for the subject-grade administrator. All release and Official
+  decisions run in read-only pre-flight and again inside the write transaction after the sorted
+  subject-grade and plan locks, before any release is written. A conflict found under the locks
+  rolls back the whole request.
+- **Bound confirmation.** An upload that would replace any existing Official returns 409 with
+  `needsConfirmation`, the `official` preview and `previewToken`, writing nothing. Missing taxonomy
+  and Official decisions share one round. Resubmit the same files with `confirmOfficial` equal to
+  that token and the taxonomy answers. The hash binds every file's content, release, plan, current
+  Official, decision and older-content warning. A changed decision or stale/forged token returns a
+  fresh 409 preview and writes nothing. Initial plan creation replaces no Official and is omitted
+  from that preview, so declining new taxonomy does not invalidate replacement decisions.
+  No existing Official moves without matching confirmation.
+  Reports distinguish Official moved/kept, already here, older not imported, waiting for a program
+  update, rejected files and refused sets. After commit, each affected subject-grade administrator
+  receives one internal message per upload from its Site Administrator, listing moves and releases
+  waiting for review. Message failures are logged and reported without undoing the import. The
+  supported CLI sends no messages.
+- **Supported production import:** `docker compose run --rm -v /media/stick/lessons:/import:ro migrate
+  npx payload run scripts/import-lessons.ts -- /import [--yes]`. It shares the web's partial-import
+  and confirmation rules; prompts for missing taxonomy and Official updates. `--yes` accepts exact
+  new taxonomy, declines similar names and confirms the preview; changed decisions stop it. Exit
+  codes: 0 done (including unchanged, older and waiting files); 2 some files rejected; 3 set refused;
+  4 not confirmed; 1 operational error. The dev-only `scripts/ingest.ts` retains its atomic revision
+  behavior and requires pre-existing taxonomy.
 - **Release ancestry (approved 2026-10-19):** re-ingest records the highest numeric surviving
   ingested release of that same plan/sub-strand in the existing `sourceVersion` (“Based on version”)
   relationship, independently of Official and teacher patches. Only trusted ingest creates whole
@@ -1021,6 +1070,9 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 - **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
   bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a
   deletion-request flow can ride on the same messaging substrate if wanted.)
+  Ordinary messages remain limited to 5,000 characters. System-generated upload summaries may use
+  up to 100,000 to list the maximum 500 lessons once per subject-grade; internal lesson paths render
+  as links, with normal lesson-page authorization.
   Specific-version links keep a server-generated label after version or lesson deletion and show
   "this version is no longer available" without substituting the Official version. Whole-lesson
   links carry no version label and retain their existing behaviour. A reply identifies its original

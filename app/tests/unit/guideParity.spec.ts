@@ -73,6 +73,14 @@ function flatten(source: string): string {
  * Adding a rule to one file and not the other is exactly what this list refuses.
  */
 const CLAIMS: { what: string; claim: string }[] = [
+  {
+    what: 'upload preserves a teacher Official',
+    claim: 'A teacher’s Official stays unchanged, waiting for the subject-grade administrator',
+  },
+  {
+    what: 'upload skips older releases',
+    claim: 'A release dated earlier than the newest one already here is not imported',
+  },
   { what: 'search does not search reply bodies', claim: 'Search covers titles only' },
   {
     what: 'immutable posts and administrator thread deletion',
