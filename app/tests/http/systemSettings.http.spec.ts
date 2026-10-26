@@ -23,9 +23,10 @@
  *     -e E2E_BASE_URL=http://app:3000 -- npm run test:http
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { createHash } from 'node:crypto'
 import { sql } from '@payloadcms/db-postgres'
 
-import { clearRateLimitBuckets, drizzleOf, rowsOf } from '../helpers/db.js'
+import { clearLoginTargetBudget, drizzleOf, rowsOf } from '../helpers/db.js'
 import { stillPendingAfterWindow, whileLockHeld } from '../helpers/rowLocks.js'
 import { ADVISORY_LOCKS } from '../../src/lib/txDb.js'
 import {
@@ -94,7 +95,8 @@ async function storedFlag(): Promise<boolean | null | undefined> {
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  const tokens = await Promise.all(ROLES.map((k) => login(fx.users[k].email, fx.password)))
+  const tokens: string[] = []
+  for (const k of ROLES) tokens.push(await login(fx.users[k].email, fx.password))
   ROLES.forEach((k, i) => (token[k] = tokens[i]!))
   // A known starting value, written on the trusted path (the Save endpoint cannot write this flag).
   await fx.payload.updateGlobal({
@@ -108,7 +110,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // Every Save re-authenticates through Payload's login, which spends the caller's `login` budget —
   // return exactly the rows this file spent (the limiter-spec convention, DECISIONS 2026-08-30).
-  if (fx) await clearRateLimitBuckets(fx.payload, `login:${fx.users.siteAdmin.email.toLowerCase()}`)
+  if (fx) await clearLoginTargetBudget(fx.payload, fx.users.siteAdmin.email.toLowerCase())
   await fx?.teardown()
 })
 
@@ -442,7 +444,7 @@ describe('Save endpoint — permissions changed while waiting', () => {
         expect(res.status, messageOf(res)).toBe(403)
         expect(await stored(), 'a revoked administrator must not change settings').toEqual(before)
       } finally {
-        await clearRateLimitBuckets(fx.payload, `login:${admin.email.toLowerCase()}`)
+        await clearLoginTargetBudget(fx.payload, admin.email.toLowerCase())
         if (!deleted) await deleteUserFixture(fx.payload, admin.id)
       }
     }, 30_000)
@@ -450,37 +452,43 @@ describe('Save endpoint — permissions changed while waiting', () => {
 })
 
 describe('Save endpoint — the password check is not a guessing oracle', () => {
-  /**
-   * ⚑ RE-AUTHENTICATION INHERITS PAYLOAD'S ACCOUNT LOCKOUT: repeated wrong passwords on the Save lock the
-   * account exactly as they would at the sign-in form, so the Save is no better a place to guess. (It
-   * does NOT prove where the login runs relative to the Save's transaction, and an earlier comment here
-   * said it did: Payload records failed attempts outside any transaction by design, so the lock engages
-   * either way.) A dedicated Site Administrator, so locking it cannot disturb the rest of this file.
-   */
-  let locked: User | undefined
+  // Reauthentication retains client+target throttling without creating a victim-wide lock.
+  let checked: User | undefined
 
   afterAll(async () => {
-    if (!locked) return
-    await clearRateLimitBuckets(fx.payload, `login:${locked.email.toLowerCase()}`)
-    await deleteUserFixture(fx.payload, locked.id)
+    if (!checked) return
+    await clearLoginTargetBudget(fx.payload, checked.email.toLowerCase())
+    await deleteUserFixture(fx.payload, checked.id)
   })
 
-  it('locks the account after repeated wrong passwords — then refuses even the right one', async () => {
-    locked = await createUserVerified(fx.payload, {
-      email: `${MARK}lockout-admin@example.test`.toLowerCase(),
-      name: `${MARK}Lockout Admin`,
+  it('keeps password checks bounded without locking the account after five wrong attempts', async () => {
+    checked = await createUserVerified(fx.payload, {
+      email: `${MARK}reauth-admin@example.test`.toLowerCase(),
+      name: `${MARK}Reauth Admin`,
       password: fx.password,
       roles: ['siteAdmin'],
     })
-    const lockedToken = await login(locked.email, fx.password)
+    const checkedToken = await login(checked.email, fx.password)
 
     for (let i = 0; i < 5; i++) {
-      await expectRefused(lockedToken, 401, { password: 'wrong' })
+      await expectRefused(checkedToken, 401, { password: 'wrong' })
     }
-    const res = await expectRefused(lockedToken, 401)
-    expect(
-      messageOf(res),
-      'a locked account is told it is locked, not that its password is wrong',
-    ).toMatch(/locked/i)
+    const current = await stored()
+    const res = await save(checkedToken, bodyFor(current))
+    expect(res.status, messageOf(res)).toBe(200)
+    const refreshed = await fx.payload.findByID({
+      collection: 'users',
+      id: checked.id,
+      overrideAccess: true,
+      showHiddenFields: true,
+    })
+    expect(refreshed.lockUntil).toBeNull()
+    expect(refreshed.loginAttempts).toBe(0)
+
+    const target = createHash('sha256').update(checked.email.toLowerCase()).digest('hex')
+    await drizzleOf(fx.payload).execute(sql`
+      UPDATE rate_limit_counters SET count=${Number(process.env.RATE_LIMIT_LOGIN_MAX) || 20}
+      WHERE bucket_key LIKE ${`login:%:${target}`}`)
+    await expectRefused(checkedToken, 429)
   })
 })

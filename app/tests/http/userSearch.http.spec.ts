@@ -34,7 +34,8 @@ async function search(
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  const tokens = await Promise.all(ROLES.map((role) => login(fx.users[role].email, fx.password)))
+  const tokens: string[] = []
+  for (const role of ROLES) tokens.push(await login(fx.users[role].email, fx.password))
   ROLES.forEach((role, index) => (token[role] = tokens[index]))
 
   const extra = await fx.payload.create({

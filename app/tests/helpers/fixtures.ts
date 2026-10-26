@@ -18,7 +18,8 @@
  *
  * NOTE: requires a database → runs on the Rock only (like all of `tests/int`).
  */
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
+import { networkInterfaces } from 'node:os'
 
 import { sql } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
@@ -248,6 +249,15 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
   const payload = await getPayload({ config })
   // Crashed-run safety sweep: clear leftovers from ANY prior run (match the whole namespace).
   await purgeMarked(payload, MARK_BASE)
+  // This fixture-writing suite runs only on a disposable DB. Remove only this runner's source-IP
+  // login budget between files; use normal production limits within each file.
+  for (const nic of Object.values(networkInterfaces()).flat()) {
+    if (!nic) continue
+    const client = createHash('sha256').update(nic.address).digest('hex')
+    await drizzleOf(payload).execute(
+      sql`DELETE FROM rate_limit_counters WHERE bucket_key = ${`loginClient:${client}`}`,
+    )
+  }
   // A Playwright worker can call this once per spec file. Reusing MARK's email four times trips the
   // real per-address signup limit (3) and CI only hides that defect by retrying in a fresh worker.
   // Keep MARK in every address for cleanup, but give each setup its own rate-limit target.

@@ -34,6 +34,28 @@ pair the buttons already use.
 
 ---
 
+## 2026-10-25 — Client-scoped sign-in protection (F-C23-001/002/003)
+
+The operator authorized the three sign-in fixes and confirmed the proposed Cloudflare rule was never
+installed. Replace the shared login window and account-wide native lockout with PostgreSQL client and
+client+requested-email limits. Bound hash work to one operation per client and four per Node process
+(default). Identity is captured before HTTP handling from the socket, with explicit trusted proxy
+CIDRs; untrusted forwarding/internal headers cannot choose a fresh key.
+
+Keep Payload's actual password verifier and session/cookie machinery. Equalize missing/current/legacy
+password work with dummy PBKDF2 derivations; keep generic wrong-password responses after repeated
+failures. Retain old lock columns for backup compatibility and clear old locks on login. Settings
+password confirmation forwards the real HTTP identity, pays the same limits, and still revokes its
+transient session. No migration or live Cloudflare/server change. The audit branch remains unmerged.
+
+This trades account-wide lockout for client-based brute-force protection. Shared school NATs still
+share budgets; distributed traffic can saturate bounded capacity. Signup/forgot-password outbound-mail
+ceilings remain a separate availability limitation. Configuration and upgrade checks:
+[SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md). The parameter-pinning unit test must be reviewed on
+Payload upgrades; this is workload equalization, not a promise of constant-time network responses.
+
+---
+
 ## 2026-10-25 — Restore and undo stop when export-cache invalidation fails
 
 F-C70-001 is a real failure-masking bug: the cache deletion shell command ended in `; true`, so a

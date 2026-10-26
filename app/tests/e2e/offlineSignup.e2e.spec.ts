@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto'
 import { test, expect, type Page } from '@playwright/test'
 
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
-import { clearRateLimitBuckets } from '../helpers/db'
+import { clearLoginTargetBudget } from '../helpers/db'
 import { deleteUserFixture, MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 
 test.skip(!!process.env.SMTP_HOST?.trim(), 'applies only to a site without email')
@@ -44,7 +44,7 @@ test.afterAll(async () => {
 })
 
 const signIn = async (page: Page) => {
-  await clearRateLimitBuckets(fx.payload, `login:${email}`)
+  await clearLoginTargetBudget(fx.payload, email)
   await page.goto(`${BASE}/login`)
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)

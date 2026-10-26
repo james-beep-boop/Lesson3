@@ -5,6 +5,9 @@ services:
     environment:
       PDF_LIBRARY_DIR: /var/lib/lesson3-test-pdfs
       PDF_LIBRARY_PUBLIC: "1"
+      # The Docker test runner acts as a synthetic proxy for two-client isolation tests.
+      # Never load this override on an installation; production trusts no proxy by default.
+      AUTH_TRUSTED_PROXY_CIDRS: "172.16.0.0/12"
     volumes:
       - ./app/tests/fixtures/pdf-library:/var/lib/lesson3-test-pdfs:ro
     depends_on:
@@ -30,9 +33,10 @@ services:
       PDF_LIBRARY_DIR: /var/lib/lesson3-test-pdfs
       SERVER_URL: ""
       PUBLIC_LIBRARY_ENABLED: "0"
+      AUTH_TRUSTED_PROXY_CIDRS: ""
       # Keep this auxiliary server out of the normal job-worker poll during wire/browser tests.
       JOBS_AUTORUN_CRON: "0 0 1 1 *"
-    command: ["sh", "-c", "unset PDF_LIBRARY_PUBLIC; exec node server.js"]
+    command: ["sh", "-c", "unset PDF_LIBRARY_PUBLIC; exec node --import ./scripts/login-client.mjs server.js"]
     volumes:
       - ./app/tests/fixtures/pdf-library:/var/lib/lesson3-test-pdfs:ro
     healthcheck:

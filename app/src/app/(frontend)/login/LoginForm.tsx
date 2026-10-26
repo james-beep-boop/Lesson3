@@ -23,6 +23,8 @@ export function signInErrorMessage(
   //
   // Still never message TEXT: the copy is i18n and shifts with Payload upgrades, while `data.code`
   // is a contract this repo owns and pins (`tests/unit/accountDisabledContract.spec.ts`).
+  if (status === 429 || status === 503)
+    return 'Sign-in is busy — please wait a moment and try again.'
   if (status === 403) {
     // Without email no link was ever sent: the account is waiting for a Site Administrator
     // (Manage → Users → Accounts), so name that instead of a mailbox to search (2026-10-19).

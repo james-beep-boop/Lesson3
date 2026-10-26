@@ -2,20 +2,15 @@
  * Integration coverage for the AUTH-operation rate limits (`hooks/authRateLimit.ts`, SPEC §11
  * "generation, auth"; audit 2026-07-04). Drives the real Payload operations through the Local API —
  * `payload.login` / `payload.forgotPassword` run the same `beforeOperation` hook the REST routes do
- * (verified in installed source), against the real `rate_limit_counters` table. Requires a DB →
- * Rock/CI only, like all of `tests/int`.
- *
- * Budget notes for the LIVE Rock DB: a run spends ~(LOGIN_MAX+1) of `loginGlobal` (1000/h) and
- * ~(FORGOT_MAX+1) of `forgotPasswordGlobal` (100/day) — far under both ceilings. Per-target keys
- * are run-unique and deleted in afterAll; the global keys are left (their spend is the test's real
- * traffic).
+ * (verified in installed source), against the real `rate_limit_counters` table. Run only on a
+ * disposable database. HTTP client isolation has separate real-network coverage.
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
 import { createUserVerified, deleteUserFixture } from '../helpers/fixtures.js'
-import { clearRateLimitBuckets } from '../helpers/db.js'
+import { clearLoginTargetBudget, clearRateLimitBuckets } from '../helpers/db.js'
 
 // Per-run addresses so counters/users never collide across runs or with real users.
 const RUN = `authrl-${Date.now()}`
@@ -52,8 +47,9 @@ afterAll(async () => {
       await deleteUserFixture(payload, userId)
     }
   } finally {
-    // Remove this run's per-target counter rows (keys embed the run-tagged emails), even if user
-    // cleanup fails. The failure still propagates after this finally block.
+    // Hashed login targets no longer contain the readable run marker.
+    for (const email of [USER_EMAIL, `${RUN}-other@lesson3.local`])
+      await clearLoginTargetBudget(payload, email)
     await clearRateLimitBuckets(payload, `%${RUN}%`)
   }
 })
