@@ -200,7 +200,7 @@ Lesson3 work at that school, and the backup on the server's own disk is destroye
 ⚑ **The message speaks for Lesson3 only.** The wipe also destroys the other ARES programs' teacher
 uploads, which the technicians back up by their existing routine. Lesson3 cannot see those, so it never
 declares the *machine* safe to wipe. The message ends: *"Back up the other ARES programs' teacher content
-as usual before wiping."* If Mark wants one combined check later, this step is built to sit inside it.
+as usual before wiping."* No written pre-wipe checklist exists or is planned (§13), so this reminder is the only prompt.
 
 **Wipe and install the new image** (Mark's process).
 
@@ -437,13 +437,16 @@ internet**, **Back up now**, **Status**.
 
 ## 13. Open questions
 
-1. **Other ARES programs' teacher uploads.** The technicians back these up to USB before a full
-   reinstall, from memory: there is **no written checklist** (operator, 2026-10-26). Proposed:
-   `prepare-reinstall` ends by printing a short pre-wipe checklist, with Lesson3's line already ticked
-   and a line for the other ARES programs' teacher content that Mark's team fills in once. Until a
-   combined step exists, Lesson3's "safe to wipe" speaks for Lesson3 only (§7b).
+1. **How teachers' devices find `ares.local`** (for Mark): does the server announce its own name on the
+   network, or does the school's router map the name to a fixed address? It decides what a replacement
+   server must keep (its name, or its address), and whether Lesson3's own address can simply be
+   `http://ares.local:3001`, sparing the technician the LAN-address question in §7a.
 
 **Decided 2026-10-26:**
+- **No pre-wipe checklist.** Technicians back up the other ARES programs' teacher content from memory,
+  and no written checklist will be made (operator). Lesson3's `prepare-reinstall` therefore prints its
+  own "LESSON3 SAFE TO WIPE" result followed by a one-line reminder to back up the other ARES programs'
+  teacher content as usual (§7b), and claims nothing about the rest of the machine.
 - **Checksums only, no signing keys** (§5), with the internet-program-update risk accepted.
 - **Manage → upload follows the same automatic-Official rule** and confirmation list as the server tool
   (§10b).
