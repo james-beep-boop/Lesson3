@@ -32,6 +32,30 @@ ceilings remain a separate availability limitation. Configuration and upgrade ch
 Payload upgrades; this is workload equalization, not a promise of constant-time network responses.
 
 ---
+## 2026-10-25 — Restore and undo stop when export-cache invalidation fails
+
+F-C70-001 is a real failure-masking bug: the cache deletion shell command ended in `; true`, so a
+failed `find -delete` still let restore or undo start the app. Cached artifacts use database-local
+version ids, so retaining old bytes across a database swap is unsafe. The audit reproduced the masked
+failure, not a valid colliding-document download; keep that evidence distinction.
+
+The Alpine app image's BusyBox `find -delete` also returns 0 after a permission failure; the real-stack
+regression caught this after simply removing `; true` passed the mocked test. The helper now checks
+that no cache files remain as well as propagating command failures, with repair/`--resume` guidance.
+The journal remains
+`swapped` (restore) or `undo-swapped` (undo), and startup is not reached until a retry invalidates the
+cache successfully. A missing or empty cache directory still succeeds. No cache identity/schema
+change and no authentication change are part of this fix.
+
+The existing required CI suites now check both directions: retain a readable artifact, fail deletion,
+assert nonzero exit/no app startup/resumable state, repair, then resume and verify deletion before
+startup without another database swap. The fast suite executes the real helper shell; the stack suite
+uses a real cache-directory permission fault. The new fast assertions fail against the old helper
+and cover both nonzero and falsely successful deletion failures.
+
+**Lesson:** replacing `command; true` with a bare `test && command` is insufficient when the missing-
+directory case must remain successful. Use an explicit conditional so only deletion errors propagate.
+The audit findings remain on their separate, unmerged audit branch; this fix is a standalone PR.
 
 ## 2026-10-25 — Phase 4 dropped
 
