@@ -137,9 +137,9 @@ Lesson3, not in a Word file.
   asks again next time. Discarding cannot be undone.
 - To bring a draft together with a newer version, save the draft as a version, then use Combine
   versions.
-- **A newer ARES release:** with Advanced tools on, a lesson may offer **Combine them?** when your
-  latest saved version is based on an older ARES release than Official. This opens Combine with your
-  version and the current Official. **Not now hides the suggestion until you reload the page.**
+- **A newer ARES release:** a lesson may offer **Combine them?** when your latest saved version is
+  based on an older ARES release than Official. This opens Combine with your version and the current
+  Official. **Not now hides the suggestion until you reload the page.**
   Nothing is saved until you choose to save a version or draft in the editor.
 - **Combine versions:** when a plan has at least two versions and you have editing access, open
   a saved version and choose *More → Combine versions*. Choose another version and *Review combination*.

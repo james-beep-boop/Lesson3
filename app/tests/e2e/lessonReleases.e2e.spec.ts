@@ -120,15 +120,16 @@ test('release dates appear in headers, version lists and details without overflo
   await expect(page.locator('.version-timestamps')).toContainText('ARES release 14 Nov 2026')
 })
 
-test('only Advanced offers the teacher’s own version, dismissal resets on reload and Combine opens', async ({
+test('Standard and Advanced both offer the teacher’s own version, dismissal resets on reload and Combine opens', async ({
   page,
 }) => {
-  await setAdvancedTools(fx.payload, false)
+  // Standard (the default) keeps this one Combine starting point (operator decision 2026-10-26).
+  await setAdvancedTools(fx.payload, true)
   await loginAs(page, fx, 'editor')
   await page.goto(`${BASE}/lessons/${fx.plan.id}`)
   const prompt = page.getByRole('complementary', { name: 'Newer ARES release' })
-  await expect(prompt).toHaveCount(0)
-  await setAdvancedTools(fx.payload, true)
+  await expect(prompt).toContainText('Your version 2.0.1 is based on the older one.')
+  await setAdvancedTools(fx.payload, false)
   await page.reload()
   await expect(prompt).toContainText('Your version 2.0.1 is based on the older one.')
   const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
@@ -148,7 +149,7 @@ test('only Advanced offers the teacher’s own version, dismissal resets on relo
   expect(await fx.payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
 })
 
-test('a reader without editing access sees the notice and no Combine suggestion even in Advanced', async ({
+test('a reader without editing access sees the notice and no Combine suggestion, in either mode', async ({
   page,
 }) => {
   await setAdvancedTools(fx.payload, true)

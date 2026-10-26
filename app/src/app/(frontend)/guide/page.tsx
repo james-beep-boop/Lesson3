@@ -414,9 +414,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   automatically.
                 </p>
                 <p>
-                  With Advanced tools on, a lesson may offer <em>Combine them?</em> when your latest
-                  saved version is based on an older ARES release than Official. This opens Combine
-                  with your version and the current Official.{' '}
+                  A lesson may offer <em>Combine them?</em> when your latest saved version is based
+                  on an older ARES release than Official. This opens Combine with your version and
+                  the current Official.{' '}
                   <strong>Not now hides the suggestion until you reload the page.</strong> Nothing
                   is saved until you choose to save a version or draft in the editor.
                 </p>

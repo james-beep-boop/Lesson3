@@ -11,6 +11,16 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — Combine suggestion shows in Standard too (supersedes the entry below)
+
+The operator decided that the lesson page's **Combine them?** suggestion appears in both Standard and
+Advanced, reversing the same day's Advanced-only ruling below. Schools start in Standard, so the
+Advanced-only version meant no teacher would see it by default — and a new ARES release is exactly when
+teachers need Combine. It is therefore the one way to start a Combine that Standard keeps (SPEC §5);
+editing access is still required, and the More item and other Combine shortcuts stay Advanced.
+
+---
+
 ## 2026-10-26 — Part 1b: Combine suggestion belongs to Advanced tools
 
 The operator clarified that “Combine them?” is an Advanced tool. The lesson-page suggestion uses

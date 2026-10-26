@@ -24,7 +24,7 @@ import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
 import { systemFlagsForRender } from '@/lib/systemFlags'
-import { resolveMode, showsAction } from '@/lib/advancedTools'
+import { resolveMode } from '@/lib/advancedTools'
 import {
   releaseVersionLabel,
   officialUpdateNotice,
@@ -115,10 +115,9 @@ export default async function LessonView({
     .join(' · ')
 
   const notice = officialUpdateNotice(plan, official, versions)
-  const combineSuggestion =
-    canEdit && showsAction(mode, 'combineVersions')
-      ? newerReleaseSuggestion(versions, official, user.id)
-      : null
+  // Shown in Standard and Advanced alike (operator decision 2026-10-26): a new ARES release is when
+  // teachers most need Combine, so this is the one Combine starting point Standard keeps.
+  const combineSuggestion = canEdit ? newerReleaseSuggestion(versions, official, user.id) : null
   // "Continue editing" when the signed-in user has a draft on THIS version (SPEC §5). Only asked of
   // someone who will see the Edit button at all.
   const hasDraft =
