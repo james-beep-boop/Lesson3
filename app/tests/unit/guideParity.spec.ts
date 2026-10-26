@@ -73,6 +73,15 @@ function flatten(source: string): string {
  * Adding a rule to one file and not the other is exactly what this list refuses.
  */
 const CLAIMS: { what: string; claim: string }[] = [
+  { what: 'release date missing from an upload', claim: 'ARES release: not stated' },
+  {
+    what: 'Combine suggestion dismissal is temporary',
+    claim: 'Not now hides the suggestion until you reload the page',
+  },
+  {
+    what: 'combined upload confirmation',
+    claim: 'Missing subjects and grades appear in the same confirmation round',
+  },
   {
     what: 'upload preserves a teacher Official',
     claim: 'A teacher’s Official stays unchanged, waiting for the subject-grade administrator',

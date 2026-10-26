@@ -2052,3 +2052,20 @@ a {
 .welcome-checklist__note {
   color: var(--muted);
 }
+
+/* Release provenance and the optional Advanced Combine suggestion share one quiet notice. */
+.lesson-release-notice {
+  margin: var(--app-space-3) 0;
+  padding: var(--app-space-3);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-surface-soft);
+}
+.lesson-release-notice p {
+  margin-top: 0;
+}
+.lesson-release-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}

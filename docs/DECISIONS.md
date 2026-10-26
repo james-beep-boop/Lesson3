@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — Part 1b: Combine suggestion belongs to Advanced tools
+
+The operator clarified that “Combine them?” is an Advanced tool. The lesson-page suggestion uses
+`showsAction(resolveMode(flags), 'combineVersions')` alongside the existing editing-access check.
+Dismissal stays in memory until reload. Release labels and the recorded Official-update notice are
+ordinary reading information, visible in Standard too. This changes presentation only, with no new
+endpoint, stored preference or authorization rule.
+
+Part 1b validation on the pinned Node 24 stack: production build and clean migrations; typecheck,
+lint and formatting; 1,937 unit tests, 352 integration tests, 491 wire tests (four SMTP-dependent
+cases skipped) and all 150 Chromium tests. The phone and desktop screenshots were inspected.
+All database/browser tests used isolated disposable databases. No migration or generator change.
+
+---
+
 ## 2026-10-26 — Production lesson import uses the installed program version
 
 PR #459 review identified that `APP_RELEASE_VERSION` was baked only into the runner image. The

@@ -342,6 +342,7 @@ describe('Official-only confirmation', () => {
               {
                 file: 'a.json',
                 title: 'Cell structure',
+                decision: 'new',
                 willMove: true,
                 previousSemver: '1.0.0',
                 incomingSemver: '2.0.0',
@@ -357,6 +358,7 @@ describe('Official-only confirmation', () => {
     pickFile(container.querySelector('input[type=file]') as HTMLInputElement, 'a.json')
     fireEvent.click(screen.getByRole('button', { name: /^Upload/ }))
     await screen.findByRole('button', { name: /^Confirm$/ })
+    expect(container.textContent).toContain('1.0.0 → 2.0.0 · ARES release: not stated')
     expect(container.textContent).not.toContain('Tick what to create')
     fireEvent.click(screen.getByRole('button', { name: /^Confirm$/ }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))

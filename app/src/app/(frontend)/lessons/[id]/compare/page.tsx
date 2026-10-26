@@ -1,3 +1,4 @@
+import { releaseVersionLabel } from '@/lib/aresReleasePresentation'
 import React from 'react'
 import { notFound } from 'next/navigation'
 
@@ -117,7 +118,7 @@ export default async function CompareView({
       ? requestedTo.version
       : (fallbackTo ?? versions[versions.length - 1])
   const label = (v: (typeof versions)[number]) =>
-    `${v.semver ?? `v${v.id}`}${v.id === officialId ? ' · Official' : ''}`
+    `${releaseVersionLabel(v)}${v.id === officialId ? ' · Official' : ''}`
 
   // Cached per-pair diff (immutable inputs → immutable output; see htmlDiffCache.ts). The
   // access-gated `versions` list above proves READ on both ids, so the cache's overrideAccess

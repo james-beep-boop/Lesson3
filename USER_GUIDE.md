@@ -19,6 +19,11 @@ Use Lessons to find and read plans or download their Word and PDF files. Each pl
 Official version. If you have editing or administrator access, you also see an _N versions_ panel and
 _Compare_ button.
 
+- **ARES release dates:** an ARES version shows its release date beside the version number,
+  for example **2.0.0 · ARES release 14 Nov 2026**. **ARES release: not stated** means the upload did
+  not supply a release date. Teacher versions have no ARES release label. An **Official updated**
+  notice shows when an import changed Official and names the previous Official when it is still
+  available. Its change date is separate from the ARES release date.
 - **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
   If your school's Lesson3 site cannot send email — most school servers run with no internet — the
@@ -132,6 +137,10 @@ Lesson3, not in a Word file.
   asks again next time. Discarding cannot be undone.
 - To bring a draft together with a newer version, save the draft as a version, then use Combine
   versions.
+- **A newer ARES release:** with Advanced tools on, a lesson may offer **Combine them?** when your
+  latest saved version is based on an older ARES release than Official. This opens Combine with your
+  version and the current Official. **Not now hides the suggestion until you reload the page.**
+  Nothing is saved until you choose to save a version or draft in the editor.
 - **Combine versions:** when a plan has at least two versions and you have editing access, open
   a saved version and choose *More → Combine versions*. Choose another version and *Review combination*.
   Lesson3 lists automatic changes and fields needing your choice. *Continue in editor* may switch
@@ -187,8 +196,10 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   imported even when others fail; review the report for imported, rejected and skipped files.
   Unchanged files are skipped, so you can re-upload a corrected ZIP after a partial import.
   New plans receive their first Official version. A new ARES release replaces an ARES Official
-  after you check the list and confirm. A teacher’s Official stays unchanged, waiting for the
-  subject-grade administrator. Repeated releases are skipped even after a teacher saves a version.
+  after you check the list and confirm. The confirmation groups lessons that will become Official,
+  releases waiting for the subject-grade administrator, and files that will make no change. Missing
+  subjects and grades appear in the same confirmation round. Earlier versions stay in the version
+  history. A teacher’s Official stays unchanged, waiting for the subject-grade administrator. Repeated releases are skipped even after a teacher saves a version.
   A release dated earlier than the newest one already here is not imported. An optional LESSONS.json
   records the release date and checksums; damaged-looking files warn, and lesson sets needing a
   newer program are refused. The report lists files waiting for a program update. A reused release

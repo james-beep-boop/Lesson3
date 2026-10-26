@@ -18,6 +18,7 @@
 import React, { useRef, useState } from 'react'
 import { Button, toast, useAuth, useConfig } from '@payloadcms/ui'
 import type { OfficialPreview } from '../../ingest/releaseDecision'
+import OfficialPreviewList from './OfficialPreviewList'
 import { useRouter } from 'next/navigation'
 
 type UploadResult = {
@@ -235,26 +236,19 @@ export default function UploadBundles() {
       {missing && (
         <fieldset className="lp-upload-confirm" disabled={busy}>
           <legend>
-            {groups.length ? 'Create missing subjects and grades?' : 'Confirm Official updates'}
+            {groups.length && report?.official?.some((p) => p.willMove)
+              ? 'Confirm lesson updates and new subjects or grades'
+              : groups.length
+                ? 'Create missing subjects and grades?'
+                : 'Confirm Official updates'}
           </legend>
           {report?.confirmationChanged && (
             <p role="alert">Something changed since you looked. Please check the list again.</p>
           )}
-          {(report?.official?.length ?? 0) > 0 && (
-            <ul>
-              {report?.official?.map((p) => (
-                <li key={p.file}>
-                  <strong>{p.title}</strong>:{' '}
-                  {p.willMove
-                    ? `Will become Official: ${p.previousSemver ?? 'none'} → ${p.incomingSemver}.`
-                    : p.reason}{' '}
-                  ARES release {p.release ? `${p.release.id}, ${p.release.date}` : 'not stated'}.
-                  {p.olderContent &&
-                    ` Same content as version ${p.olderContent} (an earlier release). ${p.willMove ? 'Importing it will make this content Official again.' : ''}`}
-                </li>
-              ))}
-            </ul>
-          )}
+          <p className="lp-manage__desc">
+            Review these changes before importing. Existing versions stay in the version history.
+          </p>
+          {report?.official && <OfficialPreviewList preview={report.official} />}
           <p className="lp-manage__desc">
             Nothing has been imported yet.{' '}
             {groups.length

@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useSyncExternalStore } from 'react'
-import { useFormFields } from '@payloadcms/ui'
+import { useDocumentInfo, useFormFields } from '@payloadcms/ui'
+import { aresReleaseLabel } from '@/lib/aresReleasePresentation'
 
 /**
  * Sidebar display of the version's Last Modified / Created timestamps (UI field, no DB column).
@@ -31,6 +32,11 @@ export default function VersionTimestamps() {
   // Select each scalar separately: `useFormFields` is `useContextSelector`, which re-renders on
   // Object.is inequality — returning a fresh `{...}` object would re-render on every keystroke in the
   // form. Two primitive selectors only re-render when a timestamp's value actually changes.
+  const { savedDocumentData } = useDocumentInfo()
+  const release = aresReleaseLabel({
+    releaseFingerprint: savedDocumentData?.releaseFingerprint,
+    aresReleaseDate: savedDocumentData?.aresReleaseDate,
+  })
   const updatedAt = useFormFields(([fields]) => fields?.updatedAt?.value)
   const createdAt = useFormFields(([fields]) => fields?.createdAt?.value)
 
@@ -46,6 +52,7 @@ export default function VersionTimestamps() {
 
   return (
     <div className="version-timestamps">
+      {release && <p>{release}</p>}
       <div className="version-timestamps__row">
         <span className="version-timestamps__label">Last Modified</span>
         <span className="version-timestamps__value">{fmt(updatedAt, local)}</span>

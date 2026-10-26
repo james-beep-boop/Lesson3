@@ -51,7 +51,16 @@ export async function findReadablePlan(
  *  not a silent runtime `undefined`. Widen the `select` and this type together. */
 export type ReadableVersionListItem = Pick<
   LessonBundleVersion,
-  'id' | 'semver' | 'title' | 'createdAt' | 'finalExplanation' | 'summaryTable'
+  | 'id'
+  | 'semver'
+  | 'title'
+  | 'createdAt'
+  | 'finalExplanation'
+  | 'summaryTable'
+  | 'releaseFingerprint'
+  | 'aresReleaseDate'
+  | 'author'
+  | 'lineage'
 > & {
   meta?: Pick<NonNullable<LessonBundleVersion['meta']>, 'subject' | 'grade' | 'substrand_name'>
 }
@@ -70,6 +79,10 @@ export async function findReadableVersions(
 ): Promise<ReadableVersionListItem[]> {
   return (await findPlanVersions(payload, args, {
     semver: true,
+    releaseFingerprint: true,
+    aresReleaseDate: true,
+    author: true,
+    lineage: true,
     title: true,
     createdAt: true,
     meta: { subject: true, grade: true, substrand_name: true },

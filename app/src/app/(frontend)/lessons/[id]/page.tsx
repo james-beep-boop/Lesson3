@@ -24,7 +24,13 @@ import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
 import { systemFlagsForRender } from '@/lib/systemFlags'
-import { resolveMode } from '@/lib/advancedTools'
+import { resolveMode, showsAction } from '@/lib/advancedTools'
+import {
+  releaseVersionLabel,
+  officialUpdateNotice,
+  newerOfficialForTeacher,
+} from '@/lib/aresReleasePresentation'
+import NewerAresPrompt from '@/components/NewerAresPrompt'
 import LessonDetails from '@/components/LessonDetails'
 import { readLessonDetails } from '@/lib/lessonDetails'
 
@@ -105,6 +111,11 @@ export default async function LessonView({
   const sgId = toId(plan.subjectGrade as never)
   const canEdit = isEditorFor(user, sgId)
   const canMakeOfficial = isSubjectAdminFor(user, sgId)
+  const notice = officialUpdateNotice(plan, official, versions)
+  const combineSuggestion =
+    canEdit && showsAction(resolveMode({ advancedTools }), 'combineVersions')
+      ? newerOfficialForTeacher(versions, official, user.id)
+      : null
   // "Continue editing" when the signed-in user has a draft on THIS version (SPEC §5). Only asked of
   // someone who will see the Edit button at all.
   const hasDraft =
@@ -168,7 +179,7 @@ export default async function LessonView({
             UI stays an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): chip +
             Compare render only for editors, and only when there is a real choice. */}
         <p className="lesson-context">
-          {contextLine && `${contextLine} · `}Version {selected.semver ?? `v${selectedId}`}
+          {contextLine && `${contextLine} · `}Version {releaseVersionLabel(selected)}
           {selectedId === officialId && <strong className="official-tag"> · Official</strong>}
           {canEdit && versions.length > 1 && (
             <>
@@ -188,7 +199,22 @@ export default async function LessonView({
         </p>
       </PageHeader>
 
-      {details && <LessonDetails key={selectedId} {...details} />}
+      {notice && (
+        <p className="lesson-release-notice" role="note">
+          {notice}
+        </p>
+      )}
+      {combineSuggestion && official && (
+        <NewerAresPrompt
+          key={`${combineSuggestion.id}-${official.id}`}
+          ownId={combineSuggestion.id}
+          ownSemver={combineSuggestion.semver!}
+          officialId={official.id}
+        />
+      )}
+      {details && (
+        <LessonDetails key={selectedId} {...details} versionLabel={releaseVersionLabel(selected)} />
+      )}
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
           revising declutter L1) and have NOT come back. What returned on 2026-08-30 is the primary

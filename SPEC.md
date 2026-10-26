@@ -592,6 +592,8 @@ resolver (`resolveMode`, today the site switch alone) decides the mode.
 - **Insert link is everyday**, never advanced.
 - **Advanced never reveals what the person cannot use:** no Email all without email set up, no
   Combine without editing access and two versions. More ▾ is absent when it would be empty.
+- **The newer ARES release suggestion is Advanced** (operator decision 2026-10-26). It uses the same
+  `combineVersions` action gate and existing `?combineWith=` handoff, with editing access required.
 - **Standard hides only the ways to START a Combine** — the More item, the "Combine with {version}"
   shortcut after a save, and the restore prompt's suggestion to combine with a newer version. A
   Combine already under way (its draft, conflict choices, Retry, Save, Discard) carries on in either
@@ -617,6 +619,26 @@ resolver (`resolveMode`, today the site switch alone) decides the mode.
   `officialChangedBy` are stamped by field `beforeChange` hooks whenever the pointer changes,
   including first ingest, import and Make Official. A system import has no actor; related deletions
   clear the nullable references. Existing rows are not backfilled. Submitted audit values are ignored.
+
+### ARES release presentation (Part 1b, approved 2026-10-26)
+
+- A version with `releaseFingerprint` shows its semver and **ARES release 14 Nov 2026** (full calendar
+  date) in the lesson header, versions list and version details. A missing date says **ARES release:
+  not stated**. Teacher versions have no extra label. Catalogue rows keep their compact version text.
+- A lesson-page **Official updated** notice reads only `officialChangedAt`, `officialChangedFrom` and
+  `officialChangedBy` for change provenance. It appears for a recorded system change to an ARES
+  Official, never for a human change or an unstamped legacy plan. It uses the current Official's ARES
+  release date, separately from the recorded change date (UTC day). It names the true previous
+  Official only if that version is still readable in this plan; it never substitutes `sourceVersion`
+  or a creation date. First ingest can show a notice without a previous-Official sentence.
+- In Advanced mode, a Teacher with editing access whose own latest saved version has a surviving
+  ARES ancestor older than the current ARES Official sees **Combine them?**. A version already based
+  on the current Official has no suggestion. Missing/unproven ancestry yields no suggestion. The link
+  opens the existing Combine preview on their saved version with Official as the other parent.
+  **Not now** dismisses the suggestion until reload, in component state only; nothing is stored.
+- The upload confirmation groups **Will become Official**, **Waiting for the subject-grade
+  administrator** and **No change**, with full release dates, before/after versions and older-content
+  warnings. Missing taxonomy shares that round. The server's token and confirmation gate are unchanged.
 
 ### Combine versions (approved 2026-10-17; phase 3b adds the screen)
 
