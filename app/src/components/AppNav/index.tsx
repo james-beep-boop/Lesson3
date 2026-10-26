@@ -6,6 +6,8 @@ import { canUseAdminPanel, userTypeLabel } from '../../access'
 import { resolveAccessSummary } from '../../lib/accessScopes'
 import { hasUnread } from '../../lib/discussions'
 import { systemFlagsForRender } from '../../lib/systemFlags'
+import SchoolName from '../SchoolName'
+import { schoolNameForRender } from '../../lib/schoolName'
 import { UserMenu } from '../UserMenu'
 import NavigationFreshness from './NavigationFreshness'
 import type { User } from '../../payload-types'
@@ -47,13 +49,14 @@ export async function AppNav({
   // it does not misstate: editing access is server-enforced and unaffected, and the type is unchanged
   // (an editor is a "Teacher" with or without the line). A "(unavailable)" placeholder would be
   // uglier and no more useful, so we show the type alone.
-  const [unread, summary, forum] = await Promise.all([
+  const [unread, summary, forum, schoolName] = await Promise.all([
     countUnread(payload, user),
     resolveAccessSummary(payload, user).catch(() => ({
       typeLabel: userTypeLabel(user),
       lines: [],
     })),
     forumState(payload, user),
+    schoolNameForRender(payload),
   ])
   return (
     <nav className="app-nav" aria-label="Primary">
@@ -88,6 +91,7 @@ export async function AppNav({
       </a>
       {/* eslint-enable @next/next/no-html-link-for-pages */}
       <UserMenu
+        schoolName={<SchoolName name={schoolName} />}
         typeLabel={summary.typeLabel}
         scopeLines={summary.lines}
         displayName={user.name ?? user.email}

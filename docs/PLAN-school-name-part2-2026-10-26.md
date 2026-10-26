@@ -1,6 +1,6 @@
 # Part 2 — School name (implementation plan)
 
-**Status: APPROVED by the operator, 2026-10-26. Ready to build. No code is written yet.** Build part 2 of
+**Status: APPROVED by the operator, 2026-10-26. Implemented on `feat/school-name-part2` for review.** Build part 2 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§11). One small PR. Needs no test machine.
 
 ## What it does

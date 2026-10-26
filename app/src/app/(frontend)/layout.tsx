@@ -1,3 +1,4 @@
+import { schoolPageMetadata } from '@/lib/schoolMetadata'
 import React from 'react'
 import Link from 'next/link'
 
@@ -10,10 +11,10 @@ import '../app-chrome.scss'
 import '../app-dialog.scss'
 import './styles.css'
 
-export const metadata = {
-  title: 'ARES Lesson Plans',
+export const generateMetadata = async () => ({
+  ...(await schoolPageMetadata()),
   description: 'ARES Lesson Plans',
-}
+})
 
 // Explicit mobile viewport (was relying on Next's implicit default). The App is reading-first on a
 // phone — declare it so the responsive rules in styles.css engage on real devices, not just the

@@ -1,9 +1,10 @@
+import { schoolPageMetadata } from '@/lib/schoolMetadata'
 import React from 'react'
 import Link from 'next/link'
 
 import { ResetPasswordForm } from './ResetPasswordForm'
 
-export const metadata = { title: 'Reset password — ARES Lesson Plans' }
+export const generateMetadata = () => schoolPageMetadata('Reset password — ARES Lesson Plans')
 
 /** Landing page for the emailed reset link (?token=…). No redirect-if-signed-in: a signed-in
  *  user following a fresh reset link should still be able to complete it. */

@@ -1,3 +1,4 @@
+import { schoolPageMetadata } from '@/lib/schoolMetadata'
 import React from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -7,19 +8,29 @@ import { hasRegisteredUsers } from '@/lib/firstUserBootstrap'
 import { isPublicLibraryEnabled } from '@/lib/publicLibrary'
 import { FirstUserForm } from './FirstUserForm'
 import { LoginForm } from './LoginForm'
+import SchoolName from '@/components/SchoolName'
+import { schoolNameForRender } from '@/lib/schoolName'
 import AppVersion from '@/components/AppVersion'
 
-export const metadata = { title: 'Sign in — ARES Lesson Plans' }
+export const generateMetadata = () => schoolPageMetadata('Sign in — ARES Lesson Plans')
 
 export default async function LoginPage() {
   const { payload, user } = await getSession()
   if (user) redirect('/')
+  const schoolName = await schoolNameForRender(payload)
   const initialized = await hasRegisteredUsers(payload)
   // Same test as Sign up and Forgot password: without SMTP, accounts wait for administrator approval.
   const emailEnabled = !!process.env.SMTP_HOST?.trim()
   return (
     <section className="login">
-      <h1 className="login-title">ARES Lesson Plans</h1>
+      {schoolName ? (
+        <>
+          <SchoolName name={schoolName} heading />
+          <p className="login-title">ARES Lesson Plans</p>
+        </>
+      ) : (
+        <h1 className="login-title">ARES Lesson Plans</h1>
+      )}
       <p className="login-subtitle">
         By{' '}
         <a href="https://areseducation.org" target="_blank" rel="noopener noreferrer">

@@ -251,3 +251,19 @@ button.user-menu__item {
     min-height: var(--app-avatar-touch-size);
   }
 }
+
+// One school-label treatment on both surfaces; the avatar slot remains inside its dropdown.
+.school-name {
+  margin: 0.25rem 0 1rem;
+  color: var(--app-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.school-name--heading {
+  color: var(--app-text);
+  font-size: 1.875rem;
+}
+.user-menu__dropdown .school-name {
+  margin: 0 0 0.5rem;
+}

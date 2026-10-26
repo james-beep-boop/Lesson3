@@ -790,6 +790,14 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   clock, so ask the person who manages the server to check its date and time.
                 </p>
                 <p>
+                  In <em>Manage → System → Features</em>, enter the <em>School name</em> and choose
+                  <em> Save</em>. Review the change and enter your password. Only a Site
+                  administrator can set it. The name appears on sign-in, in browser tabs and the
+                  account menu, and under Lesson Plans, Discussions and Manage headings. It never
+                  appears in the top bar or generated documents. Leave School name empty to hide it.
+                  Names can have up to 80 characters, on one line.
+                </p>
+                <p>
                   Advanced tools is off by default. In <em>Manage → System → Features</em>, switch
                   on <em>Advanced tools</em> and choose <em>Save</em> to show{' '}
                   <em>Combine versions</em> and <em>Show details</em> in the editor, and{' '}

@@ -1,3 +1,4 @@
+import { schoolPageMetadata } from '@/lib/schoolMetadata'
 import React from 'react'
 import { redirect } from 'next/navigation'
 
@@ -5,7 +6,7 @@ import PageBackLink from '@/components/PageBackLink'
 import { getSession } from '@/lib/session'
 import { ForgotPasswordForm } from './ForgotPasswordForm'
 
-export const metadata = { title: 'Forgot password — ARES Lesson Plans' }
+export const generateMetadata = () => schoolPageMetadata('Forgot password — ARES Lesson Plans')
 
 export default async function ForgotPasswordPage() {
   const { user } = await getSession()

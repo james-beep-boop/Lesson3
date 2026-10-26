@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — Part 2: school name shares the settings Save
+
+Implemented the approved school-name plan on `feat/school-name-part2`. The public display reader
+projects only the name and fails to absent; the global remains private. Manage reuses the existing
+password check, settings lock and stale-edit token, and the trusted commissioning command shares
+validation and the lock. School-name changes carry no history; feature-flag provenance is preserved.
+The generated migration adds one nullable column without backfill. The restore rehearsal's older
+schema is updated to remove exactly that newest column and migration row.
+
+Validation on pinned Node 24: production build and fresh migrations; types, lint and formatting;
+1,935 unit tests, 353 integration tests (including the actual operator command), 494 passing wire
+cases (four SMTP-dependent skips), 150 Chromium tests and 125 real restore checks. Two wire suites
+interrupted by a local app restart passed on rerun. Desktop and 375 px display checks pass; phone
+screenshots were inspected. Tests used disposable stacks only.
+
+---
+
 ## 2026-10-26 — Production lesson import uses the installed program version
 
 PR #459 review identified that `APP_RELEASE_VERSION` was baked only into the runner image. The

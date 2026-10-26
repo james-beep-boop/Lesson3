@@ -73,6 +73,11 @@ function flatten(source: string): string {
  * Adding a rule to one file and not the other is exactly what this list refuses.
  */
 const CLAIMS: { what: string; claim: string }[] = [
+  { what: 'school name setting and clearing', claim: 'Leave School name empty to hide it' },
+  {
+    what: 'school name never changes top bar or documents',
+    claim: 'It never appears in the top bar or generated documents',
+  },
   {
     what: 'upload preserves a teacher Official',
     claim: 'A teacher’s Official stays unchanged, waiting for the subject-grade administrator',

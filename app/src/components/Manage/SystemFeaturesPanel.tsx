@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button, useConfig } from '@payloadcms/ui'
 
+import { MAX_SCHOOL_NAME_LENGTH } from '../../lib/schoolName'
 import { apiBaseFrom } from '../../lib/apiBase'
 import { wireErrorMessage } from '../../lib/wireError'
 import Modal from '../Modal'
@@ -12,6 +13,7 @@ import { SAVEABLE_FLAGS, type SaveableFlag } from '../../lib/systemFlagNames'
 import { featuresReducer, pendingChanges, type FeatureValues } from './systemFeaturesState'
 
 export interface FeaturesSnapshot {
+  schoolName?: string
   features: FeatureValues
   updatedAt: string
 }
@@ -30,11 +32,12 @@ const change = (flag: SaveableFlag, enabled: boolean) =>
   `switch ${SWITCHES[flag].name} ${enabled ? 'on' : 'off'}`
 const sentence = (text: string) => `${text[0].toUpperCase()}${text.slice(1)}.`
 
-/** The saveable switches only. Other stored flags have no enforcement yet. */
+/** School name and the saveable switches share the password-confirmed Save. */
 export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) {
   const { config } = useConfig()
   const router = useRouter()
   const passwordId = useId()
+  const schoolNameId = useId()
   const inFlight = useRef(false)
   const [state, dispatch] = useReducer(featuresReducer, {
     saved: initial.features,
@@ -47,7 +50,20 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
   const [needsReload, setNeedsReload] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const changes = pendingChanges(state)
+  const [schoolName, setSchoolName] = useState(initial.schoolName ?? '')
+  const [savedSchoolName, setSavedSchoolName] = useState(initial.schoolName ?? '')
+  const flagChanges = pendingChanges(state)
+  const nameChanged = schoolName.trim() !== savedSchoolName
+  const changes =
+    flagChanges || nameChanged
+      ? { ...flagChanges, ...(nameChanged ? { schoolName: schoolName.trim() } : {}) }
+      : null
+  const summary = (key: string, value: boolean | string) =>
+    key === 'schoolName'
+      ? value
+        ? `set school name to “${value}”`
+        : 'clear the school name'
+      : change(key as SaveableFlag, value as boolean)
 
   const close = () => {
     if (inFlight.current) return
@@ -87,15 +103,22 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
         SAVEABLE_FLAGS.some((flag) => typeof result.features?.[flag] !== 'boolean')
       )
         throw new Error('Unconfirmed Save response')
+      if (nameChanged && typeof result.schoolName !== 'string')
+        throw new Error('Unconfirmed school name')
+      if (nameChanged) {
+        setSavedSchoolName(result.schoolName)
+        setSchoolName(result.schoolName)
+      }
       const saved = Object.fromEntries(
         SAVEABLE_FLAGS.map((flag) => [flag, result.features[flag] as boolean]),
       ) as FeatureValues
       dispatch({ type: 'saved', features: saved, updatedAt: result.updatedAt })
       setMessage(
         Object.keys(changes)
-          .map(
-            (flag) =>
-              `${SWITCHES[flag as SaveableFlag].name} switched ${saved[flag as SaveableFlag] ? 'on' : 'off'}.`,
+          .map((flag) =>
+            flag === 'schoolName'
+              ? 'School name saved.'
+              : `${SWITCHES[flag as SaveableFlag].name} switched ${saved[flag as SaveableFlag] ? 'on' : 'off'}.`,
           )
           .join(' '),
       )
@@ -120,6 +143,25 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
         Changes take effect only when you save. Switching Discussions off hides the forum and its
         entry points; existing discussions are kept.
       </p>
+      <div className="lp-manage__row lp-manage__row--tight">
+        <label htmlFor={schoolNameId}>School name</label>
+        <input
+          id={schoolNameId}
+          className="lp-users__input"
+          type="text"
+          value={schoolName}
+          maxLength={MAX_SCHOOL_NAME_LENGTH}
+          disabled={busy || needsReload}
+          onChange={(event) => {
+            setSchoolName(event.target.value)
+            setMessage(null)
+          }}
+        />
+        <span className="lp-manage__fact-description">
+          Shown on sign-in, browser tabs, the account menu and main page headings. Leave empty to
+          hide it.
+        </span>
+      </div>
       {SAVEABLE_FLAGS.map((flag) => (
         <div key={flag} className="lp-manage__row lp-manage__row--tight">
           <label>
@@ -161,7 +203,7 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
         <p className="lp-manage__desc" role="status">
           {Object.keys(changes).length === 1 ? 'Unsaved change: ' : 'Unsaved changes: '}
           {Object.entries(changes)
-            .map(([flag, enabled]) => change(flag as SaveableFlag, enabled as boolean))
+            .map(([flag, enabled]) => summary(flag, enabled as boolean | string))
             .join('; ')}
           .
         </p>
@@ -188,7 +230,7 @@ export function SystemFeaturesPanel({ initial }: { initial: FeaturesSnapshot }) 
           >
             {changes &&
               Object.entries(changes).map(([flag, enabled]) => (
-                <p key={flag}>{sentence(change(flag as SaveableFlag, enabled as boolean))}</p>
+                <p key={flag}>{sentence(summary(flag, enabled as boolean | string))}</p>
               ))}
             <label className="modal__field" htmlFor={passwordId}>
               Your password

@@ -1161,6 +1161,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 export interface SystemSetting {
   id: number;
   installationId?: string | null;
+  schoolName?: string | null;
   /**
    * Runtime capabilities. Each one sits INSIDE a deploy-time env ceiling — a flag can never grant what the environment forbids.
    */
@@ -1217,6 +1218,7 @@ export interface PayloadJobsStat {
  */
 export interface SystemSettingsSelect<T extends boolean = true> {
   installationId?: T;
+  schoolName?: T;
   features?:
     | T
     | {

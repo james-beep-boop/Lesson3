@@ -22,6 +22,7 @@ import { DisplayNameForm } from './DisplayNameForm'
  * A small unread badge sits on the avatar itself so a waiting message is visible without opening it.
  */
 export function UserMenu({
+  schoolName,
   typeLabel,
   scopeLines = [],
   displayName,
@@ -29,6 +30,7 @@ export function UserMenu({
   unread,
   userId,
 }: {
+  schoolName?: React.ReactNode
   typeLabel: UserTypeLabel
   /** Pre-formatted access-scope lines ("Administrator: …" / "Editing access: …"), already ordered
    *  and filtered; each renders as its own line beneath the type. Empty for plain teachers. */
@@ -103,6 +105,7 @@ export function UserMenu({
           click close it above. */}
       {open && (
         <div className="user-menu__dropdown">
+          {schoolName}
           <div className="user-menu__type">{typeLabel}</div>
           {scopeLines.map((line) => (
             <div key={line} className="user-menu__scope">

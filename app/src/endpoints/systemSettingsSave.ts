@@ -35,6 +35,7 @@ import {
   type Endpoint,
   type PayloadRequest,
 } from 'payload'
+import { parseSchoolName } from '../lib/schoolName'
 import { withLoginCapacity } from '../lib/loginProtection'
 import { assertFresh, takeAdvisoryLock } from '../lib/txDb'
 import { SAVEABLE_FLAGS, type SaveableFlag } from '../lib/systemFlagNames'
@@ -52,7 +53,7 @@ const MAX_PASSWORD_LENGTH = 1024
 const STALE_MESSAGE = 'Settings changed since you loaded them — reload before saving.'
 
 export interface SaveBody {
-  changes: Partial<Record<SaveableFlag, boolean>>
+  changes: Partial<Record<SaveableFlag, boolean>> & { schoolName?: string }
   password: string
   expectedUpdatedAt: string
 }
@@ -86,6 +87,14 @@ export function parseSaveBody(raw: unknown): SaveBody {
   if (entries.length === 0) throw new APIError('Nothing to save.', 400)
   const changes: SaveBody['changes'] = {}
   for (const [flag, value] of entries) {
+    if (flag === 'schoolName') {
+      try {
+        changes.schoolName = parseSchoolName(value)
+      } catch (e) {
+        throw new APIError((e as Error).message, 400)
+      }
+      continue
+    }
     if (!(SAVEABLE_FLAGS as readonly string[]).includes(flag)) {
       throw new APIError(`"${flag}" is not a setting that can be changed here.`, 400)
     }
@@ -188,16 +197,25 @@ export const saveSystemSettingsEndpoint: Endpoint = {
       })
       assertFresh(current.updatedAt, body.expectedUpdatedAt, STALE_MESSAGE)
 
+      const { schoolName, ...features } = body.changes
       const updated = await req.payload.updateGlobal({
         slug: 'system-settings',
-        data: { features: { ...current.features, ...body.changes } },
+        data: {
+          features: { ...current.features, ...features },
+          ...(schoolName !== undefined ? { schoolName } : {}),
+        },
         depth: 0,
         overrideAccess: true,
         req,
       })
 
       if (shouldCommit) await commitTransaction(req)
-      return json({ ok: true, updatedAt: updated.updatedAt, features: updated.features })
+      return json({
+        ok: true,
+        updatedAt: updated.updatedAt,
+        features: updated.features,
+        schoolName: updated.schoolName ?? '',
+      })
     } catch (e) {
       await killTransaction(req)
       throw e

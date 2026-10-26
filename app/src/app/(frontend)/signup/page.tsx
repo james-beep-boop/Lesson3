@@ -1,3 +1,4 @@
+import { schoolPageMetadata } from '@/lib/schoolMetadata'
 import React from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -6,7 +7,7 @@ import { getSession } from '@/lib/session'
 import { hasRegisteredUsers } from '@/lib/firstUserBootstrap'
 import { SignupForm } from './SignupForm'
 
-export const metadata = { title: 'Sign up — ARES Lesson Plans' }
+export const generateMetadata = () => schoolPageMetadata('Sign up — ARES Lesson Plans')
 
 /** Open self-registration (2026-07-09): standard Payload create + login, new accounts are plain
  *  Teachers (privileged fields are create-gated server-side). On a site that cannot send email (no
