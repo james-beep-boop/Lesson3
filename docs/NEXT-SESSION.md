@@ -28,7 +28,7 @@ reinstalled school keeps its work (prepare-reinstall → restore), and how progr
 arrive by USB or kenyalessons.org. **Direction approved; only part 1 is approved for building.** One open
 question remains in its §13 (Mark: how `ares.local` is resolved). It shares its stick, restore
 command and test machine with the paused Phase B plan.
-**Current:** PR 1a is implemented on `feat/lesson-releases-1a` for review. After it lands, build
+**Current:** PR 1a is implemented in [PR #459](https://github.com/james-beep-boop/Lesson3/pull/459) for review. After it lands, build
 PR 1b from the approved
 [`PLAN-lesson-releases-part1-2026-10-26.md`](PLAN-lesson-releases-part1-2026-10-26.md) (its "For the
 implementer" section lists the repository rules it touches). The operator may hand the coding to GPT.

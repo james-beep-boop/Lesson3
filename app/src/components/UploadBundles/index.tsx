@@ -256,8 +256,10 @@ export default function UploadBundles() {
             </ul>
           )}
           <p className="lp-manage__desc">
-            Nothing has been imported yet. Tick what to create; files for anything left unticked are
-            rejected. A new grade has no Subject Administrator until you assign one.
+            Nothing has been imported yet.{' '}
+            {groups.length
+              ? 'Tick what to create; files for anything left unticked are rejected. A new grade has no Subject Administrator until you assign one.'
+              : 'Confirm to apply these Official updates.'}
           </p>
           {groups.map((g) => (
             <div key={g.subject} className="lp-upload-confirm__subject">
