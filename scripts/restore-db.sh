@@ -217,11 +217,17 @@ SQL
 # unique within one database. After a swap, the restored database's sequences hand out ids whose cached
 # DOCX/PDF bytes came from the OTHER database, so exports would serve another lesson plan's document.
 # The app is stopped here, so emptying the cache races nothing; it refills on demand.
+# A missing directory has nothing to invalidate. Any deletion error must leave writers stopped and
+# the journal at swapped/undo-swapped, so --resume retries invalidation after the fault is repaired.
+# BusyBox find (the Alpine app image) can return 0 when -delete fails, so verify the postcondition.
 clear_export_cache() {
   echo "restore-db: emptying the export cache (it is keyed by version id, which the swap reuses)"
   docker compose run --rm --no-deps -T --entrypoint sh app -c \
-    'd="${ARTIFACT_CACHE_DIR:-/var/cache/lesson3}"; [ -d "$d" ] && find "$d" -mindepth 1 -maxdepth 1 -type f -delete; true' \
-    >/dev/null
+    'd="${ARTIFACT_CACHE_DIR:-/var/cache/lesson3}"; if [ -d "$d" ]; then
+       find "$d" -mindepth 1 -maxdepth 1 -type f -delete &&
+       remaining="$(find "$d" -mindepth 1 -maxdepth 1 -type f -print -quit)" && [ -z "$remaining" ]
+     fi' \
+    >/dev/null || die "could not empty the export cache; the app remains stopped. Repair the cache filesystem, then run scripts/restore-db.sh --resume."
 }
 
 start_services() { # services

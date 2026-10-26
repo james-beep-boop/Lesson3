@@ -32,6 +32,49 @@ The button palette literals in `app-tokens.scss` are unchanged (they already equ
 only the comments that described the re-pointing changed. Muted text on the soft surface is ~5.4:1, the same
 pair the buttons already use.
 
+---
+
+## 2026-10-25 — Restore and undo stop when export-cache invalidation fails
+
+F-C70-001 is a real failure-masking bug: the cache deletion shell command ended in `; true`, so a
+failed `find -delete` still let restore or undo start the app. Cached artifacts use database-local
+version ids, so retaining old bytes across a database swap is unsafe. The audit reproduced the masked
+failure, not a valid colliding-document download; keep that evidence distinction.
+
+The Alpine app image's BusyBox `find -delete` also returns 0 after a permission failure; the real-stack
+regression caught this after simply removing `; true` passed the mocked test. The helper now checks
+that no cache files remain as well as propagating command failures, with repair/`--resume` guidance.
+The journal remains
+`swapped` (restore) or `undo-swapped` (undo), and startup is not reached until a retry invalidates the
+cache successfully. A missing or empty cache directory still succeeds. No cache identity/schema
+change and no authentication change are part of this fix.
+
+The existing required CI suites now check both directions: retain a readable artifact, fail deletion,
+assert nonzero exit/no app startup/resumable state, repair, then resume and verify deletion before
+startup without another database swap. The fast suite executes the real helper shell; the stack suite
+uses a real cache-directory permission fault. The new fast assertions fail against the old helper
+and cover both nonzero and falsely successful deletion failures.
+
+**Lesson:** replacing `command; true` with a bare `test && command` is insufficient when the missing-
+directory case must remain successful. Use an explicit conditional so only deletion errors propagate.
+The audit findings remain on their separate, unmerged audit branch; this fix is a standalone PR.
+
+## 2026-10-25 — Phase 4 dropped
+
+**Operator decision:** phase 4 (merging a newer version straight into a teacher's unsaved private draft)
+is removed from the plans, not merely deferred. It was a large build — a migration for a frozen
+comparison overlay, a preview and an apply endpoint, a Combine state-machine rewrite — for a minor,
+optional convenience. The draft-to-Combine hint shipped on 2026-10-19 already covers the need: the
+teacher saves the draft as a version, then uses Combine, which handles a teacher version against a newer
+ARES release through the release ancestry from #410.
+
+Both designs moved to `docs/archive/` (`DESIGN-phase4-scope-2026-10-19.md`,
+`DESIGN-update-draft-2026-10-19.md`) with a "dropped" banner, as records. Do not revive them on the
+strength of an older "deferred until teacher use justifies it" line; that condition no longer applies.
+Older entries below that call phase 4 "deferred" describe what it was at the time.
+
+---
+
 ## 2026-10-25 — The dialog styled once, in a shared file (CSS step 4)
 
 `Modal` portals the same markup to `document.body` on both surfaces, but its base rules (`.modal-backdrop`,
