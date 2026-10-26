@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loginClient, withLoginCapacity } from '../../src/lib/loginProtection'
+import { clientKey, loginClient, withLoginCapacity } from '../../src/lib/loginProtection'
 
 const clients = new Map<string, string>()
 ;(globalThis as unknown as Record<symbol, unknown>)[Symbol.for('lesson3.loginClients')] = {
@@ -15,6 +15,23 @@ afterEach(() => {
 })
 
 describe('login admission', () => {
+  it('groups IPv6 clients by /64 so one connection cannot rotate into fresh budgets', () => {
+    const key = clientKey('2001:db8:1:2::1')
+    expect(key).toBe('2001:db8:1:2::/64')
+    for (const same of [
+      '2001:db8:1:2:ffff:ffff:ffff:ffff',
+      '2001:0DB8:0001:0002::abcd',
+      '2001:db8:1:2:0:0:1.2.3.4',
+    ])
+      expect(clientKey(same)).toBe(key)
+    expect(clientKey('2001:db8:1:3::1')).not.toBe(key)
+    expect(clientKey('::1')).toBe('0:0:0:0::/64')
+    expect(clientKey('fe80::1%eth0')).toBe('fe80:0:0:0::/64')
+    expect(clientKey('192.0.2.1')).toBe('192.0.2.1')
+    expect(loginClient(req('v6a', '2001:db8:1:2::1'), 'x')).toBe(
+      loginClient(req('v6b', '2001:db8:1:2::99'), 'x'),
+    )
+  })
   it('refuses a forged/missing tracker token over HTTP, including on reauthentication', () => {
     expect(() =>
       loginClient({ headers: new Headers(), payloadAPI: 'REST' } as never, 'x'),

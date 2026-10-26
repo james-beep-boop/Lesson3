@@ -46,7 +46,8 @@ system settings uses the same client identity, budgets and capacity limits.
 remove them from operator configuration. Old counter rows are harmless and expire through pruning.
 Counter keys hash the client address and requested email; these hashes are not a secrecy guarantee.
 
-Users behind the same NAT share limits, and an abusive user on the same school IP can still affect
+An IPv6 client is counted by its /64 network, the block one subscriber is normally given, so a
+single connection cannot rotate through its own addresses to mint fresh budgets. Users behind the same NAT share limits, and an abusive user on the same school IP can still affect
 others there. Distributed attacks can still consume the bounded capacity; edge controls remain useful.
 There is deliberately no account-wide lockout that an anonymous caller on another client can trigger.
 Correct-password logins consume budget too. Existing authenticated sessions continue working.
