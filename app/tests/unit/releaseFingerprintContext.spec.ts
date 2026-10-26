@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { RELEASE_FINGERPRINT_CONTEXT } from '../../src/fields/identity'
+import { ARES_RELEASE_CONTEXT, RELEASE_FINGERPRINT_CONTEXT } from '../../src/fields/identity'
 import { withReleaseFingerprint } from '../../src/ingest/releaseFingerprintContext'
 
 /** What Payload does to a shared request during a create. */
@@ -25,6 +25,28 @@ describe('withReleaseFingerprint', () => {
     })
     expect(seen).toMatch(/^ares-content-v1:sha256:[0-9a-f]{64}$/)
     expect(req.context).toEqual({ unrelated: true })
+  })
+
+  it('offers release identity only for its one create, on success and failure', async () => {
+    for (const fail of [false, true]) {
+      const req: { context?: unknown } = { context: { unrelated: true } }
+      const create = withReleaseFingerprint(
+        req,
+        { title: 'T' },
+        async () => {
+          replaceContext(req)
+          expect((req.context as Record<string, unknown>)[ARES_RELEASE_CONTEXT]).toEqual({
+            id: 'Nov',
+            date: '2026-11-14',
+          })
+          if (fail) throw new Error('failed')
+        },
+        { id: 'Nov', date: '2026-11-14' },
+      )
+      if (fail) await expect(create).rejects.toThrow('failed')
+      else await create
+      expect(req.context).toEqual({ unrelated: true })
+    }
   })
 
   it('clears it when the create fails, too', async () => {

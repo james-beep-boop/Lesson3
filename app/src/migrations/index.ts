@@ -1,8 +1,3 @@
-import * as migration_20261019_120000_release_ancestry from './20261019_120000_release_ancestry'
-import * as migration_20261019_211325_worldwide_ids from './20261019_211325_worldwide_ids'
-import * as migration_20261020_092934_advanced_tools from './20261020_092934_advanced_tools'
-import * as migration_20261024_094011_native_lock_scope from './20261024_094011_native_lock_scope'
-import * as migration_20261018_095242_combine_draft_context from './20261018_095242_combine_draft_context'
 import * as migration_20260608_024132_initial from './20260608_024132_initial'
 import * as migration_20260608_145602_lesson_entities from './20260608_145602_lesson_entities'
 import * as migration_20260608_224715_bundle_versioning from './20260608_224715_bundle_versioning'
@@ -35,6 +30,12 @@ import * as migration_20261009_082909_add_forum_enabled from './20261009_082909_
 import * as migration_20261009_125057_add_discussions from './20261009_125057_add_discussions'
 import * as migration_20261012_012355_add_message_version_labels from './20261012_012355_add_message_version_labels'
 import * as migration_20261018_072213_combine_lineage from './20261018_072213_combine_lineage'
+import * as migration_20261018_095242_combine_draft_context from './20261018_095242_combine_draft_context'
+import * as migration_20261019_120000_release_ancestry from './20261019_120000_release_ancestry'
+import * as migration_20261019_211325_worldwide_ids from './20261019_211325_worldwide_ids'
+import * as migration_20261020_092934_advanced_tools from './20261020_092934_advanced_tools'
+import * as migration_20261024_094011_native_lock_scope from './20261024_094011_native_lock_scope'
+import * as migration_20261026_103510_lesson_releases_1a from './20261026_103510_lesson_releases_1a'
 
 export const migrations = [
   {
@@ -221,5 +222,10 @@ export const migrations = [
     up: migration_20261024_094011_native_lock_scope.up,
     down: migration_20261024_094011_native_lock_scope.down,
     name: '20261024_094011_native_lock_scope',
+  },
+  {
+    up: migration_20261026_103510_lesson_releases_1a.up,
+    down: migration_20261026_103510_lesson_releases_1a.down,
+    name: '20261026_103510_lesson_releases_1a',
   },
 ]

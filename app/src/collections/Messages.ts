@@ -53,6 +53,9 @@ const senderOrRecipient: Access = ({ req: { user } }) => {
  *  `sender` still passes the required-field check. */
 const stampSenderAndRateLimit: CollectionBeforeValidateHook = async ({ data, operation, req }) => {
   if (operation !== 'create' || !req.user) return data
+  if (typeof data?.body === 'string' && data.body.length > 5000) {
+    throw new APIError('Message must be at most 5000 characters.', 400)
+  }
   const { ok, retryAfterSec } = await consumeRateLimit(req, 'message', String(req.user.id))
   if (!ok) {
     throw new APIError(
@@ -174,7 +177,9 @@ export const Messages: CollectionConfig = {
       name: 'body',
       type: 'textarea',
       required: true,
-      maxLength: 5000,
+      // A system-generated upload summary may list up to 500 lessons in one message.
+      // Authenticated correspondence keeps its 5,000-character limit in beforeValidate.
+      maxLength: 100000,
     },
     {
       // Optional context links ("about this lesson"). Nullable FKs: deleting the plan/version

@@ -186,8 +186,16 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
 - **Manage lesson plans:** upload ARES JSON files or ZIP archives of JSON files. Valid files are
   imported even when others fail; review the report for imported, rejected and skipped files.
   Unchanged files are skipped, so you can re-upload a corrected ZIP after a partial import.
-  New plans receive their first Official version; changed content for an existing sub-strand creates
-  a Not Official revision for review. For plans with no Official version, use **Set an Official
+  New plans receive their first Official version. A new ARES release replaces an ARES Official
+  after you check the list and confirm. A teacher’s Official stays unchanged, waiting for the
+  subject-grade administrator. Repeated releases are skipped even after a teacher saves a version.
+  A release dated earlier than the newest one already here is not imported. An optional LESSONS.json
+  records the release date and checksums; damaged-looking files warn, and lesson sets needing a
+  newer program are refused. The report lists files waiting for a program update. A reused release
+  id with different content refuses that entire set. Without a manifest, content matching an older
+  release is flagged before confirmation. If something changes while you review, check the new list
+  and confirm again. After import, affected subject-grade administrators receive one internal
+  message from you; a message failure appears in the report and does not undo the lessons. For plans with no Official version, use **Set an Official
   version** at the bottom of Lesson plans. You can also delete selected lesson plans (with all their versions) under **Delete a plan (all versions)**, or remove
   individual non-Official versions under **Delete individual versions**.
 - **Subjects and grades on upload:** if an upload names a subject or grade that does not exist yet,

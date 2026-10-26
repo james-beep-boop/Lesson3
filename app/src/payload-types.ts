@@ -160,6 +160,9 @@ export interface UserAuthOperations {
 export interface LessonPlan {
   id: number;
   uid?: string | null;
+  officialChangedAt?: string | null;
+  officialChangedFrom?: (number | null) | LessonBundleVersion;
+  officialChangedBy?: (number | null) | User;
   title: string;
   subjectGrade: number | SubjectGrade;
   /**
@@ -179,40 +182,14 @@ export interface LessonPlan {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "subject-grades".
- */
-export interface SubjectGrade {
-  id: number;
-  subject: number | Subject;
-  /**
-   * Grades 1–12.
-   */
-  grade: number;
-  displayName?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "subjects".
- */
-export interface Subject {
-  id: number;
-  /**
-   * For example, Biology or Chemistry.
-   */
-  name: string;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lesson-bundle-versions".
  */
 export interface LessonBundleVersion {
   id: number;
   uid?: string | null;
   releaseFingerprint?: string | null;
+  aresReleaseId?: string | null;
+  aresReleaseDate?: string | null;
   lessonPlan: number | LessonPlan;
   sourceVersion?: (number | null) | LessonBundleVersion;
   mergedFrom?: (number | null) | LessonBundleVersion;
@@ -422,6 +399,34 @@ export interface User {
     | null;
   password?: string | null;
   collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subject-grades".
+ */
+export interface SubjectGrade {
+  id: number;
+  subject: number | Subject;
+  /**
+   * Grades 1–12.
+   */
+  grade: number;
+  displayName?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subjects".
+ */
+export interface Subject {
+  id: number;
+  /**
+   * For example, Biology or Chemistry.
+   */
+  name: string;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -745,6 +750,9 @@ export interface PayloadMigration {
  */
 export interface LessonPlansSelect<T extends boolean = true> {
   uid?: T;
+  officialChangedAt?: T;
+  officialChangedFrom?: T;
+  officialChangedBy?: T;
   title?: T;
   subjectGrade?: T;
   officialVersion?: T;
@@ -760,6 +768,8 @@ export interface LessonPlansSelect<T extends boolean = true> {
 export interface LessonBundleVersionsSelect<T extends boolean = true> {
   uid?: T;
   releaseFingerprint?: T;
+  aresReleaseId?: T;
+  aresReleaseDate?: T;
   lessonPlan?: T;
   sourceVersion?: T;
   mergedFrom?: T;

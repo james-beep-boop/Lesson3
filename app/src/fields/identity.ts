@@ -90,3 +90,23 @@ export const installationIdField: TextField = {
     ],
   },
 }
+
+/** Ingest-only release metadata, immune to copied or forged data, like the fingerprint. */
+export const ARES_RELEASE_CONTEXT = 'aresLessonRelease'
+export const aresReleaseField = (name: 'aresReleaseId' | 'aresReleaseDate'): TextField => ({
+  name,
+  type: 'text',
+  ...(name === 'aresReleaseId' ? { index: true } : {}),
+  access: { create: systemOnly, update: systemOnly },
+  admin: { hidden: true, readOnly: true },
+  hooks: {
+    beforeChange: [
+      ({ operation, previousValue, req }) => {
+        if (operation !== 'create') return previousValue ?? null
+        const release = req.context?.[ARES_RELEASE_CONTEXT] as
+          { id?: string; date?: string } | undefined
+        return release?.[name === 'aresReleaseId' ? 'id' : 'date'] ?? null
+      },
+    ],
+  },
+})

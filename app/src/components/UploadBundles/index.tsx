@@ -17,6 +17,7 @@
  */
 import React, { useRef, useState } from 'react'
 import { Button, toast, useAuth, useConfig } from '@payloadcms/ui'
+import type { OfficialPreview } from '../../ingest/releaseDecision'
 import { useRouter } from 'next/navigation'
 
 type UploadResult = {
@@ -27,6 +28,7 @@ type UploadResult = {
   official: boolean
   action: 'created' | 'revised'
   warnings: string[]
+  reason?: string
 }
 
 type FileIssue = { file: string; error: string }
@@ -43,6 +45,13 @@ type UploadReport = {
   skipped?: FileIssue[]
   error?: string
   errors?: { message?: string }[]
+  official?: OfficialPreview[]
+  previewToken?: string
+  confirmationChanged?: boolean
+  setRefused?: FileIssue[]
+  waitingForProgram?: FileIssue[]
+  warnings?: FileIssue[]
+  messageWarnings?: string[]
 }
 
 const keyOf = (t: TaxonomyKey) => `${t.subject}::${t.grade}`
@@ -86,13 +95,14 @@ export default function UploadBundles() {
   const apiBase = `${config.serverURL || ''}${config.routes?.api || '/api'}`
 
   /** `approvals` undefined = first round; an array = the Site Administrator's answer. */
-  const onUpload = async (approvals?: TaxonomyKey[]) => {
+  const onUpload = async (approvals?: TaxonomyKey[], token?: string) => {
     if (files.length === 0) {
       toast.error('Choose .json files or a .zip archive first')
       return
     }
     const form = new FormData()
     for (const f of files) form.append('files', f)
+    if (token) form.append('confirmOfficial', token)
     if (approvals) form.append('createTaxonomy', JSON.stringify(approvals))
 
     setBusy(true)
@@ -184,9 +194,10 @@ export default function UploadBundles() {
       <p className="lp-manage__desc">
         Choose ARES <code>.json</code> exports or <code>.zip</code> archives containing JSON files,
         including files in folders. Valid files are imported even if others fail. Unchanged files
-        are skipped, so you can re-upload a corrected ZIP. New plans become Official 1.0.0;
-        revisions require Make Official. Up to 500 JSON files and 200 MB of JSON in total, 5 MB per
-        JSON file and 50 MB per ZIP. Review the report below after uploading.
+        are skipped, so you can re-upload a corrected ZIP. New plans become Official 1.0.0; new
+        releases replace an ARES Official after confirmation. A teacher’s Official stays unchanged,
+        waiting for the subject-grade administrator. Up to 500 JSON files and 200 MB of JSON in
+        total, 5 MB per JSON file and 50 MB per ZIP. Review the report below after uploading.
       </p>
       {/* Classed, not inline-styled: the class is what lets the shared admin button block reach
           Upload. It was the last control on Manage rendering as stock Payload (operator report,
@@ -223,7 +234,27 @@ export default function UploadBundles() {
       </div>
       {missing && (
         <fieldset className="lp-upload-confirm" disabled={busy}>
-          <legend>Create missing subjects and grades?</legend>
+          <legend>
+            {groups.length ? 'Create missing subjects and grades?' : 'Confirm Official updates'}
+          </legend>
+          {report?.confirmationChanged && (
+            <p role="alert">Something changed since you looked. Please check the list again.</p>
+          )}
+          {(report?.official?.length ?? 0) > 0 && (
+            <ul>
+              {report?.official?.map((p) => (
+                <li key={p.file}>
+                  <strong>{p.title}</strong>:{' '}
+                  {p.willMove
+                    ? `Will become Official: ${p.previousSemver ?? 'none'} → ${p.incomingSemver}.`
+                    : p.reason}{' '}
+                  ARES release {p.release ? `${p.release.id}, ${p.release.date}` : 'not stated'}.
+                  {p.olderContent &&
+                    ` Same content as version ${p.olderContent} (an earlier release). ${p.willMove ? 'Importing it will make this content Official again.' : ''}`}
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="lp-manage__desc">
             Nothing has been imported yet. Tick what to create; files for anything left unticked are
             rejected. A new grade has no Subject Administrator until you assign one.
@@ -282,10 +313,19 @@ export default function UploadBundles() {
               className="lp-btn"
               buttonStyle="primary"
               size="small"
-              onClick={() => onUpload(approvals.map(({ subject, grade }) => ({ subject, grade })))}
+              onClick={() =>
+                onUpload(
+                  approvals.map(({ subject, grade }) => ({ subject, grade })),
+                  report?.previewToken,
+                )
+              }
               disabled={busy || unanswered}
             >
-              {busy ? 'Uploading…' : `Create ${approvals.length} and import`}
+              {busy
+                ? 'Uploading…'
+                : groups.length
+                  ? `Create ${approvals.length} and import`
+                  : 'Confirm'}
             </Button>
             <Button
               className="lp-btn"
@@ -323,12 +363,39 @@ export default function UploadBundles() {
           </ul>
         </div>
       )}
+      {report?.messageWarnings?.map((warning, i) => (
+        <p role="alert" key={i}>
+          {warning}
+        </p>
+      ))}
+      {(['setRefused', 'waitingForProgram', 'warnings'] as const).map(
+        (kind) =>
+          (report?.[kind]?.length ?? 0) > 0 && (
+            <div key={kind}>
+              <p>
+                {kind === 'setRefused'
+                  ? 'Lesson sets refused'
+                  : kind === 'waitingForProgram'
+                    ? 'Waiting for a program update'
+                    : 'Warnings'}
+              </p>
+              <ul>
+                {report?.[kind]?.map((r, i) => (
+                  <li key={i}>
+                    {r.file}: {r.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ),
+      )}
       {results.length > 0 && (
         <ul style={{ margin: '0.75rem 0 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
           {results.map((r, i) => (
             <li key={`${r.id}-${i}`}>
               {r.file} · {r.action === 'revised' ? 'Revised' : 'New'} · #{r.id} · {r.title} (
               {r.semver}, {r.official ? 'Official' : 'Not Official'})
+              {!r.official && r.reason && <span> · {r.reason}</span>}
               {r.warnings.length > 0 && (
                 <span style={{ color: 'var(--theme-warning-600, #a60)' }}>
                   {' '}

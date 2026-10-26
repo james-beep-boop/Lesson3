@@ -296,3 +296,42 @@ describe('JSON and ZIP upload inputs', () => {
     ).rejects.toThrow('Too many JSON files')
   })
 })
+
+describe('LESSONS.json envelope', () => {
+  it('does not parse unknown kinds, checks checksums and reports absent and unlisted files', async () => {
+    const manifest = {
+      format: 1,
+      release: { id: 'Nov', date: '2026-11-14' },
+      schemaVersion: '1.0.0',
+      minProgram: '1.08',
+      files: {
+        'lesson.json': { sha256: '0'.repeat(64) },
+        'quiz.json': { sha256: '0'.repeat(64), kind: 'quiz' },
+        'missing.json': { sha256: '0'.repeat(64), kind: 'lesson-plan' },
+      },
+    }
+    const zip = new JSZip()
+      .file('LESSONS.json', JSON.stringify(manifest))
+      .file('lesson.json', JSON.stringify(raw))
+      .file('quiz.json', 'This is not JSON and must not be parsed')
+      .file('extra.json', JSON.stringify(raw))
+    const report = await prepareUploadFiles([
+      new File([await zip.generateAsync({ type: 'arraybuffer' })], 'set.zip'),
+    ])
+    expect(report.items).toHaveLength(2)
+    expect(report.items[0].release).toEqual(manifest.release)
+    expect(report.items[0].warnings?.[0]).toMatch(/Looks damaged/)
+    expect(report.waitingForProgram).toHaveLength(1)
+    expect(report.warnings).toHaveLength(4)
+    expect(report.rejected).toEqual([])
+  })
+  it('refuses only the malformed set before any of its files are prepared', async () => {
+    const zip = new JSZip().file('LESSONS.json', '{').file('lesson.json', JSON.stringify(raw))
+    const report = await prepareUploadFiles([
+      new File([await zip.generateAsync({ type: 'arraybuffer' })], 'bad.zip'),
+      new File([JSON.stringify(raw)], 'good.json'),
+    ])
+    expect(report.setRefused).toHaveLength(1)
+    expect(report.items.map((i) => i.name)).toEqual(['good.json'])
+  })
+})

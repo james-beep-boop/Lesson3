@@ -5,6 +5,7 @@ import type { Readable } from 'node:stream'
 import type { IngestItem, IngestRejection } from './index'
 import { IngestError } from './errors'
 import { extractAresJson } from './extract'
+import { parseLessonManifest, checksumWarning, type LessonManifest } from './lessonManifest'
 
 /**
  * ⚑ SIZED FROM A REAL EXPORT (2026-10-11). The current ARES archive is 7.4 MB holding 95 JSON lesson plans,
@@ -113,7 +114,7 @@ export function zipDirectoryEntries(bytes: Uint8Array, limit: number): number | 
 }
 
 /** Stop inflation at the actual byte limit, including when ZIP size metadata is dishonest. */
-function readJsonEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Record<string, unknown>> {
+function readEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Buffer> {
   // JSZip uses readable-stream 2, whose streams do not support async iteration.
   const stream = entry.nodeStream('nodebuffer') as Readable
   return new Promise((resolve, reject) => {
@@ -141,7 +142,7 @@ function readJsonEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Record
     stream.on('error', reject)
     stream.on('end', () => {
       try {
-        resolve(extractAresJson(Buffer.concat(chunks).toString('utf8')))
+        resolve(Buffer.concat(chunks))
       } catch (error) {
         reject(error)
       }
@@ -173,10 +174,16 @@ export async function prepareUploadFiles(
   items: IngestItem[]
   rejected: IngestRejection[]
   skipped: IngestRejection[]
+  waitingForProgram: IngestRejection[]
+  setRefused: IngestRejection[]
+  warnings: IngestRejection[]
 }> {
   const items: IngestItem[] = []
   const rejected: IngestRejection[] = []
   const skipped: IngestRejection[] = []
+  const waitingForProgram: IngestRejection[] = []
+  const setRefused: IngestRejection[] = []
+  const warnings: IngestRejection[] = []
   const budget: Budget = { limit: expandedBytes, remaining: expandedBytes }
   let jsonCount = 0
   const countJson = () => {
@@ -184,7 +191,8 @@ export async function prepareUploadFiles(
       throw new IngestError(`Too many JSON files (max ${MAX_FILES} across all uploads and ZIPs)`)
     }
   }
-  for (const file of files) {
+  for (const [setIndex, file] of files.entries()) {
+    const setId = `${setIndex}:${file.name}`
     const extension = file.name.toLowerCase()
     if (extension.endsWith('.json')) {
       countJson()
@@ -234,26 +242,85 @@ export async function prepareUploadFiles(
       continue
     }
     const entries = Object.values(zip.files)
+    let manifest: LessonManifest | undefined
+    try {
+      const root = entries.find(
+        (e) => !e.dir && (e.unsafeOriginalName ?? e.name) === 'LESSONS.json',
+      )
+      manifest = parseLessonManifest(
+        root ? (await readEntry(root, budget)).toString('utf8') : undefined,
+      )
+    } catch (e) {
+      if (budget.remaining < 0) throw overBudget(budget.limit)
+      setRefused.push({ file: file.name, error: e instanceof Error ? e.message : String(e) })
+      continue
+    }
+    if (manifest) {
+      const names = new Set(
+        entries.filter((e) => !e.dir).map((e) => e.unsafeOriginalName ?? e.name),
+      )
+      for (const name of Object.keys(manifest.files))
+        if (!names.has(name)) {
+          warnings.push({
+            file: `${file.name}/${name}`,
+            error: 'Listed in LESSONS.json but missing from the lesson set.',
+          })
+        }
+    }
     let found = false
     for (const entry of entries) {
       if (entry.dir) continue
       const originalName = entry.unsafeOriginalName ?? entry.name
       const name = `${file.name}/${originalName}`
+      if (originalName === 'LESSONS.json') continue
+      const declared = manifest?.files[originalName]
+      if (manifest && !Object.hasOwn(manifest.files, originalName))
+        warnings.push({ file: name, error: 'Not listed in LESSONS.json.' })
+      if (declared?.kind && declared.kind !== 'lesson-plan') {
+        if (originalName.toLowerCase().endsWith('.json')) countJson()
+        // Check bytes, never parse an unknown kind. The same inflation caps still apply.
+        try {
+          for (const error of checksumWarning(await readEntry(entry, budget), declared.sha256))
+            warnings.push({ file: name, error })
+        } catch (e) {
+          if (budget.remaining < 0) throw overBudget(budget.limit)
+          warnings.push({
+            file: name,
+            error: `Checksum could not be checked: ${e instanceof Error ? e.message : String(e)}`,
+          })
+        }
+        waitingForProgram.push({
+          file: name,
+          error: `Waiting for a program update (kind: ${declared.kind}).`,
+        })
+        continue
+      }
       if (!originalName.toLowerCase().endsWith('.json') || originalName.startsWith('__MACOSX/')) {
         skipped.push({ file: name, error: 'Not a JSON lesson-plan file' })
         continue
       }
       found = true
       countJson()
-      const outcome = readJsonEntry(entry, budget)
+      const fileWarnings: string[] = []
+      const outcome = readEntry(entry, budget).then((bytes) => {
+        fileWarnings.push(...checksumWarning(bytes, declared?.sha256))
+        for (const error of fileWarnings) warnings.push({ file: name, error })
+        return extractAresJson(bytes.toString('utf8'))
+      })
       // Read now, in order, so the archive can be released; an over-budget upload stops here.
       await outcome.catch((error: unknown) => {
         if (budget.remaining < 0) throw overBudget(budget.limit)
         void error // a per-file failure is replayed by the item and reported as that file's rejection
       })
-      items.push(settledItem(name, outcome))
+      items.push({
+        ...settledItem(name, outcome),
+        release: manifest?.release,
+        setId,
+        warnings: fileWarnings,
+      })
     }
-    if (!found) rejected.push({ file: file.name, error: 'ZIP contains no JSON lesson-plan files' })
+    if (!found && !manifest)
+      rejected.push({ file: file.name, error: 'ZIP contains no JSON lesson-plan files' })
   }
-  return { items, rejected, skipped }
+  return { items, rejected, skipped, waitingForProgram, setRefused, warnings }
 }

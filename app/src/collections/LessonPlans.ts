@@ -19,6 +19,7 @@ import {
 } from '../hooks/lessonPlan'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { requestEditingEndpoint } from '../endpoints/requestEditing'
+import { officialChangeFields } from '../fields/officialChange'
 import { worldwideIdField } from '../fields/identity'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 
@@ -66,6 +67,7 @@ export const LessonPlans: CollectionConfig = {
   ],
   fields: [
     worldwideIdField(),
+    ...officialChangeFields,
     {
       name: 'title',
       type: 'text',

@@ -1,4 +1,4 @@
-import { RELEASE_FINGERPRINT_CONTEXT } from '../fields/identity'
+import { ARES_RELEASE_CONTEXT, RELEASE_FINGERPRINT_CONTEXT } from '../fields/identity'
 import { releaseFingerprint } from '../lib/identity/releaseFingerprint'
 
 type ContextCarrier = { context?: unknown }
@@ -18,16 +18,21 @@ export async function withReleaseFingerprint<T>(
   req: ContextCarrier,
   bundle: unknown,
   create: () => Promise<T>,
+  release?: { id: string; date: string },
 ): Promise<T> {
   const before = (req.context ?? {}) as Record<string, unknown>
   req.context = {
     ...before,
+    [ARES_RELEASE_CONTEXT]: release,
     [RELEASE_FINGERPRINT_CONTEXT]: releaseFingerprint(bundle as Record<string, unknown>),
   }
   try {
     return await create()
   } finally {
     const live = req.context as Record<string, unknown> | undefined
-    if (live && typeof live === 'object') delete live[RELEASE_FINGERPRINT_CONTEXT]
+    if (live && typeof live === 'object') {
+      delete live[RELEASE_FINGERPRINT_CONTEXT]
+      delete live[ARES_RELEASE_CONTEXT]
+    }
   }
 }

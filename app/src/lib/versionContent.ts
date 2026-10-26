@@ -17,6 +17,8 @@ export const DROP_KEYS = new Set([
   // version gets its own uid, and only ingest gives one a release fingerprint.
   'uid',
   'releaseFingerprint',
+  'aresReleaseId',
+  'aresReleaseDate',
   'semver',
   'sourceVersion',
   'mergedFrom',

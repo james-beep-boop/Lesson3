@@ -2,7 +2,7 @@
 
 **Status: APPROVED by the operator, 2026-10-26 (revision 2). Ready to build, starting with PR 1a.**
 Revision 2 answers an external review (GPT) of revision 1; all four operator decisions are recorded
-under "Decisions". No code is written yet. This is build part 1 of
+under "Decisions". PR 1a is implemented on `feat/lesson-releases-1a` for review; PR 1b is not built. This is build part 1 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§10b, §4's lesson manifest, §14 item 1).
 It is the core that every route uses — commissioning, the update tool and Manage → upload — and needs no
 test machine: everything below runs in the isolated test stack. Mark's open question (how `ares.local`

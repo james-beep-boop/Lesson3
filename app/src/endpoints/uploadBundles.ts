@@ -23,6 +23,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isSiteAdmin } from '../access'
 import { enforceUserRateLimit } from '../lib/rateLimit'
+import { sendReleaseMessages } from '../ingest/releaseMessages'
 import { ingestUploadItems } from '../ingest'
 import { IngestError } from '../ingest/errors'
 import type { TaxonomyKey } from '../ingest/taxonomy'
@@ -83,10 +84,20 @@ export const uploadBundlesEndpoint: Endpoint = {
 
     const approvals = parseApprovals(form.get('createTaxonomy'))
 
+    const confirmation = form.get('confirmOfficial')
+    if (confirmation !== null && (typeof confirmation !== 'string' || confirmation.length > 200)) {
+      throw new APIError('confirmOfficial must be a preview token', 400)
+    }
+
     // Trusted system path: authorization was enforced before buffering or inspecting any input.
     let report: Awaited<ReturnType<typeof ingestUploadItems>>
     try {
-      report = await ingestUploadItems(req.payload, inputs.items, approvals)
+      report = await ingestUploadItems(
+        req.payload,
+        inputs.items,
+        approvals,
+        typeof confirmation === 'string' ? confirmation : undefined,
+      )
     } catch (e) {
       if (e instanceof IngestError) throw new APIError(e.message, 400)
       throw e
@@ -99,16 +110,25 @@ export const uploadBundlesEndpoint: Endpoint = {
           ok: false,
           needsConfirmation: true,
           missing: report.missing,
+          official: report.official,
+          previewToken: report.previewToken,
+          confirmationChanged: report.confirmationChanged,
           count: 0,
           bundles: [],
           created: [],
           rejected,
           skipped,
+          setRefused: [...inputs.setRefused, ...(report.setRefused ?? [])],
+          waitingForProgram: inputs.waitingForProgram,
+          warnings: inputs.warnings,
         },
         { status: 409 },
       )
     }
-    const ok = report.bundles.length > 0 || report.skipped.length > 0
+    report.messageWarnings = await sendReleaseMessages(req.payload, Number(req.user.id), report)
+    const setRefused = [...inputs.setRefused, ...(report.setRefused ?? [])]
+    const ok =
+      report.bundles.length > 0 || report.skipped.length > 0 || inputs.waitingForProgram.length > 0
     return Response.json(
       {
         ok,
@@ -117,6 +137,14 @@ export const uploadBundlesEndpoint: Endpoint = {
         created: report.created,
         rejected,
         skipped,
+        officialMoved: report.bundles.filter((b) => b.outcome === 'officialMoved'),
+        officialKept: report.bundles.filter((b) => b.outcome === 'officialKept'),
+        alreadyHere: report.alreadyHere ?? [],
+        olderNotImported: report.olderNotImported ?? [],
+        waitingForProgram: inputs.waitingForProgram,
+        warnings: inputs.warnings,
+        setRefused,
+        messageWarnings: report.messageWarnings,
         ...(ok ? {} : { error: 'No files were imported. See the rejection report.' }),
       },
       { status: ok ? 200 : 422 },
