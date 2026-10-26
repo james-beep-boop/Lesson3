@@ -56,7 +56,8 @@ A Lesson3 that was installed and used on the master, then copied, gives every sc
    each school's page reports "Succeeded";
 3. **the same `PAYLOAD_SECRET`, Postgres password and administrator accounts**, known to whoever built
    the image, and a wrong `ADMIN_URL` for every school;
-4. **the same machine identity** — SSH host keys, `/etc/machine-id`, hostname, any Tailscale node;
+4. **the same machine identity** — SSH host keys, `/etc/machine-id`, any Tailscale node (the hostname is
+   the exception: it must stay the same everywhere, §13);
 5. **the same Installation ID** (`docs/OPS.md` already warns about this one).
 
 The fix is not a longer cleanup list after copying. It is to copy a machine that has **nothing to
@@ -147,7 +148,9 @@ One command, `sudo lesson3 commission`, in plain steps. It asks first:
 
 ### 7a. New school
 
-1. **Machine identity:** new SSH host keys and machine-id; hostname from a short school code.
+1. **Machine identity:** new SSH host keys and machine-id. ⚑ **The machine keeps the name it has
+   on the image**, the one that answers to `ares.local`: ARES lessons link there, so renaming the machine
+   would break every resource link (§13).
 2. **Questions:** the school's name; the server's LAN address (as `install.sh` asks today); **internet:**
    *none / phone tether when needed / school connection*; backup destination (USB drive, or this
    server's disk if none — §8).
@@ -161,7 +164,7 @@ One command, `sudo lesson3 commission`, in plain steps. It asks first:
    They arrive as **1.0.0 Official**. This needs a supported production import command (§12).
 6. **Fonts** from the stick, if present (§9).
 7. **Backups** (§8): destination, backup password, automatic schedule, first backup run and checked.
-8. **Receipt:** installation ID, hostname, school name, program version, lesson release (verified or
+8. **Receipt:** installation ID, school name, program version, lesson release (verified or
    not), backup destination and key fingerprints. Written to the stick and to `out/ops/`.
    ⚑ **The backup password appears only on the printed recovery sheet,** handed to whoever the school
    names as keeper. It is never written to any file: not the receipt, not the stick, not the server.
@@ -386,7 +389,7 @@ internet**, **Back up now**, **Status**.
   whose answer changed is reported afterwards.
 - **One implementation, two routes.** The server tool and Manage → upload share the same import code,
   the same automatic-Official rule and the same confirmation list. (The reviewer agrees with this
-  recommendation; it is still the operator's decision, §13.)
+  recommendation; the operator decided yes, 2026-10-26.)
 
 ### 10c. New content kinds (presentations, quizzes)
 
@@ -426,13 +429,23 @@ internet**, **Back up now**, **Status**.
 
 ## 13. Open questions
 
-1. **Other ARES programs' teacher uploads (for Mark).** The technicians already back these up to USB
-   before a full reinstall (operator, 2026-10-26). Still to confirm: is that a written checklist, and
-   should Lesson3's `prepare-reinstall` be added to it as a named step (recommended), or should one
-   combined command cover both later? Until then Lesson3's "safe to wipe" speaks for Lesson3 only (§7b).
-2. **Who holds the ARES signing keys** (current and spare), and where.
-3. **Manage → upload and the automatic-Official rule** (§10b). Recommended: same rule both routes.
-4. **School code format** for the hostname (e.g. the ministry's school code, if one exists).
+1. **Other ARES programs' teacher uploads.** The technicians back these up to USB before a full
+   reinstall, from memory: there is **no written checklist** (operator, 2026-10-26). Proposed:
+   `prepare-reinstall` ends by printing a short pre-wipe checklist, with Lesson3's line already ticked
+   and a line for the other ARES programs' teacher content that Mark's team fills in once. Until a
+   combined step exists, Lesson3's "safe to wipe" speaks for Lesson3 only (§7b).
+2. **Signing (§5): the operator wants to discuss a lighter method** than ARES signing keys, on the
+   grounds that nobody is going to target these schools. Under discussion; §5 stands until decided.
+
+**Decided 2026-10-26:**
+- **Manage → upload follows the same automatic-Official rule** and confirmation list as the server tool
+  (§10b).
+- **No hostname change, so no school-code format.** Every ARES lesson's 6,850 resource links point at
+  `ares.local`, which is the machine's own name on the school network; renaming the machine would break
+  every one of them. Every school machine keeps the image's name (the one that answers to `ares.local`; to confirm
+  with Mark on a real ARES server). Schools are separate networks, so the same name in two schools
+  never collides. A machine's identity is its Installation ID and school name,
+  not its network name.
 
 ## 14. Build order (each its own PR, with its tests and docs)
 
