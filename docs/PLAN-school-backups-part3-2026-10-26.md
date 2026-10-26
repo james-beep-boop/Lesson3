@@ -1,6 +1,6 @@
 # Part 3 — Backups for school machines (implementation plan)
 
-**Status: PROPOSAL for operator approval, 2026-10-26. No code is written.** Build part 3 of
+**Status: APPROVED by the operator, 2026-10-26. Ready to build, 3a first. No code is written yet.** Build part 3 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§8). Needs no test machine: everything
 below runs in the existing restore/backup stack tests. Commissioning (part 5) will call the setup command
 this part adds; until then a technician or operator runs it by hand.
@@ -51,7 +51,7 @@ and what Manage → System says).
    `out/ops/backup/<stream>.json` is read as the `usb`/`remote` destination's record until that
    destination writes its own; the app keeps reading version 1 as it does today.
 4. **Freshness per destination.** `BACKUP_MAX_DATA_LOSS` (existing agreement) applies to the disk backup.
-   New `BACKUP_USB_MAX_AGE` (default `7d`) says how old the newest USB backup may be before it is
+   New `BACKUP_USB_MAX_AGE` (default `30d`, operator decision) says how old the newest USB backup may be before it is
    "overdue — plug in the backup drive".
 5. **Disk retention and space.** The disk keeps fewer copies (proposed 7 daily, 4 weekly, 3 monthly,
    settable). Before writing, the script checks free space for the new file plus a margin and, if short,
@@ -92,7 +92,7 @@ and what Manage → System says).
 3. **Manage → System → Backups** states each destination separately, e.g.:
    - *"Disk backup: up to date — work saved before today, 2:00 AM is in a backup. This backup is on the
      server's own disk and will not survive if the disk fails or the server is reinstalled."*
-   - *"USB backup: overdue — the newest is 9 days old. Plug in the backup drive."* /
+   - *"USB backup: overdue — the newest is 34 days old. Plug in the backup drive."* /
      *"USB backup: none set up. Add a USB drive for a backup that can leave the building."*
    - *"School recovery key: password-locked (set up 26 Oct 2026)."*
    No overall "protected", as today. A fresh disk backup never hides an overdue USB one.
@@ -111,15 +111,13 @@ steps replace the hand-written key and cron steps for school installs), the Guid
 `docs/DESIGN-backup-recovery-2026-10-21.md` (cross-reference: Phase B's recovery uses the same locked
 key and markers).
 
-## Open for the operator
+## Decided (operator, 2026-10-26)
 
-1. **USB habit.** The plan assumes the drive normally stays plugged in, is backed up to nightly, and is
-   taken away when someone can (weekly at best), with "overdue" after **7 days**. Is 7 days right for
-   schools, or longer?
-2. **Disk retention:** 7 daily, 4 weekly, 3 monthly copies on the server's own disk. Fine?
-3. **Word list.** The four-word suggestion needs a word list in the repository. Proposed: the EFF large
-   word list (7,776 common English words, CC BY 3.0, credited in `NOTICE`). Four words from it, locked
-   with `age`'s slow password hashing, are strong enough for a school backup.
+1. **USB overdue after 30 days.** The drive normally stays plugged in and is backed up to nightly; it is
+   taken away when someone can. A USB backup is "overdue" once its newest copy is more than 30 days old.
+2. **Disk retention: 7 daily, 4 weekly, 3 monthly** copies on the server's own disk (settable).
+3. **Word list: the EFF large word list** (7,776 common English words, CC BY 3.0), vendored and credited
+   in `NOTICE`. Four words, locked with `age`'s slow password hashing.
 
 ## Size
 

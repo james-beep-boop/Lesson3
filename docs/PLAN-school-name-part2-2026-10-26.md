@@ -1,6 +1,6 @@
 # Part 2 — School name (implementation plan)
 
-**Status: PROPOSAL for operator approval, 2026-10-26. No code is written.** Build part 2 of
+**Status: APPROVED by the operator, 2026-10-26. Ready to build. No code is written yet.** Build part 2 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§11). One small PR. Needs no test machine.
 
 ## What it does
@@ -78,11 +78,10 @@ Unset (today's installations, and any school that never sets it) shows nothing a
 SPEC §11 (system settings: the school name, who may set it, where it shows, and that it never appears on
 generated documents) and `docs/DESIGN-system-panel-2026-08-21.md`'s field list.
 
-## Open for the operator
+## Decided (operator, 2026-10-26)
 
-1. **History.** Should a change of school name be recorded (who and when), like the switches' change
-   record? Proposed: **no** — it is a label, set once at commissioning, and the database keeps when the
-   settings were last saved. Say if you want a record.
+1. **No change history for the school name.** It is a label set once at commissioning; unlike the
+   switches, its changes are not recorded (who/when). The database keeps when settings were last saved.
 
 ## Size
 

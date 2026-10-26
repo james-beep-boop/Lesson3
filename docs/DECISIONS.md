@@ -61,6 +61,17 @@ Built from the approved `PLAN-lesson-releases-part1-2026-10-26.md` on
 
 ---
 
+## 2026-10-26 — Parts 2 (school name) and 3 (school backups) approved
+
+The operator approved both plans, with these decisions:
+- **School name:** no change history (unlike the switchboard's flags); it is a label set at commissioning.
+- **USB backup overdue after 30 days** (`BACKUP_USB_MAX_AGE` default `30d`), not the proposed 7: the
+  drive usually stays plugged in and is taken away when someone can.
+- **Disk retention 7 daily / 4 weekly / 3 monthly** on the server's own disk.
+- **Password suggestions from the EFF large word list** (CC BY 3.0, credited in `NOTICE`).
+
+---
+
 ## 2026-10-26 — Lesson3's address on school machines is `http://ares.local:3001`
 
 Mark confirmed that the ARES server announces `ares.local` itself through Avahi (mDNS), recognised by
