@@ -20,16 +20,22 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# Sign-in fixes prepared 2026-10-25
+# Sign-in and restore fixes merged 2026-10-25
 
-Branch `fix/sign-in-abuse-controls` addresses the login portions of F-C23-001/002/003. The operator
-confirmed the Cloudflare WAF rule was never added. See [SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md)
-for required trusted-proxy configuration before deployment, defaults, tests and residual limits.
-No merge, deployment or Cloudflare change is included. Existing signup/forgot-password mail ceilings
-are unchanged. Historical deferred-finding text below describes the previous release.
+[PR #458](https://github.com/james-beep-boop/Lesson3/pull/458) is merged into `main`, addressing the
+login portions of F-C23-001/002/003. [PR #457](https://github.com/james-beep-boop/Lesson3/pull/457) is
+also merged, fixing restore/undo export-cache invalidation (F-C70-001). Both PRs passed all CI gates.
+The merged fix branches and temporary local worktrees have been removed; the working checkout is
+back on `main`.
 
-The v1.07 audit remains on PR #456, unmerged by design. Restore-cache invalidation is a separate
-fix on PR #457. These fixes do not merge the audit findings into main.
+These fixes are not released or deployed by this session. The operator confirmed the Cloudflare WAF
+rule was never added, and Cloudflare is unchanged. See
+[SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md) for required trusted-proxy configuration before
+deployment, defaults, tests and residual limits. Existing signup/forgot-password mail ceilings are
+unchanged. Historical deferred-finding text below describes the previous release.
+
+The v1.07 audit remains on PR #456 and branch `audit/2026-10-25-v107`, unmerged by design. The fix
+merges do not merge the audit findings into `main`.
 
 ---
 
