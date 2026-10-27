@@ -192,6 +192,15 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   _Create the first Site administrator_ form. There is no default username or password. After
   creating the first account, create and test a second Site administrator so someone can still manage
   the site if you forget your password.
+- **Install or update the server:** the technician follows `DEPLOYMENT.md` in the installed release
+  folder; `OPS.md` in that folder covers backups and recovery. In the source repository these are
+  `docs/LOCAL-SERVER-DEPLOYMENT.md` and `docs/OPS.md`. For a new school: install, create two tested
+  administrators, set the School name, set up backups, then upload the ARES lessons and check Word
+  and PDF downloads. A lesson ZIP updates lesson plans in the browser. A release bundle updates the
+  Lesson3 program through its `update.sh`, using a server login and internet. An app update does not
+  import newer ARES lessons. Keep the existing installation folder and use the new bundle's updater;
+  do not install over the old folder. If a lesson upload needs a newer program, update Lesson3 first,
+  then upload the lesson ZIP again.
 - **Manage lesson plans:** upload ARES JSON files or ZIP archives of JSON files. Valid files are
   imported even when others fail; review the report for imported, rejected and skipped files.
   Unchanged files are skipped, so you can re-upload a corrected ZIP after a partial import.
@@ -266,10 +275,39 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   application role; it does not grant access to the server command line or the private recovery key.
   These steps are for the person who manages the server.
 
-  To make an encrypted backup now, sign in to the Lesson3 server and run
-  `cd /srv/lesson3 && scripts/backup-db.sh` (replace `/srv/lesson3` with the actual installation
-  directory if it differs). To list available encrypted backups, run
+  **Set up backups once**
+
+  For first-time backup setup, follow the installed `DEPLOYMENT.md` and `OPS.md`: get ARES's public
+  recovery key, prepare the mounted drive and install the required host tools before running setup.
+  Setup does not format or mount a USB drive. If the setup command is missing, the installation is
+  older; use its bundled manual until the whole program is updated. Do not copy new scripts into it.
+
+  For a new school setup, the server operator runs `scripts/setup-school-backups.sh`. It suggests
+  four words or accepts a password of at least 12 characters, checks that you can type the written
+  password back, prepares the drive, locks the school key, installs the schedule and proves the first
+  backup with a restore drill. After a power cut, run the same command and enter the same password;
+  it reuses the saved key and skips completed steps. Copy the terminal recovery sheet onto paper and
+  keep it away from the server. The backup password is separate from your Lesson3 sign-in password.
+  The password is never saved in a file or log. A new school key cannot open older backups; those still need the
+  earlier school key or ARES.
+
+  **Make a routine backup**
+
+  For a routine backup after setup:
+
+  1. Connect the school's backup drive when you want to refresh the USB copy.
+  2. Sign in to the Lesson3 server and run `cd /srv/lesson3 && scripts/backup-db.sh` (replace
+     `/srv/lesson3` with the actual installation directory if it differs).
+  3. Open **Manage → System → Backups** and check the USB date as well as the disk date. Take the
+     drive away from the server when possible; keep the recovery sheet separately.
+
+  Setup schedules daily backups at 02:00, weekly on Sunday at 02:10 and monthly on the first at
+  02:20, in the server's time zone. The server must be on at those times. A real destination error
+  needs the operator's attention even if the other destination succeeded. To list available
+  encrypted backups in the configured USB/cloud destination, run
   `cd /srv/lesson3 && scripts/restore-db.sh --list`.
+
+  **Read the backup status**
 
   *Manage → System → Backups* reports what the backup records on the server show, one statement at a
   time. **Backup up to date** is judged by the moment a backup’s data was taken, not by when it was
@@ -287,17 +325,12 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   failure, theft, fire or a reinstall wipe. A fresh disk copy never hides an overdue USB copy.
   USB backups are overdue after 30 days by default (`BACKUP_USB_MAX_AGE`); plug in the drive and
   run a backup, then take it away when possible. “Not connected” is neutral while the drive is away;
-  its backup age still matters. The server operator can restore a disk copy with
-  `scripts/restore-db.sh --local-file /var/lib/lesson3-backups/daily/BACKUP.dump.age --into lesson3_test`
-  for a drill. A backup folder marked for another installation is refused; use the correct folder.
+  its backup age still matters. For a safe restore drill, use the complete password-locked-key
+  procedure in the installed `OPS.md`; it checks a backup in a throwaway database without replacing
+  the live school data. A backup folder marked for another installation is refused; use the correct
+  folder.
 
-  For a new school setup, the server operator runs `scripts/setup-school-backups.sh`. It suggests
-  four words or accepts a password of at least 12 characters, checks that you can type the written
-  password back, prepares the drive, locks the school key, installs the schedule and proves the first
-  backup with a restore drill. After a power cut, run the same command and enter the same password;
-  it reuses the saved key. Keep the printed recovery sheet away from the server. The password is
-  never saved in a file or log. A new school key cannot open older backups; those still need the
-  earlier school key or ARES.
+  **Recover data only when needed**
 
   Before attempting recovery, check what *Manage → System → Backups* shows under
   **School recovery key**:

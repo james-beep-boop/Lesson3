@@ -649,6 +649,19 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   password. After creating the first account, create and test a second Site
                   administrator so someone can still manage the site if you forget your password.
                 </p>
+                <p>
+                  For a new school, the technician follows <code>DEPLOYMENT.md</code> in the
+                  installed release folder: install, create two tested administrators, set the
+                  School name, set up backups, then upload the ARES lessons and check Word and PDF
+                  downloads. <code>OPS.md</code> in that folder covers backups and recovery. In the
+                  source repository these are{' '}
+                  <a href="https://github.com/james-beep-boop/Lesson3/blob/main/docs/LOCAL-SERVER-DEPLOYMENT.md">
+                    docs/LOCAL-SERVER-DEPLOYMENT.md
+                  </a>{' '}
+                  and <code>docs/OPS.md</code>. For later program updates, keep the existing
+                  installation folder and use the new bundle’s updater; do not install over the old
+                  folder.
+                </p>
               </GuideAccordionPanel>
             )}
 
@@ -727,6 +740,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
 
             {can('site-admins.upload') && (
               <GuideAccordionPanel id="site-admins.upload" title="Upload lesson plans">
+                <p>
+                  A lesson ZIP updates lesson plans in the browser. A release bundle updates the
+                  Lesson3 program through its <code>update.sh</code>, using a server login and
+                  internet. An app update does not import newer ARES lessons. If a lesson upload
+                  needs a newer program, ask the technician to update Lesson3 first, then upload the
+                  lesson ZIP again.
+                </p>
                 <ol className="guide-steps">
                   <li>
                     Open <em>Manage → Lesson plans → Upload lesson plans</em>.
@@ -838,13 +858,51 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   access to the server command line or the private recovery key. These steps are for
                   the person who manages the server.
                 </p>
+                <h4>Set up backups once</h4>
                 <p>
-                  To make an encrypted backup now, sign in to the Lesson3 server and run{' '}
-                  <code>cd /srv/lesson3 &amp;&amp; scripts/backup-db.sh</code> (replace{' '}
-                  <code>/srv/lesson3</code> with the actual installation directory if it differs).
-                  To list available encrypted backups, run{' '}
+                  For first-time backup setup, follow the installed <code>DEPLOYMENT.md</code> and{' '}
+                  <code>OPS.md</code>: get ARES’s public recovery key, prepare the mounted drive and
+                  install the required host tools before running setup. Setup does not format or
+                  mount a USB drive. If the setup command is missing, the installation is older; use
+                  its bundled manual until the whole program is updated. Do not copy new scripts
+                  into it.
+                </p>
+                <p>
+                  For a new school setup, the server operator runs{' '}
+                  <code>scripts/setup-school-backups.sh</code>. It suggests four words or accepts a
+                  password of at least 12 characters, checks that you can type the written password
+                  back, prepares the drive, locks the school key, installs the schedule and proves
+                  the first backup with a restore drill. After a power cut, run the same command and
+                  enter the same password; it reuses the saved key and skips completed steps. Copy
+                  the terminal recovery sheet onto paper and keep it away from the server. The
+                  backup password is separate from your Lesson3 sign-in password. The password is
+                  never saved in a file or log. A new school key cannot open older backups; those
+                  still need the earlier school key or ARES.
+                </p>
+                <h4>Make a routine backup</h4>
+                <p>For a routine backup after setup:</p>
+                <ol className="guide-steps">
+                  <li>Connect the school’s backup drive when you want to refresh the USB copy.</li>
+                  <li>
+                    Sign in to the Lesson3 server and run{' '}
+                    <code>cd /srv/lesson3 &amp;&amp; scripts/backup-db.sh</code> (replace{' '}
+                    <code>/srv/lesson3</code> with the actual installation directory if it differs).
+                  </li>
+                  <li>
+                    Open <em>Manage → System → Backups</em> and check the USB date as well as the
+                    disk date. Take the drive away from the server when possible; keep the recovery
+                    sheet separately.
+                  </li>
+                </ol>
+                <p>
+                  Setup schedules daily backups at 02:00, weekly on Sunday at 02:10 and monthly on
+                  the first at 02:20, in the server’s time zone. The server must be on at those
+                  times. A real destination error needs the operator’s attention even if the other
+                  destination succeeded. To list available encrypted backups in the configured
+                  USB/cloud destination, run{' '}
                   <code>cd /srv/lesson3 &amp;&amp; scripts/restore-db.sh --list</code>.
                 </p>
+                <h4>Read the backup status</h4>
                 <p>
                   <em>Manage → System → Backups</em> reports what the backup records on the server
                   show, one statement at a time. <strong>Backup up to date</strong> is judged by the
@@ -868,24 +926,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   (<code>BACKUP_USB_MAX_AGE</code>); plug in the drive and run a backup, then take
                   it away when possible. “Not connected” is neutral while the drive is away; its
                   backup age still matters. A backup folder marked for another installation is
-                  refused; use the correct folder. For a disk restore drill, the server operator can
-                  run{' '}
-                  <code>
-                    scripts/restore-db.sh --local-file
-                    /var/lib/lesson3-backups/daily/BACKUP.dump.age --into lesson3_test
-                  </code>
-                  .
+                  refused; use the correct folder. For a safe restore drill, use the complete
+                  password-locked-key procedure in the installed <code>OPS.md</code>; it checks a
+                  backup in a throwaway database without replacing the live school data.
                 </p>
-                <p>
-                  For a new school setup, the server operator runs{' '}
-                  <code>scripts/setup-school-backups.sh</code>. It suggests four words or accepts a
-                  password of at least 12 characters, checks that you can type the written password
-                  back, prepares the drive, locks the school key, installs the schedule and proves
-                  the first backup with a restore drill. After a power cut, run the same command and
-                  enter the same password; it reuses the saved key. Keep the printed recovery sheet
-                  away from the server. The password is never saved in a file or log. A new school
-                  key cannot open older backups; those still need the earlier school key or ARES.
-                </p>
+                <h4>Recover data only when needed</h4>
                 <p>
                   Before attempting recovery, check what <em>Manage → System → Backups</em> shows
                   under <strong>School recovery key</strong>:

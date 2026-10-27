@@ -1,9 +1,27 @@
-# Operations runbook (the Rock)
+# Operations runbook
 
-Production-hardening ops for Lesson3 (SPEC §11 / readiness #9). Covers **backups**, **restore**,
-**deploy**, **structured logging**, and **monitoring**. The Rock is the single Docker-compose box
-(`app` on :3001, `postgres` + `gotenberg` internal-only); repo at `/srv/lesson3`. All commands run on
-the Rock unless noted.
+Use this manual for backup and recovery commands on the Linux server. For the complete new-school
+installation sequence, lesson uploads and release-bundle updates, start with **DEPLOYMENT.md** in the
+installed folder ([online/source version](https://github.com/james-beep-boop/Lesson3/blob/main/docs/LOCAL-SERVER-DEPLOYMENT.md)). New school installations use
+that bundle; the later **Deploy** section here is specifically for the developer-managed Rock source
+checkout.
+
+Run server commands as the installation's operator, from its installed folder (normally
+`/srv/lesson3`). A Site administrator's browser login does not grant a server login. Keep these three
+things distinct: your Lesson3 sign-in password, the school's backup password on its recovery sheet,
+and internal service secrets in `.env`. Do not replace `.env` or copy secrets between installations.
+
+| What you need to do | Procedure |
+| --- | --- |
+| Set up a new school's backups once | [School setup](#school-setup-password-locked-recovery-key) |
+| Keep an existing backup arrangement after a program update | [Upgrading an older backup arrangement](#upgrading-an-older-backup-arrangement) |
+| Put today's work on the school's backup drive | [Routine backup](#routine-backup) |
+| Understand a backup warning | [Run / verify](#run--verify) and Manage → System → Backups |
+| Check that a backup can be read, without replacing live data | School setup does this once; for a later check use [Restore drill](#restore-drill-do-this-periodically--an-untested-backup-is-not-a-backup) |
+| Replace lost or damaged live data | [Restore into the live database](#restore-into-the-live-database-staged-design-a1-2026-10-21) with the server operator |
+
+If a command fails, keep the error message and stop that procedure. An incomplete restore or update
+has its own resume instructions below; do not start a fresh installation over the existing one.
 
 ---
 
@@ -77,6 +95,46 @@ UUID. Old unmarked backups are adopted. A marker for another installation **refu
 pruning**. Do not remove or replace a foreign marker to make the check pass: select that school's own
 backup folder. Invalid markers also refuse writes; a failed database identity read permits no copies.
 
+### Routine backup
+
+After initial setup, the schedule runs on the server. To refresh the USB copy before taking it away:
+
+1. Connect **this school's** drive and check that it is mounted in the same place used during setup.
+2. Run `cd /srv/lesson3 && scripts/backup-db.sh`.
+3. Check **Manage → System → Backups**. Look at **USB backup** as well as **Disk backup** and check
+   the time of the latest successful copy. A fresh disk copy does not prove USB was refreshed.
+4. Take the drive away from the server when possible. Keep the recovery sheet separately.
+
+“Not connected” while the drive is away is expected; an overdue USB date still needs attention.
+A real error (for example a full drive or another school's marker) needs fixing even if the disk copy
+succeeded. For a foreign marker, use the correct school's folder; do not delete the marker. For a full
+drive, ask the operator to check capacity and retention before removing files. If you are unsure, pass
+the exact message to the operator rather than changing the keys or rerunning installation.
+
+### Upgrading an older backup arrangement
+
+Keep the working recovery key, destination and schedule. A program update does **not** require a new
+school key or another run of school setup. After an update, use `OPS.md` from that installed release.
+
+The newer backup script adds a server-disk copy by default. Before its first run, choose one:
+
+- **Keep both disk and USB/cloud copies:** as the same operator who runs the existing backup jobs,
+  prepare the default disk folder:
+
+  ```bash
+  sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /var/lib/lesson3-backups
+  ```
+
+  Keep `BACKUP_DISK_DIR=/var/lib/lesson3-backups` in `.env` (or prepare the actual folder you chose).
+- **Keep the existing USB/cloud-only arrangement:** set `BACKUP_DISK_DIR=` in `.env`. This explicitly
+  disables disk copies; leave the existing `BACKUP_RCLONE_REMOTE` and recovery keys unchanged.
+
+Run a backup and check each destination in Manage. The script upgrades old records automatically
+under its lock; there is no manual record-moving step. A pre-update record in the old format can be
+unknown in Manage until that first run. Existing encrypted backups and their keys are unchanged.
+If you later adopt the new school setup command, have the operator check the existing cron jobs so
+both the old schedule and the new schedule do not run the same jobs twice.
+
 ### School setup (password-locked recovery key)
 
 On the installed Linux host, configure ARES's public recipient as `BACKUP_AGE_RECIPIENT` in `.env`
@@ -119,19 +177,29 @@ are skipped on resume. The setup receipt records the public
 recipient and setup dates, never the password or private key. `BACKUP_CRON_DIR` is an optional
 operator/test override for the cron directory; it defaults to `/etc/cron.d`.
 
-For recovery: plug in the drive, run the command below and **type the backup password when age asks**:
+To **check a backup without replacing the live data**, connect the drive and run this drill from the
+installed folder. Replace both paths with the real paths and `BACKUP.dump.age` with the chosen file;
+keep the original backup filename. Type the backup password when age asks:
 
 ```bash
 AGE_IDENTITY=/media/lesson3-backup/lesson3-backups/school-recovery-key.age \
   scripts/restore-db.sh --local-file /media/lesson3-backup/lesson3-backups/daily/BACKUP.dump.age \
-  --into lesson3 --force-prod
+  --into lesson3_restore_check
 ```
 
-Replace `BACKUP.dump.age` with the chosen file and follow the staged restore's checks and typed
-confirmation below. For a drill, use `--into lesson3_restore_check` and omit `--force-prod`.
+Expect `RESTORE DRILL PASSED`. This creates only the disposable `lesson3_restore_check` database.
+After a successful check, remove that test database:
+
+```bash
+docker compose exec -T postgres dropdb -U lesson3 lesson3_restore_check
+```
+
 The encrypted backup, locked identity **and** password are all required; ARES's private identity
-remains an independent way to open the same backup. Setup's drill proves this backup restores here;
-it does not change "Full recovery: Not yet tested", which needs a rebuild on another machine.
+remains an independent way to open the same backup. For actual lost-data recovery, use the
+**Restore into the live database** procedure below with the server operator; it has additional
+confirmation, acceptance and undo steps. Do not change a drill's target to the live database just to
+try it. Setup's drill proves this backup restores here; it does not change **Full recovery: Not yet
+tested**, which needs a rebuild on another machine.
 
 ### Manual setup for existing online installations
 
@@ -143,7 +211,8 @@ it does not change "Full recovery: Not yet tested", which needs a rebuild on ano
    age-keygen -o ~/lesson3-backup.key     # prints "Public key: age1..."
    ```
    - Store `~/lesson3-backup.key` (the PRIVATE identity) somewhere safe and durable — a password manager
-     plus one more copy. **If you lose it, every backup is unrecoverable.** Do NOT put it on the Rock.
+     plus one more copy. **Backups encrypted only for this identity need it to recover.** Do NOT put this unlocked key on
+     the Rock. When a separate school key is configured below, either matching key can open new backups.
    - Take the printed `age1...` PUBLIC key → it goes in the Rock's `.env` as `BACKUP_AGE_RECIPIENT`.
 
    ⚑ **SECOND RECIPIENT — do this for any installation that may be offline** (decided 2026-08-22,
@@ -280,7 +349,9 @@ windows it applied); counts before/after via
   2026-10-21: every school is "Not agreed" until it agrees). `BACKUP_RECOVERY_CONTACT` (who, and how to
   reach them) and `BACKUP_KEY_HELD_BY` (where the private key is kept) are shown as "Recorded as …",
   unverified. For online installs the Site Administrator holds the read-only backup-storage
-  credential (operator decision 2026-10-21). The app reads these at start, like every System setting.
+  credential (operator decision 2026-10-21). The app reads these at start, like every System setting. After changing them in a bundle
+  installation, run `docker compose up -d --no-deps --no-build --pull never --wait app` to recreate
+  the app with the new values; a plain restart keeps its old environment.
 - ⚑ **A pre-update snapshot is not a schedule.** `deploy.sh` and `update.sh` take a `premigrate` backup
   on every deploy, so a box with no cron at all still has recent successes — which is why "Backup up to
   date" and "Routine backups" count only `daily`, `weekly` and `monthly`.
@@ -316,6 +387,11 @@ counters merely to make a test pass. The 2026-08-27 same-commit retry incident r
 proof of persistence.
 
 ### Restore drill (do this periodically — an untested backup is not a backup)
+
+For the school's **password-locked** `school-recovery-key.age`, use the drill command in
+[School setup](#school-setup-password-locked-recovery-key) and type the recovery-sheet password when
+asked. That locked file can stay beside the backups. The workstation procedure below is for an
+**unlocked private identity** kept off the server. Neither drill replaces the live school database.
 
 ⚑ **BRING THE CIPHERTEXT TO THE KEY, NOT THE KEY TO THE CIPHERTEXT.** The private `age` identity is held
 off-box (SPEC §11: schools hold the public key; ARES retains the identity), and the backup is encrypted,
@@ -359,8 +435,8 @@ list that has to be edited in lockstep with `payload.config.ts` rots toward unde
 the failure that looks like success. It also used to print two counts followed by `|| true`, so a failed
 verification still exited 0.
 
-⚑ **Do NOT copy the identity onto the server for a drill.** It is unnecessary now that `--local-file`
-exists, it puts the one irreplaceable secret on the box custody is designed to keep it off, and `shred`
+⚑ **Do NOT copy an unlocked private identity onto the server for a drill.** It is unnecessary now that `--local-file`
+exists, it puts an unlocked secret on the box custody is designed to keep it off, and `shred`
 cannot reliably promise erasure on the SSD it would land on.
 
 ### Restore into the live database (staged; design A1, 2026-10-21)
@@ -483,6 +559,9 @@ grep -q 'HOME/bin' ~/.profile || echo 'export PATH="$HOME/bin:$PATH"' >> ~/.prof
 ---
 
 ## Deploy (with pre-migration snapshot)
+
+**Developer-managed Rock source checkout only.** For a school installed from a release bundle, use
+its `update.sh` and **Update to a later release** in `DEPLOYMENT.md`; do not use this procedure.
 
 Use `scripts/deploy.sh` instead of a bare `docker compose up`: it pulls, takes a `premigrate-<sha>`
 snapshot, builds, then `docker compose up -d --no-build` (the one-shot `migrate` runs first), and waits

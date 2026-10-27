@@ -80,6 +80,11 @@ Read [`docs/LOCAL-SERVER-DEPLOYMENT.md`](docs/LOCAL-SERVER-DEPLOYMENT.md) before
 requirements, firewall posture, first-user setup, verification, encrypted backups, updates, recovery,
 and the deliberate PDF-font tradeoff. Do not pipe a remote install script directly into a shell.
 
+Before handing a school server over, follow that manual's checklist: test two administrators, set the
+school name, set up and prove backups, then upload the ARES lesson ZIP and check Word/PDF downloads.
+For later changes, a **lesson ZIP** is uploaded in Manage; a **program release bundle** is applied by
+the technician using its `update.sh`. Updating the program does not import lesson plans.
+
 ## Docs
 
 - `SPEC.md` — canonical specification (architecture + domain rules)
