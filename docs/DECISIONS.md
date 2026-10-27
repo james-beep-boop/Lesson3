@@ -11,6 +11,27 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-27 — Standing rule: every user-facing text is written for Kenyan high school teachers
+
+Operator decision. The Guide (`/guide`), `USER_GUIDE.md`, screen wording, messages and the
+technician manuals (`docs/LOCAL-SERVER-DEPLOYMENT.md`, `docs/OPS.md`) must be clear and
+understandable to a Kenyan high school teacher. This is a review criterion for every PR that changes
+them, not a one-off for the backup instructions (entry below).
+
+- **Plain everyday English.** Short sentences, one step per line, the common word over the precise
+  one. No idioms that do not travel.
+- **No unexplained jargon.** Words such as recipient, remote, sentinel, checkpoint, migration,
+  container or identity are either replaced or explained in a few words the first time they appear.
+- **Say why and what success looks like.** Each step says what it is for, and what the person should
+  see when it worked.
+- **Keep the two audiences apart.** Browser tasks for teachers and administrators come first and use
+  no commands. Commands, file paths and settings belong only in the technician's sections, and even
+  there each command says what it does.
+- Exact names on screen (buttons, menu paths, statements) are quoted as they appear, so a reader can
+  match them.
+
+---
+
 ## 2026-10-27 — Upload summaries keep the 5,000-character message limit
 
 The operator chose 5,000 over the 100,000 that Part 1a allowed for the system-written upload summary

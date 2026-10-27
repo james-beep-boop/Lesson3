@@ -245,6 +245,10 @@ curl -fsSLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/
   change (golden-file DOCX diff, type-check, or boot). "Done" requires evidence.
 - **Security:** ingest **extracts** ARES `.js`/`.json` to data; never execute uploaded code. Enforce
   all rules server-side, not only in the UI. The export/preview endpoints are the authz boundary.
+- **Write for Kenyan high school teachers** (operator rule, 2026-10-27; `docs/DECISIONS.md`). The
+  Guide, `USER_GUIDE.md`, screen wording, messages and the technician manuals use plain everyday
+  English, short sentences, one step per line, no unexplained jargon, and say what each step is for
+  and what success looks like. Commands and paths appear only in technician sections.
 - **Tests:** colocate (`app/tests/int`, `app/tests/e2e`) and run before declaring work done.
   Integration tests need a database; HTTP/browser tests also need a running app using that same
   database. Use a disposable local stack or CI, never a live installation for fixture-driven tests.
