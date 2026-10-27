@@ -32,8 +32,8 @@ with the paused Phase B plan.
 
 - **Part 1a merged** ([PR #459](https://github.com/james-beep-boop/Lesson3/pull/459), `879cba0`):
   release identity and dates, automatic Official with token-bound confirmation, the Official change
-  record, administrator messages, `import-lessons.ts`. Not released or deployed. Open operator choice:
-  messages keep the raised 100,000-character limit, or return to 5,000 with "…and N more".
+  record, administrator messages, `import-lessons.ts`. Not released or deployed. Upload summaries keep the
+  ordinary 5,000-character message limit and end "…and N more" (operator decision 2026-10-27).
 - **Part 1b merged** ([PR #460](https://github.com/james-beep-boop/Lesson3/pull/460)): release labels,
   the recorded Official-update notice (shown in the reader's own day), the "Combine them?" suggestion
   (both Standard and Advanced, operator decision 2026-10-26), the final upload confirmation and both

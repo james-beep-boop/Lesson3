@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Payload } from 'payload'
-import { sendReleaseMessages } from '../../src/ingest/releaseMessages'
+import { releaseSummary, sendReleaseMessages } from '../../src/ingest/releaseMessages'
+import { MAX_MESSAGE_LENGTH } from '../../src/lib/messageText'
 import type { IngestReport, IngestResult } from '../../src/ingest'
 const bundle = (id: number, subjectGrade: number, official: boolean): IngestResult => ({
   file: `${id}.json`,
@@ -60,7 +61,7 @@ describe('release upload administrator messages', () => {
     expect(f.create).toHaveBeenCalledTimes(1)
     expect(f.logger.error).toHaveBeenCalledTimes(1)
   })
-  it('keeps even a 500-lesson summary inside the system-message limit', async () => {
+  it('keeps a 500-lesson summary within the ordinary 5,000-character limit, ending "…and N more"', async () => {
     const f = fake()
     await sendReleaseMessages(
       f.payload,
@@ -72,6 +73,25 @@ describe('release upload administrator messages', () => {
         })),
       ),
     )
-    expect(f.create.mock.calls[0][0].data.body.length).toBeLessThan(100000)
+    const body: string = f.create.mock.calls[0][0].data.body
+    expect(body.length).toBeLessThanOrEqual(MAX_MESSAGE_LENGTH)
+    const listed = body.split('\n').filter((line) => line.includes('/lessons/')).length
+    expect(listed).toBeGreaterThan(0)
+    expect(body).toMatch(
+      new RegExp(`\\n…and ${500 - listed} more\\. See Lesson Plans for the rest\\.$`),
+    )
+  })
+  it('lists every lesson, with no closing line, when they all fit', () => {
+    expect(releaseSummary(['a', 'b'])).toBe('ARES lesson upload\na\nb')
+  })
+  it('fills the limit exactly before it leaves anything out', () => {
+    const line = 'y'.repeat(99)
+    for (let count = 1; count <= 120; count++) {
+      const body = releaseSummary(Array.from({ length: count }, () => line))
+      expect(body.length, String(count)).toBeLessThanOrEqual(MAX_MESSAGE_LENGTH)
+      const listed = body.split('\n').filter((l) => l === line).length
+      const more = body.match(/…and (\d+) more/)
+      expect(listed + (more ? Number(more[1]) : 0), String(count)).toBe(count)
+    }
   })
 })

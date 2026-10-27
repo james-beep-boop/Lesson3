@@ -13,6 +13,7 @@ import { enqueueDetached } from '../lib/enqueue'
 import { validateContextLink } from '../hooks/messageReference'
 export { validateContextLink } from '../hooks/messageReference'
 import { relId } from '../lib/relId'
+import { MAX_MESSAGE_LENGTH } from '../lib/messageText'
 import { MESSAGE_PING_SLUG, type MessagePingInput } from '../jobs/messagePing'
 import { markMessagesReadEndpoint } from '../endpoints/markMessagesRead'
 import type { User } from '../payload-types'
@@ -53,8 +54,8 @@ const senderOrRecipient: Access = ({ req: { user } }) => {
  *  `sender` still passes the required-field check. */
 const stampSenderAndRateLimit: CollectionBeforeValidateHook = async ({ data, operation, req }) => {
   if (operation !== 'create' || !req.user) return data
-  if (typeof data?.body === 'string' && data.body.length > 5000) {
-    throw new APIError('Message must be at most 5000 characters.', 400)
+  if (typeof data?.body === 'string' && data.body.length > MAX_MESSAGE_LENGTH) {
+    throw new APIError(`Message must be at most ${MAX_MESSAGE_LENGTH} characters.`, 400)
   }
   const { ok, retryAfterSec } = await consumeRateLimit(req, 'message', String(req.user.id))
   if (!ok) {
@@ -177,9 +178,9 @@ export const Messages: CollectionConfig = {
       name: 'body',
       type: 'textarea',
       required: true,
-      // A system-generated upload summary may list up to 500 lessons in one message.
-      // Authenticated correspondence keeps its 5,000-character limit in beforeValidate.
-      maxLength: 100000,
+      // One limit for every message, the upload summary included (operator decision 2026-10-27):
+      // the summary lists what fits and ends "…and N more" (`ingest/releaseMessages.ts`).
+      maxLength: MAX_MESSAGE_LENGTH,
     },
     {
       // Optional context links ("about this lesson"). Nullable FKs: deleting the plan/version

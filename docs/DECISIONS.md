@@ -11,6 +11,18 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-27 — Upload summaries keep the 5,000-character message limit
+
+The operator chose 5,000 over the 100,000 that Part 1a allowed for the system-written upload summary
+(entry of 2026-10-26 below). Every message now has one limit, `MAX_MESSAGE_LENGTH` in
+`lib/messageText.ts`, used by the collection and by `releaseSummary` in `ingest/releaseMessages.ts`.
+A summary lists as many lessons as fit, then “…and N more. See Lesson Plans for the rest.” Nothing is
+lost: the upload report lists every lesson, and the administrator finds them on Lesson Plans. A
+5,000-character message stays readable in the inbox; a 500-line one was not. No migration: the
+length is validated, not a column type.
+
+---
+
 ## 2026-10-26 — School setup may create a new school key
 
 Operator decision during Part 3b: when a school public key is configured but setup has no saved

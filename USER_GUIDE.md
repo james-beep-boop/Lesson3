@@ -206,7 +206,8 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   id with different content refuses that entire set. Without a manifest, content matching an older
   release is flagged before confirmation. If something changes while you review, check the new list
   and confirm again. After import, affected subject-grade administrators receive one internal
-  message from you; a message failure appears in the report and does not undo the lessons. For plans with no Official version, use **Set an Official
+  message from you; a long list ends with “…and N more”, and the full list is in the upload report.
+  A message failure appears in the report and does not undo the lessons. For plans with no Official version, use **Set an Official
   version** at the bottom of Lesson plans. You can also delete selected lesson plans (with all their versions) under **Delete a plan (all versions)**, or remove
   individual non-Official versions under **Delete individual versions**.
 - **Subjects and grades on upload:** if an upload names a subject or grade that does not exist yet,

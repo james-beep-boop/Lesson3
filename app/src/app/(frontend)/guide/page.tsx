@@ -759,8 +759,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     content refuses that entire set. Without a manifest, content matching an older
                     release is flagged before confirmation. If something changes while you review,
                     check the new list and confirm again. After import, affected subject-grade
-                    administrators receive one internal message from you; a message failure appears
-                    in the report and does not undo the lessons.
+                    administrators receive one internal message from you; a long list ends with
+                    “…and N more”, and the full list is in the upload report. A message failure
+                    appears in the report and does not undo the lessons.
                   </li>
                 </ol>
               </GuideAccordionPanel>
