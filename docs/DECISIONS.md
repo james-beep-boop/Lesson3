@@ -11,6 +11,19 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-27 — Correction: plain wording must still be checked against the code, claim by claim
+
+Lesson from PR #467 (Claude's plain-English Guide rewrite), corrected before merge. Simplifying the
+wording introduced four false statements: "older versions are never deleted" (administrators can delete
+versions); a lesson matching an older release can be "left out" (the upload has no per-file choice; you
+cancel); every school has "two places" (a school may have only the disk or only USB/online); and
+"Agreed recovery time" covers lost work (it is only the time to be working again; acceptable lost work
+is the separate data-loss limit that judges backup age). **Rule:** when rewriting help text for
+plainness, check each sentence that states a fact against the code or the screen it describes, the same
+as new text. Shorter is not the same as still true, and the Guide-parity test only checks that the two
+guides agree, not that they are right.
+---
+
 ## 2026-10-27 — Standing rule: every user-facing text is written for Kenyan high school teachers
 
 Operator decision. The Guide (`/guide`), `USER_GUIDE.md`, screen wording, messages and the
