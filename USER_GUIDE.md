@@ -329,6 +329,8 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   - **Not connected** is fine while the drive is away, but the drive still needs to come back.
   - **USB backup: None set up** means no USB backup has been configured. Ask the technician to add one, so that a
     copy can leave the building.
+  - **Disk backup: None set up** means the server has no folder for the disk copy yet (usual after
+    updating an older server). The other backups still run. Ask the technician to add the disk copy.
   - A line saying the **last attempt** failed: tell the technician. One copy failing needs attention
     even if the other copy worked.
   - **Agreed recovery time** shows how quickly the school should be working again. The school agrees

@@ -730,6 +730,24 @@ describe('reading the records', () => {
     expect(s.fullRecovery.value).toEqual(['Not yet tested'])
   })
 
+  it('reports the default disk folder as not set up until it has a backup, without overriding a chosen folder', async () => {
+    // The standard folder, as `.env.example` (and so the updater's missing-key check) writes it.
+    vi.stubEnv('BACKUP_DISK_DIR', '/var/lib/lesson3-backups')
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', 'drive:backups')
+    serve({
+      [`${dir}/backup/remote/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+    })
+    const unset = await keyed()
+    expect(unset['disk:freshness']).toMatchObject({ label: 'Disk backup', state: 'unknown' })
+    expect(flat(unset['disk:freshness'])).toContain('None set up')
+    expect(unset['disk:routine']).toBeUndefined()
+    expect(unset['remote:freshness'].label).toBe('Remote backup')
+
+    vi.stubEnv('BACKUP_DISK_DIR', '/srv/school-backups')
+    const chosen = await keyed()
+    expect(flat(chosen['disk:freshness'])).not.toContain('None set up')
+  })
+
   it('does not treat an absent but recent USB as a failed backup', async () => {
     vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
     serve({

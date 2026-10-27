@@ -1162,7 +1162,9 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 - **Automated, encrypted backups** (Postgres dumps); snapshot before migrations. **Two optional
   destinations, at least one enabled** (Part 3a, 2026-10-26; `docs/OPS.md`):
   - **Server disk:** `BACKUP_DISK_DIR`, default `/var/lib/lesson3-backups`; an explicit empty value
-    disables it. Keep it outside Docker volumes. This is the sole destination allowed on the root
+    disables it. The default folder needs root to create, so until it exists, and while no disk backup
+    has ever succeeded, the backup skips the disk copy and the status page says "Disk backup: None set
+    up" (2026-10-27). A folder someone chose, or one that has held a backup, must work: those are errors. Keep it outside Docker volumes. This is the sole destination allowed on the root
     device. It protects against bad updates, deletions and database corruption, but **will not survive
     disk failure, theft, fire or a reinstall wipe**, which the status page states explicitly.
     Retention defaults to 7 daily, 4 weekly, 3 monthly (`BACKUP_DISK_*_KEEP`). Before copying, free

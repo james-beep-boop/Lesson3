@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One Postgres dump + age encryption, independently copied to the server disk and USB/cloud.
-# Disk: BACKUP_DISK_DIR (default /var/lib/lesson3-backups; explicit empty disables it).
+# Disk: BACKUP_DISK_DIR (default /var/lib/lesson3-backups; explicit empty disables it). The default
+#   folder is skipped as "not set up" until it exists (see below).
 # USB/cloud: BACKUP_RCLONE_REMOTE (optional). At least one destination is required.
 # Records: out/ops/backup/<disk|usb|remote>/<stream>.json (v2); pre-3a files are moved there once.
 # Usage: no label = daily; --label weekly|monthly|premigrate[-suffix]. See docs/OPS.md.
@@ -8,7 +9,8 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib/backup-common.sh"
-DISK_DIR="$(destination_setting BACKUP_DISK_DIR /var/lib/lesson3-backups)"
+DEFAULT_DISK_DIR=/var/lib/lesson3-backups
+DISK_DIR="$(destination_setting BACKUP_DISK_DIR "$DEFAULT_DISK_DIR")"
 REMOTE="$(destination_setting BACKUP_RCLONE_REMOTE '')"
 BACKUP_AGE_RECIPIENT="$(env_get BACKUP_AGE_RECIPIENT)"
 BACKUP_AGE_RECIPIENT_SCHOOL="$(env_get BACKUP_AGE_RECIPIENT_SCHOOL)"
@@ -16,6 +18,15 @@ HEALTHCHECK_BACKUP_URL="$(env_get HEALTHCHECK_BACKUP_URL)"
 DB_NAME="$(env_get BACKUP_DB_NAME)"; DB_NAME="${DB_NAME:-lesson3}"
 DB_USER="$(env_get BACKUP_DB_USER)"; DB_USER="${DB_USER:-lesson3}"
 BACKUP_RECORD_DIR="$REPO_DIR/out/ops/backup"
+# The default disk folder needs root to create, so a server set up before disk copies existed has none
+# (2026-10-27: the Rock's deploy stopped on it). Until someone creates it (school setup does), skip the
+# disk copy and let Manage say "None set up", rather than failing every backup. A folder someone chose,
+# or one that has already held a successful disk backup, must still work: those stay errors.
+if [[ "$DISK_DIR" == "$DEFAULT_DISK_DIR" && ! -e "$DISK_DIR" ]] \
+  && ! grep -qs '"lastSuccess": {' "$BACKUP_RECORD_DIR"/disk/*.json; then
+  echo "backup-db: no disk backup folder ($DISK_DIR) is set up yet; skipping the disk copy. See OPS.md, \"After a program update\"."
+  DISK_DIR=""
+fi
 LOCK_WAIT="$(env_get BACKUP_LOCK_WAIT_SECONDS)"; LOCK_WAIT="${LOCK_WAIT:-3600}"
 LABEL=""; [[ "${1:-}" != --label || -z "${2:-}" ]] || LABEL="$2"
 STREAM=""; STAGE=setup; FAIL_REASON=""; LOCKED=0; RECORD_TMP=""; TMP=""
@@ -208,7 +219,7 @@ migrate_records() {
   done
 }
 migrate_records
-[[ "${#TARGETS[@]}" -gt 0 ]] || die 'set BACKUP_DISK_DIR and/or BACKUP_RCLONE_REMOTE'
+[[ "${#TARGETS[@]}" -gt 0 ]] || die "no backup destination is set up: create the disk backup folder ($DEFAULT_DISK_DIR) or set BACKUP_RCLONE_REMOTE"
 for target in "${TARGETS[@]}"; do reject_unsupported_json_controls "${ROOTS[$target]}" 'backup destination'; done
 reject_unsupported_json_controls "$DB_NAME" BACKUP_DB_NAME
 reject_unsupported_json_controls "$LABEL" --label

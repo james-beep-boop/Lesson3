@@ -752,6 +752,39 @@ for expected in success notConnected failure none; do
     "$(grep -Fq "$pattern" "$migrated" && grep -Fq "\"lastSuccess\": $old_success," "$migrated" && grep -Fq '"history": ["2026-10-20T02:00:00Z"]' "$migrated" && echo 0 || echo 1)"
 done
 
+# ── The default disk folder before anyone has created it (2026-10-27, the Rock's deploy) ──
+# BACKUP_DISK_DIR is left unset, so the script falls back to /var/lib/lesson3-backups. These cases need
+# that folder to be absent, and must not create it, so they are skipped where it exists or as root.
+run_default() { # remote
+  env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" BACKUP_RCLONE_REMOTE="$1" \
+    BACKUP_AGE_RECIPIENT=age1testrecipient PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+    bash "$BACKUP" >"$SANDBOX/output" 2>&1
+  EXIT=$?; OUTPUT="$(cat "$SANDBOX/output")"
+}
+if [[ -e /var/lib/lesson3-backups || "$EUID" -eq 0 ]]; then
+  echo "  skip default disk folder cases (it exists here, or running as root could create it)"
+else
+  prepare_case
+  run_default 'drive:backups'
+  check 'missing default disk folder is skipped, not a failure' 'expected zero exit and a note' \
+    "$([[ $EXIT -eq 0 && "$OUTPUT" == *'skipping the disk copy'* && "$OUTPUT" == *'backup-db: OK'* ]] && echo 0 || echo 1)"
+  check 'a skipped disk copy writes no disk record' 'expected no disk record' \
+    "$([[ ! -e "$SANDBOX/repo/out/ops/backup/disk/daily.json" && -f "$SANDBOX/repo/out/ops/backup/remote/daily.json" ]] && echo 0 || echo 1)"
+
+  prepare_case
+  run_default ''
+  check 'no destination at all is still an error' 'expected nonzero exit naming the folder' \
+    "$([[ $EXIT -ne 0 && "$OUTPUT" == *'no backup destination is set up'* ]] && echo 0 || echo 1)"
+
+  prepare_case
+  mkdir -p "$SANDBOX/repo/out/ops/backup/disk"
+  printf '{\n  "version": 2,\n  "stream": "daily",\n  "recordingSince": "2026-10-20T02:00:00Z",\n  "lastSuccess": {"seq": 1, "coversUntil": "2026-10-20T02:00:00Z", "completedAt": "2026-10-20T02:01:00Z", "filename": "x.dump.age", "encryptedBytes": 1, "destination": "/var/lib/lesson3-backups"},\n  "lastAttempt": null,\n  "history": ["2026-10-20T02:00:00Z"]\n}\n' \
+    >"$SANDBOX/repo/out/ops/backup/disk/daily.json"
+  run_default 'drive:backups'
+  check 'a default folder that already held a backup and vanished is an error' 'expected nonzero exit, no skip' \
+    "$([[ $EXIT -ne 0 && "$OUTPUT" != *'skipping the disk copy'* ]] && echo 0 || echo 1)"
+fi
+
 echo
 printf 'backup status: %d passed, %d failed\n' "$pass" "$fail"
 [[ "$fail" -eq 0 ]]

@@ -150,8 +150,9 @@ A program update does **not** need a new school key or another run of setup. Kee
 the backup drive and the schedule you already have, and follow the `OPS.md` of the newly installed
 version.
 
-Updates from before the school-backup tools also start making the **disk** copy. Before the first
-backup after such an update, choose one:
+Servers set up before the school-backup tools have no disk backup folder. After updating, their
+backups carry on as before (to USB or online) and simply skip the disk copy; **Manage → System →
+Backups** shows **Disk backup: None set up**. Choose one:
 
 - **Keep both a disk copy and the USB or online copy** (recommended). Make the disk folder, using the
   same login that runs the backups:
@@ -161,8 +162,9 @@ backup after such an update, choose one:
   ```
 
   and keep `BACKUP_DISK_DIR=/var/lib/lesson3-backups` in `.env` (or the folder you chose).
-- **Keep only the USB or online copy:** add the line `BACKUP_DISK_DIR=` (with nothing after `=`) to
-  `.env`. Leave `BACKUP_RCLONE_REMOTE` and the recovery keys as they are.
+- **Keep only the USB or online copy:** nothing needs doing, but you can add the line
+  `BACKUP_DISK_DIR=` (with nothing after `=`) to `.env` to say so. Leave `BACKUP_RCLONE_REMOTE` and the
+  recovery keys as they are.
 
 Then run `cd /srv/lesson3 && scripts/backup-db.sh` and check each line in **Manage → System →
 Backups**. The first backup moves old backup records into the new layout by itself. Until that first
@@ -337,9 +339,11 @@ explicit backup/versioning policy before these files become records of value.
 `scripts/backup-db.sh` takes one `pg_dump` through the Postgres container and encrypts it once with
 `age`. It independently copies those encrypted bytes to `BACKUP_DISK_DIR` (default
 `/var/lib/lesson3-backups`) and, when configured, `BACKUP_RCLONE_REMOTE` (USB or cloud).
-An explicit empty destination disables it; at least one must be enabled. Existing cloud-only installs
-can set `BACKUP_DISK_DIR=` to keep that setup; otherwise prepare the default disk folder before the
-next scheduled backup. Keep the disk folder outside
+An explicit empty destination disables it; at least one must be enabled. The **default** folder is
+skipped with a note, not an error, until it exists and while no disk backup has ever succeeded there:
+it needs root to create, and servers set up before disk copies have none (2026-10-27). Manage then
+reports "Disk backup: None set up". A chosen folder, or a default one that has already held a backup,
+must work. Existing cloud-only installs can also set `BACKUP_DISK_DIR=` to stop the note. Keep the disk folder outside
 Docker volumes. It may be on the server's root device; a USB destination may not.
 **The disk copy will not survive disk failure, theft, fire or a reinstall wipe.**
 

@@ -277,10 +277,13 @@ export interface BackupSettings {
  * has no reason to read it, and declaring it in `.env.example` would put an empty
  * `BACKUP_AGE_RECIPIENT=` into new installs — which `scripts/deploy.sh` reads as "backups configured".
  */
+/** `backup-db.sh`'s default disk folder. It skips this folder as "not set up" until it exists. */
+export const DEFAULT_DISK_DIR = '/var/lib/lesson3-backups'
+
 export const backupSettingsFromEnv = (): BackupSettings => ({
   diskDir:
     process.env.BACKUP_DISK_DIR === undefined
-      ? '/var/lib/lesson3-backups'
+      ? DEFAULT_DISK_DIR
       : process.env.BACKUP_DISK_DIR.trim() || undefined,
   usbMaxAge: process.env.BACKUP_USB_MAX_AGE?.trim() || '30d',
   destination: process.env.BACKUP_RCLONE_REMOTE?.trim() || undefined,
@@ -880,6 +883,19 @@ export function deriveDestinationBackupStatus(
         label: 'USB backup',
         state: 'unknown',
         value: ['None set up. Add a USB drive for a backup that can leave the building.'],
+      })
+      continue
+    }
+    // The default folder is skipped until someone creates it (`backup-db.sh`), so no record yet means
+    // the disk copy was never set up, not that it is failing. A folder someone chose is judged normally.
+    if (kind === 'disk' && settings.diskDir === DEFAULT_DISK_DIR && !records.length && !legacy) {
+      statements.push({
+        key: 'disk:freshness',
+        label: 'Disk backup',
+        state: 'unknown',
+        value: [
+          'None set up. Ask the technician to create the disk backup folder (OPS.md, “After a program update”).',
+        ],
       })
       continue
     }

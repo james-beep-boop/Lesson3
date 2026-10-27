@@ -276,6 +276,11 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'Plug the drive back in so the next nightly backup can use it',
   },
   {
+    // 2026-10-27: a missing default disk folder is skipped, not a failure (the Rock's deploy).
+    what: 'a server without a disk backup folder keeps its other backups',
+    claim: 'The other backups still run. Ask the technician to add the disk copy.',
+  },
+  {
     // Design A1 (2026-10-21): a live restore is staged and reversible until the previous database is
     // discarded — and undoing it loses work saved since, which an operator must know before choosing.
     what: 'a live restore is checked first, keeps the previous database, and undoing loses later work',

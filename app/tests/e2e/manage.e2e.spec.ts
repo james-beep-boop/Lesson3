@@ -1720,11 +1720,11 @@ test.describe('Manage page', () => {
           }
         }),
       )
-      // Older records keep their original keys; Part 3a prefixes each destination's facts.
+      // Older records keep their original keys; Part 3a prefixes each destination's facts. Only the
+      // facts every host shows are pinned: a host with no backups (CI) shows its default disk folder
+      // as "None set up" alone, without routine or last-attempt lines (2026-10-27).
       const factKeys = statements.map((s) => s.key?.split(':').at(-1))
-      expect(factKeys).toEqual(
-        expect.arrayContaining(['freshness', 'routine', 'lastAttempt', 'fullRecovery', 'contact']),
-      )
+      expect(factKeys).toEqual(expect.arrayContaining(['freshness', 'fullRecovery', 'contact']))
       for (const s of statements) expect(['ok', 'attention', 'unknown']).toContain(s.state)
       expect(statements.find((s) => s.key === 'fullRecovery')).toMatchObject({
         state: 'attention',

@@ -335,8 +335,9 @@ tar -xzf lesson3-online-deploy.tar.gz &&
    the Guide.
 2. From another computer on the school network, sign in, open a lesson, and download it as Word and as
    PDF.
-3. If the school was on an older version, before its next backup follow "After a program update" in
-   the installed `OPS.md`. Then run `cd /srv/lesson3 && scripts/backup-db.sh` and
+3. If the school was on an older version, its backups carry on but the Backups page may show **Disk
+   backup: None set up**. To add the disk copy, follow "After a program update" in the installed
+   `OPS.md`. Then run `cd /srv/lesson3 && scripts/backup-db.sh` and
    check each backup line in **Manage → System → Backups**.
 4. Upload any newer ARES lesson ZIP separately, as in the section above.
 
