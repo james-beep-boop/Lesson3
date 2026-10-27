@@ -41,12 +41,13 @@ with the paused Phase B plan.
 - **Part 2 merged** ([PR #461](https://github.com/james-beep-boop/Lesson3/pull/461)), from
   [`PLAN-school-name-part2-2026-10-26.md`](PLAN-school-name-part2-2026-10-26.md): the school name,
   password-confirmed settings Save, operator command, display places and one nullable column.
-- **Part 3a implemented, awaiting review and merge:** `feat/school-backups-3a`, from
+- **Part 3a merged** ([PR #462](https://github.com/james-beep-boop/Lesson3/pull/462), `4115864`), from
   [`PLAN-school-backups-part3-2026-10-26.md`](PLAN-school-backups-part3-2026-10-26.md): one encrypted
   dump to independent disk and USB/cloud destinations, installation markers, space/retention guards,
   per-destination records and freshness. Real destination errors return nonzero after both attempts;
-  absent USB is neutral. No new migration. **Next after merge: approved Part 3b** (setup, password-locked
-  key, schedule, recovery sheet and final Manage presentation). James merges; do not deploy.
+  absent USB is neutral. No new migration. **Next: approved Part 3b** (setup, password-locked key,
+  schedule, recovery sheet and final Manage presentation, plus the three items carried from 3a's review,
+  plan item 5). James merges; do not deploy.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---

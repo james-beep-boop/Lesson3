@@ -1,7 +1,7 @@
 # Part 3 — Backups for school machines (implementation plan)
 
-**Status: APPROVED by the operator, 2026-10-26. PR 3a implemented on `feat/school-backups-3a`,
-awaiting review and merge. PR 3b remains approved and next after 3a.** Builds part 3 of
+**Status: APPROVED by the operator, 2026-10-26. PR 3a merged ([#462](https://github.com/james-beep-boop/Lesson3/pull/462),
+`4115864`). PR 3b is next, including the three items carried from 3a's review (PR 3b, item 5).** Builds part 3 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§8). Needs no test machine: everything
 below runs in the existing restore/backup stack tests. Commissioning (part 5) will call the setup command
 this part adds; until then a technician or operator runs it by hand.
@@ -104,6 +104,16 @@ and what Manage → System says).
    one (the passphrase is supplied through a pseudo-terminal, since `age` reads it only from a
    terminal); the status derivation for every per-destination state; the recovery sheet never written to
    disk.
+5. **Carried from 3a's review** (operator, 2026-10-27; behaviour changes left out of 3a's cleanup):
+   - **Free space on every local destination.** `check_space` runs for the disk only; a full USB drive
+     fails mid-copy with a generic error. Check USB too, so it reads "the backup drive is nearly full".
+   - **Move the pre-3a records once.** On its first 3a-layout run, `backup-db.sh` moves each old
+     `out/ops/backup/<stream>.json` (and the legacy status file) into the external destination's folder,
+     so the reader no longer carries both layouts (`collectBackupEvidence`'s inheritance logic and the
+     script's `SOURCE_RECORD` fallback both go).
+   - **One `lastAttempt` in the record.** Replace `lastFailure`/`lastNotConnected` with
+     `lastAttempt: { seq, at, outcome: success|failure|notConnected, stage?, reason? }`, keeping
+     `lastSuccess` (it drives freshness). The reader accepts the old fields while old records exist.
 
 ## SPEC and docs in the same PRs
 
