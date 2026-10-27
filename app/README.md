@@ -1,6 +1,6 @@
 # Lesson3 application
 
-This directory contains the Payload CMS / Next.js application for the ARES Lesson Library. It is not
+This directory contains the Payload CMS / Next.js application for ARES Lesson Plans. It is not
 the original Payload MongoDB starter described by the old scaffold README.
 
 - Project overview and local-server deployment: [`../README.md`](../README.md)
