@@ -273,7 +273,7 @@ const CLAIMS: { what: string; claim: string }[] = [
   {
     // Operator decision 2026-10-27: the drive normally stays plugged in, so the nightly backup reaches it.
     what: 'the overdue-USB action line',
-    claim: 'Plug the drive back in; the next nightly backup copies to it',
+    claim: 'Plug the drive back in so the next nightly backup can use it',
   },
   {
     // Design A1 (2026-10-21): a live restore is staged and reversible until the previous database is

@@ -218,7 +218,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
      are skipped the second time.
 
   Good to know:
-  - Older versions are never deleted. They stay in each lesson’s history.
+  - Uploading newer lessons does not delete existing versions. They stay in each lesson’s history.
   - A new lesson plan becomes Official straight away. A newer ARES release replaces an ARES Official
     once you confirm.
   - A teacher’s Official stays unchanged, waiting for the subject-grade administrator. They decide
@@ -237,8 +237,8 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   - **A file looks damaged.** Get a fresh copy of the ZIP and upload that instead.
   - **The whole set is refused** because an ARES release name was reused for different lessons. Ask
     ARES for a corrected set.
-  - **A lesson matches an older ARES release.** The list marks it before you confirm, so you can leave
-    it out.
+  - **A lesson matches an older ARES release.** The list marks it before you confirm. If you do not want to import those files,
+    cancel the upload.
   - **The list changed while you were reading it** (for example, someone else uploaded at the same
     time). Read the new list and confirm again.
 
@@ -304,13 +304,15 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   **How backups work**
 
   Once the technician has set them up, backups happen automatically every night. You do not need to
-  do anything. Each backup is saved in two places:
+  do anything to start each backup. Copies can be saved on the server’s own disk and on a USB drive
+  (or online). Your school may have only one of these set up. Check each backup line to see which
+  copies succeeded:
   - **On the server’s own disk.** This copy helps after a mistake, such as a bad update or a deleted
     lesson. It is lost if the disk breaks, the server is stolen or burned, or the server is wiped and
     reinstalled.
   - **On the school’s USB backup drive.** Leave the drive plugged into the server so the nightly backup
     reaches it. When someone can, take it to another building, and plug it back in when it returns.
-    This is the copy that survives if something happens to the server.
+    A copy kept away from the server can survive if the server is stolen or damaged.
 
   The server must be switched on at night (around 2 a.m.). If it is normally switched off at night,
   ask the technician to change the backup time.
@@ -321,16 +323,18 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   - **Disk backup** and **USB backup** say “Up to date” when there is a recent copy. Backup up to date
     is judged by when the backup’s data was taken, not by when it was copied. A school that keeps its
     copy online instead of on a USB drive sees **Remote backup**.
-  - **USB backup: Overdue** means the newest USB copy is more than 30 days old. Plug the drive back
-    in; the next nightly backup copies to it. A fresh disk copy never hides an overdue USB copy.
+  - **USB backup: Overdue** means the newest copy is older than the school’s USB backup limit. This
+    is 30 days unless the technician has set a different limit. Plug the drive back in so the next
+    nightly backup can use it. A fresh disk copy never hides an overdue USB copy.
   - **Not connected** is fine while the drive is away, but the drive still needs to come back.
-  - **USB backup: None set up** means there is no USB drive. Ask the technician to add one, so that a
+  - **USB backup: None set up** means no USB backup has been configured. Ask the technician to add one, so that a
     copy can leave the building.
   - A line saying the **last attempt** failed: tell the technician. One copy failing needs attention
     even if the other copy worked.
-  - **Agreed recovery time** shows how much work the school accepts it could lose, and how quickly it
-    should be working again. The school agrees these with the technician; until then the page says
-    “Not agreed”. A limit of one week means accepting the loss of up to a week’s work.
+  - **Agreed recovery time** shows how quickly the school should be working again. The school agrees
+    this with the technician; until then the page says “Not agreed”. How much recent work the school
+    accepts it could lose is a separate agreement, used to judge the age of disk and online backups.
+    A limit of one week means accepting the loss of up to a week’s work.
   - **Full recovery** reads “Not yet tested” until rebuilding the installation on another machine from
     its backups has been shown to work. This is normal for now.
   - **School recovery key** shows who can open the backups. See below.

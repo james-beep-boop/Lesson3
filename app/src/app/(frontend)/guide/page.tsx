@@ -778,7 +778,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 </ol>
                 <p>Good to know:</p>
                 <ul>
-                  <li>Older versions are never deleted. They stay in each lesson’s history.</li>
+                  <li>
+                    Uploading newer lessons does not delete existing versions. They stay in each
+                    lesson’s history.
+                  </li>
                   <li>
                     A new lesson plan becomes Official straight away. A newer ARES release replaces
                     an ARES Official once you confirm.
@@ -819,7 +822,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                   <li>
                     <strong>A lesson matches an older ARES release.</strong> The list marks it
-                    before you confirm, so you can leave it out.
+                    before you confirm. If you do not want to import those files, cancel the upload.
                   </li>
                   <li>
                     <strong>The list changed while you were reading it</strong> (for example,
@@ -904,7 +907,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <h4>How backups work</h4>
                 <p>
                   Once the technician has set them up, backups happen automatically every night. You
-                  do not need to do anything. Each backup is saved in two places:
+                  do not need to do anything to start each backup. Copies can be saved on the
+                  server’s own disk and on a USB drive (or online). Your school may have only one of
+                  these set up. Check each backup line to see which copies succeeded:
                 </p>
                 <ul>
                   <li>
@@ -915,8 +920,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     <strong>On the school’s USB backup drive.</strong> Leave the drive plugged into
                     the server so the nightly backup reaches it. When someone can, take it to
-                    another building, and plug it back in when it returns. This is the copy that
-                    survives if something happens to the server.
+                    another building, and plug it back in when it returns. A copy kept away from the
+                    server can survive if the server is stolen or damaged.
                   </li>
                 </ul>
                 <p>
@@ -935,27 +940,30 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     instead of on a USB drive sees <strong>Remote backup</strong>.
                   </li>
                   <li>
-                    <strong>USB backup: Overdue</strong> means the newest USB copy is more than 30
-                    days old. Plug the drive back in; the next nightly backup copies to it. A fresh
-                    disk copy never hides an overdue USB copy.
+                    <strong>USB backup: Overdue</strong> means the newest copy is older than the
+                    school’s USB backup limit. This is 30 days unless the technician has set a
+                    different limit. Plug the drive back in so the next nightly backup can use it. A
+                    fresh disk copy never hides an overdue USB copy.
                   </li>
                   <li>
                     <strong>Not connected</strong> is fine while the drive is away, but the drive
                     still needs to come back.
                   </li>
                   <li>
-                    <strong>USB backup: None set up</strong> means there is no USB drive. Ask the
-                    technician to add one, so that a copy can leave the building.
+                    <strong>USB backup: None set up</strong> means no USB backup has been
+                    configured. Ask the technician to add one, so that a copy can leave the
+                    building.
                   </li>
                   <li>
                     A line saying the <strong>last attempt</strong> failed: tell the technician. One
                     copy failing needs attention even if the other copy worked.
                   </li>
                   <li>
-                    <strong>Agreed recovery time</strong> shows how much work the school accepts it
-                    could lose, and how quickly it should be working again. The school agrees these
-                    with the technician; until then the page says “Not agreed”. A limit of one week
-                    means accepting the loss of up to a week’s work.
+                    <strong>Agreed recovery time</strong> shows how quickly the school should be
+                    working again. The school agrees this with the technician; until then the page
+                    says “Not agreed”. How much recent work the school accepts it could lose is a
+                    separate agreement, used to judge the age of disk and online backups. A limit of
+                    one week means accepting the loss of up to a week’s work.
                   </li>
                   <li>
                     <strong>Full recovery</strong> reads “Not yet tested” until rebuilding the
