@@ -192,31 +192,57 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   _Create the first Site administrator_ form. There is no default username or password. After
   creating the first account, create and test a second Site administrator so someone can still manage
   the site if you forget your password.
-- **Install or update the server:** the technician follows `DEPLOYMENT.md` in the installed release
-  folder; `OPS.md` in that folder covers backups and recovery. In the source repository these are
-  `docs/LOCAL-SERVER-DEPLOYMENT.md` and `docs/OPS.md`. For a new school: install, create two tested
-  administrators, set the School name, set up backups, then upload the ARES lessons and check Word
-  and PDF downloads. A lesson ZIP updates lesson plans in the browser. To update the
-  Lesson Plan Editor program itself, ask the technician to use the program release bundle and its `update.sh`.
-  This needs a server login and internet. An app update does not import newer ARES lessons. Keep the existing installation folder and use the new bundle's updater;
-  do not install over the old folder. If a lesson upload needs a newer program, update Lesson Plan Editor first,
-  then upload the lesson ZIP again.
-- **Manage lesson plans:** upload ARES JSON files or ZIP archives of JSON files. Valid files are
-  imported even when others fail; review the report for imported, rejected and skipped files.
-  Unchanged files are skipped, so you can re-upload a corrected ZIP after a partial import.
-  New plans receive their first Official version. A new ARES release replaces an ARES Official
-  after you check the list and confirm. The confirmation groups lessons that will become Official,
-  releases waiting for the subject-grade administrator, and files that will make no change. Missing
-  subjects and grades appear in the same confirmation round. Earlier versions stay in the version
-  history. A teacher’s Official stays unchanged, waiting for the subject-grade administrator. Repeated releases are skipped even after a teacher saves a version.
-  A release dated earlier than the newest one already here is not imported. An optional LESSONS.json
-  records the release date and checksums; damaged-looking files warn, and lesson sets needing a
-  newer program are refused. The report lists files waiting for a program update. A reused release
-  id with different content refuses that entire set. Without a manifest, content matching an older
-  release is flagged before confirmation. If something changes while you review, check the new list
-  and confirm again. After import, affected subject-grade administrators receive one internal
-  message from you; a long list ends with “…and N more”, and the full list is in the upload report.
-  A message failure appears in the report and does not undo the lessons. For plans with no Official version, use **Set an Official
+- **Install or update the server:** installing Lesson Plan Editor on a new school server is a job for
+  the technician. They follow the instructions that come with the program. Before they hand the server
+  over, they should:
+  1. create two Site administrator accounts and check that both can sign in;
+  2. set the **School name**;
+  3. set up backups;
+  4. upload the ARES lesson plans;
+  5. open a lesson and check that it downloads as Word and PDF.
+
+  Updating the program later is also a job for the technician. Updating the program does not add new
+  lesson plans: you upload those yourself (see **Manage lesson plans** below).
+- **Manage lesson plans:** uploading adds new ARES lesson plans, or newer versions of ones you already
+  have. You do it in the browser; you do not need the technician.
+  1. Open **Manage → Lesson plans → Upload lesson plans**.
+  2. Choose the ARES lesson ZIP file (or the lesson plan JSON files). You do not need to unzip it.
+  3. Read the list before you confirm. It shows the lessons that will become Official, the lessons
+     waiting for the subject-grade administrator, and the files that will change nothing. Missing
+     subjects and grades appear in the same confirmation round: tick the ones to create. If a new
+     subject’s name looks like one you already have, say whether it is new or a spelling mistake. A
+     spelling mistake is not created, and its files are rejected so you can correct them.
+  4. Confirm, then read the report. It lists the files that were imported, skipped or rejected, and
+     gives the reason for each rejected file.
+  5. If files were rejected, correct them and upload the ZIP again. Files that were already imported
+     are skipped the second time.
+
+  Good to know:
+  - Older versions are never deleted. They stay in each lesson’s history.
+  - A new lesson plan becomes Official straight away. A newer ARES release replaces an ARES Official
+    once you confirm.
+  - A teacher’s Official stays unchanged, waiting for the subject-grade administrator. They decide
+    whether to use the new release.
+  - A release dated earlier than the newest one already here is not imported. Uploading the same
+    release again changes nothing, even if a teacher has saved a version since.
+  - After the upload, each subject-grade administrator whose lessons changed gets one message from you
+    listing them. A long list ends with “…and N more”; the full list is in the upload report. If a
+    message cannot be sent, the report says so, and the lessons are still imported.
+  - Some ZIP files include a file called _LESSONS.json_. It records the ARES release date and lets the
+    program check that the files arrived undamaged.
+
+  If the list or the report shows a problem:
+  - **The lessons need a newer program.** Ask the technician to update Lesson Plan Editor, then upload
+    the same ZIP again.
+  - **A file looks damaged.** Get a fresh copy of the ZIP and upload that instead.
+  - **The whole set is refused** because an ARES release name was reused for different lessons. Ask
+    ARES for a corrected set.
+  - **A lesson matches an older ARES release.** The list marks it before you confirm, so you can leave
+    it out.
+  - **The list changed while you were reading it** (for example, someone else uploaded at the same
+    time). Read the new list and confirm again.
+
+  For plans with no Official version, use **Set an Official
   version** at the bottom of Lesson plans. You can also delete selected lesson plans (with all their versions) under **Delete a plan (all versions)**, or remove
   individual non-Official versions under **Delete individual versions**.
 - **Subjects and grades on upload:** if an upload names a subject or grade that does not exist yet,
@@ -271,88 +297,86 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   confirmation.
   While the forum is off, follow **Moderate discussions** beside the switch to read, redact or
   delete. This view has no search, posting, pinning or unread tracking.
-- **Backups and recovery for server operators:** Being a Site administrator in Lesson Plan Editor does not
-  give you a server login or a recovery key. The commands below are for the technician or person
-  who manages the server. Teachers do not need to run server commands to use lesson plans.
+- **Backups and recovery for server operators:** Being a Site administrator in Lesson Plan Editor does
+  not give you a server login or a recovery key. You can check backups in the browser. Setting them up
+  and recovering data are jobs for the technician; their steps are at the end of this section.
 
-  **Set up backups once**
+  **How backups work**
 
-  For first-time backup setup, follow the installed `DEPLOYMENT.md` and `OPS.md`: get ARES's public
-  recovery key, prepare the mounted drive and install the required host tools before running setup.
-  Setup does not format or mount a USB drive. If the setup command is missing, the installation is
-  older; use its bundled manual until the whole program is updated. Do not copy new scripts into it.
+  Once the technician has set them up, backups happen automatically every night. You do not need to
+  do anything. Each backup is saved in two places:
+  - **On the server’s own disk.** This copy helps after a mistake, such as a bad update or a deleted
+    lesson. It is lost if the disk breaks, the server is stolen or burned, or the server is wiped and
+    reinstalled.
+  - **On the school’s USB backup drive.** Leave the drive plugged into the server so the nightly backup
+    reaches it. When someone can, take it to another building, and plug it back in when it returns.
+    This is the copy that survives if something happens to the server.
 
-  For a new school setup, the server operator runs `scripts/setup-school-backups.sh`. It suggests
-  four words or accepts a password of at least 12 characters, checks that you can type the written
-  password back, prepares the drive, locks the school key, installs the schedule and proves the first
-  backup with a restore drill. After a power cut, run the same command and enter the same password;
-  it reuses the saved key and skips completed steps. Copy the terminal recovery sheet onto paper and
-  keep it away from the server. The backup password is separate from your Lesson Plan Editor sign-in password.
-  The password is never saved in a file or log. A new school key cannot open older backups; those still need the
-  earlier school key or ARES.
+  The server must be switched on at night (around 2 a.m.). If it is normally switched off at night,
+  ask the technician to change the backup time.
 
-  **Automatic backups and making a backup now**
+  **Check your backups**
 
-  Backups run automatically every night after setup. Leave the USB drive plugged in so it is
-  backed up too, and take it away when someone can. Plug it in again when it is returned.
-  To make a backup right now:
+  Open **Manage → System → Backups**. Each line is one finding:
+  - **Disk backup** and **USB backup** say “Up to date” when there is a recent copy. Backup up to date
+    is judged by when the backup’s data was taken, not by when it was copied. A school that keeps its
+    copy online instead of on a USB drive sees **Remote backup**.
+  - **USB backup: Overdue** means the newest USB copy is more than 30 days old. Plug the drive back
+    in; the next nightly backup copies to it. A fresh disk copy never hides an overdue USB copy.
+  - **Not connected** is fine while the drive is away, but the drive still needs to come back.
+  - **USB backup: None set up** means there is no USB drive. Ask the technician to add one, so that a
+    copy can leave the building.
+  - A line saying the **last attempt** failed: tell the technician. One copy failing needs attention
+    even if the other copy worked.
+  - **Agreed recovery time** shows how much work the school accepts it could lose, and how quickly it
+    should be working again. The school agrees these with the technician; until then the page says
+    “Not agreed”. A limit of one week means accepting the loss of up to a week’s work.
+  - **Full recovery** reads “Not yet tested” until rebuilding the installation on another machine from
+    its backups has been shown to work. This is normal for now.
+  - **School recovery key** shows who can open the backups. See below.
 
-  1. If the school's backup drive is away, bring it back and plug it in.
-  2. Sign in to the Lesson Plan Editor server and run `cd /srv/lesson3 && scripts/backup-db.sh` (replace
-     `/srv/lesson3` with the actual installation directory if it differs).
-  3. Open **Manage → System → Backups** and check the USB date as well as the disk date. Take the
-     drive away from the server when possible; keep the recovery sheet separately.
+  **If you need to recover data**
 
-  Setup schedules daily backups at 02:00, weekly on Sunday at 02:10 and monthly on the first at
-  02:20, using the server's clock. The server must be switched on at those times. If it is normally
-  switched off at night, ask the technician to change the backup time. A real destination error
-  needs the operator's attention even if the other destination succeeded. To list available
-  encrypted backups in the configured USB/cloud destination, run
-  `cd /srv/lesson3 && scripts/restore-db.sh --list`.
+  Recovering data replaces everything in Lesson Plan Editor with the contents of a backup. It is not a
+  button in the browser: the technician does it. Before you call them, look at **School recovery key**
+  on the Backups page:
+  - **Password-locked (set up …)** — the technician needs the backup drive and the password from the
+    recovery sheet. ARES can also open these backups.
+  - **School recovery key configured** — the school keeps its own key for these backups. The
+    technician needs that key.
+  - **Recovery needs ARES** — contact ARES. Do not try to recover data without them.
 
-  **Read the backup status**
+  **For the technician**
 
-  *Manage → System → Backups* reports what the backup records on the server show, one statement at a
-  time. **Backup up to date** is judged by the moment a backup’s data was taken, not by when it was
-  uploaded. The page also shows how many of the last 7 days had a routine backup, whether the last
-  attempt succeeded, the agreed recovery time, who recovers, and where the private key is kept.
-  **Full recovery** reads “Not yet tested” until rebuilding the installation on another machine from
-  its backups has been shown to work. The limits are the school’s agreement, recorded on the server as
-  `BACKUP_MAX_DATA_LOSS` and `RECOVERY_TARGET_TIME` (for example `1d`); until they are set the page
-  says “Not agreed”. A limit of one week means accepting the loss of up to a week’s work. If the page
-  says the backup drive is not connected, connect the school’s backup drive and run the backup, then
-  take the drive away from the server.
-
-  Disk and USB/cloud backups are reported separately once the updated backup script has run.
-  A disk backup protects against bad updates and accidental deletion, but will not survive disk
-  failure, theft, fire or a reinstall wipe. A fresh disk copy never hides an overdue USB copy.
-  USB backups are overdue after 30 days by default (`BACKUP_USB_MAX_AGE`); plug in the drive and
-  run a backup, then take it away when possible. “Not connected” is neutral while the drive is away;
-  its backup age still matters. For a safe restore drill, use the complete password-locked-key
-  procedure in the installed `OPS.md`; it checks a backup in a throwaway database without replacing
-  the live school data. A backup folder marked for another installation is refused; use the correct
-  folder.
-
-  **Recover data only when needed**
-
-  Before attempting recovery, check what *Manage → System → Backups* shows under
-  **School recovery key**:
-
-  - **Password-locked (set up …)** — plug in the drive, run the restore command and type the backup
-    password. You need the encrypted backup, `school-recovery-key.age` and the password from the
-    recovery sheet. Follow the recovery-sheet command and the checks and confirmation in
-    `docs/OPS.md`. ARES can also open these backups independently.
-  - **School recovery key configured** — the school holds the private key for these backups. Recovery
-    requires three things present before starting: the encrypted backup file, the matching private key
-    on the machine where the restore will run (not on the Lesson Plan Editor server), and a disposable local
-    Compose Postgres stack already running. Follow the full procedure in `docs/OPS.md`.
-  - **Recovery needs ARES** — the school does not hold a private recovery key. Contact ARES for
-    assistance; do not attempt a restore without the matching key.
-
-  A live restore replaces all data. It checks the backup in a separate database first, stops the
-  application itself, and keeps the previous database until you discard it, so the restore can be
-  undone until then. Work saved after the restore is lost if you undo it. Recovery is deliberately not
-  a browser button; the full runbook is `docs/OPS.md`.
+  These steps need a login to the server’s command line. The full instructions are in `OPS.md`, which
+  comes with the program (`docs/OPS.md` in the source code). Run the commands from the installation folder (`/srv/lesson3` unless you
+  chose another).
+  - **Set up backups once:** run `scripts/setup-school-backups.sh`. First put ARES’s public recovery
+    key in `.env` as `BACKUP_AGE_RECIPIENT`, install the tools listed in `OPS.md`, and mount the USB
+    drive (setup does not format or mount it). Setup suggests a four-word backup password, or accepts
+    your own of at least 12 characters, and asks you to type it back from paper. It locks the school’s
+    recovery key with that password, installs the nightly schedule, and proves the first backup by
+    restoring it into a test database. Copy the recovery sheet it shows onto paper and keep it away
+    from the server. The password is never saved in a file or log, and it is not anyone’s sign-in
+    password. After a power cut, run the same command and type the same password; it carries on where
+    it stopped. A new school key cannot open older backups; those still need the earlier school key or
+    ARES.
+  - **Make a backup now:** `cd /srv/lesson3 && scripts/backup-db.sh`. The schedule runs daily at
+    02:00, weekly on Sunday at 02:10 and monthly on the 1st at 02:20, by the server’s clock.
+  - **List the backups on the USB drive or online copy:** `cd /srv/lesson3 && scripts/restore-db.sh --list`.
+  - **Recover with a password-locked key:** you need the backup file, `school-recovery-key.age` and the
+    password from the recovery sheet.
+  - **Recover with a school-held key:** you need the backup file, the matching private key on the
+    machine where the restore will run (not on the Lesson Plan Editor server), and a temporary copy of
+    the database software running on that machine. `OPS.md` shows how to start it.
+  - **A live restore** replaces all data. It checks the backup in a separate database first, stops the
+    application itself, and keeps the previous database until you discard it, so the restore can be
+    undone until then. Work saved after the restore is lost if you undo it.
+  - **Settings:** the agreed limits are `BACKUP_MAX_DATA_LOSS` and `RECOVERY_TARGET_TIME` (for example
+    `1d`); the USB limit is `BACKUP_USB_MAX_AGE` (30 days unless set). A backup folder that belongs to
+    another installation is refused.
+  - If `scripts/setup-school-backups.sh` is missing, the program is older. Update the whole program;
+    do not copy single scripts into it.
 - **Set up subjects and grades:** add subjects and grades, or create them when an upload asks.
 - **Manage all lesson plans:** open, edit, download, mark Official, or delete plans across all
   subjects and grades.
