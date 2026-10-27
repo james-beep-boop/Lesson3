@@ -1720,7 +1720,9 @@ test.describe('Manage page', () => {
           }
         }),
       )
-      expect(statements.map((s) => s.key)).toEqual(
+      // Older records keep their original keys; Part 3a prefixes each destination's facts.
+      const factKeys = statements.map((s) => s.key?.split(':').at(-1))
+      expect(factKeys).toEqual(
         expect.arrayContaining(['freshness', 'routine', 'lastAttempt', 'fullRecovery', 'contact']),
       )
       for (const s of statements) expect(['ok', 'attention', 'unknown']).toContain(s.state)

@@ -16189,3 +16189,11 @@ Regenerating the three DOCX from stored data reproduced the stakeholder-approved
 exactly, except the per-phase Resource column (which needs the absent Python recommender).
 Validates the core architecture: edit the data, regenerate byte-stable documents.
 See assistant memory `fidelity-proof-passed` for the diff detail.
+
+## 2026-10-26 — Partial backup destination failures return nonzero (Part 3a)
+
+Operator decision: try every configured destination even if one has a real error. Exit nonzero after
+all attempts if any destination had a real error, including a foreign installation marker; a successful
+disk copy does not hide that failure from automation. An unplugged USB is neutral “not connected”,
+recorded separately, and does not fail an otherwise successful disk backup. Freshness remains
+independent: USB defaults to 30 days, disk uses the school’s agreed maximum data loss.

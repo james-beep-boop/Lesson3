@@ -1156,31 +1156,45 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
   ⚑ **No backend is adopted today** — self-hosted GlitchTip rejected (shared failure domain with the app
   it watches), hosted Sentry deferred (external data flow). `docs/OPS.md` → "Error tracking" is canonical
   for the state and the reasoning.
-- **Automated, encrypted backups** (Postgres dumps); snapshot before migrations. **Encryption and
-  retention are constant; the destination varies by deployment (amended 2026-08-20).**
-  - **Internet-connected installations: off-site**, to a remote object store — today `age` +
-    `rclone` to Google Drive, GFS retention (`scripts/backup-db.sh`, `docs/OPS.md`).
-  - **Offline installations (ARES schools, no internet): a rotated removable drive.** `rclone`'s local
-    backend means `BACKUP_RCLONE_REMOTE` may be a mounted path, so encryption, GFS retention and
-    pruning are unchanged — only the destination differs. Backups here are **occasional rather than
-    nightly**, because they depend on a person.
-  - ⚑ **"Off-site" is a property of the drive's LOCATION, not of the backup.** A thumb drive left in
-    the server is not a backup against fire or theft — the guarantee comes from **rotation**, which is
-    a human process the school must own. Say so plainly rather than implying the file is safe because
-    it was written.
-  - ⚑ **A missing drive must FAIL, never silently succeed.** Writing to an unmounted `/media/...` path
-    creates a directory on the root filesystem instead: backups appear to work, go nowhere, and fill
-    the boot disk. The destination mount must be backed by a different device from `/` **and**
-    carry a regular, non-symlink sentinel before any dump is written; its mount identity must remain
-    stable through upload.
+- **Automated, encrypted backups** (Postgres dumps); snapshot before migrations. **Two optional
+  destinations, at least one enabled** (Part 3a, 2026-10-26; `docs/OPS.md`):
+  - **Server disk:** `BACKUP_DISK_DIR`, default `/var/lib/lesson3-backups`; an explicit empty value
+    disables it. Keep it outside Docker volumes. This is the sole destination allowed on the root
+    device. It protects against bad updates, deletions and database corruption, but **will not survive
+    disk failure, theft, fire or a reinstall wipe**, which the status page states explicitly.
+    Retention defaults to 7 daily, 4 weekly, 3 monthly (`BACKUP_DISK_*_KEEP`). Before copying, free
+    bytes must cover the encrypted file plus `BACKUP_DISK_MIN_FREE_BYTES` (default 256 MiB).
+    Encrypted staging is also bounded to leave a 256 MiB reserve on its filesystem.
+  - **USB or cloud:** `BACKUP_RCLONE_REMOTE`, an absolute mounted path or rclone remote such as
+    Google Drive. External retention remains 7 daily, 4 weekly, 12 monthly (`BACKUP_*_KEEP`). Both
+    destinations retain `premigrate` snapshots for 90 days (`BACKUP_PREMIGRATE_RETENTION_DAYS`).
+    One dump and one encryption feed both copies; a destination error never stops the other copy.
+    After both are attempted, a real error yields a nonzero exit, including partial success.
+  - **USB absence is neutral, recorded as "not connected".** It never creates a missing USB folder
+    on the boot disk, and does not fail a successful disk backup. A connected local external
+    destination must be on a different device from `/`, carry a regular, non-symlink
+    `.lesson3-backup-volume` sentinel, and retain its mount identity through the copy. An unsafe
+    mount or a missing sentinel on a mounted drive is an error. A drive only protects against fire
+    or theft when someone takes it away from the server.
+  - **One installation per destination:** `.lesson3-installation` at the destination root holds the
+    installation UUID read through Postgres. Missing or invalid database identity prevents writes.
+    First use adopts an unmarked destination, including existing older Lesson3 backups. A foreign,
+    malformed or symlink marker refuses writes and pruning; identity is rechecked before copying
+    and pruning. Claiming a destination never overwrites an existing marker.
   - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local
     answer — surfaced on **Manage → System → Backups**. (Built 2026-08-21 as one "most recent backup"
     row; replaced 2026-10-21 by design A2–A5, `docs/DESIGN-backup-recovery-2026-10-21.md`.)
-    `scripts/backup-db.sh` writes one record per stream, `out/ops/backup/<stream>.json`, atomically and
+    `scripts/backup-db.sh` writes one record per destination and stream,
+    `out/ops/backup/<disk|usb|remote>/<stream>.json`, atomically and
     under an `flock`: the last success with `coversUntil` (when `pg_dump` began), the last failure with
-    its stage and reason (written by an exit trap), and the last 31 `coversUntil` values. The page
+    its stage and reason (written by an exit trap), optional `lastNotConnected` with time and sequence,
+    and the last 31 `coversUntil` values (version 2). Old `backup/<stream>.json` is fallback evidence
+    for the external destination only until its own stream file exists; version 1 remains readable.
+    A damaged new file does not revive an older success. The page
     states separate facts, each up to date / attention / unknown, with **no overall "Protected"**:
-    freshness judged by `coversUntil` against the school's `BACKUP_MAX_DATA_LOSS`, routine backups over
+    freshness judged separately by `coversUntil`: disk (and cloud) against the school's
+    `BACKUP_MAX_DATA_LOSS`, USB against `BACKUP_USB_MAX_AGE` (default 30 days). A fresh disk must never
+    hide an overdue USB; overdue USB says to plug in the drive. Other facts include routine backups over
     the last 7 days, the last attempt, the agreed `RECOVERY_TARGET_TIME`, who recovers
     (`BACKUP_RECOVERY_CONTACT`), where the key is kept (`BACKUP_KEY_HELD_BY`), an open restore, and
     **"Full recovery: Not yet tested"** until Phase B's acceptance test passes. Unset agreements read

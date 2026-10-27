@@ -15,7 +15,7 @@ vi.mock('fs/promises', async () => {
   return { ...actual, open: fileMock.open }
 })
 
-const { ago, collectBackupStatus, deriveBackupStatus, parseAgreement } =
+const { ago, collectBackupStatus, collectBackupEvidence, deriveBackupStatus, parseAgreement } =
   await import('@/lib/backupStatus')
 const { formatInstant } = await import('@/components/Manage/LocalTime')
 type StreamRecord = import('@/lib/backupStatus').StreamRecord
@@ -516,7 +516,7 @@ describe('reading the records', () => {
   type Files = Record<string, unknown>
   const serve = (files: Files) => {
     fileMock.open.mockImplementation(async (path: string) => {
-      if (!(path in files)) throw new Error('ENOENT')
+      if (!(path in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
       const content = files[path]
       if (content === 'HANG') return new Promise(() => {})
       const bytes = Buffer.from(typeof content === 'string' ? content : JSON.stringify(content))
@@ -534,8 +534,11 @@ describe('reading the records', () => {
     fileMock.open.mockReset()
     saved = process.env.BACKUP_MAX_DATA_LOSS
     delete process.env.BACKUP_MAX_DATA_LOSS
+    vi.stubEnv('BACKUP_DISK_DIR', '')
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', '')
   })
   afterEach(() => {
+    vi.unstubAllEnvs()
     if (saved === undefined) delete process.env.BACKUP_MAX_DATA_LOSS
     else process.env.BACKUP_MAX_DATA_LOSS = saved
   })
@@ -596,7 +599,8 @@ describe('reading the records', () => {
   it('never reads an oversized file', async () => {
     const readFile = vi.fn()
     fileMock.open.mockImplementation(async (path: string) => {
-      if (path !== `${dir}/backup/daily.json`) throw new Error('ENOENT')
+      if (path !== `${dir}/backup/daily.json`)
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
       return {
         stat: async () => ({ isFile: () => true, size: 8_193 }),
         readFile,
@@ -638,5 +642,121 @@ describe('reading the records', () => {
       }),
     })
     expect((await keyed()).freshness.value).toEqual(['Backup limit not agreed'])
+  })
+  it('keeps new destination evidence separate and defaults USB freshness to 30 days', async () => {
+    vi.stubEnv('BACKUP_MAX_DATA_LOSS', '1d')
+    vi.stubEnv('BACKUP_DISK_DIR', '/var/lib/lesson3-backups')
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
+    serve({
+      [`${dir}/backup/disk/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+      [`${dir}/backup/usb/daily.json`]: record('daily', {
+        lastSuccess: success(daysAgo(34)),
+        lastNotConnected: { seq: 2, at: hoursAgo(1), reason: 'Not connected' },
+      }),
+    })
+    const s = await keyed()
+    expect(s['disk:freshness'].state).toBe('ok')
+    expect(flat(s['disk:freshness'])).toContain(
+      'will not survive disk failure, theft, fire or a reinstall wipe',
+    )
+    expect(s['usb:freshness'].state).toBe('attention')
+    expect(s['usb:freshness'].label).toBe('USB backup')
+    expect(flat(s['usb:freshness'])).toContain('Plug in the backup drive')
+    expect(s['usb:lastAttempt']).toMatchObject({
+      state: 'unknown',
+      value: ['Not connected ', { at: hoursAgo(1) }],
+    })
+    expect(s.fullRecovery.value).toEqual(['Not yet tested'])
+  })
+
+  it('does not treat an absent but recent USB as a failed backup', async () => {
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
+    serve({
+      [`${dir}/backup/usb/daily.json`]: record('daily', {
+        lastSuccess: { ...success(daysAgo(20)), seq: 1 },
+        lastNotConnected: { seq: 2, at: hoursAgo(1), reason: 'Not connected' },
+      }),
+    })
+    const s = await keyed()
+    expect(s['usb:freshness'].state).toBe('ok')
+    expect(flat(s['usb:freshness'])).toContain('USB reminder limit: 30 days')
+    expect(flat(s['usb:freshness'])).not.toContain('Agreed')
+    expect(s['usb:lastAttempt'].state).toBe('unknown')
+  })
+
+  it('honours a separately configured USB age', async () => {
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
+    vi.stubEnv('BACKUP_USB_MAX_AGE', '7d')
+    serve({
+      [`${dir}/backup/usb/daily.json`]: record('daily', { lastSuccess: success(daysAgo(8)) }),
+    })
+    expect((await keyed())['usb:freshness'].state).toBe('attention')
+  })
+
+  it('falls back to old records for the external destination alone', async () => {
+    serve({ [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }) })
+    const evidence = await collectBackupEvidence({
+      diskDir: '/backups',
+      destination: 'drive:backups',
+    })
+    expect(evidence.grouped.find((d) => d.kind === 'disk')?.records).toEqual([])
+    expect(evidence.grouped.find((d) => d.kind === 'remote')?.records).toHaveLength(1)
+  })
+
+  it('new destination failure replaces older success for that stream', async () => {
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', 'drive:backups')
+    serve({
+      [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+      [`${dir}/backup/remote/daily.json`]: record('daily', {
+        lastFailure: { at: hoursAgo(1), stage: 'destination', reason: 'Foreign installation' },
+      }),
+    })
+    const s = await keyed()
+    expect(s['remote:lastAttempt'].state).toBe('attention')
+    expect(flat(s['remote:freshness'])).not.toContain('Work saved before')
+  })
+
+  it('a damaged new record cannot revive an older success', async () => {
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', 'drive:backups')
+    serve({
+      [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+      [`${dir}/backup/remote/daily.json`]: '{damaged',
+    })
+    expect((await keyed())['remote:lastAttempt'].value).toEqual(['No backup attempt recorded'])
+  })
+
+  it('continues reading version 1 for external backups alongside new disk records', async () => {
+    vi.stubEnv('BACKUP_DISK_DIR', '/backups')
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
+    serve({
+      [`${dir}/backup/disk/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+      [`${dir}/backup-status.json`]: {
+        version: 1,
+        stream: 'daily',
+        completedAt: daysAgo(2),
+        destination: '/mnt/usb',
+        filename: 'older.dump.age',
+        encryptedBytes: 4,
+      },
+    })
+    const s = await keyed()
+    expect(s['usb:freshness'].value).toEqual(['Unknown — history incomplete'])
+    expect(s['disk:lastAttempt'].state).toBe('ok')
+  })
+
+  it('rejects malformed disconnected events instead of displaying them', async () => {
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
+    serve({
+      [`${dir}/backup/usb/daily.json`]: record('daily', {
+        lastNotConnected: { seq: -1, at: 'yesterday', reason: 'Not connected' },
+      }),
+    })
+    expect((await keyed())['usb:lastAttempt'].value).toEqual(['No backup attempt recorded'])
+  })
+  it('applies the USB reminder age to old-layout evidence during transition', async () => {
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
+    vi.stubEnv('BACKUP_MAX_DATA_LOSS', '1d')
+    serve({ [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(daysAgo(20)) }) })
+    expect((await keyed()).freshness.state).toBe('ok')
   })
 })

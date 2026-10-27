@@ -1,90 +1,44 @@
 #!/usr/bin/env bash
-#
-# Encrypted Postgres backup for Lesson3 (SPEC §11 / readiness #9).
-#
-#   pg_dump (in the postgres container)  ->  age -r <recipient…>  ->  rclone copy to remote/local storage
-#
-# DESIGN
-#   - pg_dump runs INSIDE the postgres container (`docker compose exec postgres`), because Postgres is
-#     internal-only (no host port) and pg_dump is absent on the host. Custom format (`-Fc`): compact +
-#     supports selective `pg_restore`.
-#   - Encrypted on the Rock with `age` to a RECIPIENT public key. The matching private identity is held
-#     by the operator OFF the box, so a Rock compromise cannot decrypt past backups. The dump is opaque
-#     to Google before it ever leaves the host.
-#   - Uploaded with `rclone` to either a configured remote (today Google Drive) or an absolute path on
-#     a removable drive, one stream per label (grandfather-father-son):
-#       daily/       nightly backups       (keep newest BACKUP_DAILY_KEEP,   default 7)
-#       weekly/      weekly  backups       (keep newest BACKUP_WEEKLY_KEEP,  default 4)
-#       monthly/     monthly backups       (keep newest BACKUP_MONTHLY_KEEP, default 12)
-#       premigrate/  pre-deploy snapshots  (pruned after BACKUP_PREMIGRATE_RETENTION_DAYS, default 90)
-#     daily/weekly/monthly prune by COUNT (keep newest N — exact, and robust to a missed run);
-#     premigrate prunes by AGE (irregular per-deploy cadence). Cron schedules the three — see docs/OPS.md.
-#   - A local path MUST resolve onto a mount backed by a different device from `/` and contain a
-#     regular, non-symlink `.lesson3-backup-volume`. The script keeps the destination directory open
-#     and checks the mount identity around upload, so an absent or changed USB drive cannot fill the
-#     boot disk.
-#   - Records every run in ONE FILE PER STREAM, `out/ops/backup/<stream>.json` (version 2, design A2,
-#     `docs/DESIGN-backup-recovery-2026-10-21.md`): the last success (with `coversUntil`, the moment
-#     `pg_dump` began, so the moment whose data the backup holds), the last failure (time, stage, one
-#     line of reason, written by an exit trap), and the last 31 `coversUntil` values. Each file is
-#     replaced atomically, so no run rewrites another stream's record. The app mounts `out/ops`
-#     read-only and reports these on Manage → System → Backups. A failed run never advances a success.
-#   - Holds an `flock` for the whole run, so two backups never run at once; the second waits.
-#     `out/ops/backup-status.json` (version 1) is no longer written; the app reads it only until the
-#     first per-stream record exists.
-#   - On success, optionally pings HEALTHCHECK_BACKUP_URL (the monitoring dead-man's-switch).
-#
-# USAGE
-#   scripts/backup-db.sh                       # nightly backup   -> daily/
-#   scripts/backup-db.sh --label weekly        # weekly snapshot  -> weekly/   (cron: Sundays)
-#   scripts/backup-db.sh --label monthly       # monthly snapshot -> monthly/  (cron: 1st of month)
-#   scripts/backup-db.sh --label premigrate    # pre-deploy snap  -> premigrate/ (used by deploy.sh)
-#
-# CONFIG (from the repo .env, or the environment; see docs/OPS.md):
-#   BACKUP_AGE_RECIPIENT             age1...  (required) ARES's public recipient key
-#   BACKUP_AGE_RECIPIENT_SCHOOL      age1...  (optional) the SCHOOL's own public recipient key
-#   BACKUP_RCLONE_REMOTE             e.g. drive:lesson3-backups OR /media/lesson3-backups (required)
-#   BACKUP_DAILY_KEEP                default 7    (newest N kept in daily/)
-#   BACKUP_WEEKLY_KEEP               default 4    (newest N kept in weekly/)
-#   BACKUP_MONTHLY_KEEP              default 12   (newest N kept in monthly/)
-#   BACKUP_PREMIGRATE_RETENTION_DAYS default 90   (premigrate/ pruned by age, in days)
-#   HEALTHCHECK_BACKUP_URL           optional; curled on success
-#   BACKUP_LOCK_WAIT_SECONDS         default 3600 (how long a run waits for another to finish)
-#   BACKUP_DB_NAME / BACKUP_DB_USER  default lesson3 / lesson3
+# One Postgres dump + age encryption, independently copied to the server disk and USB/cloud.
+# Disk: BACKUP_DISK_DIR (default /var/lib/lesson3-backups; explicit empty disables it).
+# USB/cloud: BACKUP_RCLONE_REMOTE (optional). At least one destination is required.
+# Records: out/ops/backup/<disk|usb|remote>/<stream>.json (v2); old stream files are fallback evidence.
+# Usage: no label = daily; --label weekly|monthly|premigrate[-suffix]. See docs/OPS.md.
 set -euo pipefail
-
-# Shared PATH + repo-root cd + env_get (reads .env keys without sourcing it). See scripts/lib.sh.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+# Unlike ordinary options, an explicit empty destination disables it, including in the environment.
+destination_setting() {
+  local key="$1" fallback="$2"
+  if [[ -v "$key" ]]; then printf '%s' "${!key}"
+  elif [[ -f .env ]] && grep -qE "^${key}=" .env; then env_get "$key"
+  else printf '%s' "$fallback"; fi
+}
+DISK_DIR="$(destination_setting BACKUP_DISK_DIR /var/lib/lesson3-backups)"
+REMOTE="$(destination_setting BACKUP_RCLONE_REMOTE '')"
 BACKUP_AGE_RECIPIENT="$(env_get BACKUP_AGE_RECIPIENT)"
 BACKUP_AGE_RECIPIENT_SCHOOL="$(env_get BACKUP_AGE_RECIPIENT_SCHOOL)"
-BACKUP_RCLONE_REMOTE="$(env_get BACKUP_RCLONE_REMOTE)"
 HEALTHCHECK_BACKUP_URL="$(env_get HEALTHCHECK_BACKUP_URL)"
-DB_NAME="$(env_get BACKUP_DB_NAME)";    DB_NAME="${DB_NAME:-lesson3}"
-DB_USER="$(env_get BACKUP_DB_USER)";    DB_USER="${DB_USER:-lesson3}"
-DAILY_KEEP="$(env_get BACKUP_DAILY_KEEP)";     DAILY_KEEP="${DAILY_KEEP:-7}"
-WEEKLY_KEEP="$(env_get BACKUP_WEEKLY_KEEP)";   WEEKLY_KEEP="${WEEKLY_KEEP:-4}"
-MONTHLY_KEEP="$(env_get BACKUP_MONTHLY_KEEP)"; MONTHLY_KEEP="${MONTHLY_KEEP:-12}"
-PREMIGRATE_RETENTION_DAYS="$(env_get BACKUP_PREMIGRATE_RETENTION_DAYS)"; PREMIGRATE_RETENTION_DAYS="${PREMIGRATE_RETENTION_DAYS:-90}"
+DB_NAME="$(env_get BACKUP_DB_NAME)"; DB_NAME="${DB_NAME:-lesson3}"
+DB_USER="$(env_get BACKUP_DB_USER)"; DB_USER="${DB_USER:-lesson3}"
 BACKUP_RECORD_DIR="$REPO_DIR/out/ops/backup"
 LOCK_WAIT="$(env_get BACKUP_LOCK_WAIT_SECONDS)"; LOCK_WAIT="${LOCK_WAIT:-3600}"
+LABEL=""; [[ "${1:-}" != --label || -z "${2:-}" ]] || LABEL="$2"
+STREAM=""; STAGE=setup; FAIL_REASON=""; LOCKED=0; RECORD_TMP=""; TMP=""
+# Free space kept back on the server disk, both for the disk copy and for staging: 256 MiB.
+RESERVE_BYTES=268435456
+declare -A ROOTS DONE FDS MOUNTS
+TARGETS=()
+[[ -z "$DISK_DIR" ]] || { TARGETS+=(disk); ROOTS[disk]="$DISK_DIR"; }
+if [[ -n "$REMOTE" ]]; then
+  REMOTE_KIND=remote; [[ "$REMOTE" != /* && "$REMOTE" == *:* ]] || REMOTE_KIND=usb
+  TARGETS+=("$REMOTE_KIND"); ROOTS[$REMOTE_KIND]="$REMOTE"
+fi
 
-LABEL=""
-[[ "${1:-}" == "--label" && -n "${2:-}" ]] && LABEL="$2"
-
-# ⚑ A FAILURE IS RECORDED, NOT JUST PRINTED. Cron mails stderr to nobody on most servers, so a backup
-# that fails every night looks, on the page, exactly like one that was never set up. `die` keeps the
-# reason and the EXIT trap writes it to this stream's record with the stage it reached.
-STREAM=""; STAGE="setup"; FAIL_REASON=""; LOCKED=0
 die() { FAIL_REASON="$*"; echo "backup-db: ERROR: $*" >&2; exit 1; }
-need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH ($PATH) — see docs/OPS.md setup"; }
-# Reject a retention typo (0 / negative / non-numeric). A bad value would otherwise mean "delete the
-# WHOLE stream" (count-prune: REMOVE = total - 0) or crash `$(( ))` AFTER the dump is already uploaded.
+need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH — see docs/OPS.md setup"; }
 positive_int() { [[ "$2" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integer (got '$2')"; }
 
-# Bash strings cannot contain NUL. Reject every other JSON control character that we do not explicitly
-# escape below, before pg_dump starts; an operator typo must not upload a backup and then fail while
-# recording its success.
 reject_unsupported_json_controls() {
   local value="$1" field="$2" i control
   for ((i = 1; i <= 31; i++)); do
@@ -93,45 +47,6 @@ reject_unsupported_json_controls() {
     [[ "$value" != *"$control"* ]] \
       || die "$field contains an unsupported control character"
   done
-}
-
-# rclone treats `remote:path` as a configured backend and a plain path as the local backend. Local
-# destinations are intentionally stricter: relative paths are ambiguous under cron. A separately
-# backed mount, its stable identity and a sentinel on that volume together prove writes are not falling
-# through to the server's root disk. FD 9 keeps an ordinary unmount from succeeding while the script
-# is running.
-LOCAL_MOUNT_INFO=""
-validate_destination() {
-  [[ "$BACKUP_RCLONE_REMOTE" != /* && "$BACKUP_RCLONE_REMOTE" == *:* ]] && return 0
-  [[ "$BACKUP_RCLONE_REMOTE" == /* ]] \
-    || die "local BACKUP_RCLONE_REMOTE must be an absolute path (got '$BACKUP_RCLONE_REMOTE')"
-  local sentinel="${BACKUP_RCLONE_REMOTE%/}/.lesson3-backup-volume"
-  [[ -f "$sentinel" && ! -L "$sentinel" ]] \
-    || die "local backup destination is not identified — expected a regular, non-symlink sentinel at $sentinel"
-  need findmnt
-  local mount_target root_device destination_device
-  mount_target="$(findmnt -T "$BACKUP_RCLONE_REMOTE" -n -o TARGET)" \
-    || die "cannot resolve the filesystem mounted at $BACKUP_RCLONE_REMOTE"
-  [[ -n "$mount_target" && "$mount_target" != "/" ]] \
-    || die "local backup destination is on the root filesystem, not a mounted removable volume"
-  LOCAL_MOUNT_INFO="$(findmnt -T "$BACKUP_RCLONE_REMOTE" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN)" \
-    || die "cannot identify the filesystem mounted at $BACKUP_RCLONE_REMOTE"
-  [[ -n "$LOCAL_MOUNT_INFO" ]] || die "empty mount identity for $BACKUP_RCLONE_REMOTE"
-  destination_device="${LOCAL_MOUNT_INFO##* }"
-  root_device="$(findmnt -T / -n -o MAJ:MIN)" || die "cannot identify the root filesystem"
-  [[ -n "$root_device" && "$destination_device" != "$root_device" ]] \
-    || die "local backup destination is backed by the root filesystem, not a separate volume"
-  exec 9<"$BACKUP_RCLONE_REMOTE" \
-    || die "cannot hold the local backup destination open during backup"
-}
-
-verify_local_mount_unchanged() {
-  [[ -z "$LOCAL_MOUNT_INFO" ]] && return 0
-  local current
-  current="$(findmnt -T "$BACKUP_RCLONE_REMOTE" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN)" \
-    || die "local backup destination disappeared before upload completed"
-  [[ "$current" == "$LOCAL_MOUNT_INFO" ]] \
-    || die "local backup destination's mounted filesystem changed during backup"
 }
 
 json_escape() {
@@ -145,24 +60,17 @@ json_escape() {
   printf '%s' "$value"
 }
 
-# ─── Per-stream records (version 2) ──────────────────────────────────────────────────────────────────
-#
-# One line per field group, so a run can carry the OTHER group forward verbatim (a success keeps the
-# last failure and vice versa) without parsing or re-escaping JSON in bash: the copied line is exactly
-# the text a previous run wrote. The reader compares times, so an old failure beside a newer success
-# reads as "the last attempt succeeded".
-RECORD_TMP=""
 ISO_RE='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'
 
 previous_group() { # key — the previous record's JSON value for that group, or null
-  local file="$BACKUP_RECORD_DIR/$STREAM.json" line
+  local file="$SOURCE_RECORD" line
   line="$(grep -m1 -E "^  \"$1\": (null|\{.*\}|\[.*\]),?\$" "$file" 2>/dev/null || true)"
   line="${line#  \"$1\": }"; line="${line%,}"
   printf '%s' "${line:-null}"
 }
 
-write_record() { # success|failure
-  local now since history success failure tmp_dir seq
+write_record() { # success|failure|notConnected
+  local now since history success failure disconnected tmp_dir seq
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # ⚑ ATTEMPT ORDER IS A NUMBER, NOT A TIME. Times are whole seconds, so a success and a failure can
   # share one, and the page must still know which came last (review 2026-10-21: a tie read as
@@ -171,197 +79,321 @@ write_record() { # success|failure
   [[ "$seq" =~ ^[0-9]{1,15}$ ]] || seq=0
   seq=$((seq + 1))
   printf '%s\n' "$seq" >"$BACKUP_RECORD_DIR/.seq.tmp" && mv -f "$BACKUP_RECORD_DIR/.seq.tmp" "$BACKUP_RECORD_DIR/.seq"
-  since="$(grep -m1 -oE "\"recordingSince\": \"$ISO_RE\"" "$BACKUP_RECORD_DIR/$STREAM.json" 2>/dev/null \
+  since="$(grep -m1 -oE "\"recordingSince\": \"$ISO_RE\"" "$SOURCE_RECORD" 2>/dev/null \
     | grep -oE "$ISO_RE" || true)"
   since="${since:-$now}"
   history="$(previous_group history | grep -oE "$ISO_RE" || true)"
   success="$(previous_group lastSuccess)"
   failure="$(previous_group lastFailure)"
+  disconnected="$(previous_group lastNotConnected)"
   if [[ "$1" == success ]]; then
     history="$(printf '%s\n%s\n' "$history" "$COVERS_UNTIL" | { grep -E "^$ISO_RE\$" || true; } | tail -n 31)"
     success="$(printf '{"seq": %s, "coversUntil": "%s", "completedAt": "%s", "filename": "%s", "encryptedBytes": %s, "destination": "%s"}' \
       "$seq" "$COVERS_UNTIL" "$now" "$(json_escape "$NAME" "backup filename")" "$SIZE" \
-      "$(json_escape "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE")")"
+      "$(json_escape "$DEST_ROOT" "backup destination")")"
+  elif [[ "$1" == notConnected ]]; then
+    disconnected="$(printf '{"seq": %s, "at": "%s", "reason": "The backup drive is not connected."}' "$seq" "$now")"
   else
     failure="$(printf '{"seq": %s, "at": "%s", "stage": "%s", "reason": "%s"}' "$seq" "$now" "$STAGE" \
       "$(json_escape "$(printf '%s' "$2" | tr '\n\r\t' '   ' | cut -c1-300)" "failure reason")")"
   fi
   history="$(printf '%s\n' "$history" | { grep -E "^$ISO_RE\$" || true; } | sed 's/.*/"&"/' | paste -sd, - | sed 's/,/, /g')"
-  tmp_dir="$BACKUP_RECORD_DIR"
+  tmp_dir="${RECORD_FILE%/*}"
   mkdir -p "$tmp_dir"
+  chmod 0755 "$tmp_dir"
   RECORD_TMP="$(mktemp "$tmp_dir/.$STREAM.XXXXXX")"
-  printf '{\n  "version": 2,\n  "stream": "%s",\n  "recordingSince": "%s",\n  "lastSuccess": %s,\n  "lastFailure": %s,\n  "history": [%s]\n}\n' \
-    "$STREAM" "$since" "$success" "$failure" "$history" >"$RECORD_TMP"
+  printf '{\n  "version": 2,\n  "stream": "%s",\n  "recordingSince": "%s",\n  "lastSuccess": %s,\n  "lastFailure": %s,\n  "lastNotConnected": %s,\n  "history": [%s]\n}\n' \
+    "$STREAM" "$since" "$success" "$failure" "$disconnected" "$history" >"$RECORD_TMP"
   chmod 0644 "$RECORD_TMP"
-  mv -f "$RECORD_TMP" "$BACKUP_RECORD_DIR/$STREAM.json"
+  mv -f "$RECORD_TMP" "$RECORD_FILE"
   RECORD_TMP=""
 }
 
-# The EXIT trap: clean up, and if this run failed after its stream was known, say so in the record.
-on_exit() {
-  local status=$?
-  [[ -z "${TMP:-}" ]] || rm -rf "$TMP"
-  [[ -z "$RECORD_TMP" ]] || rm -f "$RECORD_TMP"
-  # Not after `done`: the upload and its record already succeeded, and pruning is best-effort.
-  # ⚑ AND ONLY BY A RUN THAT HOLDS THE LOCK. A record is read, changed and replaced; a run without the
-  # lock could replace it with a copy taken before the holder's success, losing that success and its
-  # history (review 2026-10-21 reproduced exactly that from an early validation failure).
-  if [[ "$status" -ne 0 && -n "$STREAM" && "$STAGE" != done && "$LOCKED" -eq 1 ]]; then
-    write_record failure "${FAIL_REASON:-stopped with exit status $status during $STAGE}" 2>/dev/null \
-      && echo "backup-db: recorded the failure in $BACKUP_RECORD_DIR/$STREAM.json" >&2 || true
-  fi
-  exit "$status"
+select_destination() {
+  KIND="$1"; DEST_ROOT="${ROOTS[$KIND]}"
+  RECORD_FILE="$BACKUP_RECORD_DIR/$KIND/$STREAM.json"
+  SOURCE_RECORD="$RECORD_FILE"
+  # Only the external destination inherits pre-3a evidence, never the disk destination.
+  if [[ "$KIND" != disk && ! -e "$RECORD_FILE" ]]; then SOURCE_RECORD="$BACKUP_RECORD_DIR/$STREAM.json"; fi
 }
-trap on_exit EXIT
 
-# Map the label to a stream + its prune policy. daily/weekly/monthly keep the newest KEEP_COUNT dumps
-# (count-based); premigrate keeps by age (KEEP_DAYS). Unknown labels are rejected (a typo guard so a
-# fat-fingered cron can't silently spray dumps into a new, never-pruned stream).
-KEEP_COUNT=""; KEEP_DAYS=""
+# Best effort: a failure to record must never mask the failure being recorded.
+record_failure() { # exit-status
+  write_record failure "${FAIL_REASON:-stopped during $STAGE (exit $1)}" 2>/dev/null || true
+}
+
+cleanup() {
+  local status=$?
+  if [[ "$status" -ne 0 && "$LOCKED" -eq 1 && -n "$STREAM" ]]; then
+    for target in "${TARGETS[@]}"; do
+      [[ "${DONE[$target]:-0}" == 1 ]] && continue
+      select_destination "$target"
+      record_failure "$status"
+    done
+  fi
+  [[ -z "$RECORD_TMP" ]] || rm -f "$RECORD_TMP"
+  [[ -z "$TMP" ]] || rm -rf "$TMP"
+}
+trap cleanup EXIT
+
+# A destination worker owns only its own record. Its error never prevents the other worker running.
+destination_exit() {
+  local status=$?
+  [[ "$status" -eq 0 || "$STAGE" == done ]] || record_failure "$status"
+  [[ -z "$RECORD_TMP" ]] || rm -f "$RECORD_TMP"
+}
+
+# Runs one destination's worker in its own subshell and leaves its status in RESULT. ⚑ Call it as a
+# plain command, never as `isolated … || …`: bash ignores `set -e` throughout a `||` list, subshell
+# included, so the worker would carry on past its first error.
+isolated() { set +e; (set -e; "$@"); RESULT=$?; set -e; }
+
 case "$LABEL" in
-  "")          STREAM="daily";      KEEP_COUNT="$DAILY_KEEP" ;;
-  weekly)      STREAM="weekly";     KEEP_COUNT="$WEEKLY_KEEP" ;;
-  monthly)     STREAM="monthly";    KEEP_COUNT="$MONTHLY_KEEP" ;;
-  premigrate*) STREAM="premigrate"; KEEP_DAYS="$PREMIGRATE_RETENTION_DAYS" ;;
-  # ⚑ THE MESSAGE NAMES ALL FOUR FORMS, INCLUDING THE TWO IT USED TO OMIT. It read
-  # "(use weekly | monthly | premigrate)", which is incomplete in both directions: it never said that
-  # NO label means a daily, and it never said `premigrate` accepts a SUFFIX — which is how `deploy.sh`
-  # itself stamps the SHA (`--label premigrate-$SHA`). Someone reading the old message could not tell
-  # that `premigrate-two-recipient-check` was legal, and the operator lost a run to exactly that
-  # (2026-08-22). An error that lists the valid inputs incorrectly is worse than one that lists none.
-  *)           die "unknown --label '$LABEL'. Valid: no --label at all (daily), weekly, monthly, or premigrate with an optional suffix (e.g. premigrate-\$SHA)" ;;
+  '') STREAM=daily ;;
+  weekly|monthly) STREAM="$LABEL" ;;
+  premigrate*) STREAM=premigrate ;;
+  *) die "unknown --label '$LABEL'. Valid: no --label at all (daily), weekly, monthly, or premigrate with an optional suffix (e.g. premigrate-\$SHA)" ;;
 esac
-
-# ⚑ ONE BACKUP AT A TIME, FOR THE WHOLE RUN, AND TAKEN BEFORE ANYTHING CAN FAIL INTO A RECORD. A weekly
-# cron line and a deploy's premigrate snapshot can start together; two runs would race to prune the
-# same remote and to replace records. The second waits (the kernel releases the lock if the first
-# dies, so a crash cannot leave it held). Everything that can fail after this point is recorded.
 need flock
-STAGE="lock"
-positive_int "BACKUP_LOCK_WAIT_SECONDS" "$LOCK_WAIT"
+positive_int BACKUP_LOCK_WAIT_SECONDS "$LOCK_WAIT"
 mkdir -p "$BACKUP_RECORD_DIR"
+# Only operational records are public to the read-only app mount, never backup archives.
+chmod 0755 "$REPO_DIR/out/ops" "$BACKUP_RECORD_DIR"
 exec 8>"$BACKUP_RECORD_DIR/.lock"
+STAGE=lock
 if ! flock -n 8; then
   echo "backup-db: another backup is running; waiting up to ${LOCK_WAIT}s for it to finish"
   flock -w "$LOCK_WAIT" 8 || die "another backup was still running after ${LOCK_WAIT}s"
 fi
-LOCKED=1
-STAGE="setup"
-
-# Validate the retention value actually selected for this run — BEFORE the dump/upload/prune, and
-# AFTER the lock, so a bad setting is recorded as a failure rather than only printed (review
-# 2026-10-22). if/then (not `[[ ]] && cmd`) so a false test can't trip `set -e` on the premigrate path
-# (where KEEP_COUNT="").
-if [[ -n "$KEEP_COUNT" ]]; then positive_int "keep-count for '$STREAM'" "$KEEP_COUNT"; fi
-if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KEEP_DAYS"; fi
-
-need docker; need age; need rclone
-[[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
-
-
-# ⚑ TWO RECIPIENTS, SO AN OFFLINE SCHOOL CAN RECOVER WITHOUT ARES (operator decision 2026-08-22,
-# SPEC §11). `age` encrypts to any number of recipients and EITHER identity decrypts independently, so
-# adding the school's key costs one flag and no key sharing: ARES keeps its identity, the school keeps
-# its own, and neither needs the other's.
-#
-# The gap this closes: with a single ARES recipient, a school with no internet could back up perfectly
-# and still not restore — their server dies, they hold a USB drive of correct encrypted dumps, and the
-# only thing that can read them is elsewhere. Recovery became a physical shipping problem during an
-# outage. Verified on 2026-08-22 that the restore path itself works by bringing the ciphertext to the
-# key; an offline school has no equivalent move, which is what made this worth changing.
-#
-# ⚑ FORWARD-ONLY, and deliberately so: existing backups stay decryptable by the ARES identity exactly as
-# before. Only dumps written after this runs carry the second recipient, so there is no migration and no
-# re-encryption of history.
+LOCKED=1; STAGE=setup
+[[ "${#TARGETS[@]}" -gt 0 ]] || die 'set BACKUP_DISK_DIR and/or BACKUP_RCLONE_REMOTE'
+for target in "${TARGETS[@]}"; do reject_unsupported_json_controls "${ROOTS[$target]}" 'backup destination'; done
+reject_unsupported_json_controls "$DB_NAME" BACKUP_DB_NAME
+reject_unsupported_json_controls "$LABEL" --label
+for tool in docker age rclone cmp; do need "$tool"; done
+[[ -n "$BACKUP_AGE_RECIPIENT" ]] || die 'BACKUP_AGE_RECIPIENT is not set'
 AGE_RECIPIENT_ARGS=(-r "$BACKUP_AGE_RECIPIENT")
-if [[ -n "${BACKUP_AGE_RECIPIENT_SCHOOL:-}" ]]; then
-  # ⚑ REFUSE A DUPLICATE. Pasting the same key into both variables produces a backup that looks
-  # two-recipient and grants nobody new the ability to decrypt — the independence is the entire point,
-  # and a silent no-op here would be discovered during a recovery.
-  [[ "$BACKUP_AGE_RECIPIENT_SCHOOL" != "$BACKUP_AGE_RECIPIENT" ]] \
-    || die "BACKUP_AGE_RECIPIENT_SCHOOL is the same key as BACKUP_AGE_RECIPIENT — that grants no independent recovery"
+if [[ -n "$BACKUP_AGE_RECIPIENT_SCHOOL" ]]; then
+  [[ "$BACKUP_AGE_RECIPIENT_SCHOOL" != "$BACKUP_AGE_RECIPIENT" ]] || die 'BACKUP_AGE_RECIPIENT_SCHOOL is the same key as BACKUP_AGE_RECIPIENT — that grants no independent recovery'
   AGE_RECIPIENT_ARGS+=(-r "$BACKUP_AGE_RECIPIENT_SCHOOL")
 fi
-[[ -n "${BACKUP_RCLONE_REMOTE:-}" ]] || die "BACKUP_RCLONE_REMOTE is not set"
-reject_unsupported_json_controls "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE"
-reject_unsupported_json_controls "$DB_NAME" "BACKUP_DB_NAME"
-reject_unsupported_json_controls "$LABEL" "--label"
-STAGE="destination"
-validate_destination
+TMP="$(mktemp -d)"
+# Never invent an identity or infer it from a folder name. A failed read permits no destination write.
+INSTALLATION_ID="$(docker compose exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -tAc 'SELECT installation_id FROM system_settings LIMIT 1;')" \
+  || die 'cannot read this installation ID from the database'
+[[ "$INSTALLATION_ID" =~ ^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}$ ]] \
+  || die 'the database has no valid installation ID; not writing backups'
+mkdir "$TMP/marker"
+printf '%s\n' "$INSTALLATION_ID" >"$TMP/marker/.lesson3-installation"
+
+retention() {
+  KEEP_COUNT=''; KEEP_DAYS=''
+  if [[ "$STREAM" == premigrate ]]; then
+    KEEP_DAYS="$(env_get BACKUP_PREMIGRATE_RETENTION_DAYS)"; KEEP_DAYS="${KEEP_DAYS:-90}"
+    positive_int 'retention-days for premigrate' "$KEEP_DAYS"
+  else
+    local key="BACKUP_${STREAM^^}_KEEP" fallback
+    case "$STREAM" in daily) fallback=7 ;; weekly) fallback=4 ;; monthly) fallback=12 ;; esac
+    if [[ "$KIND" == disk ]]; then
+      key="BACKUP_DISK_${STREAM^^}_KEEP"
+      [[ "$STREAM" != monthly ]] || fallback=3
+    fi
+    KEEP_COUNT="$(env_get "$key")"; KEEP_COUNT="${KEEP_COUNT:-$fallback}"
+    positive_int "keep-count for '$STREAM' ($key)" "$KEEP_COUNT"
+  fi
+}
+
+not_connected() {
+  echo 'backup-db: USB backup drive is not connected'
+  write_record notConnected
+  STAGE=done
+  exit 10
+}
+
+# What a USB destination is mounted from, recorded once and compared before every write and prune.
+mount_identity() { findmnt -T "$DEST_ROOT" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN; }
+
+# Linux's open directory fd anchors local writes, even if a mount is lazily removed during a copy.
+open_local() {
+  [[ "$DEST_ROOT" == /* ]] || die 'local backup destination must be an absolute path'
+  [[ ! -L "$DEST_ROOT" ]] || die 'local backup destination must not be a symlink'
+  if [[ "$KIND" == disk ]]; then
+    (umask 077; mkdir -p "$DEST_ROOT") || die 'cannot create the disk backup directory'
+    MOUNT_INFO=''
+  else
+    [[ -d "$DEST_ROOT" ]] || not_connected
+    [[ ! -L "$DEST_ROOT/.lesson3-backup-volume" ]] || die 'USB sentinel must not be a symlink'
+    need findmnt
+    local mount_target root_device
+    mount_target="$(findmnt -T "$DEST_ROOT" -n -o TARGET)" || not_connected
+    if [[ -z "$mount_target" || "$mount_target" == / ]]; then
+      [[ ! -e "$DEST_ROOT/.lesson3-backup-volume" ]] || die 'USB destination is on the root filesystem'
+      not_connected
+    fi
+    [[ -f "$DEST_ROOT/.lesson3-backup-volume" ]] || die 'USB destination needs a regular .lesson3-backup-volume sentinel'
+    MOUNT_INFO="$(mount_identity)" || die 'cannot identify the USB filesystem'
+    root_device="$(findmnt -T / -n -o MAJ:MIN)" || die 'cannot identify the root filesystem'
+    [[ -n "$MOUNT_INFO" && -n "$root_device" && "${MOUNT_INFO##* }" != "$root_device" ]] || die 'USB destination is backed by the root filesystem'
+  fi
+  exec 9<"$DEST_ROOT" || die 'cannot hold the backup directory open'
+  WRITE_ROOT=/proc/self/fd/9
+}
+
+verify_mount() {
+  [[ "$KIND" == usb ]] || return 0
+  local current
+  current="$(mount_identity)" || die 'backup filesystem disappeared'
+  [[ "$current" == "$MOUNT_INFO" ]] || die "local backup destination's mounted filesystem changed during backup"
+}
+
+check_marker() {
+  local marker="$WRITE_ROOT/.lesson3-installation" stored
+  if [[ "$KIND" == remote ]]; then
+    rclone cat "$marker" --count 38 >"$TMP/read-marker-$KIND" || die 'cannot read the destination installation marker'
+    marker="$TMP/read-marker-$KIND"
+  else
+    [[ -f "$marker" && ! -L "$marker" ]] || die 'installation marker must be a regular, non-symlink file'
+  fi
+  if ! cmp -s "$TMP/marker/.lesson3-installation" "$marker"; then
+    stored="$(head -c 80 "$marker")"
+    [[ "$stored" =~ ^[[:xdigit:]-]{36}$ ]] || stored='unreadable marker'
+    die "This backup destination belongs to another installation ($stored). Not writing to or pruning it."
+  fi
+}
+
+claim_marker() {
+  local marker="$WRITE_ROOT/.lesson3-installation" listing temporary
+  if [[ "$KIND" == remote ]]; then
+    rclone mkdir "$WRITE_ROOT" || die 'cannot open the remote backup destination'
+    listing="$(rclone lsf "$WRITE_ROOT" --max-depth 1 --files-only --include '/.lesson3-installation')" || die 'cannot list the destination installation marker'
+    if [[ -z "$listing" ]]; then
+      # Directory copy, not copyto: copyto bypasses --immutable in the installed rclone.
+      rclone copy "$TMP/marker" "$WRITE_ROOT" --include '/.lesson3-installation' --immutable --checksum \
+        || die 'cannot claim the remote backup destination'
+    fi
+  elif [[ ! -e "$marker" && ! -L "$marker" ]]; then
+    temporary="$(mktemp "$WRITE_ROOT/.lesson3-installation.XXXXXX")" || die 'cannot prepare the installation marker'
+    if ! cp "$TMP/marker/.lesson3-installation" "$temporary"; then rm -f "$temporary"; die 'cannot write the installation marker'; fi
+    # A hard link publishes a complete marker without ever replacing another writer's claim.
+    ln "$temporary" "$marker" 2>/dev/null || true
+    rm -f "$temporary"
+  fi
+  check_marker
+}
+
+check_space() {
+  [[ "$KIND" == disk ]] || return 0
+  local available margin
+  margin="$(env_get BACKUP_DISK_MIN_FREE_BYTES)"; margin="${margin:-$RESERVE_BYTES}"
+  positive_int BACKUP_DISK_MIN_FREE_BYTES "$margin"
+  available="$(free_kb "$WRITE_ROOT")" || die 'cannot read free disk space'
+  [[ "$available" =~ ^[0-9]+$ ]] || die 'cannot read free disk space'
+  STAGE=space
+  (( available * 1024 >= ${SIZE:-0} + margin )) || die 'disk nearly full — not writing this backup'
+  STAGE=destination
+}
+
+prepare_destination() (
+  select_destination "$1"; STAGE=setup; FAIL_REASON=''; trap destination_exit EXIT
+  retention
+  STAGE=destination
+  WRITE_ROOT="$DEST_ROOT"; MOUNT_INFO=''
+  [[ "$KIND" == remote ]] || open_local
+  check_space
+  claim_marker
+  verify_mount
+  printf '%s' "$MOUNT_INFO" >"$TMP/mount-$KIND"
+  STAGE=done
+)
+
+READY=(); ANY_ERROR=0
+for target in "${TARGETS[@]}"; do
+  isolated prepare_destination "$target"; result=$RESULT
+  if [[ "$result" -eq 0 ]]; then
+    if [[ "$target" != remote ]]; then
+      if ! exec {destination_fd}<"${ROOTS[$target]}"; then
+        select_destination "$target"; STAGE=destination
+        write_record failure 'cannot hold the backup directory open'; DONE[$target]=1; ANY_ERROR=1; continue
+      fi
+      FDS[$target]="$destination_fd"
+    fi
+    MOUNTS[$target]="$(cat "$TMP/mount-$target")"
+    READY+=("$target")
+  else
+    DONE[$target]=1
+    [[ "$result" -eq 10 ]] || ANY_ERROR=1
+  fi
+done
+if [[ "${#READY[@]}" -eq 0 ]]; then
+  [[ "$ANY_ERROR" -ne 0 ]] || echo 'backup-db: no connected destination; no backup written'
+  exit "$ANY_ERROR"
+fi
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 NAME="${DB_NAME}-${TS}${LABEL:+-$LABEL}.dump.age"
-DEST="${BACKUP_RCLONE_REMOTE%/}/${STREAM}/${NAME}"
-TMP="$(mktemp -d)"
 LOCAL="$TMP/$NAME"
-
-echo "backup-db: dumping '$DB_NAME' -> encrypt -> $DEST"
-
-# ⚑ `coversUntil` IS TAKEN HERE, BEFORE pg_dump STARTS. The dump is a consistent snapshot from (about)
-# this moment, so this is the newest instant whose work the backup is guaranteed to hold. Freshness is
-# judged by it, never by upload time: a slow or retried upload of an old dump is still old data.
 COVERS_UNTIL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-# pg_dump in the container (custom format), encrypt on the host. A pg_dump failure must fail the run
-# rather than upload a truncated file; PIPESTATUS also says WHICH half failed, for the record.
-STAGE="dump"
+# Bound the encrypted staging file too: the destination check alone cannot protect /tmp's disk.
+# Bash's file-size limit is inherited by age and stops it before it consumes the free-space reserve.
+STAGE=encrypt
+TEMP_AVAILABLE="$(free_kb "$TMP")"
+[[ "$TEMP_AVAILABLE" =~ ^[0-9]+$ ]] || die 'cannot read staging disk space'
+TEMP_RESERVE_KIB=$((RESERVE_BYTES / 1024))
+(( TEMP_AVAILABLE > TEMP_RESERVE_KIB )) || die 'disk nearly full — no room to stage an encrypted backup'
+TEMP_LIMIT_KIB=$((TEMP_AVAILABLE - TEMP_RESERVE_KIB))
+STAGE=dump
 set +e
-docker compose exec -T postgres pg_dump -U "$DB_USER" -Fc "$DB_NAME" \
-  | age "${AGE_RECIPIENT_ARGS[@]}" -o "$LOCAL"
+docker compose exec -T postgres pg_dump -U "$DB_USER" -Fc "$DB_NAME" | (ulimit -f "$TEMP_LIMIT_KIB" && exec age "${AGE_RECIPIENT_ARGS[@]}" -o "$LOCAL")
 PIPE=("${PIPESTATUS[@]}")
 set -e
 [[ "${PIPE[0]}" -eq 0 ]] || die "pg_dump failed (exit ${PIPE[0]}) — nothing uploaded"
-STAGE="encrypt"
+STAGE=encrypt
 [[ "${PIPE[1]}" -eq 0 ]] || die "age could not encrypt the dump (exit ${PIPE[1]}) — nothing uploaded"
+SIZE="$(wc -c <"$LOCAL" | tr -d '[:space:]')"
+[[ "$SIZE" -gt 0 ]] || die 'encrypted dump is empty — nothing uploaded'
 
-SIZE="$(wc -c < "$LOCAL" | tr -d '[:space:]')"
-STAGE="dump"
-[[ "$SIZE" -gt 0 ]] || die "encrypted dump is empty — aborting (nothing uploaded)"
-echo "backup-db: encrypted size ${SIZE} bytes"
-
-STAGE="destination"
-verify_local_mount_unchanged
-STAGE="upload"
-rclone copyto "$LOCAL" "$DEST" --no-traverse || die "upload to $DEST failed"
-verify_local_mount_unchanged
-echo "backup-db: uploaded $DEST"
-STAGE="record"
-write_record success
-STAGE="done"
-echo "backup-db: recorded success in $BACKUP_RECORD_DIR/$STREAM.json"
-
-# Prune this stream. Best-effort — a prune failure must never fail the backup itself (already uploaded).
-STREAM_DIR="${BACKUP_RCLONE_REMOTE%/}/${STREAM}/"
-if [[ -n "$KEEP_COUNT" ]]; then
-  # Count-based: keep the newest KEEP_COUNT dumps, delete the rest. The filename embeds a sortable UTC
-  # timestamp, so a lexical sort is chronological; the oldest (REMOVE) entries are pruned. Robust to a
-  # missed run (unlike age windows): N runs -> N kept, regardless of gaps.
-  mapfile -t FILES < <(rclone lsf "$STREAM_DIR" --include "${DB_NAME}-*.dump.age" 2>/dev/null | sort || true)
-  REMOVE=$(( ${#FILES[@]} - KEEP_COUNT ))
-  if (( REMOVE > 0 )); then
-    for (( i = 0; i < REMOVE; i++ )); do
-      rclone deletefile "${STREAM_DIR}${FILES[i]}" \
-        && echo "backup-db: pruned ${STREAM}/${FILES[i]}" \
-        || echo "backup-db: WARN could not prune ${FILES[i]} (backup itself succeeded)" >&2
+verify_destination() { verify_mount; check_marker; }
+copy_destination() (
+  select_destination "$1"; STAGE=destination; FAIL_REASON=''; trap destination_exit EXIT
+  umask 077
+  WRITE_ROOT="$DEST_ROOT"; MOUNT_INFO="${MOUNTS[$KIND]}"
+  [[ "$KIND" == remote ]] || WRITE_ROOT="/proc/self/fd/${FDS[$KIND]}"
+  retention
+  verify_destination
+  check_space
+  STAGE=upload
+  rclone copyto "$LOCAL" "${WRITE_ROOT%/}/$STREAM/$NAME" --no-traverse || die 'backup copy failed'
+  verify_destination
+  echo "backup-db: uploaded ${DEST_ROOT%/}/$STREAM/$NAME"
+  STAGE=record
+  write_record success
+  STAGE=done
+  echo "backup-db: recorded success in $RECORD_FILE"
+  # Pruning is best effort only after a durable success, and never on an unverified destination.
+  STAGE=destination
+  verify_destination
+  local stream_dir="${WRITE_ROOT%/}/$STREAM/" remove i
+  if [[ -n "$KEEP_COUNT" ]]; then
+    mapfile -t files < <(rclone lsf "$stream_dir" --include "${DB_NAME}-*.dump.age" 2>/dev/null | sort || true)
+    remove=$(( ${#files[@]} - KEEP_COUNT ))
+    for ((i=0; i<remove; i++)); do
+      verify_destination
+      rclone deletefile "${stream_dir}${files[i]}" || echo 'backup-db: WARN could not prune an old backup' >&2
     done
   else
-    echo "backup-db: ${STREAM}/ holds ${#FILES[@]} dump(s) (keep ${KEEP_COUNT}) — nothing to prune"
+    rclone delete "$stream_dir" --min-age "${KEEP_DAYS}d" --include "${DB_NAME}-*.dump.age" || echo 'backup-db: WARN prune step failed' >&2
   fi
-else
-  # Age-based (premigrate): keep dumps younger than KEEP_DAYS.
-  rclone delete "$STREAM_DIR" --min-age "${KEEP_DAYS}d" --include "${DB_NAME}-*.dump.age" \
-    && echo "backup-db: pruned ${STREAM}/ older than ${KEEP_DAYS}d" \
-    || echo "backup-db: WARN prune step failed (backup itself succeeded)" >&2
+  STAGE=done
+)
+SUCCESS_COUNT=0
+for target in "${READY[@]}"; do
+  isolated copy_destination "$target"; result=$RESULT
+  DONE[$target]=1
+  if [[ "$result" -eq 0 ]]; then SUCCESS_COUNT=$((SUCCESS_COUNT+1)); else ANY_ERROR=1; fi
+done
+# An absent USB never turns a disk success into a failure; actual errors remain visible to automation.
+if [[ "$ANY_ERROR" -eq 0 && "$SUCCESS_COUNT" -gt 0 && "$STREAM" == daily && -n "$HEALTHCHECK_BACKUP_URL" ]]; then
+  curl -fsS -m 15 --retry 3 "$HEALTHCHECK_BACKUP_URL" >/dev/null 2>&1 || echo 'backup-db: WARN heartbeat ping failed' >&2
 fi
-
-# Dead-man's-switch ping — ONLY the nightly `daily` run pings. HEALTHCHECK_BACKUP_URL is a single
-# "did last night's backup run?" check tuned to a ~1-day period; if weekly/monthly/premigrate also
-# pinged it, a successful weekly could reset the switch and MASK a failed daily. Give the retention
-# streams their own checks if you want granular monitoring of them. Best-effort.
-if [[ "$STREAM" == "daily" && -n "${HEALTHCHECK_BACKUP_URL:-}" ]]; then
-  curl -fsS -m 15 --retry 3 "$HEALTHCHECK_BACKUP_URL" >/dev/null 2>&1 \
-    && echo "backup-db: pinged heartbeat" \
-    || echo "backup-db: WARN heartbeat ping failed" >&2
-fi
-
-echo "backup-db: OK"
+[[ "$ANY_ERROR" -ne 0 ]] || echo 'backup-db: OK'
+exit "$ANY_ERROR"

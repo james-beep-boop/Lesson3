@@ -534,8 +534,6 @@ if [[ "$LIVE" -eq 1 ]]; then
   BACKUP_TIME="${BASH_REMATCH[4]}:${BASH_REMATCH[5]} UTC"
 fi
 
-free_kb() { df -Pk "$1" | awk 'NR==2 {print $4}'; }
-
 if [[ -n "$LOCAL_FILE" ]]; then
   [[ -f "$LOCAL_FILE" ]] || die "--local-file does not exist: $LOCAL_FILE"
   echo "restore-db: using local file ${LOCAL_FILE}"
