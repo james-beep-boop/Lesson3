@@ -1,4 +1,4 @@
-# ARES Lesson Library (Lesson3) — AI Assistant Instructions
+# ARES Lesson Plans (Lesson3) — AI Assistant Instructions
 
 Loaded automatically by Claude Code at the start of every session.
 The canonical specification is **`SPEC.md`** in this directory. **Read it before any architectural decision.**
