@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased (on `main`, not tagged or deployed)
+## v1.09 (2026-10-27)
 
 - The installer's closing message now points to the school backup setup (ARES's public key, then
   `scripts/setup-school-backups.sh`). In v1.08 it still told technicians to make their own key on a

@@ -20,6 +20,22 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
+# Release v1.09 — 2026-10-27
+
+[PR #468](https://github.com/james-beep-boop/Lesson3/pull/468) merged as `981c2b6` after all four CI
+checks passed. It fixes the installer's closing message, which in v1.08 still described the old manual
+backup key method (make a key on a laptop); it now points to ARES's public key and
+`scripts/setup-school-backups.sh`. It also rewrites `DEPLOYMENT.md` and `OPS.md` in plain steps for
+school technicians, with the operator's reference kept as Part 2 of `OPS.md`. No migration and no app
+behaviour change beyond the installer message. [CHANGELOG.md](CHANGELOG.md) records the changes.
+
+The annotated `v1.09` tag triggers the release publisher; check
+[the publication workflow](https://github.com/james-beep-boop/Lesson3/actions/workflows/publish-containers.yml)
+before installing. **Not deployed by this session.** Use v1.09 rather than v1.08 for new school
+installations.
+
+---
+
 # Release v1.08 — 2026-10-27
 
 [PR #467](https://github.com/james-beep-boop/Lesson3/pull/467) merged as `34d09b07` after all four CI
