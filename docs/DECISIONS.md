@@ -11,6 +11,16 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-26 — School setup may create a new school key
+
+Operator decision during Part 3b: when a school public key is configured but setup has no saved
+password-locked identity, allow a new school key. Earlier backups still require the earlier school
+key or ARES. Setup records the earlier public recipient before starting that transition. Once a
+complete locked identity has been staged or published, every retry reuses it; a wrong password never
+replaces it. No password or unlocked identity is written, and ARES's recipient is unchanged.
+
+---
+
 ## 2026-10-26 — Part 2: school name shares the settings Save
 
 Implemented the approved school-name plan on `feat/school-name-part2`. The display read shares the

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import React from 'react'
 
 import type { BackupStatus, Text } from '../../lib/backupStatus'
-import { LocalTime } from './LocalTime'
+import { LocalDay, LocalTime } from './LocalTime'
 
 /**
  * Manage → System → Backups (design A5). Factual statements, each with its own state, then what a
@@ -17,6 +17,8 @@ function Render({ text }: { text: Text }) {
       {text.map((part, i) =>
         typeof part === 'string' ? (
           <React.Fragment key={i}>{part}</React.Fragment>
+        ) : part.dayOnly ? (
+          <LocalDay key={i} at={part.at} />
         ) : (
           <LocalTime key={i} at={part.at} />
         ),

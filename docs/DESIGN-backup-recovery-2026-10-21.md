@@ -285,5 +285,9 @@ The approved [school-backup plan](PLAN-school-backups-part3-2026-10-26.md) exten
 independent server-disk copy plus USB/cloud, destination-scoped version-2 records and installation
 markers. Old stream records remain external-only fallback. Phase B recovery uses the same encrypted
 bytes and installation identity; a disk copy is not evidence of recovery after losing the machine.
-Part 3b will add setup and password-locked school identities; the existing restore seam accepts those
-identities through `AGE_IDENTITY` without changing the data format.
+Part 3b adds resumable setup and password-locked school identities: only locked ciphertext is saved,
+with a separate written recovery-sheet password. The existing restore seam accepts that locked
+identity through `AGE_IDENTITY`, requesting the password on a terminal; ARES's key remains independent.
+The new lastAttempt outcome replaces the separate failure/not-connected fields, while old records
+remain decodable. Pre-3a files are relocated once by the script; the reader has only one directory
+layout. Phase B uses the same markers and locked identity and still needs its own clean-machine proof.

@@ -1,7 +1,8 @@
 # Part 3 — Backups for school machines (implementation plan)
 
 **Status: APPROVED by the operator, 2026-10-26. PR 3a merged ([#462](https://github.com/james-beep-boop/Lesson3/pull/462),
-`4115864`). PR 3b is next, including the three items carried from 3a's review (PR 3b, item 5).** Builds part 3 of
+`4115864`). PR 3b is implemented on `feat/school-backups-3b`, awaiting review, including the three items
+carried from 3a's review (PR 3b, item 5). Not merged or deployed.** Builds part 3 of
 `docs/DESIGN-school-commissioning-and-updates-2026-10-26.md` (§8). Needs no test machine: everything
 below runs in the existing restore/backup stack tests. Commissioning (part 5) will call the setup command
 this part adds; until then a technician or operator runs it by hand.

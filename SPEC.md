@@ -1164,7 +1164,9 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     disk failure, theft, fire or a reinstall wipe**, which the status page states explicitly.
     Retention defaults to 7 daily, 4 weekly, 3 monthly (`BACKUP_DISK_*_KEEP`). Before copying, free
     bytes must cover the encrypted file plus `BACKUP_DISK_MIN_FREE_BYTES` (default 256 MiB).
-    Encrypted staging is also bounded to leave a 256 MiB reserve on its filesystem.
+    USB uses the same encrypted-size check plus `BACKUP_USB_MIN_FREE_BYTES` (default 256 MiB),
+    with its own "backup drive is nearly full" finding. Encrypted staging is also bounded to leave
+    a 256 MiB reserve on its filesystem.
   - **USB or cloud:** `BACKUP_RCLONE_REMOTE`, an absolute mounted path or rclone remote such as
     Google Drive. External retention remains 7 daily, 4 weekly, 12 monthly (`BACKUP_*_KEEP`). Both
     destinations retain `premigrate` snapshots for 90 days (`BACKUP_PREMIGRATE_RETENTION_DAYS`).
@@ -1186,11 +1188,13 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     row; replaced 2026-10-21 by design A2–A5, `docs/DESIGN-backup-recovery-2026-10-21.md`.)
     `scripts/backup-db.sh` writes one record per destination and stream,
     `out/ops/backup/<disk|usb|remote>/<stream>.json`, atomically and
-    under an `flock`: the last success with `coversUntil` (when `pg_dump` began), the last failure with
-    its stage and reason (written by an exit trap), optional `lastNotConnected` with time and sequence,
-    and the last 31 `coversUntil` values (version 2). Old `backup/<stream>.json` is fallback evidence
-    for the external destination only until its own stream file exists; version 1 remains readable.
-    A damaged new file does not revive an older success. The page
+    under an `flock`: `lastSuccess` with `coversUntil` (when `pg_dump` began), one `lastAttempt`
+    (`seq`, `at`, `outcome: success|failure|notConnected`, plus stage/reason for failures), and the last
+    31 `coversUntil` values (version 2). Old failure/not-connected fields remain readable on existing
+    records. The script moves pre-3a stream files and the legacy version-1 status file once into the
+    external destination's folder, archiving duplicate older files under `pre3a/` when newer evidence
+    exists. The app reads only that one directory layout, including relocated version-1 evidence;
+    malformed records cannot revive archived successes. The page
     states separate facts, each up to date / attention / unknown, with **no overall "Protected"**:
     freshness judged separately by `coversUntil`: disk (and cloud) against the school's
     `BACKUP_MAX_DATA_LOSS`, USB against `BACKUP_USB_MAX_AGE` (default 30 days). A fresh disk must never
@@ -1222,15 +1226,32 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     either identity decrypts independently, so no key is ever shared. Manage → System reports which
     state an installation is in ("Backup recovery"). Two properties worth keeping in mind:
       - **Forward-only.** `age` cannot retro-encrypt what is already uploaded, so backups written before
-        the school's key was configured remain readable only by ARES. The panel row says so explicitly.
+        the school's current key was configured need the earlier school key or ARES. The panel says so.
       - **A duplicate is refused.** The same key in both variables would look two-recipient and grant
         nobody new the ability to decrypt; the script dies rather than shipping that illusion.
     ⚑ This DOES reduce the guarantee below — a school now holds an identity that can read its own
     backups, so a stolen school box plus a stolen safe is a different risk than before. That was the
     accepted trade: an offline school unable to recover its own data is the worse failure.
-  - **Key custody: schools hold only the `age` PUBLIC key; ARES retains the private identity.** A
-    school has nowhere durable to keep a private key, and losing it makes every backup unrecoverable.
-    This also keeps a stolen school box from yielding readable backups.
+  - **School setup and key custody (Part 3b):** `scripts/setup-school-backups.sh` prepares the USB
+    sentinel and installation marker; suggests four OS-random words from the credited EFF large word
+    list or accepts a custom password of at least 12 characters typed twice; and requires a typed-back
+    check of the written password before creating the key. `age-keygen` pipes the private identity
+    straight into `age -p -a`; the unlocked identity is never written. Only complete, synced locked
+    ciphertext is staged/published as `school-recovery-key.age` beside the disk and USB/cloud backups.
+    Interrupted setup reuses that saved key, never replaces it after a wrong password, and resumes
+    durable nonsecret checkpoints. A new setup may replace an earlier **public recipient** when it
+    has no saved locked identity (operator decision); earlier backups still need their earlier key or
+    ARES. ARES's recipient is unchanged. The password appears only on the terminal recovery sheet,
+    never in any file, log, receipt, process argument or environment variable.
+    Setup writes the school public recipient, installs `/etc/cron.d/lesson3-backups` as root with jobs
+    running as the operator, refreshes only the app on its installed image to load the settings, and
+    proves the first backup with a full disposable-database restore drill. Its public setup receipt
+    records the recipient and dates; Manage reports "Password-locked (set up …)" only for a valid
+    receipt matching its configured recipient. The recovery sheet names the school, installation,
+    destinations, password and three steps: plug in the drive, run restore, type the password.
+    The locked identity, encrypted backup and password are all required for independent school
+    recovery. ARES keeps its private identity as the independent safety net. Without a school key,
+    recovery still needs ARES; legacy manual school identities remain supported.
   - **Restore into the live database is staged, never destructive (design A1, 2026-10-21).**
     `scripts/restore-db.sh --force-prod` restores into a separate `lesson3_incoming_<UTC>`, checks it
     there (every table counted; the backup's migrations must be a prefix of the installed software's,

@@ -37,7 +37,7 @@ TARGET="$1"
 [[ "$TARGET" == /* ]] || die "installation path must be absolute"
 TARGET="$(cd "$TARGET" 2>/dev/null && pwd)" || die "installation directory not found: $1"
 [[ "$TARGET" != "$SOURCE" ]] || die "extract the new bundle elsewhere, then pass the existing installation path"
-bundle_files=(compose.yaml .env.example VERSION DEPLOYMENT.md OPS.md update.sh)
+bundle_files=(compose.yaml .env.example VERSION DEPLOYMENT.md OPS.md NOTICE update.sh)
 for file in "${bundle_files[@]}" scripts/backup-db.sh scripts/restore-db.sh \
   scripts/prune-db.sh scripts/heartbeat.sh scripts/lib.sh; do
   [[ -f "$SOURCE/$file" ]] || die "new release bundle is incomplete: missing $file"
@@ -171,10 +171,17 @@ fi
 # Mark the conservative migration boundary BEFORE replacing anything. A retry can repair a partial
 # file activation, but must never replace the original snapshot or take a post-migration backup.
 set_phase activating
-for file in compose.yaml .env.example DEPLOYMENT.md OPS.md; do
+for file in compose.yaml .env.example DEPLOYMENT.md OPS.md NOTICE; do
   atomic_copy "$PENDING/bundle/$file" "$TARGET/$file"
 done
+# Install nested helpers and the word list before activating scripts that source them.
+while IFS= read -r -d '' file; do
+  relative="${file#"$PENDING/bundle/scripts/"}"
+  mkdir -p "$TARGET/scripts/$(dirname "$relative")"
+  atomic_copy "$file" "$TARGET/scripts/$relative"
+done < <(find "$PENDING/bundle/scripts" -mindepth 2 -type f -print0)
 for file in "$PENDING/bundle/scripts/"*; do
+  [[ -f "$file" ]] || continue
   atomic_copy "$file" "$TARGET/scripts/$(basename "$file")"
 done
 echo "update: applying migrations and starting $new_version"

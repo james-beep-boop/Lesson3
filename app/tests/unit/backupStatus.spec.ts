@@ -512,6 +512,46 @@ describe('small parts', () => {
   })
 })
 
+describe('one lastAttempt per destination stream', () => {
+  it.each(['success', 'notConnected', 'failure'] as const)('reads the %s outcome', (outcome) => {
+    const lastAttempt =
+      outcome === 'failure'
+        ? {
+            seq: 3,
+            at: hoursAgo(1),
+            outcome,
+            stage: 'space' as const,
+            reason: 'Backup drive nearly full',
+          }
+        : { seq: 3, at: hoursAgo(1), outcome }
+    const r = record('daily', { lastSuccess: success(daysAgo(2)), lastAttempt })
+    const result = statement({ records: [r], settings: { destinationKind: 'usb' } }, 'lastAttempt')
+    expect(result.state).toBe(
+      outcome === 'failure' ? 'attention' : outcome === 'success' ? 'ok' : 'unknown',
+    )
+    expect(flat(result)).toContain(
+      outcome === 'failure'
+        ? 'backup drive is nearly full'
+        : outcome === 'success'
+          ? 'Succeeded'
+          : 'Not connected',
+    )
+  })
+
+  it('a new successful lastAttempt supersedes old fields, while lastSuccess still drives freshness', () => {
+    const r = record('daily', {
+      lastSuccess: success(daysAgo(20)),
+      lastAttempt: { seq: 4, at: hoursAgo(1), outcome: 'success' },
+      lastFailure: { seq: 10, at: hoursAgo(1), stage: 'upload', reason: 'old format' },
+      lastNotConnected: { seq: 12, at: hoursAgo(1), reason: 'old format' },
+    })
+    expect(statement({ records: [r] }, 'lastAttempt').state).toBe('ok')
+    expect(statement({ records: [r], settings: { maxDataLoss: '1d' } }, 'freshness').state).toBe(
+      'attention',
+    )
+  })
+})
+
 describe('reading the records', () => {
   type Files = Record<string, unknown>
   const serve = (files: Files) => {
@@ -535,7 +575,7 @@ describe('reading the records', () => {
     saved = process.env.BACKUP_MAX_DATA_LOSS
     delete process.env.BACKUP_MAX_DATA_LOSS
     vi.stubEnv('BACKUP_DISK_DIR', '')
-    vi.stubEnv('BACKUP_RCLONE_REMOTE', '')
+    vi.stubEnv('BACKUP_RCLONE_REMOTE', 'drive:backups')
   })
   afterEach(() => {
     vi.unstubAllEnvs()
@@ -550,7 +590,7 @@ describe('reading the records', () => {
 
   it('reads per-stream records and the restore journal', async () => {
     serve({
-      [`${dir}/backup/daily.json`]: record('daily', {
+      [`${dir}/backup/remote/daily.json`]: record('daily', {
         lastSuccess: success(hoursAgo(3)),
         history: [hoursAgo(3)],
       }),
@@ -564,42 +604,48 @@ describe('reading the records', () => {
       },
     })
     const s = await keyed()
-    expect(s.lastAttempt.state).toBe('ok')
+    expect(s['remote:lastAttempt'].state).toBe('ok')
     expect(s.restore.state).toBe('attention')
   })
 
   it('refuses an attempt number that is not a positive integer', async () => {
     serve({
-      [`${dir}/backup/daily.json`]: record('daily', {
+      [`${dir}/backup/remote/daily.json`]: record('daily', {
         lastSuccess: { ...success(hoursAgo(1)), seq: 0 },
       }),
     })
-    expect((await keyed()).lastAttempt.value).toEqual(['No backup attempt recorded'])
+    expect((await keyed())['remote:lastAttempt'].value).toEqual(['No backup attempt recorded'])
   })
 
   it('ignores a record that names a different stream from its file', async () => {
-    serve({ [`${dir}/backup/daily.json`]: record('weekly', { lastSuccess: success(hoursAgo(1)) }) })
-    expect((await keyed()).lastAttempt.value).toEqual(['No backup attempt recorded'])
+    serve({
+      [`${dir}/backup/remote/daily.json`]: record('weekly', { lastSuccess: success(hoursAgo(1)) }),
+    })
+    expect((await keyed())['remote:lastAttempt'].value).toEqual(['No backup attempt recorded'])
   })
 
   it('does not mistake malformed records for evidence', async () => {
     serve({
-      [`${dir}/backup/daily.json`]: { version: 2, stream: 'daily', lastSuccess: 'yesterday' },
+      [`${dir}/backup/remote/daily.json`]: {
+        version: 2,
+        stream: 'daily',
+        lastSuccess: 'yesterday',
+      },
       // JavaScript rolls Feb 30 to March 2; it is not a backup that completed on Feb 30.
-      [`${dir}/backup/weekly.json`]: record('weekly', {
+      [`${dir}/backup/remote/weekly.json`]: record('weekly', {
         lastSuccess: success('2026-02-30T03:25:34Z'),
       }),
-      [`${dir}/backup-status.json`]: { version: 1, completedAt: 'yesterday' },
+      [`${dir}/backup/remote/backup-status.json`]: { version: 1, completedAt: 'yesterday' },
     })
     const s = await keyed()
-    expect(s.freshness.value).toEqual(['No backup recorded on this server yet'])
-    expect(s.lastAttempt.value).toEqual(['No backup attempt recorded'])
+    expect(s['remote:freshness'].value).toEqual(['No backup recorded on this server yet'])
+    expect(s['remote:lastAttempt'].value).toEqual(['No backup attempt recorded'])
   })
 
   it('never reads an oversized file', async () => {
     const readFile = vi.fn()
     fileMock.open.mockImplementation(async (path: string) => {
-      if (path !== `${dir}/backup/daily.json`)
+      if (path !== `${dir}/backup/remote/daily.json`)
         throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
       return {
         stat: async () => ({ isFile: () => true, size: 8_193 }),
@@ -616,10 +662,10 @@ describe('reading the records', () => {
    * statement, it would hold the whole Manage page open. (Moved from systemFacts.spec with the reader.)
    */
   it('gives up on a wedged mount instead of hanging the page', async () => {
-    serve({ [`${dir}/backup/daily.json`]: 'HANG', [`${dir}/restore-journal.json`]: 'HANG' })
+    serve({ [`${dir}/backup/remote/daily.json`]: 'HANG', [`${dir}/restore-journal.json`]: 'HANG' })
     const started = Date.now()
     const s = await keyed()
-    expect(s.freshness.state).toBe('unknown')
+    expect(s['remote:freshness'].state).toBe('unknown')
     expect(Date.now() - started).toBeLessThan(5_000)
   })
 
@@ -632,16 +678,16 @@ describe('reading the records', () => {
       filename: 'old.dump.age',
       encryptedBytes: 9,
     }
-    serve({ [`${dir}/backup-status.json`]: v1 })
-    expect((await keyed()).freshness.value).toEqual(['Unknown — history incomplete'])
+    serve({ [`${dir}/backup/remote/backup-status.json`]: v1 })
+    expect((await keyed())['remote:freshness'].value).toEqual(['Unknown — history incomplete'])
     serve({
-      [`${dir}/backup-status.json`]: v1,
-      [`${dir}/backup/daily.json`]: record('daily', {
+      [`${dir}/backup/remote/backup-status.json`]: v1,
+      [`${dir}/backup/remote/daily.json`]: record('daily', {
         lastSuccess: success(hoursAgo(1)),
         history: [hoursAgo(1)],
       }),
     })
-    expect((await keyed()).freshness.value).toEqual(['Backup limit not agreed'])
+    expect((await keyed())['remote:freshness'].value).toEqual(['Backup limit not agreed'])
   })
   it('keeps new destination evidence separate and defaults USB freshness to 30 days', async () => {
     vi.stubEnv('BACKUP_MAX_DATA_LOSS', '1d')
@@ -693,8 +739,10 @@ describe('reading the records', () => {
     expect((await keyed())['usb:freshness'].state).toBe('attention')
   })
 
-  it('falls back to old records for the external destination alone', async () => {
-    serve({ [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }) })
+  it('keeps relocated older records scoped to the external destination', async () => {
+    serve({
+      [`${dir}/backup/remote/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+    })
     const evidence = await collectBackupEvidence({
       diskDir: '/backups',
       destination: 'drive:backups',
@@ -703,10 +751,12 @@ describe('reading the records', () => {
     expect(evidence.grouped.find((d) => d.kind === 'remote')?.records).toHaveLength(1)
   })
 
-  it('new destination failure replaces older success for that stream', async () => {
+  it('reads a destination failure without reviving archived successes', async () => {
     vi.stubEnv('BACKUP_RCLONE_REMOTE', 'drive:backups')
     serve({
-      [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+      [`${dir}/backup/remote/pre3a/daily.json`]: record('daily', {
+        lastSuccess: success(hoursAgo(1)),
+      }),
       [`${dir}/backup/remote/daily.json`]: record('daily', {
         lastFailure: { at: hoursAgo(1), stage: 'destination', reason: 'Foreign installation' },
       }),
@@ -719,7 +769,9 @@ describe('reading the records', () => {
   it('a damaged new record cannot revive an older success', async () => {
     vi.stubEnv('BACKUP_RCLONE_REMOTE', 'drive:backups')
     serve({
-      [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
+      [`${dir}/backup/remote/pre3a/daily.json`]: record('daily', {
+        lastSuccess: success(hoursAgo(1)),
+      }),
       [`${dir}/backup/remote/daily.json`]: '{damaged',
     })
     expect((await keyed())['remote:lastAttempt'].value).toEqual(['No backup attempt recorded'])
@@ -730,7 +782,7 @@ describe('reading the records', () => {
     vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
     serve({
       [`${dir}/backup/disk/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
-      [`${dir}/backup-status.json`]: {
+      [`${dir}/backup/usb/backup-status.json`]: {
         version: 1,
         stream: 'daily',
         completedAt: daysAgo(2),
@@ -753,10 +805,63 @@ describe('reading the records', () => {
     })
     expect((await keyed())['usb:lastAttempt'].value).toEqual(['No backup attempt recorded'])
   })
-  it('applies the USB reminder age to old-layout evidence during transition', async () => {
+  it('applies the USB reminder age to relocated old-format evidence', async () => {
     vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
     vi.stubEnv('BACKUP_MAX_DATA_LOSS', '1d')
-    serve({ [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(daysAgo(20)) }) })
-    expect((await keyed()).freshness.state).toBe('ok')
+    serve({
+      [`${dir}/backup/usb/daily.json`]: record('daily', { lastSuccess: success(daysAgo(20)) }),
+    })
+    expect((await keyed())['usb:freshness'].state).toBe('ok')
+  })
+  it.each([
+    { outcome: 'unknown', at: hoursAgo(1) },
+    { outcome: 'failure', at: hoursAgo(1), reason: 'missing stage' },
+    { outcome: 'notConnected', at: 'yesterday' },
+    { outcome: 'success', seq: -1, at: hoursAgo(1) },
+  ])('rejects a malformed lastAttempt: %j', async (lastAttempt) => {
+    serve({ [`${dir}/backup/remote/daily.json`]: { ...record('daily'), lastAttempt } })
+    expect((await keyed())['remote:lastAttempt'].value).toEqual(['No backup attempt recorded'])
+  })
+
+  it('accepts records containing lastAttempt without either retired field', async () => {
+    const { lastFailure: _retired, ...r } = record('daily', {
+      lastAttempt: { seq: 1, at: hoursAgo(1), outcome: 'success' },
+    })
+    serve({ [`${dir}/backup/remote/daily.json`]: r })
+    expect((await keyed())['remote:lastAttempt'].state).toBe('ok')
+  })
+
+  it('never reads the pre-3a directory layout or revives its records', async () => {
+    serve({ [`${dir}/backup/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }) })
+    expect((await keyed())['remote:lastAttempt'].value).toEqual(['No backup attempt recorded'])
+    expect(fileMock.open.mock.calls.map(([path]) => path)).not.toContain(`${dir}/backup/daily.json`)
+  })
+
+  it('says to add a USB drive when none is configured', async () => {
+    serve({})
+    const s = await keyed()
+    expect(flat(s['usb:freshness'])).toContain(
+      'None set up. Add a USB drive for a backup that can leave the building.',
+    )
+  })
+
+  it('reports password locking only from a valid receipt matching the configured school key', async () => {
+    vi.stubEnv('BACKUP_AGE_RECIPIENT_SCHOOL', 'age1schoolrecipient')
+    const receipt = {
+      version: 1,
+      installationId: '11111111-1111-1111-1111-111111111111',
+      recipient: 'age1schoolrecipient',
+      keyCreatedAt: daysAgo(2),
+      completedAt: hoursAgo(1),
+    }
+    serve({ [`${dir}/backup-setup.json`]: receipt })
+    expect((await keyed()).recoveryKey).toMatchObject({
+      state: 'ok',
+      value: ['Password-locked (set up ', { at: daysAgo(2), dayOnly: true }, ')'],
+    })
+    serve({ [`${dir}/backup-setup.json`]: { ...receipt, recipient: 'age1otherrecipient' } })
+    expect(flat((await keyed()).recoveryKey)).not.toContain('Password-locked')
+    serve({ [`${dir}/backup-setup.json`]: { ...receipt, keyCreatedAt: 'yesterday' } })
+    expect(flat((await keyed()).recoveryKey)).not.toContain('Password-locked')
   })
 })

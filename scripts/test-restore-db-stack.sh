@@ -42,6 +42,7 @@ docker build -q -t "$TOOLS_IMAGE" -f "$ROOT/scripts/lib/restore-probe-tools.Dock
 # A real path (macOS /var → /private/var), so the daemon and the tools container agree on it.
 SANDBOX="$(cd "$(mktemp -d)" && pwd -P)"
 teardown() {
+  docker rm -f "$PROJECT-setup-tools" >/dev/null 2>&1 || true
   T docker compose down -v --remove-orphans >/dev/null 2>&1 || true
   # Files written by containers may belong to other users; remove them from inside one.
   docker run --rm -v "$SANDBOX:$SANDBOX" "$TOOLS_IMAGE" rm -rf "$SANDBOX" >/dev/null 2>&1 || true
@@ -90,8 +91,13 @@ seed() { # title
 
 # ─── Sandbox: a bundle-shaped installation ───────────────────────────────────────────────────────────
 say "sandbox $SANDBOX"
-mkdir -p "$SANDBOX/scripts" "$SANDBOX/out/ops" "$SANDBOX/out/resource-library" "$SANDBOX/keys" "$SANDBOX/backups"
+mkdir -p "$SANDBOX/scripts/lib" "$SANDBOX/out/ops" "$SANDBOX/out/resource-library" "$SANDBOX/keys" "$SANDBOX/backups"
 cp "$ROOT/scripts/restore-db.sh" "$ROOT/scripts/backup-db.sh" "$ROOT/scripts/lib.sh" "$SANDBOX/scripts/"
+cp "$ROOT/scripts/lib/backup-"*.sh "$SANDBOX/scripts/lib/"
+cp "$ROOT/scripts/setup-school-backups.sh" "$SANDBOX/scripts/"
+mkdir -p "$SANDBOX/scripts/vendor"
+cp "$ROOT/scripts/vendor/eff_large_wordlist.txt" "$SANDBOX/scripts/vendor/"
+cp "$ROOT/scripts/lib/setup-school-backups-probe.mjs" "$SANDBOX/scripts/lib/"
 echo "v0.0.0-probe" >"$SANDBOX/VERSION"
 sed -E \
   -e "s#^name: lesson3\$#name: $PROJECT#" \
@@ -185,6 +191,7 @@ B1_DATE="$(echo "$B1" | sed -E 's/.*-([0-9]{4})([0-9]{2})([0-9]{2})T.*/\1-\2-\3/
 seed "Probe plan B (after the backup)" || die "seeding plan B failed"
 eq "$(plans)" 2 || die "expected two live plans"
 
+if [[ "${RESTORE_PROBE_SETUP_ONLY:-0}" != 1 ]]; then
 # Variants made from a copy of the live database, then dumped and encrypted like a real backup.
 variant() { # file-name sql
   sql postgres "DROP DATABASE IF EXISTS probe_variant;" >/dev/null
@@ -423,6 +430,20 @@ check "live is the backup" eq "$(plans)" 1
 restore "" --local-file "$B1" --into lesson3_restore_check
 check "the drill still passes" has "RESTORE DRILL PASSED"
 check "the drill leaves no journal" no_journal
+
+fi
+
+say "school setup: real USB mount, age password prompts, power cuts and independent recovery"
+mkdir -p "$SANDBOX/usb" "$SANDBOX/cron"
+docker run -d --init --name "$PROJECT-setup-tools" \
+  -v /var/run/docker.sock:/var/run/docker.sock -v "$SANDBOX:$SANDBOX" -w "$SANDBOX" \
+  --tmpfs "$SANDBOX/usb:rw,size=128m" \
+  -e COMPOSE_PROJECT_NAME="$PROJECT" -e RCLONE_CONFIG_PROBE_TYPE=local \
+  -e BACKUP_CRON_DIR="$SANDBOX/cron" -e BACKUP_USB_MIN_FREE_BYTES=1048576 \
+  -e PROBE_ROOT="$SANDBOX" "$TOOLS_IMAGE" sleep infinity >/dev/null || die "setup tools did not start"
+OUTPUT="$(docker exec -i "$PROJECT-setup-tools" node "$SANDBOX/scripts/lib/setup-school-backups-probe.mjs" 2>&1)"; EXIT=$?
+printf '%s\n' "$OUTPUT"
+check "school setup and password recovery checks" ok_exit
 
 echo "restore-db live replacement (stack): $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

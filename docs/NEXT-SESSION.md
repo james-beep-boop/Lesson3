@@ -45,9 +45,14 @@ with the paused Phase B plan.
   [`PLAN-school-backups-part3-2026-10-26.md`](PLAN-school-backups-part3-2026-10-26.md): one encrypted
   dump to independent disk and USB/cloud destinations, installation markers, space/retention guards,
   per-destination records and freshness. Real destination errors return nonzero after both attempts;
-  absent USB is neutral. No new migration. **Next: approved Part 3b** (setup, password-locked key,
-  schedule, recovery sheet and final Manage presentation, plus the three items carried from 3a's review,
-  plan item 5). James merges; do not deploy.
+  absent USB is neutral. No new migration.
+- **Part 3b implemented, awaiting review** on `feat/school-backups-3b`: resumable setup,
+  password-locked school key, schedule, first-backup restore drill, terminal-only recovery sheet and
+  separate destination statements in Manage. Includes USB space checks, one-time record relocation
+  and the canonical `lastAttempt` record (plan item 5). No migration. James permits a new school key
+  when an older public recipient is configured; older backups still need their earlier key or ARES.
+  Setup resumes with its saved locked key and never replaces it. James merges; do not deploy.
+  Later parts still need their own approval.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---

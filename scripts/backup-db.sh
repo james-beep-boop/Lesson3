@@ -2,18 +2,12 @@
 # One Postgres dump + age encryption, independently copied to the server disk and USB/cloud.
 # Disk: BACKUP_DISK_DIR (default /var/lib/lesson3-backups; explicit empty disables it).
 # USB/cloud: BACKUP_RCLONE_REMOTE (optional). At least one destination is required.
-# Records: out/ops/backup/<disk|usb|remote>/<stream>.json (v2); old stream files are fallback evidence.
+# Records: out/ops/backup/<disk|usb|remote>/<stream>.json (v2); pre-3a files are moved there once.
 # Usage: no label = daily; --label weekly|monthly|premigrate[-suffix]. See docs/OPS.md.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-# Unlike ordinary options, an explicit empty destination disables it, including in the environment.
-destination_setting() {
-  local key="$1" fallback="$2"
-  if [[ -v "$key" ]]; then printf '%s' "${!key}"
-  elif [[ -f .env ]] && grep -qE "^${key}=" .env; then env_get "$key"
-  else printf '%s' "$fallback"; fi
-}
+source "$(dirname "${BASH_SOURCE[0]}")/lib/backup-common.sh"
 DISK_DIR="$(destination_setting BACKUP_DISK_DIR /var/lib/lesson3-backups)"
 REMOTE="$(destination_setting BACKUP_RCLONE_REMOTE '')"
 BACKUP_AGE_RECIPIENT="$(env_get BACKUP_AGE_RECIPIENT)"
@@ -25,52 +19,28 @@ BACKUP_RECORD_DIR="$REPO_DIR/out/ops/backup"
 LOCK_WAIT="$(env_get BACKUP_LOCK_WAIT_SECONDS)"; LOCK_WAIT="${LOCK_WAIT:-3600}"
 LABEL=""; [[ "${1:-}" != --label || -z "${2:-}" ]] || LABEL="$2"
 STREAM=""; STAGE=setup; FAIL_REASON=""; LOCKED=0; RECORD_TMP=""; TMP=""
-# Free space kept back on the server disk, both for the disk copy and for staging: 256 MiB.
-RESERVE_BYTES=268435456
 declare -A ROOTS DONE FDS MOUNTS
 TARGETS=()
 [[ -z "$DISK_DIR" ]] || { TARGETS+=(disk); ROOTS[disk]="$DISK_DIR"; }
 if [[ -n "$REMOTE" ]]; then
-  REMOTE_KIND=remote; [[ "$REMOTE" != /* && "$REMOTE" == *:* ]] || REMOTE_KIND=usb
+  REMOTE_KIND="$(external_kind "$REMOTE")"
   TARGETS+=("$REMOTE_KIND"); ROOTS[$REMOTE_KIND]="$REMOTE"
 fi
 
 die() { FAIL_REASON="$*"; echo "backup-db: ERROR: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH — see docs/OPS.md setup"; }
-positive_int() { [[ "$2" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integer (got '$2')"; }
-
-reject_unsupported_json_controls() {
-  local value="$1" field="$2" i control
-  for ((i = 1; i <= 31; i++)); do
-    case "$i" in 9|10|13) continue ;; esac
-    printf -v control '%b' "\\$(printf '%03o' "$i")"
-    [[ "$value" != *"$control"* ]] \
-      || die "$field contains an unsupported control character"
-  done
-}
-
-json_escape() {
-  local value="$1" field="$2"
-  reject_unsupported_json_controls "$value" "$field"
-  value="${value//\\/\\\\}"
-  value="${value//\"/\\\"}"
-  value="${value//$'\n'/\\n}"
-  value="${value//$'\r'/\\r}"
-  value="${value//$'\t'/\\t}"
-  printf '%s' "$value"
-}
 
 ISO_RE='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'
 
 previous_group() { # key — the previous record's JSON value for that group, or null
-  local file="$SOURCE_RECORD" line
+  local file="$RECORD_FILE" line
   line="$(grep -m1 -E "^  \"$1\": (null|\{.*\}|\[.*\]),?\$" "$file" 2>/dev/null || true)"
   line="${line#  \"$1\": }"; line="${line%,}"
   printf '%s' "${line:-null}"
 }
 
 write_record() { # success|failure|notConnected
-  local now since history success failure disconnected tmp_dir seq
+  local now since history success attempt tmp_dir seq
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # ⚑ ATTEMPT ORDER IS A NUMBER, NOT A TIME. Times are whole seconds, so a success and a failure can
   # share one, and the page must still know which came last (review 2026-10-21: a tie read as
@@ -79,31 +49,31 @@ write_record() { # success|failure|notConnected
   [[ "$seq" =~ ^[0-9]{1,15}$ ]] || seq=0
   seq=$((seq + 1))
   printf '%s\n' "$seq" >"$BACKUP_RECORD_DIR/.seq.tmp" && mv -f "$BACKUP_RECORD_DIR/.seq.tmp" "$BACKUP_RECORD_DIR/.seq"
-  since="$(grep -m1 -oE "\"recordingSince\": \"$ISO_RE\"" "$SOURCE_RECORD" 2>/dev/null \
+  since="$(grep -m1 -oE "\"recordingSince\": \"$ISO_RE\"" "$RECORD_FILE" 2>/dev/null \
     | grep -oE "$ISO_RE" || true)"
   since="${since:-$now}"
   history="$(previous_group history | grep -oE "$ISO_RE" || true)"
   success="$(previous_group lastSuccess)"
-  failure="$(previous_group lastFailure)"
-  disconnected="$(previous_group lastNotConnected)"
   if [[ "$1" == success ]]; then
     history="$(printf '%s\n%s\n' "$history" "$COVERS_UNTIL" | { grep -E "^$ISO_RE\$" || true; } | tail -n 31)"
     success="$(printf '{"seq": %s, "coversUntil": "%s", "completedAt": "%s", "filename": "%s", "encryptedBytes": %s, "destination": "%s"}' \
       "$seq" "$COVERS_UNTIL" "$now" "$(json_escape "$NAME" "backup filename")" "$SIZE" \
       "$(json_escape "$DEST_ROOT" "backup destination")")"
-  elif [[ "$1" == notConnected ]]; then
-    disconnected="$(printf '{"seq": %s, "at": "%s", "reason": "The backup drive is not connected."}' "$seq" "$now")"
-  else
-    failure="$(printf '{"seq": %s, "at": "%s", "stage": "%s", "reason": "%s"}' "$seq" "$now" "$STAGE" \
-      "$(json_escape "$(printf '%s' "$2" | tr '\n\r\t' '   ' | cut -c1-300)" "failure reason")")"
   fi
+  attempt="$(printf '{"seq": %s, "at": "%s", "outcome": "%s"' "$seq" "$now" "$1")"
+  if [[ "$1" == failure ]]; then
+    attempt+=", \"stage\": \"$STAGE\", \"reason\": \"$(json_escape "$(printf '%s' "$2" | tr '\n\r\t' '   ' | cut -c1-300)" 'failure reason')\""
+  elif [[ "$1" == notConnected ]]; then
+    attempt+=', "reason": "The backup drive is not connected."'
+  fi
+  attempt+='}'
   history="$(printf '%s\n' "$history" | { grep -E "^$ISO_RE\$" || true; } | sed 's/.*/"&"/' | paste -sd, - | sed 's/,/, /g')"
   tmp_dir="${RECORD_FILE%/*}"
   mkdir -p "$tmp_dir"
   chmod 0755 "$tmp_dir"
   RECORD_TMP="$(mktemp "$tmp_dir/.$STREAM.XXXXXX")"
-  printf '{\n  "version": 2,\n  "stream": "%s",\n  "recordingSince": "%s",\n  "lastSuccess": %s,\n  "lastFailure": %s,\n  "lastNotConnected": %s,\n  "history": [%s]\n}\n' \
-    "$STREAM" "$since" "$success" "$failure" "$disconnected" "$history" >"$RECORD_TMP"
+  printf '{\n  "version": 2,\n  "stream": "%s",\n  "recordingSince": "%s",\n  "lastSuccess": %s,\n  "lastAttempt": %s,\n  "history": [%s]\n}\n' \
+    "$STREAM" "$since" "$success" "$attempt" "$history" >"$RECORD_TMP"
   chmod 0644 "$RECORD_TMP"
   mv -f "$RECORD_TMP" "$RECORD_FILE"
   RECORD_TMP=""
@@ -112,9 +82,6 @@ write_record() { # success|failure|notConnected
 select_destination() {
   KIND="$1"; DEST_ROOT="${ROOTS[$KIND]}"
   RECORD_FILE="$BACKUP_RECORD_DIR/$KIND/$STREAM.json"
-  SOURCE_RECORD="$RECORD_FILE"
-  # Only the external destination inherits pre-3a evidence, never the disk destination.
-  if [[ "$KIND" != disk && ! -e "$RECORD_FILE" ]]; then SOURCE_RECORD="$BACKUP_RECORD_DIR/$STREAM.json"; fi
 }
 
 # Best effort: a failure to record must never mask the failure being recorded.
@@ -166,6 +133,25 @@ if ! flock -n 8; then
   flock -w "$LOCK_WAIT" 8 || die "another backup was still running after ${LOCK_WAIT}s"
 fi
 LOCKED=1; STAGE=setup
+# Move the old layout once, under the same lock as record writes. New evidence always wins;
+# old duplicates are retained as an archive, never read as a fallback over a newer failure.
+migrate_records() {
+  local kind="${REMOTE_KIND:-}" file target directory
+  if [[ -z "$kind" ]]; then
+    kind=remote
+    if grep -qE '"destination": "/' "$BACKUP_RECORD_DIR/"*.json "$REPO_DIR/out/ops/backup-status.json" 2>/dev/null; then kind=usb; fi
+  fi
+  for file in "$BACKUP_RECORD_DIR/"{daily,weekly,monthly,premigrate}.json "$REPO_DIR/out/ops/backup-status.json"; do
+    [[ -f "$file" && ! -L "$file" ]] || continue
+    directory="$BACKUP_RECORD_DIR/$kind"
+    target="$directory/${file##*/}"
+    if [[ -e "$target" ]]; then directory+='/pre3a'; target="$directory/${file##*/}"; fi
+    mkdir -p "$directory"; chmod 0755 "$BACKUP_RECORD_DIR/$kind" "$directory"
+    [[ ! -e "$target" ]] || die 'an archived pre-3a backup record already exists; not overwriting it'
+    mv "$file" "$target"; chmod 0644 "$target"
+  done
+}
+migrate_records
 [[ "${#TARGETS[@]}" -gt 0 ]] || die 'set BACKUP_DISK_DIR and/or BACKUP_RCLONE_REMOTE'
 for target in "${TARGETS[@]}"; do reject_unsupported_json_controls "${ROOTS[$target]}" 'backup destination'; done
 reject_unsupported_json_controls "$DB_NAME" BACKUP_DB_NAME
@@ -210,88 +196,7 @@ not_connected() {
   exit 10
 }
 
-# What a USB destination is mounted from, recorded once and compared before every write and prune.
-mount_identity() { findmnt -T "$DEST_ROOT" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN; }
-
-# Linux's open directory fd anchors local writes, even if a mount is lazily removed during a copy.
-open_local() {
-  [[ "$DEST_ROOT" == /* ]] || die 'local backup destination must be an absolute path'
-  [[ ! -L "$DEST_ROOT" ]] || die 'local backup destination must not be a symlink'
-  if [[ "$KIND" == disk ]]; then
-    (umask 077; mkdir -p "$DEST_ROOT") || die 'cannot create the disk backup directory'
-    MOUNT_INFO=''
-  else
-    [[ -d "$DEST_ROOT" ]] || not_connected
-    [[ ! -L "$DEST_ROOT/.lesson3-backup-volume" ]] || die 'USB sentinel must not be a symlink'
-    need findmnt
-    local mount_target root_device
-    mount_target="$(findmnt -T "$DEST_ROOT" -n -o TARGET)" || not_connected
-    if [[ -z "$mount_target" || "$mount_target" == / ]]; then
-      [[ ! -e "$DEST_ROOT/.lesson3-backup-volume" ]] || die 'USB destination is on the root filesystem'
-      not_connected
-    fi
-    [[ -f "$DEST_ROOT/.lesson3-backup-volume" ]] || die 'USB destination needs a regular .lesson3-backup-volume sentinel'
-    MOUNT_INFO="$(mount_identity)" || die 'cannot identify the USB filesystem'
-    root_device="$(findmnt -T / -n -o MAJ:MIN)" || die 'cannot identify the root filesystem'
-    [[ -n "$MOUNT_INFO" && -n "$root_device" && "${MOUNT_INFO##* }" != "$root_device" ]] || die 'USB destination is backed by the root filesystem'
-  fi
-  exec 9<"$DEST_ROOT" || die 'cannot hold the backup directory open'
-  WRITE_ROOT=/proc/self/fd/9
-}
-
-verify_mount() {
-  [[ "$KIND" == usb ]] || return 0
-  local current
-  current="$(mount_identity)" || die 'backup filesystem disappeared'
-  [[ "$current" == "$MOUNT_INFO" ]] || die "local backup destination's mounted filesystem changed during backup"
-}
-
-check_marker() {
-  local marker="$WRITE_ROOT/.lesson3-installation" stored
-  if [[ "$KIND" == remote ]]; then
-    rclone cat "$marker" --count 38 >"$TMP/read-marker-$KIND" || die 'cannot read the destination installation marker'
-    marker="$TMP/read-marker-$KIND"
-  else
-    [[ -f "$marker" && ! -L "$marker" ]] || die 'installation marker must be a regular, non-symlink file'
-  fi
-  if ! cmp -s "$TMP/marker/.lesson3-installation" "$marker"; then
-    stored="$(head -c 80 "$marker")"
-    [[ "$stored" =~ ^[[:xdigit:]-]{36}$ ]] || stored='unreadable marker'
-    die "This backup destination belongs to another installation ($stored). Not writing to or pruning it."
-  fi
-}
-
-claim_marker() {
-  local marker="$WRITE_ROOT/.lesson3-installation" listing temporary
-  if [[ "$KIND" == remote ]]; then
-    rclone mkdir "$WRITE_ROOT" || die 'cannot open the remote backup destination'
-    listing="$(rclone lsf "$WRITE_ROOT" --max-depth 1 --files-only --include '/.lesson3-installation')" || die 'cannot list the destination installation marker'
-    if [[ -z "$listing" ]]; then
-      # Directory copy, not copyto: copyto bypasses --immutable in the installed rclone.
-      rclone copy "$TMP/marker" "$WRITE_ROOT" --include '/.lesson3-installation' --immutable --checksum \
-        || die 'cannot claim the remote backup destination'
-    fi
-  elif [[ ! -e "$marker" && ! -L "$marker" ]]; then
-    temporary="$(mktemp "$WRITE_ROOT/.lesson3-installation.XXXXXX")" || die 'cannot prepare the installation marker'
-    if ! cp "$TMP/marker/.lesson3-installation" "$temporary"; then rm -f "$temporary"; die 'cannot write the installation marker'; fi
-    # A hard link publishes a complete marker without ever replacing another writer's claim.
-    ln "$temporary" "$marker" 2>/dev/null || true
-    rm -f "$temporary"
-  fi
-  check_marker
-}
-
-check_space() {
-  [[ "$KIND" == disk ]] || return 0
-  local available margin
-  margin="$(env_get BACKUP_DISK_MIN_FREE_BYTES)"; margin="${margin:-$RESERVE_BYTES}"
-  positive_int BACKUP_DISK_MIN_FREE_BYTES "$margin"
-  available="$(free_kb "$WRITE_ROOT")" || die 'cannot read free disk space'
-  [[ "$available" =~ ^[0-9]+$ ]] || die 'cannot read free disk space'
-  STAGE=space
-  (( available * 1024 >= ${SIZE:-0} + margin )) || die 'disk nearly full — not writing this backup'
-  STAGE=destination
-}
+source "$(dirname "${BASH_SOURCE[0]}")/lib/backup-destinations.sh"
 
 prepare_destination() (
   select_destination "$1"; STAGE=setup; FAIL_REASON=''; trap destination_exit EXIT

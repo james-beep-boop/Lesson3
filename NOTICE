@@ -40,3 +40,14 @@ user-interface one (SPEC §4).
 Third-party npm packages and container images keep their own licences. Two worth knowing, both
 verified rather than recalled: Payload CMS is MIT (the reason MIT was chosen for this project, so
 there is no friction between them), and Gotenberg — the PDF service — is MIT.
+
+## EFF large passphrase word list
+
+    scripts/vendor/eff_large_wordlist.txt
+
+Electronic Frontier Foundation, 2016. Original list, unchanged (7,776 entries):
+https://www.eff.org/files/2016/07/18/eff_large_wordlist.txt
+https://www.eff.org/dice
+Licensed under Creative Commons Attribution 3.0 United States:
+https://creativecommons.org/licenses/by/3.0/us/
+Used to suggest four random words for a school's backup password.

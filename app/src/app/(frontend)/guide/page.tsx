@@ -876,10 +876,27 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   .
                 </p>
                 <p>
+                  For a new school setup, the server operator runs{' '}
+                  <code>scripts/setup-school-backups.sh</code>. It suggests four words or accepts a
+                  password of at least 12 characters, checks that you can type the written password
+                  back, prepares the drive, locks the school key, installs the schedule and proves
+                  the first backup with a restore drill. After a power cut, run the same command and
+                  enter the same password; it reuses the saved key. Keep the printed recovery sheet
+                  away from the server. The password is never saved in a file or log. A new school
+                  key cannot open older backups; those still need the earlier school key or ARES.
+                </p>
+                <p>
                   Before attempting recovery, check what <em>Manage → System → Backups</em> shows
                   under <strong>School recovery key</strong>:
                 </p>
                 <ul>
+                  <li>
+                    <strong>Password-locked (set up …)</strong> — plug in the drive, run the restore
+                    command and type the backup password. You need the encrypted backup,{' '}
+                    <code>school-recovery-key.age</code> and the password from the recovery sheet.
+                    Follow the recovery-sheet command and the checks and confirmation in{' '}
+                    <code>docs/OPS.md</code>. ARES can also open these backups independently.
+                  </li>
                   <li>
                     <strong>School recovery key configured</strong> — the school holds the private
                     key for these backups. Recovery requires three things present before starting:
