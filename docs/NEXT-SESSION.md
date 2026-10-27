@@ -55,11 +55,11 @@ with the paused Phase B plan.
 - **Parts 1–3 of the school design are done.** Part 4 (the ARES stick builder) is Phase B's B1, which
   `PLAN-phase-b-recovery` pauses until test machines exist, and parts 4–7 need one amd64 test machine
   (design §14). Each needs its own approved plan first.
-- **Small follow-ups from the 3b review implemented**, awaiting review on
-  `fix/school-backup-followups`: helper packaging and required-file validation use patterns;
+- **Small follow-ups from the 3b review merged** ([PR #464](https://github.com/james-beep-boop/Lesson3/pull/464),
+  `0bf489c2`): helper packaging and required-file validation use patterns;
   the setup probe kills the process externally at completion lines; old attempt fields are converted
   once by the backup writer, including records already in destination folders; completed key copies
-  and cron installation are skipped on resume. No migration or deployment. James merges.
+  and cron installation are skipped on resume. All four CI checks passed. No migration or deployment.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---
