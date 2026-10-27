@@ -99,11 +99,11 @@ export const Users: CollectionConfig = {
       generateEmailHTML: (args) => {
         const token = (args as { token?: string } | undefined)?.token ?? ''
         const url = `${emailLinkBase()}/verify-email?token=${token}`
-        return `<p>Welcome to Lesson Plan Editor.</p>
+        return `<p>Welcome to ARES Lesson Plans.</p>
 <p><a href="${url}">Verify your email address</a> (or paste this link): ${url}</p>
 <p>You'll be able to sign in once your address is verified. If you didn't create this account, ignore this email.</p>`
       },
-      generateEmailSubject: () => 'Verify your email — Lesson Plan Editor',
+      generateEmailSubject: () => 'Verify your email — ARES Lesson Plans',
     },
   },
   admin: {

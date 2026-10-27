@@ -705,6 +705,10 @@ a {
   color: var(--muted);
   margin: 0.35rem 0 1.5rem;
 }
+/* What the site is for, directly under its name and above the credit line (operator, 2026-10-27). */
+.login-tagline {
+  margin-bottom: 0;
+}
 .login-links {
   display: flex;
   gap: 1.25rem;

@@ -592,7 +592,7 @@ if [[ "$LIVE" -eq 1 ]]; then
   else
     INSTALLED="$(git -C "$REPO_DIR" describe --tags --always --dirty 2>/dev/null || true)"
   fi
-  [[ "$INSTALLED" =~ ^[A-Za-z0-9._+-]+$ ]] || die "cannot tell which Lesson Plan Editor version is installed (no VERSION file, no git)"
+  [[ "$INSTALLED" =~ ^[A-Za-z0-9._+-]+$ ]] || die "cannot tell which ARES Lesson Plans version is installed (no VERSION file, no git)"
   INSTALLED_MIGRATIONS="$(docker compose run --rm --no-deps -T -e RESTORE_CHECK_MODE=migrations \
     migrate npx payload run scripts/restore-check.ts 2>/dev/null | sed -n 's/^MIGRATION //p')" || true
   [[ -n "$INSTALLED_MIGRATIONS" ]] \
@@ -722,7 +722,7 @@ rm -f "$PLAIN"   # restored and counted; the decrypted dump has no further use
 # (`dev` is the marker Payload's development push leaves; it is not a migration.)
 echo "restore-db: schema check —"
 BACKUP_MIGRATIONS="$(psql_q "SELECT name FROM payload_migrations WHERE name <> 'dev' ORDER BY id;")" \
-  || fail_staged "the backup has no payload_migrations table; it is not a Lesson Plan Editor database this software can run."
+  || fail_staged "the backup has no payload_migrations table; it is not an ARES Lesson Plans database this software can run."
 UNKNOWN=""; COUNT=0
 while IFS= read -r m; do
   [[ -n "$m" ]] || continue

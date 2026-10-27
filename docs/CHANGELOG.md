@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased (on `main`, not tagged or deployed)
 
+- The public name is **ARES Lesson Plans** again (not "Lesson Plan Editor"), with "Find, download and
+  print lesson plans." under it on the sign-in page. Most teachers come to find and print lessons, not
+  to edit them.
 - A server set up before disk backups existed no longer fails every backup after updating. While the
   standard disk folder (`/var/lib/lesson3-backups`) does not exist, the backup skips the disk copy with
   a note, the USB or online copy still runs, and **Manage → System → Backups** shows **Disk backup:

@@ -11,6 +11,18 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-27 — Public name: ARES Lesson Plans (supersedes "Lesson Plan Editor")
+
+Operator decision, the same day as the entry below it. Most teachers come to find, download and print
+the latest lesson plan; few will ever edit. "Editor" made editing sound like the main purpose and
+collided with the standing rule that there is no "Editor" user type. The name is **ARES Lesson
+Plans**, the name the sign-in page carried before this morning, with **"Find, download and print
+lesson plans."** directly under it on sign-in (and as the site description). Considered: Lesson Plan
+Manager (administrative), Lesson Plan Library (a good second choice). Repository, database, setting
+and path names are unchanged, as before. CLAUDE.md's strict "Editor" rule is restored.
+
+---
+
 ## 2026-10-27 — A missing default disk folder is "not set up", not a failure
 
 Found when the Rock's v1.09 deploy stopped: Part 3a made the server-disk copy default-on at

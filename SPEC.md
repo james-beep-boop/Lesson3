@@ -1,6 +1,6 @@
-# Lesson Plan Editor — Specification
+# ARES Lesson Plans — Specification
 
-**Public application name:** Lesson Plan Editor. `Lesson3` is the repository name, not the name shown to teachers.
+**Public application name:** ARES Lesson Plans. `Lesson3` is the repository name, not the name shown to teachers.
 
 > Canonical reference for the build. All architectural decisions and clarifications agreed during design are recorded here. Code must conform to this spec.
 >

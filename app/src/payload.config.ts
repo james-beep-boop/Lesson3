@@ -73,7 +73,7 @@ const smtpTransportOptions: SmtpTransportOptions = {
 }
 const email = process.env.SMTP_HOST
   ? await nodemailerAdapter({
-      defaultFromName: process.env.EMAIL_FROM_NAME || 'Lesson Plan Editor',
+      defaultFromName: process.env.EMAIL_FROM_NAME || 'ARES Lesson Plans',
       defaultFromAddress:
         process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER || 'no-reply@localhost',
       skipVerify: true,
@@ -114,11 +114,11 @@ export default buildConfig({
     // the editor are pinned light too instead of following the device's dark mode. Payload's default
     // ('all') switched to dark on a dark-mode device, so the site flipped between themes page to page.
     theme: 'light',
-    // Brand the admin as "Lesson Plan Editor": titleSuffix sets the browser tab; the Icon
+    // Brand the admin as "ARES Lesson Plans": titleSuffix sets the browser tab; the Icon
     // graphic replaces the nav mark. (The login-page Logo graphic is gone — /admin/login now
     // redirects to the single frontend login, so it was never seen.)
     meta: {
-      titleSuffix: ' — Lesson Plan Editor',
+      titleSuffix: ' — ARES Lesson Plans',
     },
     components: {
       graphics: {

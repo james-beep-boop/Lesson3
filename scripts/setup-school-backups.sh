@@ -15,7 +15,7 @@ source "$SCRIPT_DIR/lib/backup-password.sh"
 die() { echo "setup-school-backups: ERROR: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' is required; see OPS.md"; }
 for tool in docker age age-keygen script flock rclone findmnt sync; do need "$tool"; done
-[[ -f .env ]] || die 'no .env; run this from an installed Lesson Plan Editor bundle'
+[[ -f .env ]] || die 'no .env; run this from an installed ARES Lesson Plans bundle'
 exec 6<>/dev/tty || die 'an interactive terminal is required'
 STATE_DIR="$REPO_DIR/out/ops/.school-backup-setup"
 mkdir -p "$STATE_DIR"; chmod 0755 "$REPO_DIR/out/ops"; chmod 0700 "$STATE_DIR"
@@ -228,7 +228,7 @@ if [[ ! -f "$STATE_DIR/schedule" ]]; then
   printf -v COMMAND '%q ' "$REPO_DIR/scripts/backup-db.sh"
   printf -v LOG_FILE '%q' "$REPO_DIR/out/backup.log"
   cat >"$TMP/cron" <<CRON
-# Lesson Plan Editor school backups: installed by setup-school-backups.sh
+# ARES Lesson Plans school backups: installed by setup-school-backups.sh
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 0 2 * * * $CRON_USER ${COMMAND}>> $LOG_FILE 2>&1
@@ -268,6 +268,6 @@ printf '{"version":1,"installationId":"%s","recipient":"%s","keyCreatedAt":"%s",
   "$INSTALLATION_ID" "$RECIPIENT" "$CREATED_AT" "$(cat "$STATE_DIR/completed-at")" >"$RECEIPT_TMP"
 chmod 0644 "$RECEIPT_TMP"; sync -f "$RECEIPT_TMP"
 mv -f "$RECEIPT_TMP" "$REPO_DIR/out/ops/backup-setup.json"; sync -f "$REPO_DIR/out/ops"
-printf '\nRECOVERY SHEET — Lesson Plan Editor\nSchool: %s\nInstallation ID: %s\nDisk backups: %s\nUSB/cloud backups: %s\nLocked school key: school-recovery-key.age (beside the backups)\nBackup password: %s\n\n1. Plug in the backup drive.\n2. From this installation, run:\n   AGE_IDENTITY=/path/to/school-recovery-key.age scripts/restore-db.sh --local-file /path/to/backup.dump.age --into lesson3 --force-prod\n3. Type the backup password when asked, then follow the restore checks and confirmation.\n\nKeep this sheet away from the server. ARES’s recovery key still opens the backups.\n' \
+printf '\nRECOVERY SHEET — ARES Lesson Plans\nSchool: %s\nInstallation ID: %s\nDisk backups: %s\nUSB/cloud backups: %s\nLocked school key: school-recovery-key.age (beside the backups)\nBackup password: %s\n\n1. Plug in the backup drive.\n2. From this installation, run:\n   AGE_IDENTITY=/path/to/school-recovery-key.age scripts/restore-db.sh --local-file /path/to/backup.dump.age --into lesson3 --force-prod\n3. Type the backup password when asked, then follow the restore checks and confirmation.\n\nKeep this sheet away from the server. ARES’s recovery key still opens the backups.\n' \
   "$SCHOOL_NAME" "$INSTALLATION_ID" "$DISK_DIR" "${REMOTE:-not configured}" "$PASSWORD" >&6
 unset PASSWORD REPLY

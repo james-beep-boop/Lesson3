@@ -24,7 +24,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
     <article className="guide">
       <header className="guide-intro">
         <PageHeader
-          title="Lesson Plan Editor"
+          title="ARES Lesson Plans"
           kicker={<p className="guide-kicker">User guide</p>}
           actions={<PageBackLink href="/" label="Back to lesson plans" />}
         />
@@ -35,7 +35,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
         <p>
           Use <strong>Lessons</strong> to find plans, a <strong>lesson page</strong> to read and
           share one plan, <strong>Manage</strong> to edit lessons and manage accounts, and{' '}
-          <strong>Messages</strong> to contact other people with Lesson Plan Editor accounts.
+          <strong>Messages</strong> to contact other people with ARES Lesson Plans accounts.
         </p>
       </header>
 
@@ -65,7 +65,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     reset link.
                   </li>
                   <li>
-                    If this Lesson Plan Editor site cannot send email (most school servers have no
+                    If this ARES Lesson Plans site cannot send email (most school servers have no
                     internet), the sign-up page says so. Sign up as usual, ask your school’s Site
                     administrator to approve your account, then sign in. They can also create a
                     reset link and give it to you directly.
@@ -133,7 +133,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   Favorites are private. Teachers see the current Official version when one is
                   promoted. With editing access, a favorite stays on the exact version you chose;
-                  Lesson Plan Editor marks it <code>vX (pinned)</code> so you know it stays on that
+                  ARES Lesson Plans marks it <code>vX (pinned)</code> so you know it stays on that
                   version.
                 </p>
               </GuideAccordionPanel>
@@ -157,7 +157,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     tools is switched on, and Email all only when the site can send email.
                   </li>
                   <li>
-                    Choose <em>Share → Message a colleague</em> to send another Lesson Plan Editor
+                    Choose <em>Share → Message a colleague</em> to send another ARES Lesson Plans
                     user a note with the lesson attached.
                   </li>
                 </ol>
@@ -184,7 +184,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     Open <em>Messages</em> from the menu under your avatar.
                   </li>
                   <li>
-                    Choose a person with a Lesson Plan Editor account and write your note. A lesson
+                    Choose a person with an ARES Lesson Plans account and write your note. A lesson
                     page’s <em>Share → Message a colleague</em> item attaches that lesson.
                   </li>
                   <li>
@@ -233,7 +233,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   Your forum text stays only in the form. Copy it before leaving, reloading or
                   signing in again. If a result is uncertain, keep the form open and choose{' '}
-                  <em>Try again</em>; the fields stay locked until Lesson Plan Editor finds the post
+                  <em>Try again</em>; the fields stay locked until ARES Lesson Plans finds the post
                   or confirms it was posted.
                 </p>
               </GuideAccordionPanel>
@@ -266,7 +266,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     Choose <em>Request editing access</em> on the lesson page.
                   </li>
                   <li>
-                    Lesson Plan Editor notifies the administrators for that subject and grade. If
+                    ARES Lesson Plans notifies the administrators for that subject and grade. If
                     they give you access, editing controls appear for those lessons.
                   </li>
                 </ol>
@@ -291,9 +291,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             anchorId="editors"
           >
             <p>
-              With editing access, you can change most lesson content in Lesson Plan Editor. The
+              With editing access, you can change most lesson content in ARES Lesson Plans. The
               subjects and grades you can edit depend on your role. Subject-grade and Site
-              administrators can also edit. Make changes in Lesson Plan Editor, not in a Word file.
+              administrators can also edit. Make changes in ARES Lesson Plans, not in a Word file.
             </p>
 
             {can('editing.open-edit') && (
@@ -325,7 +325,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <ol className="guide-steps">
                   <li>Review your changes in Quick preview or Formatted PDF.</li>
                   <li>
-                    Choose <em>Save as new version</em>. Lesson Plan Editor saves your changes as a
+                    Choose <em>Save as new version</em>. ARES Lesson Plans saves your changes as a
                     new version and leaves the version you opened unchanged.
                   </li>
                   <li>
@@ -359,14 +359,14 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               <GuideAccordionPanel id="editing.recovery" title="Save a draft and continue later">
                 <p>
                   A draft is your private copy of changes you have not saved as a new version. While
-                  you edit, Lesson Plan Editor saves a draft automatically, and a note below the
+                  you edit, ARES Lesson Plans saves a draft automatically, and a note below the
                   buttons shows when. Only you can see your drafts, even if someone else uses the
-                  same computer, and Lesson Plan Editor never restores a draft unless you choose to.
+                  same computer, and ARES Lesson Plans never restores a draft unless you choose to.
                 </p>
                 <p>
-                  To stop for now, choose <em>Save as draft</em>. Lesson Plan Editor checks that
-                  your draft is saved, then closes the editor. A draft is kept for 30 days after you
-                  last worked on it. The <strong>Manage</strong> tab lists your drafts under{' '}
+                  To stop for now, choose <em>Save as draft</em>. ARES Lesson Plans checks that your
+                  draft is saved, then closes the editor. A draft is kept for 30 days after you last
+                  worked on it. The <strong>Manage</strong> tab lists your drafts under{' '}
                   <em>Lesson plans → Your drafts</em>, with <em>Continue editing</em> and{' '}
                   <em>Discard</em>; the heading shows how many you have. To throw your changes away
                   instead, choose <em>Discard changes</em>. Administrators: a draft holds only
@@ -375,7 +375,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <ol className="guide-steps">
                   <li>
                     When you have a draft, the <em>Edit</em> button says <em>Continue editing</em>.
-                    Choose it, and Lesson Plan Editor asks whether to restore your draft.
+                    Choose it, and ARES Lesson Plans asks whether to restore your draft.
                   </li>
                   <li>
                     Review the listed differences. Your draft’s wording is green; saved wording
@@ -388,7 +388,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Normally, Lesson Plan Editor shows only what your draft changes. Some changes
+                  Normally, ARES Lesson Plans shows only what your draft changes. Some changes
                   cannot be shown word by word. <em>Emptied</em> means a field will be cleared;{' '}
                   <em>Paragraph breaks changed</em> means only the line breaks changed; and{' '}
                   <em>Spacing only</em> means the words stayed the same.
@@ -406,8 +406,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   To combine text, open a saved version and choose <em>More → Combine versions</em>.
                   This appears when the plan has at least two versions and you have editing access.
                   Choose another version and <em>Review combination</em>, then{' '}
-                  <em>Continue in editor</em>. Lesson Plan Editor may switch versions to preserve
-                  the plan details and answer keys. For each remaining field, choose{' '}
+                  <em>Continue in editor</em>. ARES Lesson Plans may switch versions to preserve the
+                  plan details and answer keys. For each remaining field, choose{' '}
                   <em>Use 1.0.1’s text</em> or <em>Write my own</em>. You can change choices until
                   saving. If a comparison fails, choose <em>Retry combination</em>; your text stays
                   on screen. <em>Save as new version</em> saves a Not Official result, keeps both
@@ -450,7 +450,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   Removals are red and additions are green. If an area is marked{' '}
                   <em>Spacing or document structure changed</em>, the words are the same but
-                  arranged differently. Lesson Plan Editor compares outcomes, overview,
+                  arranged differently. ARES Lesson Plans compares outcomes, overview,
                   implementation framework, teacher reflection, and summary prompts separately.
                 </p>
               </GuideAccordionPanel>
@@ -500,8 +500,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                   <li>Bold, italics, and underlining are not supported.</li>
                   <li>
-                    Change the field for the section you want to update. Lesson Plan Editor makes
-                    the Word and PDF files from these fields.
+                    Change the field for the section you want to update. ARES Lesson Plans makes the
+                    Word and PDF files from these fields.
                   </li>
                 </ul>
                 <p>
@@ -651,7 +651,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   administrator so someone can still manage the site if you forget your password.
                 </p>
                 <p>
-                  Installing Lesson Plan Editor on a new school server is a job for the technician.
+                  Installing ARES Lesson Plans on a new school server is a job for the technician.
                   They follow the instructions that come with the program. Before they hand the
                   server over, they should:
                 </p>
@@ -810,7 +810,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <ul>
                   <li>
                     <strong>The lessons need a newer program.</strong> Ask the technician to update
-                    Lesson Plan Editor, then upload the same ZIP again.
+                    ARES Lesson Plans, then upload the same ZIP again.
                   </li>
                   <li>
                     <strong>A file looks damaged.</strong> Get a fresh copy of the ZIP and upload
@@ -899,7 +899,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 title="Backups and recovery for server operators"
               >
                 <p>
-                  Being a Site administrator in Lesson Plan Editor does not give you a server login
+                  Being a Site administrator in ARES Lesson Plans does not give you a server login
                   or a recovery key. You can check backups in the browser. Setting them up and
                   recovering data are jobs for the technician; their steps are at the end of this
                   section.
@@ -981,7 +981,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 </ul>
                 <h4>If you need to recover data</h4>
                 <p>
-                  Recovering data replaces everything in Lesson Plan Editor with the contents of a
+                  Recovering data replaces everything in ARES Lesson Plans with the contents of a
                   backup. It is not a button in the browser: the technician does it. Before you call
                   them, look at <strong>School recovery key</strong> on the Backups page:
                 </p>
@@ -1039,9 +1039,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                   <li>
                     <strong>Recover with a school-held key:</strong> you need the backup file, the
-                    matching private key on the machine where the restore will run (not on the
-                    Lesson Plan Editor server), and a temporary copy of the database software
-                    running on that machine. <code>OPS.md</code> shows how to start it.
+                    matching private key on the machine where the restore will run (not on the ARES
+                    Lesson Plans server), and a temporary copy of the database software running on
+                    that machine. <code>OPS.md</code> shows how to start it.
                   </li>
                   <li>
                     <strong>A live restore</strong> replaces all data. It checks the backup in a

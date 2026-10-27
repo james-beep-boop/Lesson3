@@ -1,6 +1,6 @@
-# Install and look after Lesson Plan Editor on a school server
+# Install and look after ARES Lesson Plans on a school server
 
-This manual is for the **technician** who installs Lesson Plan Editor on a school's server, updates
+This manual is for the **technician** who installs ARES Lesson Plans on a school's server, updates
 it, and sets up its backups. Teachers and school administrators do not need it: they use the Guide
 inside the program.
 
@@ -11,7 +11,7 @@ fix it, send the exact error message to ARES.
 ## Words used in this manual
 
 - **Terminal** — the window on the server where you type commands. You need a login to the server
-  (this is not the same as a Lesson Plan Editor sign-in).
+  (this is not the same as an ARES Lesson Plans sign-in).
 - **Installation folder** — the folder on the server that holds the program's settings and scripts.
   The examples use `/srv/lesson3`. If you chose another folder, use that instead.
 - **`.env` file** — the settings file in the installation folder. It holds secret passwords that the
@@ -22,7 +22,7 @@ fix it, send the exact error message to ARES.
   different: it holds ARES lesson plans, and a school administrator uploads it in the browser.
 - **Checksum** — a code that proves a download arrived complete and undamaged.
 - **Backup password** and **recovery sheet** — chosen when you set up backups. The password unlocks
-  the school's backups. It is different from anyone's Lesson Plan Editor sign-in password.
+  the school's backups. It is different from anyone's ARES Lesson Plans sign-in password.
 
 ## What do you need to do?
 
@@ -57,7 +57,7 @@ The server needs:
   Docker Hub.
 - The tools `curl`, `openssl`, `tar` and `sha256sum`.
 
-Lesson Plan Editor is for the school's own network. Computers on that network reach it on port
+ARES Lesson Plans is for the school's own network. Computers on that network reach it on port
 **3001**. **Do not open port 3001 to the internet.** Putting it on the public internet needs extra
 security work; see "Going public" in `OPS.md`.
 
@@ -455,7 +455,7 @@ The images are multi-architecture, so they run natively on Apple Silicon. Two th
 `/srv` cannot be created on macOS, so install under your home directory; and macOS lacks `sha256sum`,
 so verify with `shasum`. Before starting, give Docker Desktop at least 4–5 GB of memory (Settings →
 Resources), and confirm `docker compose ls` shows no existing project named `lesson3` and that nothing
-already listens on port 3001. A Mac that also runs a Lesson Plan Editor development stack under the `lesson3`
+already listens on port 3001. A Mac that also runs an ARES Lesson Plans development stack under the `lesson3`
 project name must not be used: the removal step below would delete that stack's database.
 
 ```bash

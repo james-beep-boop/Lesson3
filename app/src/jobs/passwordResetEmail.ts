@@ -80,8 +80,8 @@ export const passwordResetEmailTask: TaskConfig<{
     try {
       await req.payload.sendEmail({
         to: user.email,
-        subject: 'Reset your password — Lesson Plan Editor',
-        html: `<p>You requested a password reset for Lesson Plan Editor.</p>
+        subject: 'Reset your password — ARES Lesson Plans',
+        html: `<p>You requested a password reset for ARES Lesson Plans.</p>
 <p><a href="${url}">Reset your password</a> (or paste this link): ${url}</p>
 <p>If you didn't request this, ignore this email.</p>`,
       })
