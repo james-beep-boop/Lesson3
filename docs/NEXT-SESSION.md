@@ -20,7 +20,25 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
-# Approved 2026-10-26 — school commissioning, reinstall and updates (part 1a merged)
+# Release v1.08 — 2026-10-27
+
+[PR #467](https://github.com/james-beep-boop/Lesson3/pull/467) merged as `34d09b07` after all four CI
+checks passed. It makes the Guide plainer for Kenyan high school teachers and corrects the backup,
+recovery-time and upload wording on both Guide surfaces. All 1,974 unit tests and local desktop/phone
+checks passed too. [CHANGELOG.md](CHANGELOG.md) records the changes since v1.07.
+
+The annotated `v1.08` tag triggers the release publisher. Check
+[the publication workflow](https://github.com/james-beep-boop/Lesson3/actions/workflows/publish-containers.yml)
+for the completed images and checksummed deployment bundle before installing; the tag alone does
+not mean publication has finished. **Not deployed by this session.** The release contains the lesson
+release and school-name migrations. Before deploying to the public Rock, configure
+`AUTH_TRUSTED_PROXY_CIDRS` using [SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md).
+
+Parts 4–7 still need the amd64 test machine and their own approved plans.
+
+---
+
+# Approved 2026-10-26 — school commissioning, reinstall and updates (parts 1–3 merged)
 
 [`DESIGN-school-commissioning-and-updates-2026-10-26.md`](DESIGN-school-commissioning-and-updates-2026-10-26.md)
 plans how Mark's cloned school images become unique machines (seal → commission), how a wiped and
@@ -32,7 +50,7 @@ with the paused Phase B plan.
 
 - **Part 1a merged** ([PR #459](https://github.com/james-beep-boop/Lesson3/pull/459), `879cba0`):
   release identity and dates, automatic Official with token-bound confirmation, the Official change
-  record, administrator messages, `import-lessons.ts`. Not released or deployed. Upload summaries keep the
+  record, administrator messages, `import-lessons.ts`. Included in v1.08; not deployed by this session. Upload summaries keep the
   ordinary 5,000-character message limit and end "…and N more" (operator decision 2026-10-27).
 - **Part 1b merged** ([PR #460](https://github.com/james-beep-boop/Lesson3/pull/460)): release labels,
   the recorded Official-update notice (shown in the reader's own day), the "Combine them?" suggestion
@@ -77,7 +95,7 @@ also merged, fixing restore/undo export-cache invalidation (F-C70-001). Both PRs
 The merged fix branches and temporary local worktrees have been removed; the working checkout is
 back on `main`.
 
-These fixes are not released or deployed by this session. The operator confirmed the Cloudflare WAF
+These fixes are included in v1.08 and have not been deployed by this session. The operator confirmed the Cloudflare WAF
 rule was never added, and Cloudflare is unchanged. See
 [SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md) for required trusted-proxy configuration before
 deployment, defaults, tests and residual limits. Existing signup/forgot-password mail ceilings are

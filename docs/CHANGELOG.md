@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased (on `main`, not tagged or deployed)
+## v1.08 (2026-10-27)
 
 - The app's public name is **Lesson Plan Editor**. The Guide and technician manuals now separate
   installation, lesson uploads, program updates, automatic backups and recovery, with plainer steps
