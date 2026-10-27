@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 import { VerifyEmail } from './VerifyEmail'
 
-export const generateMetadata = () => schoolPageMetadata('Verify email — ARES Lesson Plans')
+export const generateMetadata = () => schoolPageMetadata('Verify email — Lesson Plan Editor')
 
 /** Landing page for the emailed verification link (?token=…). No redirect-if-signed-in: someone
  *  signed in on a shared machine can still verify a different, fresh account's link. */
@@ -16,7 +16,7 @@ export default async function VerifyEmailPage({
   const token = ((await searchParams).token ?? '').trim()
   return (
     <section className="login">
-      <h1 className="login-title">ARES Lesson Plans</h1>
+      <h1 className="login-title">Lesson Plan Editor</h1>
       <p className="login-subtitle">Verify your email</p>
       {token ? (
         <VerifyEmail token={token} />

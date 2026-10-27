@@ -1,4 +1,6 @@
-# ARES Lesson Library — Specification
+# Lesson Plan Editor — Specification
+
+**Public application name:** Lesson Plan Editor. `Lesson3` is the repository name, not the name shown to teachers.
 
 > Canonical reference for the build. All architectural decisions and clarifications agreed during design are recorded here. Code must conform to this spec.
 >
@@ -1173,6 +1175,9 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     destinations retain `premigrate` snapshots for 90 days (`BACKUP_PREMIGRATE_RETENTION_DAYS`).
     One dump and one encryption feed both copies; a destination error never stops the other copy.
     After both are attempted, a real error yields a nonzero exit, including partial success.
+  - USB normally stays plugged in for automatic nightly backups and is taken away when someone
+    can; reconnect it when it returns. Release-bundle updates accept a working disk-only backup
+    destination. The updater keeps per-destination pre-update records with its recovery files.
   - **USB absence is neutral, recorded as "not connected".** It never creates a missing USB folder
     on the boot disk, and does not fail a successful disk backup. A connected local external
     destination must be on a different device from `/`, carry a regular, non-symlink

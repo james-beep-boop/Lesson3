@@ -23,6 +23,27 @@ length is validated, not a column type.
 
 ---
 
+## 2026-10-27 — Public name: Lesson Plan Editor
+
+The operator explained that Lesson3 is only the repository name, from three attempts at building
+it, and proposed Lesson Plan Editor for people using it. Use Lesson Plan Editor in the interface,
+Guide, emails and technician instructions. Keep repository URLs, database names, environment
+variable names and deployment paths unchanged so existing installations continue to work.
+
+---
+
+## 2026-10-27 — Describe automatic backups before manual commands
+
+The operator reaffirmed that the school's USB backup drive normally stays plugged in, so automatic
+nightly backups reach it; take it away when someone can and reconnect it on return. The Guide must
+not imply backups depend on someone running a command or that the drive is normally disconnected.
+Write these instructions in plain English for Kenyan high school teachers, with browser tasks
+separate from the technician's server commands. Keep the deliberately invalid `SERVER_LAN_IP`
+placeholder in install examples, and describe older lesson releases as not imported, rather than
+rejected uploads.
+
+---
+
 ## 2026-10-26 — School setup may create a new school key
 
 Operator decision during Part 3b: when a school public key is configured but setup has no saved

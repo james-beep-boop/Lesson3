@@ -8,7 +8,7 @@ checkout.
 
 Run server commands as the installation's operator, from its installed folder (normally
 `/srv/lesson3`). A Site administrator's browser login does not grant a server login. Keep these three
-things distinct: your Lesson3 sign-in password, the school's backup password on its recovery sheet,
+things distinct: your Lesson Plan Editor sign-in password, the school's backup password on its recovery sheet,
 and internal service secrets in `.env`. Do not replace `.env` or copy secrets between installations.
 
 | What you need to do | Procedure |
@@ -28,7 +28,7 @@ has its own resume instructions below; do not start a fresh installation over th
 ## Optional PDF link library
 
 Lesson prose can link to internet addresses and to PDFs in one flat directory on the Rock. This is a
-read-only folder, not file management: Lesson3 never writes, renames, replaces or deletes the
+read-only folder, not file management: Lesson Plan Editor never writes, renames, replaces or deletes the
 files. The Compose app receives only this mount:
 
 ```text
@@ -97,9 +97,12 @@ backup folder. Invalid markers also refuse writes; a failed database identity re
 
 ### Routine backup
 
-After initial setup, the schedule runs on the server. To refresh the USB copy before taking it away:
+After initial setup, backups run automatically every night. Leave the USB drive plugged in so it is
+backed up too, and take it away when someone can. Plug it in again when it is returned. To make a
+backup right now:
 
-1. Connect **this school's** drive and check that it is mounted in the same place used during setup.
+1. If **this school's** drive is away, connect it. Check that it is mounted in the same place used
+   during setup.
 2. Run `cd /srv/lesson3 && scripts/backup-db.sh`.
 3. Check **Manage → System → Backups**. Look at **USB backup** as well as **Disk backup** and check
    the time of the latest successful copy. A fresh disk copy does not prove USB was refreshed.
@@ -277,7 +280,7 @@ tested**, which needs a rebuild on another machine.
 5. **Cron — nightly + weekly + monthly** (`crontab -e`; the box is `America/Los_Angeles`, so these fire
    at 02:00 Pacific). Nightly → `daily/`, Sundays → `weekly/`, the 1st of the month → `monthly/`:
    ```
-   # Lesson3 DB backups — GFS retention (7 daily / 4 weekly / 12 monthly)
+   # Lesson Plan Editor DB backups — GFS retention (7 daily / 4 weekly / 12 monthly)
    0  2 * * *  /srv/lesson3/scripts/backup-db.sh                 >> /srv/lesson3/out/backup.log 2>&1
    10 2 * * 0  /srv/lesson3/scripts/backup-db.sh --label weekly  >> /srv/lesson3/out/backup.log 2>&1
    20 2 1 * *  /srv/lesson3/scripts/backup-db.sh --label monthly >> /srv/lesson3/out/backup.log 2>&1
@@ -292,7 +295,7 @@ env-overridable in `.env` (`PRUNE_EXPORT_JOB_DAYS` 14, `PRUNE_EMAIL_JOB_DAYS` 18
 pre-prune snapshot always exists:
 
 ```cron
-# Lesson3 retention prune (completed export jobs 14d / email+ping jobs 180d / failed 90d / rate counters 7d)
+# Lesson Plan Editor retention prune (completed export jobs 14d / email+ping jobs 180d / failed 90d / rate counters 7d)
 30 3 * * *  /srv/lesson3/scripts/prune-db.sh >> /srv/lesson3/out/prune.log 2>&1
 ```
 
@@ -344,7 +347,7 @@ windows it applied); counts before/after via
 
   Times are the viewer's local time with a relative age; UTC, the destination, every stream's last
   success and failure, and the school key's short fingerprint are under *Technical details*.
-- **The agreement settings are the school's, not Lesson3's.** `BACKUP_MAX_DATA_LOSS` and
+- **The agreement settings are the school's, not Lesson Plan Editor's.** `BACKUP_MAX_DATA_LOSS` and
   `RECOVERY_TARGET_TIME` take `12h`, `1d` or `1w`; unset, the page says "Not agreed" (operator decision
   2026-10-21: every school is "Not agreed" until it agrees). `BACKUP_RECOVERY_CONTACT` (who, and how to
   reach them) and `BACKUP_KEY_HELD_BY` (where the private key is kept) are shown as "Recorded as …",
@@ -856,7 +859,7 @@ SMTP_PORT=465
 SMTP_USER=notifications@kenyalessons.org
 SMTP_PASS=<mailbox password — .env only, never committed>
 EMAIL_FROM_ADDRESS=notifications@kenyalessons.org   # keep == SMTP_USER (SPF/DKIM alignment)
-EMAIL_FROM_NAME=ARES Lesson Plans                    # display name; this env OVERRIDES the app default
+EMAIL_FROM_NAME=Lesson Plan Editor                    # display name; this env OVERRIDES the app default
 ```
 
 DreamHost routes outbound through MailChannels and DKIM-signs automatically — nothing to enable.
@@ -880,7 +883,7 @@ after changing email config and confirm the link is absolute.
   `p=quarantine`/`reject` later once reports confirm legit mail passes).
 
 **Verify after deploy:** trigger a real email (forgot-password on a known account, or a fresh signup's
-verification link) and confirm it lands in the inbox and reads `ARES Lesson Plans
+verification link) and confirm it lands in the inbox and reads `Lesson Plan Editor
 <notifications@kenyalessons.org>`; in Gmail's "Show original" both `SPF` and `DKIM` show **PASS**. A
 mail-tester.com run scores SPF/DKIM/DMARC in one shot.
 

@@ -1,10 +1,10 @@
-# ARES Lesson Library — User Guide
+# Lesson Plan Editor — User Guide
 
-Use Lesson3 to find and read ARES lesson plans. When you download a plan, Lesson3 makes the Word or
+Use Lesson Plan Editor to find and read ARES lesson plans. When you download a plan, the app makes the Word or
 PDF file for you.
 
 Use **Lessons** to find plans, a **lesson page** to read and share one plan, **Manage** to edit
-lessons and manage accounts, and **Messages** to contact other people with Lesson3 accounts. People
+lessons and manage accounts, and **Messages** to contact other people with Lesson Plan Editor accounts. People
 with editing access also see saved-version and comparison controls.
 
 This is the complete offline reference. The in-app guide at `/guide` shows an overview of each area
@@ -26,7 +26,7 @@ _Compare_ button.
   available. Its change date is separate from the ARES release date.
 - **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
-  If your school's Lesson3 site cannot send email — most school servers run with no internet — the
+  If your school's Lesson Plan Editor site cannot send email — most school servers run with no internet — the
   sign-up page says so: sign up as usual, then ask your school's Site administrator to approve your
   account, and sign in once they have. They can also create a reset link and give it to you
   directly. For security your session ends after a while and signs you out automatically — just
@@ -39,7 +39,7 @@ _Compare_ button.
 - **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
   keep that lesson in _My favorites_ at the top of the home page. Teachers see the current Official
   version when one is promoted. With editing access, a favorite stays on the exact version you chose;
-  Lesson3 marks it `vX (pinned)`. Favorites are private.
+  Lesson Plan Editor marks it `vX (pinned)`. Favorites are private.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
 - **Show details:** below the version information on a lesson page, choose *Show details* to see
@@ -63,11 +63,11 @@ _Compare_ button.
   generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
   day. _Email all_ and _Download as JSON_ appear when Advanced tools is switched on, and Email all only
   when the site can send email.
-- **Want to edit?** use _Request editing access_ on a lesson page. Lesson3 notifies the administrators
+- **Want to edit?** use _Request editing access_ on a lesson page. Lesson Plan Editor notifies the administrators
   for that subject and grade. You can request access once a day for each subject and grade. The
   limit applies separately to each teacher.
 - **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to anyone
-  with a Lesson3 account — a lesson page's _Share → Message a colleague_ item attaches that lesson
+  with a Lesson Plan Editor account — a lesson page's _Share → Message a colleague_ item attaches that lesson
   to your note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
   messages show as a small count on your avatar, and you get a short email telling you a message is
   waiting (never its content). Opening Messages marks everything shown as read.
@@ -95,13 +95,13 @@ entry points then disappear, and existing discussions are kept.
   The dot updates on navigation or reload.
 - **Your forum text stays only in the form.** Copy it before leaving, reloading or signing in again.
   If a result is uncertain, keep the form open and choose **Try again**; the fields stay locked until
-  Lesson3 finds the post or confirms it was posted.
+  Lesson Plan Editor finds the post or confirms it was posted.
 
 ## Editing
 
-With editing access, you can change most lesson content in Lesson3. The subjects and grades you can
+With editing access, you can change most lesson content in Lesson Plan Editor. The subjects and grades you can
 edit depend on your role. Subject-grade and Site administrators can also edit. Make changes in
-Lesson3, not in a Word file.
+Lesson Plan Editor, not in a Word file.
 
 - **Edit from the lesson:** open a lesson in the library and press *Edit* (or *Continue editing*,
   when you have a draft). The editing page opens ready to type, showing only the fields you may
@@ -119,18 +119,18 @@ Lesson3, not in a Word file.
   changed and invite colleagues’ suggestions. Starting a discussion that references someone else’s
   saved version includes its author in the discussion’s blue-dot notifications.
 - **Drafts:** a draft is your private copy of changes you have not saved as a new version. While
-  you edit, Lesson3 saves a draft automatically, and a note below the buttons shows when. Only you
-  can see your drafts, even if someone else uses the same computer, and Lesson3 never restores a
+  you edit, Lesson Plan Editor saves a draft automatically, and a note below the buttons shows when. Only you
+  can see your drafts, even if someone else uses the same computer, and Lesson Plan Editor never restores a
   draft unless you choose to.
-- **Save as draft:** to stop for now, choose *Save as draft*. Lesson3 checks that your draft is
+- **Save as draft:** to stop for now, choose *Save as draft*. Lesson Plan Editor checks that your draft is
   saved, then closes the editor. A draft is kept for 30 days after you last worked on it. The
   **Manage** tab lists your drafts under *Lesson plans → Your drafts*, with *Continue editing* and
   *Discard*; the heading shows how many you have. To
   throw your changes away instead, choose *Discard changes*. Administrators: a draft holds only
   wording, not changes to lessons, phases, durations, rubrics or answer keys.
-- **Continue a draft:** when you have a draft, the *Edit* button says *Continue editing*. Lesson3
+- **Continue a draft:** when you have a draft, the *Edit* button says *Continue editing*. Lesson Plan Editor
   asks whether to restore your draft. Your draft's wording appears in green; saved wording that
-  will be replaced is struck through in red. Lesson3 normally shows only what your draft changes.
+  will be replaced is struck through in red. Lesson Plan Editor normally shows only what your draft changes.
   Some changes cannot be shown word by word: *Emptied* means a field will be cleared, *Paragraph
   breaks changed* means only line breaks changed, and *Spacing only* means the words stayed the same.
   Choose *Restore my draft*, *Discard the draft*, or *Exit edit mode*, which keeps your draft and
@@ -143,7 +143,7 @@ Lesson3, not in a Word file.
   Nothing is saved until you choose to save a version or draft in the editor.
 - **Combine versions:** when a plan has at least two versions and you have editing access, open
   a saved version and choose *More → Combine versions*. Choose another version and *Review combination*.
-  Lesson3 lists automatic changes and fields needing your choice. *Continue in editor* may switch
+  Lesson Plan Editor lists automatic changes and fields needing your choice. *Continue in editor* may switch
   you to the version whose plan details and answer keys must be preserved. For each remaining field,
   choose a version’s text (for example, *Use 1.0.1’s text*) or *Write my own*. You can change your choices until saving.
   If a comparison fails, choose *Retry combination*; your text stays on screen.
@@ -157,7 +157,7 @@ Lesson3, not in a Word file.
   Deleting the version you were editing deletes its draft too. If that happens while the
   editor is open, copy your text before leaving the page.
 - **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and
-  additions in green. Lesson3 lists the parts that changed; choose one to jump to it. Turn off
+  additions in green. Lesson Plan Editor lists the parts that changed; choose one to jump to it. Turn off
   *Changes only* to read both versions in full. If a part says *Spacing or document structure
   changed*, the words are the same but arranged differently.
 
@@ -196,10 +196,10 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   folder; `OPS.md` in that folder covers backups and recovery. In the source repository these are
   `docs/LOCAL-SERVER-DEPLOYMENT.md` and `docs/OPS.md`. For a new school: install, create two tested
   administrators, set the School name, set up backups, then upload the ARES lessons and check Word
-  and PDF downloads. A lesson ZIP updates lesson plans in the browser. A release bundle updates the
-  Lesson3 program through its `update.sh`, using a server login and internet. An app update does not
-  import newer ARES lessons. Keep the existing installation folder and use the new bundle's updater;
-  do not install over the old folder. If a lesson upload needs a newer program, update Lesson3 first,
+  and PDF downloads. A lesson ZIP updates lesson plans in the browser. To update the
+  Lesson Plan Editor program itself, ask the technician to use the program release bundle and its `update.sh`.
+  This needs a server login and internet. An app update does not import newer ARES lessons. Keep the existing installation folder and use the new bundle's updater;
+  do not install over the old folder. If a lesson upload needs a newer program, update Lesson Plan Editor first,
   then upload the lesson ZIP again.
 - **Manage lesson plans:** upload ARES JSON files or ZIP archives of JSON files. Valid files are
   imported even when others fail; review the report for imported, rejected and skipped files.
@@ -271,9 +271,9 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   confirmation.
   While the forum is off, follow **Moderate discussions** beside the switch to read, redact or
   delete. This view has no search, posting, pinning or unread tracking.
-- **Backups and recovery for server operators:** Site Administrator access in Lesson3 is an
-  application role; it does not grant access to the server command line or the private recovery key.
-  These steps are for the person who manages the server.
+- **Backups and recovery for server operators:** Being a Site administrator in Lesson Plan Editor does not
+  give you a server login or a recovery key. The commands below are for the technician or person
+  who manages the server. Teachers do not need to run server commands to use lesson plans.
 
   **Set up backups once**
 
@@ -287,22 +287,25 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   password back, prepares the drive, locks the school key, installs the schedule and proves the first
   backup with a restore drill. After a power cut, run the same command and enter the same password;
   it reuses the saved key and skips completed steps. Copy the terminal recovery sheet onto paper and
-  keep it away from the server. The backup password is separate from your Lesson3 sign-in password.
+  keep it away from the server. The backup password is separate from your Lesson Plan Editor sign-in password.
   The password is never saved in a file or log. A new school key cannot open older backups; those still need the
   earlier school key or ARES.
 
-  **Make a routine backup**
+  **Automatic backups and making a backup now**
 
-  For a routine backup after setup:
+  Backups run automatically every night after setup. Leave the USB drive plugged in so it is
+  backed up too, and take it away when someone can. Plug it in again when it is returned.
+  To make a backup right now:
 
-  1. Connect the school's backup drive when you want to refresh the USB copy.
-  2. Sign in to the Lesson3 server and run `cd /srv/lesson3 && scripts/backup-db.sh` (replace
+  1. If the school's backup drive is away, bring it back and plug it in.
+  2. Sign in to the Lesson Plan Editor server and run `cd /srv/lesson3 && scripts/backup-db.sh` (replace
      `/srv/lesson3` with the actual installation directory if it differs).
   3. Open **Manage → System → Backups** and check the USB date as well as the disk date. Take the
      drive away from the server when possible; keep the recovery sheet separately.
 
   Setup schedules daily backups at 02:00, weekly on Sunday at 02:10 and monthly on the first at
-  02:20, in the server's time zone. The server must be on at those times. A real destination error
+  02:20, using the server's clock. The server must be switched on at those times. If it is normally
+  switched off at night, ask the technician to change the backup time. A real destination error
   needs the operator's attention even if the other destination succeeded. To list available
   encrypted backups in the configured USB/cloud destination, run
   `cd /srv/lesson3 && scripts/restore-db.sh --list`.
@@ -341,7 +344,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
     `docs/OPS.md`. ARES can also open these backups independently.
   - **School recovery key configured** — the school holds the private key for these backups. Recovery
     requires three things present before starting: the encrypted backup file, the matching private key
-    on the machine where the restore will run (not on the Lesson3 server), and a disposable local
+    on the machine where the restore will run (not on the Lesson Plan Editor server), and a disposable local
     Compose Postgres stack already running. Follow the full procedure in `docs/OPS.md`.
   - **Recovery needs ARES** — the school does not hold a private recovery key. Contact ARES for
     assistance; do not attempt a restore without the matching key.
@@ -371,7 +374,7 @@ These rules are also available from *Help* at the top of the editor.
 - Keep web addresses out of the label. Use the Web address box.
 - A label can't start with "- " or "|". Those turn the line into a bullet or a table.
 - Bold, italics, and underlining are not supported.
-- Change the field for the section you want to update. Lesson3 makes the Word and PDF files from
+- Change the field for the section you want to update. Lesson Plan Editor makes the Word and PDF files from
   these fields.
 
 ## Role Notes

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply this release bundle to an existing bundle-based Lesson3 installation.
+# Apply this release bundle to an existing bundle-based Lesson Plan Editor installation.
 set -euo pipefail
 
 die() { echo "update: ERROR: $*" >&2; exit 1; }
@@ -49,7 +49,7 @@ for file in $(grep -hoE 'lib/backup-[[:alnum:]_.-]+\.sh' "$SOURCE/scripts/"*.sh 
 done
 [[ -f "$TARGET/compose.yaml" && -f "$TARGET/.env" && -f "$TARGET/.env.example" \
   && -f "$TARGET/VERSION" && -x "$TARGET/scripts/backup-db.sh" ]] \
-  || die "target is not a bundle-based Lesson3 installation"
+  || die "target is not a bundle-based Lesson Plan Editor installation"
 
 # The lock protects both the snapshot and phase transitions from concurrent updaters. A killed
 # process may leave it behind; never guess that a different updater (or its Compose child) is dead.
@@ -142,7 +142,9 @@ if [[ ! -d "$PENDING" ]]; then
 fi
 
 # Resolve relative mounts and env_file against the installation, not the staged bundle directory.
-cd "$TARGET"
+# Use the same .env precedence and destination defaults as the backup script.
+BACKUP_REPO_DIR="$TARGET" source "$SOURCE/scripts/lib.sh"
+source "$SOURCE/scripts/lib/backup-common.sh"
 compose=(docker compose --project-directory "$TARGET" --env-file "$TARGET/.env")
 echo "update: downloading $new_version images before activation"
 "${compose[@]}" -f "$PENDING/bundle/compose.yaml" pull
@@ -152,7 +154,10 @@ if [[ "$phase" != activating ]]; then
     || die "active Compose changed outside the pending update; refusing to take a misleading backup"
 fi
 if [[ "$phase" == staged ]]; then
-  if grep -Eq '^BACKUP_AGE_RECIPIENT=.+$' .env && grep -Eq '^BACKUP_RCLONE_REMOTE=.+$' .env; then
+  recipient="$(env_get BACKUP_AGE_RECIPIENT)"
+  disk_destination="$(destination_setting BACKUP_DISK_DIR /var/lib/lesson3-backups)"
+  external_destination="$(destination_setting BACKUP_RCLONE_REMOTE '')"
+  if [[ -n "$recipient" && ( -n "$disk_destination" || -n "$external_destination" ) ]]; then
     echo "update: taking encrypted pre-migration backup (record: $PENDING/backup.log)"
     # Preserve the original backup's filename/destination, even when routine backups later run.
     if ! scripts/backup-db.sh --label "premigrate-$new_version" >"$PENDING/backup.log" 2>&1; then
@@ -160,8 +165,17 @@ if [[ "$phase" == staged ]]; then
       die "pre-migration backup failed; no activation attempted"
     fi
     cat "$PENDING/backup.log"
-    # The backup just taken ran the INSTALLED backup-db.sh: a current one records in
-    # out/ops/backup/premigrate.json, an older one out/ops/backup-status.json. Keep whichever exists.
+    # Keep each destination's record from the installed backup script before later runs replace it.
+    backup_kinds=()
+    [[ -z "$disk_destination" ]] || backup_kinds+=(disk)
+    [[ -z "$external_destination" ]] || backup_kinds+=("$(external_kind "$external_destination")")
+    for kind in "${backup_kinds[@]}"; do
+      record="out/ops/backup/$kind/premigrate.json"
+      [[ -f "$record" ]] || continue
+      mkdir -p "$PENDING/backup/$kind"
+      cp -p "$record" "$PENDING/backup/$kind/premigrate.json"
+    done
+    # Older installed releases write one of these layouts; retain their evidence as well.
     [[ ! -f out/ops/backup/premigrate.json ]] || cp -p out/ops/backup/premigrate.json "$PENDING/premigrate-backup.json"
     [[ ! -f out/ops/backup-status.json ]] || cp -p out/ops/backup-status.json "$PENDING/backup-status.json"
   elif [[ "${ALLOW_UNBACKED_UPDATE:-}" == "1" ]]; then
@@ -203,7 +217,7 @@ for _ in $(seq 1 60); do
     atomic_copy "$PENDING/bundle/VERSION" "$TARGET/VERSION"
     mkdir -p "$TARGET/releases"
     mv "$PENDING" "$recovery_dir"
-    echo "update: Lesson3 $new_version is ready at ${admin_url%/}/login"
+    echo "update: Lesson Plan Editor $new_version is ready at ${admin_url%/}/login"
     echo "update: original deployment files and backup evidence retained at $recovery_dir"
     exit 0
   fi

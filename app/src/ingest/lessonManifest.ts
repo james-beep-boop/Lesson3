@@ -63,7 +63,7 @@ export function parseLessonManifest(
     compareSemver(v.minProgram, program) > 0
   ) {
     throw new LessonSetRefused(
-      `This lesson set needs a newer Lesson3. Update the program first. Set: format ${v.format}, schema ${v.schemaVersion}, minimum program ${v.minProgram}; this program: ${program}, format 1, schema 1.0.0.`,
+      `This lesson set needs a newer Lesson Plan Editor. Update the program first. Set: format ${v.format}, schema ${v.schemaVersion}, minimum program ${v.minProgram}; this program: ${program}, format 1, schema 1.0.0.`,
     )
   }
   if (!object(v.files)) return bad('files must map paths to checksums and kinds')

@@ -12,7 +12,7 @@ import SchoolName from '@/components/SchoolName'
 import { schoolNameForRender } from '@/lib/systemFlags'
 import AppVersion from '@/components/AppVersion'
 
-export const generateMetadata = () => schoolPageMetadata('Sign in — ARES Lesson Plans')
+export const generateMetadata = () => schoolPageMetadata('Sign in — Lesson Plan Editor')
 
 export default async function LoginPage() {
   const { payload, user } = await getSession()
@@ -28,10 +28,10 @@ export default async function LoginPage() {
       {schoolName ? (
         <>
           <SchoolName name={schoolName} heading />
-          <p className="login-title">ARES Lesson Plans</p>
+          <p className="login-title">Lesson Plan Editor</p>
         </>
       ) : (
-        <h1 className="login-title">ARES Lesson Plans</h1>
+        <h1 className="login-title">Lesson Plan Editor</h1>
       )}
       <p className="login-subtitle">
         By{' '}

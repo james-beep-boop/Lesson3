@@ -499,7 +499,7 @@ describe('PageHeader', () => {
     // The two slots are separate precisely so neither the Guide nor the lesson page has to move its
     // text to share one component. Order is the contract.
     const { container } = render(
-      <PageHeader title="ARES Lesson Plans" kicker={<p className="guide-kicker">User guide</p>}>
+      <PageHeader title="Lesson Plan Editor" kicker={<p className="guide-kicker">User guide</p>}>
         <p className="lesson-context">Biology · Grade 10</p>
       </PageHeader>,
     )

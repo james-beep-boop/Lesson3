@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare and start a new Lesson3 local-server installation from a release bundle.
+# Prepare and start a new Lesson Plan Editor local-server installation from a release bundle.
 set -euo pipefail
 
 die() { echo "install: ERROR: $*" >&2; exit 1; }
@@ -98,10 +98,10 @@ for _ in $(seq 1 60); do
   if curl -fsS "$health_url" >/dev/null 2>&1; then
     login_url="${admin_url%/}/login"
     echo
-    echo "install: Lesson3 is ready."
+    echo "install: Lesson Plan Editor is ready."
     echo "install: NEXT STEP - create the first Site Administrator at:"
     echo "install:   $login_url"
-    echo "install: There is no default Lesson3 username or password."
+    echo "install: There is no default Lesson Plan Editor username or password."
     echo "install: On that page, enter the administrator's name, an email-format sign-in name,"
     echo "install: and a new password of at least 8 characters. The address need not receive email."
     echo "install: Store those credentials securely; they are not written to .env or printed here."

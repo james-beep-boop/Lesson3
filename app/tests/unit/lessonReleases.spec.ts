@@ -39,7 +39,7 @@ describe('lesson-set manifest', () => {
     { minProgram: '2.0' },
   ])('refuses unsupported versions %j', (change) => {
     expect(() => parseLessonManifest(JSON.stringify({ ...manifest(), ...change }))).toThrow(
-      /needs a newer Lesson3/,
+      /needs a newer Lesson Plan Editor/,
     )
   })
   it('checks bytes with a warning, never a refusal', () => {

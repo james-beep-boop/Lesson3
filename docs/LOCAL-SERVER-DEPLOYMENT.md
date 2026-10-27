@@ -1,8 +1,8 @@
-# Deploy Lesson3 on a local server
+# Deploy Lesson Plan Editor on a local server
 
 This is the supported **online** installation path for a local Linux server. It downloads prebuilt,
 multi-architecture containers from GitHub Container Registry, so the server needs Docker but does not
-need Git, Node.js, npm, or the Lesson3 source tree. It still needs outbound internet during installation
+need Git, Node.js, npm, or the Lesson Plan Editor source tree. It still needs outbound internet during installation
 and every update. The planned USB distribution is not implemented yet; `install.sh --prepare-only`
 only writes configuration and does not make an offline installation bundle.
 
@@ -22,11 +22,11 @@ HTTPS, a reverse proxy, and the complete “Going public” checklist in the
 | --- | --- | --- |
 | Install a new school server | [Download and install](#download-and-install), then the checklist below | Server login, internet and a new installation folder |
 | Put newer lesson plans on an existing server | [Add or update lesson plans](#add-or-update-lesson-plans) | Site administrator login and the ARES lesson ZIP |
-| Update the Lesson3 program | [Update to a later release](#update-to-a-later-release) | Server login, internet, the existing installation folder and working backups |
+| Update the Lesson Plan Editor program | [Update to a later release](#update-to-a-later-release) | Server login, internet, the existing installation folder and working backups |
 | Set up or run backups | [Configure backups before real use](#configure-backups-before-real-use) | Server login, ARES's public recovery key and the school's backup drive |
 | Recover lost data | The **Restore into the live database** procedure in `OPS.md` | A backup, its matching key and, for a password-locked key, the recovery-sheet password |
 
-A lesson ZIP and a Lesson3 release bundle do different jobs. Upload lesson ZIPs in the browser;
+A lesson ZIP and a Lesson Plan Editor release bundle do different jobs. Upload lesson ZIPs in the browser;
 use `update.sh` for the program. Updating the program does not import newer ARES lessons.
 
 For a new server, complete these steps in order before handing it over:
@@ -65,12 +65,12 @@ backup and restore drill; see [Trial on an Apple Silicon Mac](#trial-on-an-apple
 
 ## Download and install
 
-GitHub attaches two files to every Lesson3 release: the deployment bundle and its SHA-256 checksum.
+GitHub attaches two files to every Lesson Plan Editor release: the deployment bundle and its SHA-256 checksum.
 GitHub resolves the `releases/latest/` URLs below to the newest published, non-prerelease release, so
 they never need a version number. One `curl` command downloads both; verify the checksum before
 extracting or running anything.
 
-Lesson3 is a containerized service, not a static website. It does not need a `www` directory. Keep the
+Lesson Plan Editor is a containerized service, not a static website. It does not need a `www` directory. Keep the
 bundle's control files in a durable, operator-owned service directory; the examples use `/srv/lesson3`.
 Postgres data and the generated-artifact cache live in Docker named volumes, not in that directory.
 Creating `/srv/lesson3` requires `sudo`; an operator-owned durable directory elsewhere is also valid.
@@ -95,6 +95,8 @@ on the server itself, omit `LESSON3_URL` and the installer uses `http://localhos
 `LESSON3_URL` sets the address used in emailed links. Check the printed `/login` address from
 another school computer; a successful local health check cannot prove that the address works there.
 The installer rejects the unchanged placeholder and warns when a hostname cannot be resolved.
+For anyone editing these instructions: keep `SERVER_LAN_IP` as the placeholder; a realistic-looking
+address could be accepted silently even when it is wrong for the school.
 
 The installer:
 
@@ -102,7 +104,7 @@ The installer:
 2. writes them to `.env` with mode `0600` and never prints them;
 3. downloads images whose release tag and multi-architecture digest are fixed inside the
    checksummed bundle;
-4. starts Postgres, runs all migrations once, then starts Gotenberg and Lesson3; and
+4. starts Postgres, runs all migrations once, then starts Gotenberg and Lesson Plan Editor; and
 5. waits up to five minutes for `/login` to respond.
 
 It refuses to overwrite an existing `.env`. Keep the installation directory: it contains the Compose
@@ -131,7 +133,7 @@ Before leaving the server, the installing technician must create the first login
 4. Enter an email-format address as the sign-in name. On a no-mail installation it need not be a
    reachable inbox, but record it exactly; the administrator will type it whenever they sign in.
 5. Choose a unique password of at least eight characters and enter it twice. Store the sign-in name
-   and password in the site's approved password manager before continuing. Lesson3 stores only a
+   and password in the site's approved password manager before continuing. Lesson Plan Editor stores only a
    password hash and cannot show the original password later.
 6. Click **Create Site administrator**. The account is created, marked verified, given the Site
    Administrator role, and signed in immediately; the browser lands on the admin panel.
@@ -245,7 +247,7 @@ It replaces the separate manual key-generation, cron and first-drill steps for a
 
    Answer **yes** for USB and enter that folder path. Accept the suggested four-word password or
    choose one of at least 12 characters. Write it on paper and type it back when asked. This is a
-   **backup password**, separate from the password used to sign in to Lesson3.
+   **backup password**, separate from the password used to sign in to Lesson Plan Editor.
 5. Let setup finish. It saves only a password-locked school key, copies it beside the backups,
    installs the schedule, makes the first backup and restores it into a throwaway database to check
    it. It refreshes the app service once; this can briefly interrupt use. It then shows the recovery
@@ -256,8 +258,11 @@ It replaces the separate manual key-generation, cron and first-drill steps for a
    away from the server when possible; keep them separately.
 
 Setup schedules daily backups at 02:00, weekly on Sunday at 02:10 and monthly on the first at 02:20,
-in the server's time zone. The server needs to be on at those times. While USB is away, disk backups
-can still succeed; USB age continues to increase. To refresh the drive, connect it and run
+in the server's time zone. The server needs to be on at those times. If it is normally switched off
+at night, ask the technician to change the backup time. Leave the USB drive plugged in
+so the nightly backup reaches it too, and take it away when someone
+can. Plug it in again when it is returned. While it is away, disk backups can still succeed and USB
+age continues to increase. To make a backup right now, connect the drive if needed and run
 `cd /srv/lesson3 && scripts/backup-db.sh`, then check the USB date in Manage before taking it away.
 
 If setup is interrupted, run the same command again and enter the **same** backup password. It
@@ -283,19 +288,22 @@ if the lesson ZIP is already on the computer used for the upload.
    confirm.
 4. Read the final report. Valid files can be imported even when others are rejected. Correct the
    rejected files and upload again; unchanged releases are skipped. Older versions remain in history.
-5. If the report says the lessons need a newer Lesson3 program, have the technician update the
+5. If the report says the lessons need a newer Lesson Plan Editor program, have the technician update the
    program using the next section, then upload the lesson ZIP again.
 
 A teacher's Official version is left for the Subject-grade administrator to review. A release older
-than the newest one already imported is refused. An app update alone does not change these rules.
+than the newest one already imported is not imported. An app update alone does not change these rules.
 
 ## Update to a later release
 
 Keep the existing installation in place. Arrange a quiet time, connect its backup drive (or check
 the configured cloud destination), and make sure you have the recovery key/password if recovery is
-needed. The current bundle updater requires `BACKUP_AGE_RECIPIENT` and a configured USB/cloud
-`BACKUP_RCLONE_REMOTE`; disk-only configuration does not satisfy that check. Do not bypass it for
-school data.
+needed. The updater needs ARES's public recovery key (`BACKUP_AGE_RECIPIENT`) and a working backup
+destination. A disk-only school can update: the disk backup must succeed before the update continues.
+Connect the USB drive too when one is configured. Keep a copy away from the server when possible;
+a disk backup cannot survive failure or loss of that disk. Do not bypass backups for school data.
+An older installed backup script may not support disk copies; in that case keep its existing USB or
+cloud destination working for this update.
 
 Download the new release into a **different, temporary folder**. These commands stop the sequence
 if downloading or checksum verification fails:
@@ -352,7 +360,8 @@ fresh transaction because it may belong to an unfinished update.
 
 After health succeeds, the transaction moves to `releases/<old-version>-to-<new-version>/`, preserving
 `previous/`, `bundle/`, `backup.log`, and the pre-update backup's record when available
-(`premigrate-backup.json`, or `backup-status.json` from an older backup script). Existing recovery records
+(`backup/<disk|usb|remote>/premigrate.json`, or `premigrate-backup.json` / `backup-status.json`
+from an older backup script). Existing recovery records
 are never overwritten. The installation's `.env` is always left in place.
 
 If startup or health fails, **no automatic rollback is attempted**: migrations may already have run.
@@ -389,7 +398,7 @@ The images are multi-architecture, so they run natively on Apple Silicon. Two th
 `/srv` cannot be created on macOS, so install under your home directory; and macOS lacks `sha256sum`,
 so verify with `shasum`. Before starting, give Docker Desktop at least 4–5 GB of memory (Settings →
 Resources), and confirm `docker compose ls` shows no existing project named `lesson3` and that nothing
-already listens on port 3001. A Mac that also runs a Lesson3 development stack under the `lesson3`
+already listens on port 3001. A Mac that also runs a Lesson Plan Editor development stack under the `lesson3`
 project name must not be used: the removal step below would delete that stack's database.
 
 ```bash

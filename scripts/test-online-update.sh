@@ -60,9 +60,12 @@ case "$(basename "$0")" in
     echo backup >>"$STUB_ROOT/calls"
     [[ "$(cat "$STUB_ROOT/database")" == original ]] || stub_fail 'post-migration backup attempted'
     [[ "$FAIL_STAGE" != backup ]] || exit 1
-    mkdir -p out/ops/backup
-    printf '%s\n' '{"version":2,"lastSuccess":{"filename":"original-premigrate.dump.age","destination":"remote:premigrate"}}' \
-      >out/ops/backup/premigrate.json
+    for kind in ${TEST_BACKUP_LAYOUT:-legacy}; do
+      record=out/ops/backup/premigrate.json
+      [[ "$kind" == legacy ]] || record="out/ops/backup/$kind/premigrate.json"
+      mkdir -p "${record%/*}"
+      printf '{"version":2,"lastSuccess":{"filename":"original-premigrate.dump.age","destination":"%s:premigrate"}}\n' "$kind" >"$record"
+    done
     echo 'uploaded original-premigrate.dump.age to remote:premigrate'
     exit 0
     ;;
@@ -72,8 +75,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail() { echo "test-online-update: FAIL: $*" >&2; cat "$TMP/output" >&2; exit 1; }
-mkdir -p "$TMP/bin" "$TMP/home"
-for stub in docker curl sleep; do ln -s "$ROOT/scripts/test-online-update.sh" "$TMP/bin/$stub"; done
+mkdir -p "$TMP/bin" "$TMP/home/bin"
+for stub in docker curl sleep; do
+  ln -s "$ROOT/scripts/test-online-update.sh" "$TMP/bin/$stub"
+  # lib.sh puts the operator's ~/bin first, including when the updater reuses env helpers.
+  ln -s "$ROOT/scripts/test-online-update.sh" "$TMP/home/bin/$stub"
+done
 
 app_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 migrate_digest="sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -110,7 +117,7 @@ run_update() {
   local mode="$1" source="${2:-$NEW}"
   if env -i HOME="$TMP/home" PATH="$TMP/bin:/usr/bin:/bin" \
     STUB_ROOT="$CASE" TEST_TARGET="$TARGET" TEST_ORIGINAL="$CASE/original" \
-    TEST_NEW="$source" FAIL_STAGE="$mode" TEST_RECORDED_VERSION="$(cat "$TARGET/VERSION")" \
+    TEST_BACKUP_LAYOUT="${TEST_BACKUP_LAYOUT:-legacy}" TEST_NEW="$source" FAIL_STAGE="$mode" TEST_RECORDED_VERSION="$(cat "$TARGET/VERSION")" \
     bash "$source/update.sh" "$TARGET" >"$TMP/output" 2>&1; then
     RESULT=0
   else
@@ -259,5 +266,62 @@ count_is backup 1
 count_is up 1
 previous_unchanged "$PENDING"
 echo '  ok: incomplete pending evidence fails closed instead of making another backup'
+
+prepare disk-only
+sed -i '/^BACKUP_RCLONE_REMOTE=/d' "$TARGET/.env"
+printf 'BACKUP_RCLONE_REMOTE=\n' >>"$TARGET/.env"
+cp "$TARGET/.env" "$CASE/env"
+TEST_BACKUP_LAYOUT=disk run_update success
+completed
+count_is backup 1
+[[ -f "$ARCHIVE/backup/disk/premigrate.json" ]] || fail 'disk backup record not retained'
+echo '  ok: disk-only updates take a backup and retain its record'
+
+for external in usb remote; do
+  prepare "$external-destination-records"
+  sed -i '/^BACKUP_RCLONE_REMOTE=/d' "$TARGET/.env"
+  if [[ "$external" == usb ]]; then destination=/media/backup; inactive=remote
+  else destination=remote:backups; inactive=usb; fi
+  printf 'BACKUP_RCLONE_REMOTE=%s\n' "$destination" >>"$TARGET/.env"
+  cp "$TARGET/.env" "$CASE/env"
+  mkdir -p "$TARGET/out/ops/backup/$inactive"
+  echo 'old inactive destination' >"$TARGET/out/ops/backup/$inactive/premigrate.json"
+  TEST_BACKUP_LAYOUT="disk $external" run_update startup
+  failed_with 'a migration may have run'
+  [[ ! -e "$PENDING/backup/$inactive" ]] || fail 'inactive destination record retained as update evidence'
+  for kind in disk "$external"; do
+    cmp "$TARGET/out/ops/backup/$kind/premigrate.json" "$PENDING/backup/$kind/premigrate.json" || fail "missing $kind recovery record"
+    cp "$PENDING/backup/$kind/premigrate.json" "$CASE/$kind-original.json"
+    echo 'later backup' >"$TARGET/out/ops/backup/$kind/premigrate.json"
+  done
+  run_update success
+  completed
+  count_is backup 1
+  for kind in disk "$external"; do
+    cmp "$CASE/$kind-original.json" "$ARCHIVE/backup/$kind/premigrate.json" || fail "$kind recovery record changed on retry"
+  done
+  echo "  ok: disk/$external records survive retries unchanged; inactive records are excluded"
+done
+
+prepare disk-backup-failure
+sed -i '/^BACKUP_RCLONE_REMOTE=/d' "$TARGET/.env"
+printf 'BACKUP_RCLONE_REMOTE=\n' >>"$TARGET/.env"
+cp "$TARGET/.env" "$CASE/env"
+TEST_BACKUP_LAYOUT=disk run_update backup
+failed_with 'pre-migration backup failed'
+active_unchanged
+count_is up 0
+echo '  ok: a failed disk-only backup prevents activation'
+
+prepare disabled-destinations
+sed -i '/^BACKUP_RCLONE_REMOTE=/d; /^BACKUP_DISK_DIR=/d' "$TARGET/.env"
+printf 'BACKUP_RCLONE_REMOTE=\nBACKUP_DISK_DIR=\n' >>"$TARGET/.env"
+cp "$TARGET/.env" "$CASE/env"
+run_update success
+failed_with 'backups are not configured'
+active_unchanged
+count_is backup 0
+count_is up 0
+echo '  ok: disabling both destinations cannot bypass the backup requirement'
 
 echo 'test-online-update: PASS'
