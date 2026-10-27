@@ -8,6 +8,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (on `main`, not tagged or deployed)
+
+- The line under the name on the sign-in page (and the site description) is now "Find, edit and print
+  lesson plans.", naming editing, which the v1.10 line left out.
+
 ## v1.10 (2026-10-27)
 
 - The public name is **ARES Lesson Plans** again (not "Lesson Plan Editor"), with "Find, download and

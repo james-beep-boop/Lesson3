@@ -33,7 +33,7 @@ export default async function LoginPage() {
       ) : (
         <h1 className="login-title">ARES Lesson Plans</h1>
       )}
-      <p className="login-subtitle login-tagline">Find, download and print lesson plans.</p>
+      <p className="login-subtitle login-tagline">Find, edit and print lesson plans.</p>
       <p className="login-subtitle">
         By{' '}
         <a href="https://areseducation.org" target="_blank" rel="noopener noreferrer">
