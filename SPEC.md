@@ -1190,8 +1190,9 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     `out/ops/backup/<disk|usb|remote>/<stream>.json`, atomically and
     under an `flock`: `lastSuccess` with `coversUntil` (when `pg_dump` began), one `lastAttempt`
     (`seq`, `at`, `outcome: success|failure|notConnected`, plus stage/reason for failures), and the last
-    31 `coversUntil` values (version 2). Old failure/not-connected fields remain readable on existing
-    records. The script moves pre-3a stream files and the legacy version-1 status file once into the
+    31 `coversUntil` values (version 2). Before writing backups, the script converts old
+    failure/not-connected fields into the newest `lastAttempt`, including existing destination folders.
+    The script moves pre-3a stream files and the legacy version-1 status file once into the
     external destination's folder, archiving duplicate older files under `pre3a/` when newer evidence
     exists. The app reads only that one directory layout, including relocated version-1 evidence;
     malformed records cannot revive archived successes. The page

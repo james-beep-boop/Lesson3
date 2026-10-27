@@ -42,6 +42,11 @@ for file in "${bundle_files[@]}" scripts/backup-db.sh scripts/restore-db.sh \
   scripts/prune-db.sh scripts/heartbeat.sh scripts/lib.sh; do
   [[ -f "$SOURCE/$file" ]] || die "new release bundle is incomplete: missing $file"
 done
+# Derive required helpers from the shipped scripts' source paths, so a partial lib directory
+# cannot pass validation and a new backup helper does not need another hand-maintained list.
+for file in $(grep -hoE 'lib/backup-[[:alnum:]_.-]+\.sh' "$SOURCE/scripts/"*.sh | sort -u); do
+  [[ -f "$SOURCE/scripts/$file" ]] || die "new release bundle is incomplete: missing scripts/$file"
+done
 [[ -f "$TARGET/compose.yaml" && -f "$TARGET/.env" && -f "$TARGET/.env.example" \
   && -f "$TARGET/VERSION" && -x "$TARGET/scripts/backup-db.sh" ]] \
   || die "target is not a bundle-based Lesson3 installation"

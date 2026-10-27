@@ -10,6 +10,7 @@ import {
   mkdirSync,
   unlinkSync,
   renameSync,
+  utimesSync,
 } from 'node:fs'
 import { join } from 'node:path'
 import { createHash, randomBytes } from 'node:crypto'
@@ -53,13 +54,20 @@ function terminal(
   return new Promise((resolve, reject) => {
     const child = spawn(
       'script',
-      ['-q', '-e', '--echo', 'never', '-c', args.map(quote).join(' '), '/dev/null'],
+      [
+        '-q',
+        '-e',
+        '--echo',
+        'never',
+        '-c',
+        `printf 'setup-probe-pid:%s\\n' \"$$\"; exec ${args.map(quote).join(' ')}`,
+        '/dev/null',
+      ],
       {
         cwd: workdir,
         env: {
           ...process.env,
           ...extraEnv,
-          BACKUP_SETUP_STOP_AFTER: stop,
           ...(identity ? { AGE_IDENTITY: identity } : {}),
         },
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -67,6 +75,7 @@ function terminal(
     )
     let output = ''
     let consumed = 0
+    let interrupted = false
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
       reject(new Error('PTY operation exceeded its deadline'))
@@ -74,6 +83,14 @@ function terminal(
     const receive = (chunk) => {
       output += chunk.toString('utf8')
       const tail = output.slice(consumed).replaceAll('\r', '')
+      if (!interrupted && stop && tail.includes(`setup-school-backups: ${stop} complete\n`)) {
+        // Kill the command's PTY process group from outside the production command.
+        const pid = /setup-probe-pid:(\d+)/.exec(output)?.[1]
+        assert(pid, 'the PTY command reported its process ID')
+        interrupted = true
+        process.kill(-Number(pid), 'SIGKILL')
+        return
+      }
       const suggestion = /RECOVERY SHEET — suggested backup password: ([a-z-]+)/.exec(tail)
       if (suggestion) {
         secrets.add(suggestion[1])
@@ -248,7 +265,18 @@ try {
           )
     assert(fourWords(password, 4))
   })
+  // Make a repeated copy/install observable rather than accepting byte-identical rewrites.
+  const usbKey = join(usb, 'school-recovery-key.age')
+  const savedUsbKey = `${usbKey}.saved`
+  renameSync(usbKey, savedUsbKey)
+  const cronFile = join(root, 'cron/lesson3-backups')
+  utimesSync(cronFile, 1, 1)
   result = await terminal(['bash', setup])
+  check('completed key and schedule steps are skipped on resume', () => {
+    assert(!existsSync(usbKey), 'setup repeated the completed key copy')
+    assert.equal(statSync(cronFile).mtimeMs, 1000, 'setup reinstalled the completed cron file')
+  })
+  renameSync(savedUsbKey, usbKey)
   check('completed setup resumes and prints its recovery sheet', () => {
     assert.equal(result.code, 0)
     assert(result.output.includes(`Backup password: ${password}`))
@@ -354,7 +382,9 @@ try {
     writeFileSync(join(custom, 'scripts', file), readFileSync(join(root, 'scripts', file)), {
       mode: 0o755,
     })
-  for (const file of ['backup-common.sh', 'backup-destinations.sh', 'backup-password.sh'])
+  for (const file of readdirSync(join(root, 'scripts/lib')).filter((name) =>
+    /^backup-.*\.sh$/.test(name),
+  ))
     writeFileSync(join(custom, 'scripts/lib', file), readFileSync(join(root, 'scripts/lib', file)))
   writeFileSync(
     join(custom, 'scripts/vendor/eff_large_wordlist.txt'),

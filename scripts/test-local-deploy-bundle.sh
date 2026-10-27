@@ -44,8 +44,8 @@ grep -Eq "lesson3-migrate:v0\\.0\\.0@$migrate_digest" "$BUNDLE/compose.yaml" \
 ! grep -Eq '^[[:space:]]+build:' "$BUNDLE/compose.yaml" \
   || fail "release compose builds on the server"
 
-for helper in backup-common.sh backup-destinations.sh backup-password.sh; do
-  cmp "$ROOT/scripts/lib/$helper" "$BUNDLE/scripts/lib/$helper" || fail "backup helper $helper was not packaged"
+for helper in "$ROOT/scripts/lib/"backup-*.sh; do
+  cmp "$helper" "$BUNDLE/scripts/lib/${helper##*/}" || fail "backup helper $helper was not packaged"
 done
 cmp "$ROOT/scripts/setup-school-backups.sh" "$BUNDLE/scripts/setup-school-backups.sh" || fail "school setup was not packaged"
 cmp "$ROOT/scripts/vendor/eff_large_wordlist.txt" "$BUNDLE/scripts/vendor/eff_large_wordlist.txt" || fail "EFF word list was not packaged"
@@ -116,6 +116,18 @@ staged_config="$(docker compose --project-directory "$BUNDLE" --env-file "$BUNDL
   -f "$NEW_BUNDLE/compose.yaml" config)"
 grep -Fq "$BUNDLE/out/ops" <<<"$staged_config" \
   || fail "staged Compose resolved mounts outside the installation"
+
+# An incomplete helper directory must be refused before touching the installation.
+missing_bundle="$TMP/missing-helper-bundle"
+cp -R "$NEW_BUNDLE" "$missing_bundle"
+helper="$(find "$missing_bundle/scripts/lib" -name 'backup-*.sh' -type f | head -n1)"
+rm "$helper"
+if "$missing_bundle/update.sh" "$BUNDLE" >"$TMP/missing-helper.out" 2>&1; then
+  fail "updater accepted a bundle missing a sourced backup helper"
+fi
+grep -Fq 'new release bundle is incomplete: missing scripts/lib/' "$TMP/missing-helper.out" \
+  || fail "updater did not identify the missing backup helper"
+[[ ! -e "$BUNDLE/.update-pending" ]] || fail "incomplete bundle changed the installation"
 
 missing_target="$TMP/missing-key-target"
 cp -R "$BUNDLE" "$missing_target"

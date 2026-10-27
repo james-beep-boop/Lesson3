@@ -100,12 +100,6 @@ export interface BackupFailure {
   reason: string
 }
 
-export interface BackupNotConnected {
-  seq?: number
-  at: string
-  reason: string
-}
-
 export type BackupAttempt =
   | { seq?: number; at: string; outcome: 'success' | 'notConnected'; reason?: string }
   | { seq?: number; at: string; outcome: 'failure'; stage: FailureStage; reason: string }
@@ -116,10 +110,7 @@ export interface StreamRecord {
   stream: BackupStream
   recordingSince: string
   lastSuccess: BackupSuccess | null
-  lastAttempt?: BackupAttempt | null
-  /** Read-only compatibility with records written before Part 3b. */
-  lastFailure?: BackupFailure | null
-  lastNotConnected?: BackupNotConnected | null
+  lastAttempt: BackupAttempt | null
   history: string[]
 }
 
@@ -179,9 +170,6 @@ const isFailure = (value: unknown): value is BackupFailure =>
   typeof value.reason === 'string' &&
   value.reason.length <= 1_024
 
-const isNotConnected = (value: unknown): value is BackupNotConnected =>
-  isObject(value) && isSeq(value.seq) && isIsoUtcSeconds(value.at) && isBounded(value.reason, 1_024)
-
 const isAttempt = (value: unknown): value is BackupAttempt =>
   isObject(value) &&
   isSeq(value.seq) &&
@@ -197,10 +185,7 @@ export const isStreamRecord = (value: unknown): value is StreamRecord =>
   BACKUP_STREAMS.includes(value.stream as BackupStream) &&
   isIsoUtcSeconds(value.recordingSince) &&
   (value.lastSuccess === null || isSuccess(value.lastSuccess)) &&
-  ('lastAttempt' in value || 'lastFailure' in value) &&
-  (value.lastAttempt == null || isAttempt(value.lastAttempt)) &&
-  (value.lastFailure == null || isFailure(value.lastFailure)) &&
-  (value.lastNotConnected == null || isNotConnected(value.lastNotConnected)) &&
+  (value.lastAttempt === null || isAttempt(value.lastAttempt)) &&
   Array.isArray(value.history) &&
   value.history.length <= 31 &&
   value.history.every(isIsoUtcSeconds)
@@ -514,24 +499,7 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
             notConnected: r.lastAttempt.outcome === 'notConnected',
           },
         ]
-      : [
-          ...(r.lastNotConnected
-            ? [
-                {
-                  at: r.lastNotConnected.at,
-                  seq: r.lastNotConnected.seq,
-                  failure: null,
-                  notConnected: true,
-                },
-              ]
-            : []),
-          ...(r.lastSuccess
-            ? [{ at: r.lastSuccess.completedAt, seq: r.lastSuccess.seq, failure: null }]
-            : []),
-          ...(r.lastFailure
-            ? [{ at: r.lastFailure.at, seq: r.lastFailure.seq, failure: r.lastFailure }]
-            : []),
-        ],
+      : [],
   )
   const last = events.length ? events.reduce((a, b) => (isLater(b, a) ? b : a)) : null
   if (last?.notConnected) {
@@ -769,11 +737,6 @@ function technicalDetails({ records, legacy, settings }: BackupInputs): BackupSt
       rows.push({
         label: `${stream}: last attempt`,
         value: `${utc(attempt.at)}: ${attempt.outcome === 'notConnected' ? 'not connected' : attempt.outcome}${attempt.outcome === 'failure' ? ` at ${attempt.stage}: ${attempt.reason}` : ''}`,
-      })
-    } else if (record.lastFailure) {
-      rows.push({
-        label: `${stream}: last failure`,
-        value: `${utc(record.lastFailure.at)} at ${record.lastFailure.stage}: ${record.lastFailure.reason}`,
       })
     }
   }

@@ -133,6 +133,56 @@ if ! flock -n 8; then
   flock -w "$LOCK_WAIT" 8 || die "another backup was still running after ${LOCK_WAIT}s"
 fi
 LOCKED=1; STAGE=setup
+# Upgrade the compact groups emitted by the pre-3b writer, preserving success/history verbatim.
+# Files already carrying lastAttempt are left alone. Malformed evidence stays unreadable.
+upgrade_record() {
+  local RECORD_FILE="$1" attempt group event at seq best_at='' best_seq='' outcome temporary line
+  grep -q '^  "lastFailure": ' "$RECORD_FILE" || return 0
+  grep -q '^  "lastAttempt": ' "$RECORD_FILE" && return 0
+  attempt=null
+  # Match the old reader's order: sequence when both exist, otherwise time; a time tie favours failure.
+  for outcome in notConnected success failure; do
+    case "$outcome" in
+      notConnected) group=lastNotConnected ;;
+      success) group=lastSuccess ;;
+      failure) group=lastFailure ;;
+    esac
+    event="$(previous_group "$group")"
+    [[ "$event" != null ]] || continue
+    if [[ "$outcome" == success ]]; then
+      at="$(grep -oE '\"completedAt\": \"'"$ISO_RE"'\"' <<<"$event" | grep -oE "$ISO_RE" || true)"
+    else
+      at="$(grep -oE '\"at\": \"'"$ISO_RE"'\"' <<<"$event" | grep -oE "$ISO_RE" || true)"
+    fi
+    [[ -n "$at" ]] || return 0
+    seq="$(sed -nE 's/.*"seq": ([0-9]+).*/\1/p' <<<"$event")"
+    [[ -z "$seq" || "$seq" =~ ^[1-9][0-9]{0,14}$ ]] || return 0
+    if [[ -n "$best_at" ]]; then
+      if [[ -n "$seq" && -n "$best_seq" ]]; then
+        (( seq > best_seq )) || continue
+      elif [[ "$at" < "$best_at" || ( "$at" == "$best_at" && "$outcome" != failure ) ]]; then
+        continue
+      fi
+    fi
+    best_at="$at"; best_seq="$seq"
+    if [[ "$outcome" == success ]]; then
+      attempt="{\"outcome\": \"success\", \"at\": \"$at\"${seq:+, \"seq\": $seq}}"
+    else
+      attempt="{\"outcome\": \"$outcome\", ${event#\{}"
+    fi
+  done
+  temporary="$(mktemp "${RECORD_FILE%/*}/.upgrade.XXXXXX")"
+  while IFS= read -r line; do
+    case "$line" in
+      '  "lastFailure": '*|'  "lastNotConnected": '*) continue ;;
+    esac
+    printf '%s\n' "$line"
+    [[ "$line" != '{' ]] || printf '  "lastAttempt": %s,\n' "$attempt"
+  done <"$RECORD_FILE" >"$temporary"
+  chmod 0644 "$temporary"; sync -f "$temporary"
+  mv -f "$temporary" "$RECORD_FILE"
+}
+
 # Move the old layout once, under the same lock as record writes. New evidence always wins;
 # old duplicates are retained as an archive, never read as a fallback over a newer failure.
 migrate_records() {
@@ -148,7 +198,13 @@ migrate_records() {
     if [[ -e "$target" ]]; then directory+='/pre3a'; target="$directory/${file##*/}"; fi
     mkdir -p "$directory"; chmod 0755 "$BACKUP_RECORD_DIR/$kind" "$directory"
     [[ ! -e "$target" ]] || die 'an archived pre-3a backup record already exists; not overwriting it'
+    upgrade_record "$file"
     mv "$file" "$target"; chmod 0644 "$target"
+  done
+  # 3a already used destination folders. Upgrade those records before removing old-field readers.
+  for file in "$BACKUP_RECORD_DIR/"{disk,usb,remote}/{daily,weekly,monthly,premigrate}.json; do
+    [[ -f "$file" && ! -L "$file" ]] || continue
+    upgrade_record "$file"
   done
 }
 migrate_records
