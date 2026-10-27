@@ -5,7 +5,7 @@
  * ⚑ RESTORE KEEPS IT; A COPY MUST NOT. The id lives in the database, so restoring a school's own
  * backup onto a replacement machine keeps the school's identity — which is right. Copying a PREPARED
  * database to set up ANOTHER school would give two schools one identity, so that copy must run
- * `scripts/reset-installation-id.ts` (docs/OPS.md, "Preparing a machine for another school").
+ * `scripts/reset-installation-id.ts` (docs/OPS.md, "Prepare a machine for another school").
  */
 import type { Payload } from 'payload'
 
