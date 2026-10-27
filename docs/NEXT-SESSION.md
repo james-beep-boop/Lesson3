@@ -1,6 +1,6 @@
 # Start here — current state and the next phase
 
-You are picking up the **ARES Lesson Library (Lesson3)**: a versioned lesson-plan repository that
+You are picking up **Lesson Plan Editor** (repository `Lesson3`): a versioned lesson-plan repository that
 uploads ARES CBE lesson plans as structured data, lets teachers view them and — with **editing
 access** — edit them under field-level permissions, keeps immutable versions with one **Official**
 version per plan, and exports high-fidelity DOCX/PDF through ARES's own generator. Node/TypeScript +
@@ -60,6 +60,11 @@ with the paused Phase B plan.
   the setup probe kills the process externally at completion lines; old attempt fields are converted
   once by the backup writer, including records already in destination folders; completed key copies
   and cron installation are skipped on resume. All four CI checks passed. No migration or deployment.
+- **Teacher guidance and public name merged** ([PR #466](https://github.com/james-beep-boop/Lesson3/pull/466),
+  `028d222d`): Lesson Plan Editor is the public name; the Guide and manuals use clearer teacher and
+  technician steps. Backups run automatically; USB normally stays plugged in and is taken away when
+  someone can. The updater accepts disk-only backups and keeps current per-destination recovery
+  records. All four CI checks passed. No migration, release or deployment.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---
