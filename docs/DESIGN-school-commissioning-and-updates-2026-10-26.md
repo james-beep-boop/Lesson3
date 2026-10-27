@@ -31,7 +31,7 @@ Read with: `docs/DESIGN-backup-recovery-2026-10-21.md` (Phase A, shipped) and
 `docs/PLAN-phase-b-recovery-2026-10-22.md` (Phase B, paused for test machines), which this design
 shares its stick, its restore path and its acceptance test with; `docs/DESIGN-modes-connectivity-network-
 2026-10-19.md` (connectivity levels, the hub); `docs/LOCAL-SERVER-DEPLOYMENT.md` (today's installer);
-`docs/OPS.md` ("Preparing a machine for another school").
+`docs/OPS.md` ("Prepare a machine for another school").
 
 ---
 

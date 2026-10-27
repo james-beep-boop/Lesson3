@@ -1,29 +1,295 @@
-# Operations runbook
+# Operations manual
 
-Use this manual for backup and recovery commands on the Linux server. For the complete new-school
-installation sequence, lesson uploads and release-bundle updates, start with **DEPLOYMENT.md** in the
-installed folder ([online/source version](https://github.com/james-beep-boop/Lesson3/blob/main/docs/LOCAL-SERVER-DEPLOYMENT.md)). New school installations use
-that bundle; the later **Deploy** section here is specifically for the developer-managed Rock source
-checkout.
+This manual has two parts.
 
-Run server commands as the installation's operator, from its installed folder (normally
-`/srv/lesson3`). A Site administrator's browser login does not grant a server login. Keep these three
-things distinct: your Lesson Plan Editor sign-in password, the school's backup password on its recovery sheet,
-and internal service secrets in `.env`. Do not replace `.env` or copy secrets between installations.
+- **Part 1 is for the school technician**: backups, checking a backup, recovering lost data, and
+  preparing a machine for another school. It is written in plain steps.
+- **Part 2 is the technical reference for the ARES operator**: how each script works, the developer's
+  own server, monitoring, email and going public.
 
-| What you need to do | Procedure |
-| --- | --- |
-| Set up a new school's backups once | [School setup](#school-setup-password-locked-recovery-key) |
-| Keep an existing backup arrangement after a program update | [Upgrading an older backup arrangement](#upgrading-an-older-backup-arrangement) |
-| Put today's work on the school's backup drive | [Routine backup](#routine-backup) |
-| Understand a backup warning | [Run / verify](#run--verify) and Manage → System → Backups |
-| Check that a backup can be read, without replacing live data | School setup does this once; for a later check use [Restore drill](#restore-drill-do-this-periodically--an-untested-backup-is-not-a-backup) |
-| Replace lost or damaged live data | [Restore into the live database](#restore-into-the-live-database-staged-design-a1-2026-10-21) with the server operator |
-
-If a command fails, keep the error message and stop that procedure. An incomplete restore or update
-has its own resume instructions below; do not start a fresh installation over the existing one.
+To install the program, update it, or create the first administrator, use **DEPLOYMENT.md** in the
+installation folder ([online copy](https://github.com/james-beep-boop/Lesson3/blob/main/docs/LOCAL-SERVER-DEPLOYMENT.md)).
+Its "Words used in this manual" section explains terms such as *terminal*, *installation folder* and
+*`.env` file*.
 
 ---
+
+# Part 1 — For the school technician
+
+Run every command in a terminal on the server, from the installation folder (normally
+`/srv/lesson3`), with the same server login you used to install. **If a command shows an error, stop
+and keep the exact message.** Do not start a new installation over the old one: an unfinished restore
+or update has its own way to carry on, described below.
+
+Keep these three things apart:
+
+- the **Lesson Plan Editor sign-in password** — what people type in the browser;
+- the **backup password** — on the school's recovery sheet; it unlocks the backups;
+- the **secrets in `.env`** — used by the program itself. Never change them, and never copy them to
+  another school.
+
+| What you need to do | Go to |
+| --- | --- |
+| Set up a school's backups for the first time | [Set up backups](#school-setup-password-locked-recovery-key) |
+| Make a backup now, or change the backup time | [Make a backup now](#routine-backup) |
+| Keep the backups working after a program update | [After a program update](#upgrading-an-older-backup-arrangement) |
+| Check that a backup can really be restored | [Check a backup](#check-a-backup) |
+| Put back lost or damaged data | [Recover lost data](#recover-lost-data) |
+| Set up another school from a copy of this one | [Prepare a machine for another school](#preparing-a-machine-for-another-school--give-it-its-own-installation-id) |
+| Nobody can sign in as an administrator | "Recover an administrator without email" in DEPLOYMENT.md |
+
+## How backups work
+
+Every night the program makes one **locked (encrypted) copy** of everything: lesson plans and all their
+versions, accounts, roles, messages and drafts. It saves that copy in up to two places:
+
+- **On the server's own disk** (normally the folder `/var/lib/lesson3-backups`). This copy helps after
+  a mistake, such as a bad update or a deleted lesson. **It is lost if the disk breaks, the server is
+  stolen or burned, or the server is wiped and reinstalled.**
+- **On the school's USB backup drive** (or, for some schools, an online store). Leave the drive plugged
+  in so the nightly backup reaches it. When someone can, take it to another building, and plug it back
+  in when it returns. A copy kept away from the server can survive if the server is stolen or damaged.
+
+Each place keeps several copies: the last 7 daily, 4 weekly and a few monthly ones (3 on the disk, 12
+on the USB drive or online), plus a copy made before each program update. Older copies are deleted
+automatically.
+
+New backups can be opened by two keys: ARES's own key, and the **school's recovery key**, which is
+locked with the backup password on the recovery sheet. (Backups made before a school key was set up
+may need an earlier key, or ARES.) The locked school key is saved beside the backups as
+`school-recovery-key.age`.
+
+Each backup place is marked with this installation's identity. The program **refuses to write to a
+place marked for another school**, so one school's drive cannot overwrite another's backups.
+
+## Set up backups
+<a id="school-setup-password-locked-recovery-key"></a>
+
+Do this once for each school. The short version is "Set up backups" in DEPLOYMENT.md; this is what
+the setup does, step by step.
+
+**Before you start:**
+
+1. The program is installed and working.
+2. ARES's public recovery key is in `.env` as `BACKUP_AGE_RECIPIENT=age1…`.
+3. The backup tools are installed. On Ubuntu 24.04:
+   `sudo apt-get update && sudo apt-get install age rclone cron util-linux coreutils`.
+4. The school's USB drive is plugged in and **mounted** (opened by Linux) as its own drive, not as part
+   of the server's main disk, and it has an empty folder for the backups. Setup does not format or mount
+   drives.
+
+**Run it** (with the same login that will own the nightly backups):
+
+```bash
+cd /srv/lesson3
+scripts/setup-school-backups.sh
+```
+
+**What it does and asks:**
+
+1. It asks whether a USB drive is connected and, if so, the full path of the backup folder on it.
+2. It suggests a backup password of four random words, or lets you type your own of at least 12
+   characters (twice). **Write the password on paper.** Then type it back from the paper: no key is made
+   until this matches.
+3. It makes the school's recovery key and **locks it with the password**. Only the locked key is ever
+   saved, beside the disk backups and on the USB drive.
+4. It may ask for your `sudo` password, to make the disk backup folder and to install the nightly
+   schedule (the file `/etc/cron.d/lesson3-backups`). The backups run as your login, not as `root`.
+5. It restarts the program once so it reads the new settings. This interrupts it for a moment.
+6. It makes the first backup and checks it by restoring it into a test copy of the database, which it
+   then deletes.
+7. Only then does it show the **recovery sheet**: the school name, the installation ID, where the
+   backups are, the backup password, and the three steps to recover. **Copy it onto paper and keep it
+   away from the server.** The password is never saved in any file or log.
+
+**If setup stops** (a power cut, or an error you then fix): run the same command again and type the
+**same** password. It skips the steps already done and reuses the key it already made. A wrong
+password never replaces the saved key.
+
+If the school already had a school key from an older, manual setup, this setup may make a **new** one.
+Backups made before that still need the earlier school key, or ARES; the new password cannot open them.
+
+When setup has finished, **Manage → System → Backups** shows a line for each backup place and
+**School recovery key: Password-locked (set up …)**.
+
+## Make a backup now
+<a id="routine-backup"></a>
+
+You do not need to do this normally: backups run every night at 02:00, by the server's clock (weekly
+copies on Sunday at 02:10, monthly copies on the 1st at 02:20). Make one by hand when you want the USB
+drive to have today's work before taking it away.
+
+1. If **this school's** USB drive is away, plug it in. It must be mounted in the same place as during
+   setup.
+2. Run `cd /srv/lesson3 && scripts/backup-db.sh`.
+3. Open **Manage → System → Backups**. Check the time of the newest **USB backup** as well as the
+   **Disk backup**: a new disk copy does not mean the USB copy was updated.
+4. When someone can, take the drive to another building. Keep the recovery sheet in a different place
+   from the drive.
+
+**What the messages mean:**
+
+| You see | What it means | What to do |
+| --- | --- | --- |
+| `backup-db: OK` | Every connected place was backed up. | Nothing. |
+| "USB backup drive is not connected" | The drive is away. The disk copy can still be made. | Nothing now, but bring the drive back before it is overdue (30 days unless your school set another limit). |
+| "backup drive nearly full" or "disk nearly full" | There is not enough free space. The other place may still have been backed up. | Ask ARES before deleting anything from the drive. |
+| "belongs to another installation" | This drive or folder is another school's. Nothing was written to it. | Use this school's own drive. **Do not delete the marker file** to make the message go away. |
+| Any other error | One place failed, even if the other worked. | Send the exact message to ARES. Do not change keys or reinstall. |
+
+**To change the backup time** (for example, if the server is switched off at night): open the
+schedule with `sudo nano /etc/cron.d/lesson3-backups`. Each backup line starts with two numbers, the
+minute and the hour (`0 2` means 02:00). Change them to a time when the server is on, keeping the
+weekly and monthly lines a few minutes later than the daily one. Save and close; the schedule notices
+the change by itself.
+
+## After a program update
+<a id="upgrading-an-older-backup-arrangement"></a>
+
+A program update does **not** need a new school key or another run of setup. Keep the recovery key,
+the backup drive and the schedule you already have, and follow the `OPS.md` of the newly installed
+version.
+
+Updates from before the school-backup tools also start making the **disk** copy. Before the first
+backup after such an update, choose one:
+
+- **Keep both a disk copy and the USB or online copy** (recommended). Make the disk folder, using the
+  same login that runs the backups:
+
+  ```bash
+  sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /var/lib/lesson3-backups
+  ```
+
+  and keep `BACKUP_DISK_DIR=/var/lib/lesson3-backups` in `.env` (or the folder you chose).
+- **Keep only the USB or online copy:** add the line `BACKUP_DISK_DIR=` (with nothing after `=`) to
+  `.env`. Leave `BACKUP_RCLONE_REMOTE` and the recovery keys as they are.
+
+Then run `cd /srv/lesson3 && scripts/backup-db.sh` and check each line in **Manage → System →
+Backups**. The first backup moves old backup records into the new layout by itself. Until that first
+backup, an old record can show as unknown. The backups themselves and their keys are not changed.
+
+If the school later runs the new setup command, ask ARES to check the old schedule, so the same backup
+does not run twice each night.
+
+## Check a backup
+<a id="check-a-backup"></a>
+
+A backup that has never been restored might not work. This check restores one backup into a **test
+copy** of the database and checks it. It does **not** touch the school's live data.
+
+You need the backup drive (or the disk backup folder) and the backup password from the recovery
+sheet. From the installation folder, run (change both paths to the real ones, and `BACKUP.dump.age` to
+a real backup file name; do not rename the file):
+
+```bash
+AGE_IDENTITY=/media/lesson3-backup/lesson3-backups/school-recovery-key.age \
+  scripts/restore-db.sh --local-file /media/lesson3-backup/lesson3-backups/daily/BACKUP.dump.age \
+  --into lesson3_restore_check
+```
+
+Type the backup password when it asks. **What you should see:** `RESTORE DRILL PASSED` near the end.
+Then delete the test copy:
+
+```bash
+docker compose exec -T postgres dropdb -U lesson3 lesson3_restore_check
+```
+
+All three are needed: the backup file, the locked key `school-recovery-key.age`, and the password.
+ARES's own key can also open the same backup. Never change `--into lesson3_restore_check` to the live
+database to "try" a recovery; use [Recover lost data](#recover-lost-data) instead.
+
+Passing this check shows that this backup restores on this server. It does not change **Full
+recovery: Not yet tested**, which needs a whole machine rebuilt from its backups.
+
+## Recover lost data
+<a id="recover-lost-data"></a>
+
+Recovery **replaces everything** in Lesson Plan Editor with the contents of one backup. Work saved
+after that backup is lost. Do this only when data is really lost or damaged, and agree it with the
+school's administrator first.
+
+**Before you start**, look at **School recovery key** in **Manage → System → Backups**:
+
+- **Password-locked (set up …)** — you need the backup drive (with the backup file and
+  `school-recovery-key.age`) and the password from the recovery sheet. Follow the steps below.
+- **School recovery key configured** — the school keeps an unlocked key somewhere safe, away from the
+  server (the Backups page shows where, if it was recorded). That key is not on the drive. The steps are under "Restore
+  into the live database" in Part 2; ask ARES for help if you need it.
+- **Recovery needs ARES** — only ARES can open the backups. Contact ARES.
+
+**Steps** (from the installation folder, with the program left running; the script stops it at the
+right moment):
+
+1. Plug in the backup drive and find the backup you want in its `daily`, `weekly` or `monthly` folder.
+   The date and time in the file name are when the backup was taken.
+2. Run the command from the recovery sheet, with the real paths:
+
+   ```bash
+   AGE_IDENTITY=/path/to/school-recovery-key.age \
+     scripts/restore-db.sh --local-file /path/to/backup.dump.age --into lesson3 --force-prod
+   ```
+
+   Type the backup password when it asks.
+3. The script first checks the backup thoroughly **without touching the live data**. If anything is
+   wrong, it stops and nothing has changed.
+4. It then shows exactly what it will do and asks you to **type the backup's date** (for example
+   `2026-10-27`). This is your last chance to stop.
+5. It stops the program, swaps in the restored data, keeps the old data aside, starts the program again
+   and checks it.
+6. **Check it yourself:** sign in, open a lesson you know, and download it as Word and as PDF. If it is
+   right, record that you checked it:
+
+   ```bash
+   scripts/restore-db.sh --confirm
+   ```
+
+7. Some days later, when the school is happy, delete the old data that was kept aside. It asks you to
+   type the old database's name:
+
+   ```bash
+   scripts/restore-db.sh --discard-previous
+   ```
+
+**To undo** a recovery (until you run step 7): `scripts/restore-db.sh --undo`, then type `undo`. This
+puts the old data back. **Anything saved since the recovery is lost by undoing**, although the script
+makes a backup of it first.
+
+**If the recovery was interrupted** (for example a power cut): run `scripts/restore-db.sh --status` to
+see where it stopped, then `scripts/restore-db.sh --resume` to finish it safely. Only one recovery can
+run at a time.
+
+## Prepare a machine for another school
+<a id="preparing-a-machine-for-another-school--give-it-its-own-installation-id"></a>
+
+Every installation has its own **installation ID** (shown in **Manage → System**). It is stored in the
+database.
+
+- **Putting a school's own backup onto a replacement machine:** this keeps the school's ID, which is
+  correct. Do nothing.
+- **Copying a prepared database to set up a different school** (for example, one with the lesson plans
+  already uploaded): the new school would have the same ID as the first. On the new machine, after
+  copying, first look at the current ID (this changes nothing):
+
+  ```bash
+  cd /srv/lesson3 && docker compose run --rm migrate npx payload run scripts/reset-installation-id.ts
+  ```
+
+  then give it a new one:
+
+  ```bash
+  cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run scripts/reset-installation-id.ts
+  ```
+
+  Check that **Manage → System** shows the new ID. **Never do this after restoring a school's own
+  backup.**
+
+---
+
+# Part 2 — Technical reference (ARES operator)
+
+The rest of this manual is the operator's reference. New school installations use the release bundle
+described in DEPLOYMENT.md; the **Deploy** section below is specifically for the developer-managed Rock
+source checkout. A Site administrator's browser login does not grant a server login.
 
 ## Optional PDF link library
 
@@ -94,115 +360,6 @@ The first run writes `.lesson3-installation` at each destination root using the 
 UUID. Old unmarked backups are adopted. A marker for another installation **refuses writes and
 pruning**. Do not remove or replace a foreign marker to make the check pass: select that school's own
 backup folder. Invalid markers also refuse writes; a failed database identity read permits no copies.
-
-### Routine backup
-
-After initial setup, backups run automatically every night. Leave the USB drive plugged in so it is
-backed up too, and take it away when someone can. Plug it in again when it is returned. To make a
-backup right now:
-
-1. If **this school's** drive is away, connect it. Check that it is mounted in the same place used
-   during setup.
-2. Run `cd /srv/lesson3 && scripts/backup-db.sh`.
-3. Check **Manage → System → Backups**. Look at **USB backup** as well as **Disk backup** and check
-   the time of the latest successful copy. A fresh disk copy does not prove USB was refreshed.
-4. Take the drive away from the server when possible. Keep the recovery sheet separately.
-
-“Not connected” while the drive is away is expected; an overdue USB date still needs attention.
-A real error (for example a full drive or another school's marker) needs fixing even if the disk copy
-succeeded. For a foreign marker, use the correct school's folder; do not delete the marker. For a full
-drive, ask the operator to check capacity and retention before removing files. If you are unsure, pass
-the exact message to the operator rather than changing the keys or rerunning installation.
-
-### Upgrading an older backup arrangement
-
-Keep the working recovery key, destination and schedule. A program update does **not** require a new
-school key or another run of school setup. After an update, use `OPS.md` from that installed release.
-
-The newer backup script adds a server-disk copy by default. Before its first run, choose one:
-
-- **Keep both disk and USB/cloud copies:** as the same operator who runs the existing backup jobs,
-  prepare the default disk folder:
-
-  ```bash
-  sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /var/lib/lesson3-backups
-  ```
-
-  Keep `BACKUP_DISK_DIR=/var/lib/lesson3-backups` in `.env` (or prepare the actual folder you chose).
-- **Keep the existing USB/cloud-only arrangement:** set `BACKUP_DISK_DIR=` in `.env`. This explicitly
-  disables disk copies; leave the existing `BACKUP_RCLONE_REMOTE` and recovery keys unchanged.
-
-Run a backup and check each destination in Manage. The script upgrades old records automatically
-under its lock; there is no manual record-moving step. A pre-update record in the old format can be
-unknown in Manage until that first run. Existing encrypted backups and their keys are unchanged.
-If you later adopt the new school setup command, have the operator check the existing cron jobs so
-both the old schedule and the new schedule do not run the same jobs twice.
-
-### School setup (password-locked recovery key)
-
-On the installed Linux host, configure ARES's public recipient as `BACKUP_AGE_RECIPIENT` in `.env`
-and ensure Postgres, migrations, the app and Gotenberg are already working. Install `age`,
-`age-keygen`, `rclone`, Bash, coreutils, cron and util-linux (`script`, `findmnt`, `flock`). If using USB,
-mount it on a different device from `/` and create a backup folder on that mounted drive. Then run
-as the operator who will own the scheduled jobs:
-
-```bash
-cd /srv/lesson3
-scripts/setup-school-backups.sh
-```
-
-The command prepares the destination markers and USB sentinel, suggests four random words from the
-credited EFF list, or accepts your own password of at least 12 characters typed twice. **Write it down
-and type the written password back** before any school key is created. Only the recovery sheet shows
-the password, directly on the terminal; stdout, logs, receipts and state files never receive it.
-The unlocked private identity is piped straight from `age-keygen` into `age`; it is never written.
-
-`school-recovery-key.age` is password-locked ciphertext, saved beside the disk backups and copied to
-the USB/cloud destination when configured. The public half becomes `BACKUP_AGE_RECIPIENT_SCHOOL`.
-ARES's recipient is unchanged. If a school public key was already configured without this setup's
-saved locked identity, setup may create a **new** school key (operator decision). Earlier backups
-still need the earlier school key or ARES; the new password cannot open them.
-
-The operator may be asked for `sudo` to create the disk directory and install the root-owned
-`/etc/cron.d/lesson3-backups`; jobs run as that operator, daily at 02:00, weekly on Sunday at 02:10,
-and monthly on the first at 02:20, in the server's time zone. With the standard cron directory, setup enables and starts the cron
-service. The app service is recreated once on
-its **installed image**, without building or pulling, to read the new settings. Setup then takes the
-first backup and runs the existing complete restore drill in a throwaway database, which it removes.
-Only after these succeed does it publish `out/ops/backup-setup.json` and print the final recovery sheet.
-Store that sheet away from the server.
-
-**After a power cut or error, run the same command again and enter the same backup password.**
-Completed checkpoints in `out/ops/.school-backup-setup/` contain only nonsecret metadata. Complete
-key ciphertext is staged and synced before being published, so a cut before or after publication
-reuses the saved key. A wrong password never replaces it. Completed key copies and cron installation
-are skipped on resume. The setup receipt records the public
-recipient and setup dates, never the password or private key. `BACKUP_CRON_DIR` is an optional
-operator/test override for the cron directory; it defaults to `/etc/cron.d`.
-
-To **check a backup without replacing the live data**, connect the drive and run this drill from the
-installed folder. Replace both paths with the real paths and `BACKUP.dump.age` with the chosen file;
-keep the original backup filename. Type the backup password when age asks:
-
-```bash
-AGE_IDENTITY=/media/lesson3-backup/lesson3-backups/school-recovery-key.age \
-  scripts/restore-db.sh --local-file /media/lesson3-backup/lesson3-backups/daily/BACKUP.dump.age \
-  --into lesson3_restore_check
-```
-
-Expect `RESTORE DRILL PASSED`. This creates only the disposable `lesson3_restore_check` database.
-After a successful check, remove that test database:
-
-```bash
-docker compose exec -T postgres dropdb -U lesson3 lesson3_restore_check
-```
-
-The encrypted backup, locked identity **and** password are all required; ARES's private identity
-remains an independent way to open the same backup. For actual lost-data recovery, use the
-**Restore into the live database** procedure below with the server operator; it has additional
-confirmation, acceptance and undo steps. Do not change a drill's target to the live database just to
-try it. Setup's drill proves this backup restores here; it does not change **Full recovery: Not yet
-tested**, which needs a rebuild on another machine.
 
 ### Manual setup for existing online installations
 
@@ -392,7 +549,7 @@ proof of persistence.
 ### Restore drill (do this periodically — an untested backup is not a backup)
 
 For the school's **password-locked** `school-recovery-key.age`, use the drill command in
-[School setup](#school-setup-password-locked-recovery-key) and type the recovery-sheet password when
+[Check a backup](#check-a-backup) in Part 1 and type the recovery-sheet password when
 asked. That locked file can stay beside the backups. The workstation procedure below is for an
 **unlocked private identity** kept off the server. Neither drill replaces the live school database.
 
@@ -599,50 +756,6 @@ Schema changes must arrive on `main` with generated types and migrations committ
 the pinned Node 24 dependency container before merge (`scripts/in-deps.sh -- npm run generate:types`
 and the repository's migration workflow); the normal Rock deploy applies committed migrations through
 the `migrate` service. Do not improvise host-Node Payload code generation on the production box.
-
-### Preparing a machine for another school — give it its own installation id
-
-Every installation has a worldwide id (Manage → System → *Installation ID*), its identity if it later
-joins a network of schools. It lives in the database, so:
-
-- **Restoring a school's own backup** onto a replacement machine keeps the school's id. Do nothing.
-- **Copying a prepared database** (for example, one with the lesson plans already uploaded) to set up
-  **another school** would give two schools one identity. On the new machine, after the copy:
-
-```bash
-cd /srv/lesson3 && docker compose run --rm migrate npx payload run scripts/reset-installation-id.ts
-cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run scripts/reset-installation-id.ts
-```
-
-The first command is read-only and prints the current id; `APPLY=1` replaces it. Check Manage → System
-shows the new id. Never run it after restoring a school's own backup.
-
-### Recover a Site Administrator without email
-
-Use this only when no Site Administrator can sign in and email delivery is unavailable. The command
-runs from `migrate`, not `app`: the production app image has no Payload CLI or scripts source. First
-validate the target without writing:
-
-```bash
-cd /srv/lesson3 && docker compose run --rm \
-  -e RECOVERY_EMAIL=admin@example.com \
-  migrate npx payload run scripts/recover-site-admin.ts
-```
-
-Then mint a one-hour reset link:
-
-```bash
-cd /srv/lesson3 && docker compose run --rm \
-  -e APPLY=1 \
-  -e RECOVERY_EMAIL=admin@example.com \
-  migrate npx payload run scripts/recover-site-admin.ts
-```
-
-The output is a live, single-use credential. Do not redirect it to a file or retain it in a ticket.
-The script refuses missing, unverified, disabled, and non-administrator accounts; it cannot grant or
-restore privileges. Shell access is the break-glass authority, so record the operator and time in the
-site's incident log. After recovery, sign in, commission and test a second Site Administrator through
-**Manage → Users → Accounts → Create user**, and close the exposed terminal.
 
 ### After any deploy touching edit recovery: verify the cascade on THIS box
 

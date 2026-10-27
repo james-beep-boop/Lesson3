@@ -8,6 +8,16 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (on `main`, not tagged or deployed)
+
+- The installer's closing message now points to the school backup setup (ARES's public key, then
+  `scripts/setup-school-backups.sh`). In v1.08 it still told technicians to make their own key on a
+  laptop, the older manual method.
+- The technician manuals (`DEPLOYMENT.md`, `OPS.md`) are rewritten in plain steps for school
+  technicians: a list of terms, what each step does and what you should see, and what to do when a
+  message appears. `OPS.md` now starts with a part for the school technician; the operator's
+  technical reference follows it.
+
 ## v1.08 (2026-10-27)
 
 - The app's public name is **Lesson Plan Editor**. The Guide and technician manuals now separate
