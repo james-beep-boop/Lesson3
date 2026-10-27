@@ -35,7 +35,9 @@ const record = (
   stream,
   recordingSince: daysAgo(30),
   lastSuccess: null,
-  lastFailure: null,
+  lastAttempt: over.lastSuccess
+    ? { outcome: 'success', at: over.lastSuccess.completedAt, seq: over.lastSuccess.seq }
+    : null,
   history: [],
   ...over,
 })
@@ -258,7 +260,6 @@ describe('Last attempt', () => {
         records: [
           record('daily', {
             lastSuccess: success(hoursAgo(2)),
-            lastFailure: { at: hoursAgo(26), stage: 'upload', reason: 'x' },
           }),
         ],
       },
@@ -274,7 +275,12 @@ describe('Last attempt', () => {
         records: [
           record('daily', {
             lastSuccess: success(daysAgo(3)),
-            lastFailure: { at: hoursAgo(10), stage: 'destination', reason: 'no sentinel' },
+            lastAttempt: {
+              outcome: 'failure',
+              at: hoursAgo(10),
+              stage: 'destination',
+              reason: 'no sentinel',
+            },
           }),
         ],
       },
@@ -296,7 +302,9 @@ describe('Last attempt', () => {
       {
         settings: { destination: 'drive:lesson3-backups' },
         records: [
-          record('weekly', { lastFailure: { at: hoursAgo(1), stage: 'upload', reason: 'quota' } }),
+          record('weekly', {
+            lastAttempt: { outcome: 'failure', at: hoursAgo(1), stage: 'upload', reason: 'quota' },
+          }),
         ],
       },
       'lastAttempt',
@@ -309,28 +317,20 @@ describe('Last attempt', () => {
    * ⚑ REVIEW 2026-10-21: whole-second times tie. A success and a later failure in the same second read
    * as "Succeeded"; the attempt number now orders them, and a tie without one goes to the failure.
    */
-  it('orders a same-second success and failure by attempt number', () => {
+  it('orders same-second attempts across streams by sequence', () => {
     const at = hoursAgo(1)
-    const both = (successSeq?: number, failureSeq?: number) =>
-      statement(
-        {
-          records: [
-            record('daily', {
-              lastSuccess: { ...success(at), ...(successSeq ? { seq: successSeq } : {}) },
-              lastFailure: {
-                at,
-                stage: 'upload',
-                reason: 'x',
-                ...(failureSeq ? { seq: failureSeq } : {}),
-              },
-            }),
-          ],
-        },
-        'lastAttempt',
-      ).state
-    expect(both(4, 5), 'the failure was the later attempt').toBe('attention')
-    expect(both(5, 4), 'the success was the later attempt').toBe('ok')
-    expect(both(), 'an old tie with no attempt numbers is read as the failure').toBe('attention')
+    const result = statement(
+      {
+        records: [
+          record('daily', { lastAttempt: { at, seq: 4, outcome: 'success' } }),
+          record('weekly', {
+            lastAttempt: { at, seq: 5, outcome: 'failure', stage: 'upload', reason: 'quota' },
+          }),
+        ],
+      },
+      'lastAttempt',
+    )
+    expect(result.state).toBe('attention')
   })
 
   it('lets the attempt number override clock order across streams', () => {
@@ -339,7 +339,13 @@ describe('Last attempt', () => {
         records: [
           record('daily', { lastSuccess: { ...success(hoursAgo(1)), seq: 7 } }),
           record('weekly', {
-            lastFailure: { at: hoursAgo(2), seq: 8, stage: 'dump', reason: 'x' },
+            lastAttempt: {
+              outcome: 'failure',
+              at: hoursAgo(2),
+              seq: 8,
+              stage: 'dump',
+              reason: 'x',
+            },
           }),
         ],
       },
@@ -353,7 +359,9 @@ describe('Last attempt', () => {
       {
         records: [
           record('daily', { lastSuccess: success(daysAgo(1)) }),
-          record('premigrate', { lastFailure: { at: hoursAgo(1), stage: 'dump', reason: 'x' } }),
+          record('premigrate', {
+            lastAttempt: { outcome: 'failure', at: hoursAgo(1), stage: 'dump', reason: 'x' },
+          }),
         ],
       },
       'lastAttempt',
@@ -452,7 +460,11 @@ describe('the wording rule', () => {
       {},
       { records: [record('daily', { lastSuccess: success(hoursAgo(1)), history: [hoursAgo(1)] })] },
       {
-        records: [record('daily', { lastFailure: { at: hoursAgo(1), stage: 'lock', reason: '' } })],
+        records: [
+          record('daily', {
+            lastAttempt: { outcome: 'failure', at: hoursAgo(1), stage: 'lock', reason: '' },
+          }),
+        ],
         settings: { maxDataLoss: '1d', recoveryTarget: '2d', schoolRecipient: 'age1x' },
         journal: {
           state: 'provisional',
@@ -477,7 +489,12 @@ describe('technical details', () => {
       records: [
         record('daily', {
           lastSuccess: success('2026-10-20T02:00:00Z', '2026-10-20T02:01:30Z'),
-          lastFailure: { at: '2026-10-21T02:00:00Z', stage: 'destination', reason: 'no sentinel' },
+          lastAttempt: {
+            outcome: 'failure',
+            at: '2026-10-21T02:00:00Z',
+            stage: 'destination',
+            reason: 'no sentinel',
+          },
         }),
       ],
     }).technical
@@ -485,7 +502,7 @@ describe('technical details', () => {
     expect(text).toContain('A removable drive: /media/usb/lesson3')
     expect(text).toContain('daily: last success: holds work up to 2026-10-20 02:00:00 UTC')
     expect(text).toContain(
-      'daily: last failure: 2026-10-21 02:00:00 UTC at destination: no sentinel',
+      'daily: last attempt: 2026-10-21 02:00:00 UTC: failure at destination: no sentinel',
     )
     expect(text).toContain('age1qqqqqq…qqqqqq')
   })
@@ -538,12 +555,10 @@ describe('one lastAttempt per destination stream', () => {
     )
   })
 
-  it('a new successful lastAttempt supersedes old fields, while lastSuccess still drives freshness', () => {
+  it('lastSuccess still drives freshness after a successful lastAttempt', () => {
     const r = record('daily', {
       lastSuccess: success(daysAgo(20)),
       lastAttempt: { seq: 4, at: hoursAgo(1), outcome: 'success' },
-      lastFailure: { seq: 10, at: hoursAgo(1), stage: 'upload', reason: 'old format' },
-      lastNotConnected: { seq: 12, at: hoursAgo(1), reason: 'old format' },
     })
     expect(statement({ records: [r] }, 'lastAttempt').state).toBe('ok')
     expect(statement({ records: [r], settings: { maxDataLoss: '1d' } }, 'freshness').state).toBe(
@@ -697,7 +712,7 @@ describe('reading the records', () => {
       [`${dir}/backup/disk/daily.json`]: record('daily', { lastSuccess: success(hoursAgo(1)) }),
       [`${dir}/backup/usb/daily.json`]: record('daily', {
         lastSuccess: success(daysAgo(34)),
-        lastNotConnected: { seq: 2, at: hoursAgo(1), reason: 'Not connected' },
+        lastAttempt: { outcome: 'notConnected', seq: 2, at: hoursAgo(1), reason: 'Not connected' },
       }),
     })
     const s = await keyed()
@@ -720,7 +735,7 @@ describe('reading the records', () => {
     serve({
       [`${dir}/backup/usb/daily.json`]: record('daily', {
         lastSuccess: { ...success(daysAgo(20)), seq: 1 },
-        lastNotConnected: { seq: 2, at: hoursAgo(1), reason: 'Not connected' },
+        lastAttempt: { outcome: 'notConnected', seq: 2, at: hoursAgo(1), reason: 'Not connected' },
       }),
     })
     const s = await keyed()
@@ -758,7 +773,12 @@ describe('reading the records', () => {
         lastSuccess: success(hoursAgo(1)),
       }),
       [`${dir}/backup/remote/daily.json`]: record('daily', {
-        lastFailure: { at: hoursAgo(1), stage: 'destination', reason: 'Foreign installation' },
+        lastAttempt: {
+          outcome: 'failure',
+          at: hoursAgo(1),
+          stage: 'destination',
+          reason: 'Foreign installation',
+        },
       }),
     })
     const s = await keyed()
@@ -800,7 +820,7 @@ describe('reading the records', () => {
     vi.stubEnv('BACKUP_RCLONE_REMOTE', '/mnt/usb')
     serve({
       [`${dir}/backup/usb/daily.json`]: record('daily', {
-        lastNotConnected: { seq: -1, at: 'yesterday', reason: 'Not connected' },
+        lastAttempt: { outcome: 'notConnected', seq: -1, at: 'yesterday', reason: 'Not connected' },
       }),
     })
     expect((await keyed())['usb:lastAttempt'].value).toEqual(['No backup attempt recorded'])
@@ -824,7 +844,7 @@ describe('reading the records', () => {
   })
 
   it('accepts records containing lastAttempt without either retired field', async () => {
-    const { lastFailure: _retired, ...r } = record('daily', {
+    const r = record('daily', {
       lastAttempt: { seq: 1, at: hoursAgo(1), outcome: 'success' },
     })
     serve({ [`${dir}/backup/remote/daily.json`]: r })

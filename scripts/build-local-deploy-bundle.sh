@@ -33,7 +33,7 @@ cp "$ROOT/docs/LOCAL-SERVER-DEPLOYMENT.md" "$BUNDLE/DEPLOYMENT.md"
 cp "$ROOT/docs/OPS.md" "$BUNDLE/OPS.md"
 cp "$ROOT/scripts/backup-db.sh" "$ROOT/scripts/restore-db.sh" "$ROOT/scripts/prune-db.sh" \
   "$ROOT/scripts/heartbeat.sh" "$ROOT/scripts/lib.sh" "$ROOT/scripts/setup-school-backups.sh" "$BUNDLE/scripts/"
-cp "$ROOT/scripts/lib/backup-common.sh" "$ROOT/scripts/lib/backup-destinations.sh" "$ROOT/scripts/lib/backup-password.sh" "$BUNDLE/scripts/lib/"
+cp "$ROOT/scripts/lib/"backup-*.sh "$BUNDLE/scripts/lib/"
 cp "$ROOT/scripts/vendor/eff_large_wordlist.txt" "$BUNDLE/scripts/vendor/"
 cp "$ROOT/NOTICE" "$BUNDLE/NOTICE"
 printf '%s\n' "$VERSION" >"$BUNDLE/VERSION"

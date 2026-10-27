@@ -35,8 +35,6 @@ remember() {
 checkpoint() {
   remember "$1" done
   echo "setup-school-backups: $1 complete"
-  # Used by the disposable stack's power-cut checks, never by the installed schedule.
-  [[ "${BACKUP_SETUP_STOP_AFTER:-}" != "$1" ]] || kill -KILL "$$"
 }
 setting() {
   local key="$1" value="$2" temporary line
@@ -175,8 +173,8 @@ else
   ln "$KEY_TEMP" "$STAGED_KEY" || die 'a complete staged key already exists; it was not replaced'
   rm -f "$KEY_TEMP"; sync -f "$DISK_DIR"
   KEY_FILE="$STAGED_KEY"
-  # Power-cut test at the boundary before publishing a recipient: the staged file is complete.
-  [[ "${BACKUP_SETUP_STOP_AFTER:-}" != key-staged ]] || kill -KILL "$$"
+  # The staged key is complete and durable before publishing its recipient.
+  echo 'setup-school-backups: key-staged complete'
 fi
 [[ ! -L "$KEY_FILE" ]] || die 'the recovery key must not be a symlink'
 with_backup_password bash -o pipefail -c 'age -d "$1" | age-keygen -y' _ "$KEY_FILE" \
@@ -195,7 +193,7 @@ fi
 chmod 0600 "$KEY_FILE"
 [[ -f "$STATE_DIR/key-created-at" ]] || remember key-created-at "$(date -u -r "$KEY_FILE" +%Y-%m-%dT%H:%M:%SZ)"
 # Copies are ciphertext only. An existing different identity is never overwritten.
-if [[ -n "$REMOTE" ]]; then
+if [[ -n "$REMOTE" && ! -f "$STATE_DIR/key" ]]; then
   select_external
   [[ "$KIND" == remote ]] || open_local
   verify_mount; check_marker
@@ -224,11 +222,12 @@ if [[ ! -f "$STATE_DIR/recipient" ]]; then
   checkpoint recipient
 fi
 
-CRON_DIR="${BACKUP_CRON_DIR:-/etc/cron.d}"
-CRON_USER="$(id -un)"; [[ "$CRON_USER" =~ ^[a-zA-Z0-9_.-]+$ ]] || die 'unsupported cron user name'
-printf -v COMMAND '%q ' "$REPO_DIR/scripts/backup-db.sh"
-printf -v LOG_FILE '%q' "$REPO_DIR/out/backup.log"
-cat >"$TMP/cron" <<CRON
+if [[ ! -f "$STATE_DIR/schedule" ]]; then
+  CRON_DIR="${BACKUP_CRON_DIR:-/etc/cron.d}"
+  CRON_USER="$(id -un)"; [[ "$CRON_USER" =~ ^[a-zA-Z0-9_.-]+$ ]] || die 'unsupported cron user name'
+  printf -v COMMAND '%q ' "$REPO_DIR/scripts/backup-db.sh"
+  printf -v LOG_FILE '%q' "$REPO_DIR/out/backup.log"
+  cat >"$TMP/cron" <<CRON
 # Lesson3 school backups: installed by setup-school-backups.sh
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
@@ -236,10 +235,11 @@ PATH=/usr/local/bin:/usr/bin:/bin
 10 2 * * 0 $CRON_USER ${COMMAND}--label weekly >> $LOG_FILE 2>&1
 20 2 1 * * $CRON_USER ${COMMAND}--label monthly >> $LOG_FILE 2>&1
 CRON
-as_root install -d -m 0755 "$CRON_DIR"
-as_root install -o root -g root -m 0644 "$TMP/cron" "$CRON_DIR/lesson3-backups"
-[[ "$CRON_DIR" != /etc/cron.d ]] || as_root systemctl enable --now cron
-[[ -f "$STATE_DIR/schedule" ]] || checkpoint schedule
+  as_root install -d -m 0755 "$CRON_DIR"
+  as_root install -o root -g root -m 0644 "$TMP/cron" "$CRON_DIR/lesson3-backups"
+  [[ "$CRON_DIR" != /etc/cron.d ]] || as_root systemctl enable --now cron
+  checkpoint schedule
+fi
 
 if [[ ! -f "$STATE_DIR/backup" ]]; then
   "$SCRIPT_DIR/backup-db.sh" || die 'first backup failed; fix the destination and resume setup'

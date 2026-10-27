@@ -55,15 +55,11 @@ with the paused Phase B plan.
 - **Parts 1–3 of the school design are done.** Part 4 (the ARES stick builder) is Phase B's B1, which
   `PLAN-phase-b-recovery` pauses until test machines exist, and parts 4–7 need one amd64 test machine
   (design §14). Each needs its own approved plan first.
-- **Small follow-ups from the 3b review** (no test machine needed; one PR when wanted):
-  1. `deploy/online/update.sh`'s required-file check omits `scripts/lib/backup-*.sh`; the helper list is
-     kept by hand in five places (bundle builder, updater, two tests, the setup probe). Copy and check
-     `scripts/lib/` by pattern instead.
-  2. Remove `BACKUP_SETUP_STOP_AFTER` from `setup-school-backups.sh`: the probe already sees each
-     "<step> complete" line and can kill the process from outside (print one for `key-staged` too).
-  3. When `migrate_records` moves a pre-3b record, rewrite `lastFailure`/`lastNotConnected` into
-     `lastAttempt`, then drop the old-field branches in `lib/backupStatus.ts` (and their tests).
-  4. On resume, skip the key copy to USB/cloud and the cron reinstall once their checkpoints exist.
+- **Small follow-ups from the 3b review implemented**, awaiting review on
+  `fix/school-backup-followups`: helper packaging and required-file validation use patterns;
+  the setup probe kills the process externally at completion lines; old attempt fields are converted
+  once by the backup writer, including records already in destination folders; completed key copies
+  and cron installation are skipped on resume. No migration or deployment. James merges.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---

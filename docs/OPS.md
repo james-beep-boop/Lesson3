@@ -114,7 +114,8 @@ Store that sheet away from the server.
 **After a power cut or error, run the same command again and enter the same backup password.**
 Completed checkpoints in `out/ops/.school-backup-setup/` contain only nonsecret metadata. Complete
 key ciphertext is staged and synced before being published, so a cut before or after publication
-reuses the saved key. A wrong password never replaces it. The setup receipt records the public
+reuses the saved key. A wrong password never replaces it. Completed key copies and cron installation
+are skipped on resume. The setup receipt records the public
 recipient and setup dates, never the password or private key. `BACKUP_CRON_DIR` is an optional
 operator/test override for the cron directory; it defaults to `/etc/cron.d`.
 
@@ -245,8 +246,9 @@ windows it applied); counts before/after via
     the page knows which attempt came last even when two share a second;
   - **`lastAttempt`**: time, sequence and `outcome` (`success`, `failure`, `notConnected`);
     failures include stage (`setup`, `destination`, `dump`, `encrypt`, `upload`, `record`, `space`)
-    and one line of reason. This replaces the separate failure/not-connected fields. The reader still
-    accepts those fields on records not yet rewritten;
+    and one line of reason. Before writing backups, the script converts the separate old
+    failure/not-connected fields into the newest attempt, preserving success and history. This includes
+    records already in destination folders; the app reads only `lastAttempt`;
   - **`history`**: the last 31 `coversUntil` values, and `recordingSince`.
 
   A failed attempt keeps the stream's last success and history; a later success replaces the

@@ -704,6 +704,54 @@ check 'an older duplicate is archived instead of used as fallback' 'expected arc
 check 'new records contain one attempt outcome and no retired fields' 'expected lastAttempt only' \
   "$(grep -q '"outcome": "success"' "$STATUS" && ! grep -Eq '"lastFailure"|"lastNotConnected"' "$STATUS" && echo 0 || echo 1)"
 
+# Old per-destination records need conversion too, even when no root-layout files remain.
+prepare_case
+mkdir -p "$SANDBOX/repo/out/ops/backup/remote"
+cat >"$SANDBOX/repo/out/ops/backup/remote/weekly.json" <<'JSON'
+{
+  "version": 2,
+  "stream": "weekly",
+  "recordingSince": "2026-10-01T02:00:00Z",
+  "lastSuccess": {"seq": 4, "coversUntil": "2026-10-20T02:00:00Z", "completedAt": "2026-10-20T02:00:00Z", "filename": "old.dump.age", "encryptedBytes": 1, "destination": "drive:backups"},
+  "lastFailure": {"seq": 5, "at": "2026-10-20T02:00:00Z", "stage": "upload", "reason": "quota"},
+  "lastNotConnected": {"seq": 3, "at": "2026-10-21T02:00:00Z", "reason": "absent"},
+  "history": ["2026-10-20T02:00:00Z"]
+}
+JSON
+sed 's/"stream": "weekly"/"stream": "monthly"/' "$SANDBOX/repo/out/ops/backup/remote/weekly.json" >"$SANDBOX/repo/out/ops/backup/monthly.json"
+run_case 'drive:backups'
+for record_path in remote/weekly.json remote/monthly.json; do
+  migrated="$SANDBOX/repo/out/ops/backup/$record_path"
+  check "old attempt fields are converted in $record_path" 'expected latest sequence failure and no retired fields' \
+    "$(grep -Eq '\"lastAttempt\": .*\"outcome\": \"failure\".*\"seq\": 5' "$migrated" && ! grep -Eq '\"lastFailure\"|\"lastNotConnected\"' "$migrated" && echo 0 || echo 1)"
+done
+cp "$SANDBOX/repo/out/ops/backup/remote/weekly.json" "$SANDBOX/migrated"
+run_case 'drive:backups'
+check 'converted records are unchanged on the next run' 'expected byte-identical record' \
+  "$(cmp -s "$SANDBOX/migrated" "$SANDBOX/repo/out/ops/backup/remote/weekly.json" && echo 0 || echo 1)"
+
+# Cover all conversion outcomes and the old reader's conservative timestamp tie rule.
+for expected in success notConnected failure none; do
+  prepare_case
+  mkdir -p "$SANDBOX/repo/out/ops/backup/usb"
+  old_success='{"seq": 2, "coversUntil": "2026-10-20T02:00:00Z", "completedAt": "2026-10-20T02:00:00Z", "filename": "old.dump.age", "encryptedBytes": 1, "destination": "/media/usb"}'
+  old_failure='{"seq": 1, "at": "2026-10-20T02:00:00Z", "stage": "upload", "reason": "quota"}'
+  old_absent='{"seq": 1, "at": "2026-10-20T02:00:00Z", "reason": "absent"}'
+  case "$expected" in
+    success) ;;
+    notConnected) old_absent="${old_absent/\"seq\": 1/\"seq\": 3}" ;;
+    failure) old_success="${old_success/\"seq\": 2, /}"; old_failure="${old_failure/\"seq\": 1, /}"; old_absent=null ;;
+    none) old_success=null; old_failure=null; old_absent=null ;;
+  esac
+  migrated="$SANDBOX/repo/out/ops/backup/usb/weekly.json"
+  printf '{\n  "version": 2,\n  "stream": "weekly",\n  "recordingSince": "2026-10-01T02:00:00Z",\n  "lastSuccess": %s,\n  "lastFailure": %s,\n  "lastNotConnected": %s,\n  "history": ["2026-10-20T02:00:00Z"]\n}\n' \
+    "$old_success" "$old_failure" "$old_absent" >"$migrated"
+  run_case 'drive:backups'
+  if [[ "$expected" == none ]]; then pattern='"lastAttempt": null'; else pattern="\"outcome\": \"$expected\""; fi
+  check "record conversion selects $expected without changing success/history" 'expected correct newest event and unchanged evidence' \
+    "$(grep -Fq "$pattern" "$migrated" && grep -Fq "\"lastSuccess\": $old_success," "$migrated" && grep -Fq '"history": ["2026-10-20T02:00:00Z"]' "$migrated" && echo 0 || echo 1)"
+done
+
 echo
 printf 'backup status: %d passed, %d failed\n' "$pass" "$fail"
 [[ "$fail" -eq 0 ]]
