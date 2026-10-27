@@ -11,6 +11,17 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-27 — Sign-in line: "Find, edit and print lesson plans."
+
+Operator decision, after v1.10 shipped with "Find, download and print lesson plans." under the name.
+That line left out editing, the product's main function beyond a file shelf. The new line names it.
+"Download" is dropped because printing means downloading the Word or PDF file first; three verbs read
+better than four. No comma before "and", matching the old line. Editing still needs editing access, so
+most teachers will not see it; the line still tells them the capability exists. The entry below is
+left as written.
+
+---
+
 ## 2026-10-27 — Public name: ARES Lesson Plans (supersedes "Lesson Plan Editor")
 
 Operator decision, the same day as the entry below it. Most teachers come to find, download and print

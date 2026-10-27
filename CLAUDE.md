@@ -82,9 +82,10 @@ and breaks a stored enum, a URL and a migration. What must never appear is an **
 | Stating the rule (here, SPEC §8, a design doc's ⚑) | **Allowed** — naming the banned thing is how the ban is legible. |
 | **Dated records: `docs/DECISIONS.md`, `docs/CHANGELOG.md`, superseded handoffs, `docs/archive/`, and the pre-rename design docs** | **Leave them.** ⚑ Do NOT "excise" history: those entries describe what the label WAS, and rewriting them makes the 2026-07-29 rename decision incomprehensible and the record false. `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md` (the old handoff blocks, moved out of `docs/NEXT-SESSION.md` on 2026-10-18) carries the standing caveat that older blocks say "Editor" because that is what it was called at the time. |
 
-⚑ **The public product name is ARES Lesson Plans**, with the line "Find, download and print lesson
-plans." under it on sign-in (operator decision 2026-10-27, the same day superseding "Lesson Plan
-Editor": most teachers come to find, download and print, not to edit). `Lesson3` is only the repository
+⚑ **The public product name is ARES Lesson Plans**, with the line "Find, edit and print lesson
+plans." under it on sign-in (operator decisions 2026-10-27: the name superseded "Lesson Plan Editor"
+because most teachers come to find and print, not to edit; the line then named editing too, because
+editing is what makes the product more than a file shelf). `Lesson3` is only the repository
 name. With "Editor" gone from the product name, the user-facing surface is clean again and must stay
 that way: `USER_GUIDE.md`, `/guide`, `README.md` and `AGENTS.md` do not use the word as a name or a
 type, and no `Editor` string literal reaches a screen. Treat a new occurrence as a defect.

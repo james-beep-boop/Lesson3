@@ -13,7 +13,7 @@ import './styles.css'
 
 export const generateMetadata = async () => ({
   ...(await schoolPageMetadata()),
-  description: 'Find, download and print lesson plans.',
+  description: 'Find, edit and print lesson plans.',
 })
 
 // Explicit mobile viewport (was relying on Next's implicit default). The App is reading-first on a
