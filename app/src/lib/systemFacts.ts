@@ -100,7 +100,7 @@ async function probePdfEngine(): Promise<SystemFact> {
      * consequence now rides on `detail`, which only the failing states set.
      */
     description:
-      'Creates PDF copies of lesson plans. This service runs on the ARES Lesson Plans server and ' +
+      'Creates PDF copies of lesson plans. This service runs on the Lesson Plan Editor server and ' +
       'does not require internet access.',
   }
   const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
@@ -235,7 +235,7 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
        * ⚑ AND "must match" IS CONDITIONAL. Unqualified it read as though unset were a fault.
        */
       description:
-        'The main internet address people use to open ARES Lesson Plans. On an internet-facing ' +
+        'The main internet address people use to open Lesson Plan Editor. On an internet-facing ' +
         'installation it must match the address people actually visit.',
       value: serverUrl || 'Not set — suitable for a local installation',
       status: serverUrl ? 'ok' : 'off',

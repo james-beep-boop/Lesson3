@@ -1,4 +1,4 @@
-# ARES Lesson Library (Lesson3)
+# Lesson Plan Editor
 
 A **versioned lesson-plan repository** for ARES Kenya. ARES-generated CBE lesson plans are ingested as version 1.0.0; teachers make basic edits; every edit creates a new immutable version; any version exports as **high-fidelity DOCX and PDF**.
 
@@ -50,8 +50,8 @@ immediately instead of installing cleanly and mailing links that go nowhere.
 
 ### First login: create the administrator credentials
 
-**There is no default Lesson3 username or password, and no human login belongs in `.env`.** When the
-installer reports that Lesson3 is ready, it prints a URL ending in `/login`. Open that exact URL and:
+**There is no default Lesson Plan Editor username or password, and no human login belongs in `.env`.** When the
+installer reports that Lesson Plan Editor is ready, it prints a URL ending in `/login`. Open that exact URL and:
 
 1. Confirm the heading says **Create the first Site administrator**. If it says **Sign in**, stop: this
    database already contains an account.
@@ -79,6 +79,11 @@ installation procedure for a school server.
 Read [`docs/LOCAL-SERVER-DEPLOYMENT.md`](docs/LOCAL-SERVER-DEPLOYMENT.md) before installing. It covers
 requirements, firewall posture, first-user setup, verification, encrypted backups, updates, recovery,
 and the deliberate PDF-font tradeoff. Do not pipe a remote install script directly into a shell.
+
+Before handing a school server over, follow that manual's checklist: test two administrators, set the
+school name, set up and prove backups, then upload the ARES lesson ZIP and check Word/PDF downloads.
+For later changes, a **lesson ZIP** is uploaded in Manage; a **program release bundle** is applied by
+the technician using its `update.sh`. Updating the program does not import lesson plans.
 
 ## Docs
 

@@ -13,7 +13,7 @@ import './styles.css'
 
 export const generateMetadata = async () => ({
   ...(await schoolPageMetadata()),
-  description: 'ARES Lesson Plans',
+  description: 'Lesson Plan Editor',
 })
 
 // Explicit mobile viewport (was relying on Next's implicit default). The App is reading-first on a
@@ -45,7 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {user && (
           <header className="app-header">
             <Link href="/" className="brand">
-              ARES Lesson Plans
+              Lesson Plan Editor
             </Link>
             {/* The ONE shared nav (Lessons · [Manage] · Guide · avatar). The admin surface renders the
                 same <AppNav> via admin.components.header, so the two match exactly. */}

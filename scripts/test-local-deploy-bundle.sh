@@ -8,12 +8,12 @@ trap 'rm -rf "$TMP"' EXIT
 
 fail() { echo "test-local-deploy-bundle: FAIL: $*" >&2; exit 1; }
 
-# The app Docker build context is `app/`, so its copy of Lesson3's root grant must remain byte-exact.
+# The app Docker build context is `app/`, so its copy of Lesson Plan Editor's root grant must remain byte-exact.
 # The minimal runner also needs both notices copied explicitly; Next's standalone trace omits them.
 cmp "$ROOT/LICENSE" "$ROOT/app/LICENSE" \
   || fail "app/LICENSE differs from the repository's authoritative LICENSE"
 grep -Fq '/app/LICENSE ./LICENSE' "$ROOT/app/Dockerfile" \
-  || fail "production image omits the Lesson3 license"
+  || fail "production image omits the Lesson Plan Editor license"
 grep -Fq '/app/src/generator/vendor/LICENSE ./THIRD_PARTY_LICENSES/cbe-generation-system-MIT.txt' \
   "$ROOT/app/Dockerfile" || fail "production image omits the vendored generator license"
 
@@ -52,7 +52,7 @@ cmp "$ROOT/scripts/vendor/eff_large_wordlist.txt" "$BUNDLE/scripts/vendor/eff_la
 cmp "$ROOT/NOTICE" "$BUNDLE/NOTICE" || fail "word-list attribution was not packaged"
 
 bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
-grep -Fq 'There is no default Lesson3 username or password.' "$BUNDLE/install.sh" \
+grep -Fq 'There is no default Lesson Plan Editor username or password.' "$BUNDLE/install.sh" \
   || fail "installer omits the no-default-credentials instruction"
 grep -Fq 'a new password of at least 8 characters' "$BUNDLE/install.sh" \
   || fail "installer omits the first-administrator password instruction"

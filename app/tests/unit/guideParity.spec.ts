@@ -236,12 +236,12 @@ const CLAIMS: { what: string; claim: string }[] = [
   {
     what: 'Site Administrator is an application role, not server or private-key access',
     claim:
-      'Site Administrator access in Lesson3 is an application role; it does not grant access to the server command line or the private recovery key',
+      'Being a Site administrator in Lesson Plan Editor does not give you a server login or a recovery key',
   },
   {
     what: 'recovery prerequisites are named before attempting a restore',
     claim:
-      'the matching private key on the machine where the restore will run (not on the Lesson3 server)',
+      'the matching private key on the machine where the restore will run (not on the Lesson Plan Editor server)',
   },
   {
     what: 'recovery instructions branch by the reported key state',
@@ -338,7 +338,7 @@ describe('the in-app guide and USER_GUIDE.md preserve shared rules', () => {
   // Proves the fixtures are the files we think they are, so a claim can never pass against an empty
   // string — the way a mis-resolved path would otherwise read as "no contradiction found".
   it('reads both guides', () => {
-    expect(md).toContain('ARES Lesson Library')
+    expect(md).toContain('Lesson Plan Editor')
     expect(page).toContain('Subject-grade administrators')
   })
 
