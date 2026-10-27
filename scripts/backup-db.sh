@@ -2,7 +2,7 @@
 # One Postgres dump + age encryption, independently copied to the server disk and USB/cloud.
 # Disk: BACKUP_DISK_DIR (default /var/lib/lesson3-backups; explicit empty disables it).
 # USB/cloud: BACKUP_RCLONE_REMOTE (optional). At least one destination is required.
-# Records: out/ops/backup/<disk|usb|remote>/<stream>.json (v2); old stream files are fallback evidence.
+# Records: out/ops/backup/<disk|usb|remote>/<stream>.json (v2); pre-3a files are moved there once.
 # Usage: no label = daily; --label weekly|monthly|premigrate[-suffix]. See docs/OPS.md.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -19,13 +19,11 @@ BACKUP_RECORD_DIR="$REPO_DIR/out/ops/backup"
 LOCK_WAIT="$(env_get BACKUP_LOCK_WAIT_SECONDS)"; LOCK_WAIT="${LOCK_WAIT:-3600}"
 LABEL=""; [[ "${1:-}" != --label || -z "${2:-}" ]] || LABEL="$2"
 STREAM=""; STAGE=setup; FAIL_REASON=""; LOCKED=0; RECORD_TMP=""; TMP=""
-# Free space kept back on the server disk, both for the disk copy and for staging: 256 MiB.
-RESERVE_BYTES=268435456
 declare -A ROOTS DONE FDS MOUNTS
 TARGETS=()
 [[ -z "$DISK_DIR" ]] || { TARGETS+=(disk); ROOTS[disk]="$DISK_DIR"; }
 if [[ -n "$REMOTE" ]]; then
-  REMOTE_KIND=remote; [[ "$REMOTE" != /* && "$REMOTE" == *:* ]] || REMOTE_KIND=usb
+  REMOTE_KIND="$(external_kind "$REMOTE")"
   TARGETS+=("$REMOTE_KIND"); ROOTS[$REMOTE_KIND]="$REMOTE"
 fi
 

@@ -12,14 +12,16 @@ with_backup_password() {
   AGE_OUTPUT=''
   while IFS= read -r -N 1 -t 120 -u "$output" character; do
     buffer+="$character"
-    # The restore verifier may be verbose. Keep only bounded output, not a transcript on disk.
+    # The restore verifier may be verbose. Keep only bounded output, not a transcript on disk;
+    # trimming at twice the limit keeps the copy cost off every byte.
     AGE_OUTPUT+="$character"
-    if (( ${#AGE_OUTPUT} > 16384 )); then AGE_OUTPUT="${AGE_OUTPUT: -16384}"; fi
-    if [[ "$buffer" == *'Enter passphrase'*: || "$buffer" == *'Confirm passphrase'*: ]]; then
+    if (( ${#AGE_OUTPUT} > 32768 )); then AGE_OUTPUT="${AGE_OUTPUT: -16384}"; fi
+    # A prompt ends in a colon, so only a colon can complete one.
+    if [[ "$character" == : && ( "$buffer" == *'Enter passphrase'*: || "$buffer" == *'Confirm passphrase'*: ) ]]; then
       printf '%s\n' "$PASSWORD" >&"$input"
       buffer=''
     fi
-    if (( ${#buffer} > 2048 )); then buffer="${buffer: -2048}"; fi
+    if (( ${#buffer} > 2048 )); then buffer="${buffer: -256}"; fi
   done
   exec {input}>&- {output}<&-
   wait "$pid" || result=$?

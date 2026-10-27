@@ -23,30 +23,17 @@ const key = join(disk, 'school-recovery-key.age')
 const setup = join(root, 'scripts/setup-school-backups.sh')
 const restore = join(root, 'scripts/restore-db.sh')
 const quote = (s) => `'${s.replaceAll("'", "'\\''")}'`
-const sql = (query) =>
+const sql = (query, db = 'postgres') =>
   execFileSync(
     'docker',
-    ['compose', 'exec', '-T', 'postgres', 'psql', '-U', 'lesson3', '-d', 'postgres', '-tAc', query],
+    ['compose', 'exec', '-T', 'postgres', 'psql', '-U', 'lesson3', '-d', db, '-tAc', query],
     { cwd: root, encoding: 'utf8' },
   ).trim()
 const livePlans = () =>
-  execFileSync(
-    'docker',
-    [
-      'compose',
-      'exec',
-      '-T',
-      'postgres',
-      'psql',
-      '-U',
-      'lesson3',
-      '-d',
-      'lesson3',
-      '-tAc',
-      "SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text, '[]') FROM lesson_plans p;",
-    ],
-    { cwd: root, encoding: 'utf8' },
-  ).trim()
+  sql(
+    "SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text, '[]') FROM lesson_plans p;",
+    'lesson3',
+  )
 const originalPlans = livePlans()
 let password = ''
 const secrets = new Set()

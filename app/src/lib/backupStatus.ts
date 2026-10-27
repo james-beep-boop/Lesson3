@@ -318,21 +318,25 @@ export interface BackupInputs {
 
 const DAY_MS = 86_400_000
 
-/** A relative age for an instant in the past, independent of anyone's time zone. */
-export function ago(iso: string, now: Date): string {
+/** How long ago an instant was, as a bare duration ("3 days"), independent of anyone's time zone. */
+function age(iso: string, now: Date): string {
   const ms = now.getTime() - new Date(iso).getTime()
-  if (ms < 3_600_000) return 'less than an hour ago'
+  if (ms < 3_600_000) return 'less than an hour'
   const hours = Math.floor(ms / 3_600_000)
-  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`
-  return `${Math.floor(ms / DAY_MS)} days ago`
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'}`
+  return `${Math.floor(ms / DAY_MS)} days`
 }
+
+/** A relative age for an instant in the past ("3 days ago"). */
+export const ago = (iso: string, now: Date): string => `${age(iso, now)} ago`
 
 const latest = (values: string[]): string | null =>
   values.length ? values.reduce((a, b) => (a > b ? a : b)) : null
 
-/** A removable destination is an absolute path (`backup-db.sh` requires a separate, marked mount). */
+/** A removable destination is anything but an rclone `name:path` remote — the scripts' one rule
+ *  (`external_kind` in `scripts/lib/backup-common.sh`); `backup-db.sh` requires a separate, marked mount. */
 export const isRemovableDestination = (destination: string | undefined): boolean =>
-  !!destination && destination.startsWith('/')
+  !!destination && (destination.startsWith('/') || !destination.includes(':'))
 
 const STAGE_WORDS: Record<FailureStage, (removable: boolean) => string> = {
   setup: () => 'the backup is not set up correctly on the server',
@@ -440,9 +444,7 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
         freshness(
           'attention',
           settings.destinationKind === 'usb'
-            ? [
-                `Overdue — the newest is ${ago(newestCovers, now).replace(/ ago$/, ' old')}. Plug in the backup drive.`,
-              ]
+            ? [`Overdue — the newest is ${age(newestCovers, now)} old. Plug in the backup drive.`]
             : [
                 `Backup overdue — the newest backup holds work up to ${ago(newestCovers, now)} (agreed: ${limit.words})`,
               ],

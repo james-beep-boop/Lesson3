@@ -21,7 +21,7 @@ STATE_DIR="$REPO_DIR/out/ops/.school-backup-setup"
 mkdir -p "$STATE_DIR"; chmod 0755 "$REPO_DIR/out/ops"; chmod 0700 "$STATE_DIR"
 exec 7>"$STATE_DIR/.lock"
 flock -n 7 || die 'school backup setup is already running'
-TMP="$(mktemp -d)"; PASSWORD=''; AGE_OUTPUT=''; STAGE=setup; RESERVE_BYTES=268435456
+TMP="$(mktemp -d)"; PASSWORD=''; AGE_OUTPUT=''; STAGE=setup
 cleanup() { unset PASSWORD AGE_OUTPUT; rm -rf "$TMP"; }
 trap cleanup EXIT
 
@@ -48,6 +48,11 @@ setting() {
   done <.env >"$temporary"
   printf '%s=%s\n' "$key" "$value" >>"$temporary"
   sync -f "$temporary"; mv -f "$temporary" .env; sync -f "$REPO_DIR"
+}
+as_root() { if [[ "$EUID" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
+# The external destination's guards read KIND/DEST_ROOT/WRITE_ROOT/MOUNT_INFO (lib/backup-destinations.sh).
+select_external() {
+  KIND="$(external_kind "$REMOTE")"; DEST_ROOT="$REMOTE"; WRITE_ROOT="$REMOTE"; MOUNT_INFO=''
 }
 ask() { printf '%s' "$1" >&6; IFS= read -r REPLY <&6 || die 'terminal input ended'; }
 secret() { printf '%s' "$1" >&6; IFS= read -r -s REPLY <&6 || die 'terminal input ended'; printf '\n' >&6; }
@@ -92,14 +97,13 @@ if [[ ! -d "$DISK_DIR" ]]; then
 fi
 mkdir "$TMP/marker"
 printf '%s\n' "$INSTALLATION_ID" >"$TMP/marker/.lesson3-installation"
-PREPARE_USB=1
 KIND=disk; DEST_ROOT="$DISK_DIR"; open_local; check_space; claim_marker
 if [[ -n "$REMOTE" ]]; then
-  KIND=remote; [[ "$REMOTE" != /* ]] || KIND=usb
-  DEST_ROOT="$REMOTE"; WRITE_ROOT="$REMOTE"; MOUNT_INFO=''
+  select_external
   if [[ "$KIND" == usb ]]; then
     [[ -d "$REMOTE" ]] || die 'connect the selected USB drive before resuming setup'
-    open_local; check_space
+    # Only here may the drive lack its sentinel: setup writes it just below.
+    PREPARE_USB=1 open_local; check_space
   fi
   claim_marker; verify_mount
   if [[ "$KIND" == usb ]]; then
@@ -192,8 +196,7 @@ chmod 0600 "$KEY_FILE"
 [[ -f "$STATE_DIR/key-created-at" ]] || remember key-created-at "$(date -u -r "$KEY_FILE" +%Y-%m-%dT%H:%M:%SZ)"
 # Copies are ciphertext only. An existing different identity is never overwritten.
 if [[ -n "$REMOTE" ]]; then
-  KIND=remote; [[ "$REMOTE" != /* ]] || KIND=usb
-  DEST_ROOT="$REMOTE"; WRITE_ROOT="$REMOTE"; MOUNT_INFO=''
+  select_external
   [[ "$KIND" == remote ]] || open_local
   verify_mount; check_marker
   if [[ "$KIND" == usb ]]; then
@@ -233,15 +236,9 @@ PATH=/usr/local/bin:/usr/bin:/bin
 10 2 * * 0 $CRON_USER ${COMMAND}--label weekly >> $LOG_FILE 2>&1
 20 2 1 * * $CRON_USER ${COMMAND}--label monthly >> $LOG_FILE 2>&1
 CRON
-if [[ "$EUID" -eq 0 ]]; then
-  install -d -m 0755 "$CRON_DIR"; install -m 0644 "$TMP/cron" "$CRON_DIR/lesson3-backups"
-else
-  sudo install -d -m 0755 "$CRON_DIR"; sudo install -o root -g root -m 0644 "$TMP/cron" "$CRON_DIR/lesson3-backups"
-fi
-if [[ "$CRON_DIR" == /etc/cron.d ]]; then
-  if [[ "$EUID" -eq 0 ]]; then systemctl enable --now cron
-  else sudo systemctl enable --now cron; fi
-fi
+as_root install -d -m 0755 "$CRON_DIR"
+as_root install -o root -g root -m 0644 "$TMP/cron" "$CRON_DIR/lesson3-backups"
+[[ "$CRON_DIR" != /etc/cron.d ]] || as_root systemctl enable --now cron
 [[ -f "$STATE_DIR/schedule" ]] || checkpoint schedule
 
 if [[ ! -f "$STATE_DIR/backup" ]]; then

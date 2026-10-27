@@ -7,6 +7,13 @@ destination_setting() {
   else printf '%s' "$fallback"; fi
 }
 
+# Free space kept back on a local destination, and for staging, unless configured: 256 MiB.
+RESERVE_BYTES=268435456
+
+# USB or cloud for BACKUP_RCLONE_REMOTE: an rclone remote is `name:path`; anything else is a local
+# (USB) path. ⚑ The ONE rule for the scripts; the Manage page's reader matches it (lib/backupStatus.ts).
+external_kind() { [[ "$1" != /* && "$1" == *:* ]] && printf remote || printf usb; }
+
 positive_int() { [[ "$2" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integer (got '$2')"; }
 
 reject_unsupported_json_controls() {
