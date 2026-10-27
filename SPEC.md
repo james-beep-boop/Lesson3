@@ -1096,9 +1096,10 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 - **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
   bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a
   deletion-request flow can ride on the same messaging substrate if wanted.)
-  Ordinary messages remain limited to 5,000 characters. System-generated upload summaries may use
-  up to 100,000 to list the maximum 500 lessons once per subject-grade; internal lesson paths render
-  as links, with normal lesson-page authorization.
+  Every message, the system-generated upload summary included, is limited to 5,000 characters
+  (operator decision 2026-10-27). A summary lists as many lessons as fit and ends “…and N more. See
+  Lesson Plans for the rest.”; the upload report always lists every lesson. Internal lesson paths
+  render as links, with normal lesson-page authorization.
   Specific-version links keep a server-generated label after version or lesson deletion and show
   "this version is no longer available" without substituting the Official version. Whole-lesson
   links carry no version label and retain their existing behaviour. A reply identifies its original

@@ -80,6 +80,10 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   { what: 'release date missing from an upload', claim: 'ARES release: not stated' },
   {
+    what: 'long upload summary message is shortened',
+    claim: 'the full list is in the upload report',
+  },
+  {
     what: 'Combine suggestion dismissal is temporary',
     claim: 'Not now hides the suggestion until you reload the page',
   },

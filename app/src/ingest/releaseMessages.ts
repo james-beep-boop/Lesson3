@@ -1,6 +1,26 @@
 import type { Payload } from 'payload'
 import type { IngestReport } from './index'
 import { relId } from '../lib/relId'
+import { MAX_MESSAGE_LENGTH } from '../lib/messageText'
+
+/**
+ * The summary's text: a heading, then one line per lesson for as many as fit within the ordinary
+ * message limit, then "…and N more" for the rest (operator decision 2026-10-27). The upload report
+ * already lists every lesson, and Lesson Plans shows them; the message only has to say what to look at.
+ */
+export function releaseSummary(lines: string[]): string {
+  let body = 'ARES lesson upload'
+  for (const [i, line] of lines.entries()) {
+    const left = lines.length - i - 1
+    // Keep room for the closing line whenever any lesson after this one would be left out.
+    const reserve = left ? `\n…and ${left} more. See Lesson Plans for the rest.`.length : 0
+    if (body.length + 1 + line.length + reserve > MAX_MESSAGE_LENGTH) {
+      return `${body}\n…and ${lines.length - i} more. See Lesson Plans for the rest.`
+    }
+    body += `\n${line}`
+  }
+  return body
+}
 
 /** Called by the authorized web endpoint only, after the import transaction has committed.
  * One message per affected subject-grade. Each lesson's `/lessons/<id>` path is plain text, which
@@ -32,7 +52,6 @@ export async function sendReleaseMessages(
         u.assignments?.some((a) => relId(a.subjectGrade) === grade && a.role === 'subjectAdmin'),
       )
       if (!admin) continue
-      // Bound the summary to the system-message cap while retaining every lesson's link.
       const lines = bundles.map(
         (b) =>
           `${b.title.slice(0, 60)}: ${b.previousSemver ?? 'none'} → ${b.semver}; ARES release ${b.releaseDate ?? 'not stated'}; ${b.official ? 'Official moved' : 'waiting for you'}. /lessons/${b.id}`,
@@ -40,7 +59,7 @@ export async function sendReleaseMessages(
       await payload.create({
         collection: 'messages',
         overrideAccess: true,
-        data: { sender, recipient: admin.id, body: `ARES lesson upload\n${lines.join('\n')}` },
+        data: { sender, recipient: admin.id, body: releaseSummary(lines) },
       })
     } catch (err) {
       payload.logger.error(

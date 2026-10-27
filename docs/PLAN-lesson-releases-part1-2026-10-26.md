@@ -175,7 +175,9 @@ waiting for them, with links. A subject-grade with no administrator gets none (t
 already lists it). Sent after commit, so a rolled-back import sends nothing; a message failure is
 logged and reported, and never undoes the import. Uses the existing messages collection; it creates
 no new authority (the Site Administrator may already message anyone). The command-line import sends
-no messages: no person is signed in.
+no messages: no person is signed in. **Amended 2026-10-27 (operator):** the message keeps the ordinary
+5,000-character limit; a long summary lists what fits and ends “…and N more” (1a had raised the
+limit to 100,000 for this message only).
 
 ### 6. A supported command-line import (for commissioning and the update tool)
 
