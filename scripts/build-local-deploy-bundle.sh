@@ -20,7 +20,7 @@ OUTPUT_DIR="$(mkdir -p "$OUTPUT_DIR" && cd "$OUTPUT_DIR" && pwd)"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 BUNDLE="$STAGE/lesson3-deploy"
-mkdir -p "$BUNDLE/scripts" "$BUNDLE/out/ops" "$BUNDLE/out/resource-library"
+mkdir -p "$BUNDLE/scripts/lib" "$BUNDLE/scripts/vendor" "$BUNDLE/out/ops" "$BUNDLE/out/resource-library"
 
 sed \
   -e "s/__LESSON3_IMAGE_TAG__/$VERSION/g" \
@@ -32,7 +32,10 @@ cp "$ROOT/deploy/online/install.sh" "$ROOT/deploy/online/update.sh" "$BUNDLE/"
 cp "$ROOT/docs/LOCAL-SERVER-DEPLOYMENT.md" "$BUNDLE/DEPLOYMENT.md"
 cp "$ROOT/docs/OPS.md" "$BUNDLE/OPS.md"
 cp "$ROOT/scripts/backup-db.sh" "$ROOT/scripts/restore-db.sh" "$ROOT/scripts/prune-db.sh" \
-  "$ROOT/scripts/heartbeat.sh" "$ROOT/scripts/lib.sh" "$BUNDLE/scripts/"
+  "$ROOT/scripts/heartbeat.sh" "$ROOT/scripts/lib.sh" "$ROOT/scripts/setup-school-backups.sh" "$BUNDLE/scripts/"
+cp "$ROOT/scripts/lib/backup-common.sh" "$ROOT/scripts/lib/backup-destinations.sh" "$ROOT/scripts/lib/backup-password.sh" "$BUNDLE/scripts/lib/"
+cp "$ROOT/scripts/vendor/eff_large_wordlist.txt" "$BUNDLE/scripts/vendor/"
+cp "$ROOT/NOTICE" "$BUNDLE/NOTICE"
 printf '%s\n' "$VERSION" >"$BUNDLE/VERSION"
 touch "$BUNDLE/out/ops/.gitkeep" "$BUNDLE/out/resource-library/.gitkeep"
 chmod 0755 "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh

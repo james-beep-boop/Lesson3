@@ -290,9 +290,21 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   `scripts/restore-db.sh --local-file /var/lib/lesson3-backups/daily/BACKUP.dump.age --into lesson3_test`
   for a drill. A backup folder marked for another installation is refused; use the correct folder.
 
+  For a new school setup, the server operator runs `scripts/setup-school-backups.sh`. It suggests
+  four words or accepts a password of at least 12 characters, checks that you can type the written
+  password back, prepares the drive, locks the school key, installs the schedule and proves the first
+  backup with a restore drill. After a power cut, run the same command and enter the same password;
+  it reuses the saved key. Keep the printed recovery sheet away from the server. The password is
+  never saved in a file or log. A new school key cannot open older backups; those still need the
+  earlier school key or ARES.
+
   Before attempting recovery, check what *Manage → System → Backups* shows under
   **School recovery key**:
 
+  - **Password-locked (set up …)** — plug in the drive, run the restore command and type the backup
+    password. You need the encrypted backup, `school-recovery-key.age` and the password from the
+    recovery sheet. Follow the recovery-sheet command and the checks and confirmation in
+    `docs/OPS.md`. ARES can also open these backups independently.
   - **School recovery key configured** — the school holds the private key for these backups. Recovery
     requires three things present before starting: the encrypted backup file, the matching private key
     on the machine where the restore will run (not on the Lesson3 server), and a disposable local

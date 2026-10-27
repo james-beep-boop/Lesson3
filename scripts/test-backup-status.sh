@@ -126,7 +126,7 @@ run_case_with_school() {
 # Record helpers: one group per line, as backup-db.sh writes it.
 group() { grep -m1 "^  \"$1\": " "$STATUS" 2>/dev/null; }
 no_success() { [[ "$(group lastSuccess)" == '  "lastSuccess": null,' ]]; }
-failed_at() { group lastFailure | grep -Fq "\"stage\": \"$1\""; }
+failed_at() { group lastAttempt | grep -Fq "\"stage\": \"$1\""; }
 ok() { "$@" && echo 0 || echo 1; }
 ISO='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'
 
@@ -167,8 +167,8 @@ check "record notes when recording began" "expected recordingSince" \
   "$(grep -Eq "\"recordingSince\": \"$ISO\"" "$STATUS" && echo 0 || echo 1)"
 check "status mount is readable by the app under a private umask" "expected traversable ops directory" \
   "$([[ $(ls -ld "$SANDBOX/repo/out/ops") == drwxr-xr-x* ]] && echo 0 || echo 1)"
-check "a success leaves no failure" "expected lastFailure null" \
-  "$([[ "$(group lastFailure)" == '  "lastFailure": null,' ]] && echo 0 || echo 1)"
+check "a success records its outcome" "expected lastAttempt success" \
+  "$(group lastAttempt | grep -q '"outcome": "success"' && echo 0 || echo 1)"
 check "record follows upload" "expected uploaded log before recorded log" \
   "$(awk '/backup-db: uploaded/{u=NR} /backup-db: recorded success/{r=NR} END{exit !(u && r && u < r)}' "$SANDBOX/output" && echo 0 || echo 1)"
 check "atomic temp is gone" "expected no partial record file" \
@@ -185,9 +185,9 @@ check "missing USB is neutral" "expected zero exit" "$([[ $EXIT -eq 0 ]] && echo
 check "missing USB skips pg_dump" "pg_dump must not run" \
   "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 check "missing USB records no success" "lastSuccess must stay null" "$(ok no_success)"
-check "missing USB is recorded separately from failure" "lastNotConnected must be set" "$(group lastNotConnected | grep -q '"seq":' && echo 0 || echo 1)"
+check "missing USB is recorded as a neutral outcome" "lastAttempt must be set" "$(group lastAttempt | grep -q '"seq":' && echo 0 || echo 1)"
 check "missing USB reason is not connected" "reason must say not connected" \
-  "$(group lastNotConnected | grep -q 'not connected' && echo 0 || echo 1)"
+  "$(group lastAttempt | grep -q 'not connected' && echo 0 || echo 1)"
 
 prepare_case
 run_case "relative/lesson3-backups"
@@ -345,12 +345,12 @@ check "failed upload keeps the history" "two entries must remain" \
   "$([[ "$(group history)" == '  "history": ["2026-10-19T02:00:00Z", "2026-10-20T02:00:00Z"]' ]] && echo 0 || echo 1)"
 check "failed upload keeps when recording began" "recordingSince must not move" \
   "$(grep -Fq '"recordingSince": "2026-10-01T02:00:00Z"' "$STATUS" && echo 0 || echo 1)"
-OLD_FAILURE="$(group lastFailure)"
+OLD_FAILURE="$(group lastAttempt)"
 
 # 6b. The next success keeps that failure line (the reader compares times) and extends the history.
 run_case "drive:lesson3-backups"
-check "a later success keeps the failure verbatim" "lastFailure line must be byte-identical" \
-  "$([[ "$(group lastFailure)" == "$OLD_FAILURE" ]] && echo 0 || echo 1)"
+check "a later success replaces the failed last attempt" "lastAttempt outcome must be success" \
+  "$(group lastAttempt | grep -q '"outcome": "success"' && echo 0 || echo 1)"
 check "a later success appends to the history" "three entries expected" \
   "$([[ "$(group history | grep -oE "$ISO" | wc -l | tr -d ' ')" == 3 ]] && echo 0 || echo 1)"
 
@@ -403,7 +403,7 @@ STATUS="$SANDBOX/repo/out/ops/backup/remote/weekly.json"
 check "a bad retention setting fails the run" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "a bad retention setting is recorded as setup" "lastFailure stage must be setup" "$(ok failed_at setup)"
 check "the record names the setting" "reason must mention keep-count" \
-  "$(group lastFailure | grep -q 'keep-count' && echo 0 || echo 1)"
+  "$(group lastAttempt | grep -q 'keep-count' && echo 0 || echo 1)"
 check "a bad retention setting dumps nothing" "docker must not run" "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
 
 # 6f. Attempts are ordered by a number, not a time: whole seconds can tie (review 2026-10-21).
@@ -413,7 +413,7 @@ run_case "drive:lesson3-backups" 1
 check "a success carries its attempt number" "seq 1 on the first success" \
   "$(group lastSuccess | grep -Fq '"seq": 1,' && echo 0 || echo 1)"
 check "the next attempt's number is higher" "seq 2 on the failure that followed" \
-  "$(group lastFailure | grep -Fq '"seq": 2,' && echo 0 || echo 1)"
+  "$(group lastAttempt | grep -Fq '"seq": 2,' && echo 0 || echo 1)"
 run_case "drive:lesson3-backups" 0 "" "weekly"
 check "one counter serves every stream" "the weekly success is attempt 3" \
   "$(grep -Fq '"seq": 3,' "$SANDBOX/repo/out/ops/backup/remote/weekly.json" && echo 0 || echo 1)"
@@ -557,7 +557,7 @@ EOF
   check "fail during success: the success is kept" "lastSuccess must be set" \
     "$(group lastSuccess | grep -q '"seq": 1,' && echo 0 || echo 1)"
   check "fail during success: the failure is recorded after it" "the failure must be attempt 2" \
-    "$(group lastFailure | grep -q '"seq": 2,' && echo 0 || echo 1)"
+    "$(group lastAttempt | grep -q '"seq": 2,' && echo 0 || echo 1)"
 fi
 
 # Part 3a: destinations are independent, while dump and encryption happen once.
@@ -588,7 +588,7 @@ run_dual "$SANDBOX/absent-usb"
 check 'unplugged USB does not fail disk backup' 'expected zero exit' "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
 check 'disk succeeds with unplugged USB' 'expected disk success' "$(group lastSuccess | grep -q '"seq":' && echo 0 || echo 1)"
 check 'unplugged USB has a neutral record' 'expected notConnected and no failure' \
-  "$(grep -q '"lastNotConnected": {"seq":' "$SANDBOX/repo/out/ops/backup/usb/daily.json" && grep -q '"lastFailure": null' "$SANDBOX/repo/out/ops/backup/usb/daily.json" && echo 0 || echo 1)"
+  "$(grep -q '"outcome": "notConnected"' "$SANDBOX/repo/out/ops/backup/usb/daily.json" && echo 0 || echo 1)"
 check 'unplugged USB folder is not created' 'expected no directory on root filesystem' "$([[ ! -e "$SANDBOX/absent-usb" ]] && echo 0 || echo 1)"
 
 prepare_case
@@ -665,6 +665,44 @@ done
 TEST_LABEL=monthly run_dual ''
 check 'disk monthly retention keeps three copies' 'expected newest three including this backup' \
   "$([[ $EXIT -eq 0 && $(ls "$SANDBOX/disk/monthly" | wc -l) == 3 && ! -e "$SANDBOX/disk/monthly/lesson3-20200101T000000Z-monthly.dump.age" && -e "$SANDBOX/disk/monthly/lesson3-20200401T000000Z-monthly.dump.age" ]] && echo 0 || echo 1)"
+
+prepare_case
+USB="$SANDBOX/usb/backups"
+mkdir -p "$USB"; touch "$USB/.lesson3-backup-volume"
+cat >"$SANDBOX/home/bin/df" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *'/proc/self/fd/'* ]]; then
+  printf 'Filesystem 1024-blocks Used Available Capacity Mounted\n/dev/test 100 99 0 99%% /\n'
+else exec /usr/bin/df "$@"; fi
+EOF
+chmod +x "$SANDBOX/home/bin/df"
+run_case "$USB"
+check 'a full USB drive is refused before the copy' 'expected space error and no archive copy' \
+  "$([[ $EXIT -ne 0 && "$OUTPUT" == *'backup drive nearly full'* && "$CALLS" != *'rclone copyto'* ]] && echo 0 || echo 1)"
+
+# Part 3b: relocate old layouts once; never let an archived success replace newer failure.
+prepare_case
+mkdir -p "$SANDBOX/repo/out/ops/backup"
+printf '{"version":1,"completedAt":"2026-10-01T00:00:00Z","stream":"daily","destination":"drive:backups","filename":"older.dump.age","encryptedBytes":1}\n' >"$SANDBOX/repo/out/ops/backup-status.json"
+cp "$SANDBOX/repo/out/ops/backup-status.json" "$SANDBOX/older-status"
+run_case 'drive:backups'
+check 'version-1 evidence is moved to the external folder' 'expected byte-identical relocated evidence and no root file' \
+  "$([[ $EXIT -eq 0 && ! -e "$SANDBOX/repo/out/ops/backup-status.json" ]] && cmp -s "$SANDBOX/older-status" "$SANDBOX/repo/out/ops/backup/remote/backup-status.json" && echo 0 || echo 1)"
+run_case 'drive:backups'
+check 'record relocation is safe on the next run' 'expected success and unchanged relocated version 1' \
+  "$([[ $EXIT -eq 0 ]] && cmp -s "$SANDBOX/older-status" "$SANDBOX/repo/out/ops/backup/remote/backup-status.json" && echo 0 || echo 1)"
+
+prepare_case
+mkdir -p "$SANDBOX/repo/out/ops/backup/remote"
+printf 'older successful record\n' >"$SANDBOX/repo/out/ops/backup/daily.json"
+printf 'newer failed record\n' >"$SANDBOX/repo/out/ops/backup/remote/daily.json"
+run_case 'drive:backups'
+check 'a newer destination record survives relocation unchanged' 'expected newer record retained' \
+  "$([[ $EXIT -eq 0 && $(cat "$SANDBOX/repo/out/ops/backup/remote/daily.json") == 'newer failed record' ]] && echo 0 || echo 1)"
+check 'an older duplicate is archived instead of used as fallback' 'expected archive and no pre-3a stream file' \
+  "$([[ ! -e "$SANDBOX/repo/out/ops/backup/daily.json" && $(cat "$SANDBOX/repo/out/ops/backup/remote/pre3a/daily.json") == 'older successful record' ]] && echo 0 || echo 1)"
+check 'new records contain one attempt outcome and no retired fields' 'expected lastAttempt only' \
+  "$(grep -q '"outcome": "success"' "$STATUS" && ! grep -Eq '"lastFailure"|"lastNotConnected"' "$STATUS" && echo 0 || echo 1)"
 
 echo
 printf 'backup status: %d passed, %d failed\n' "$pass" "$fail"

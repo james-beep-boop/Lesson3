@@ -68,15 +68,71 @@ Each destination holds `daily/`, `weekly/`, `monthly/`, and `premigrate/`. Disk 
 `BACKUP_DISK_MONTHLY_KEEP`); external count retention is 7/4/12 (`BACKUP_DAILY_KEEP`,
 `BACKUP_WEEKLY_KEEP`, `BACKUP_MONTHLY_KEEP`). Premigrate retention is age-based, default 90 days
 (`BACKUP_PREMIGRATE_RETENTION_DAYS`). Disk space must cover the encrypted copy plus a 256 MiB
-margin (`BACKUP_DISK_MIN_FREE_BYTES`); shortage records "disk nearly full" and still tries the external
-copy. The staging file is size-limited to preserve 256 MiB on its filesystem too.
+margin (`BACKUP_DISK_MIN_FREE_BYTES`). USB also checks the encrypted size plus a 256 MiB reserve
+(`BACKUP_USB_MIN_FREE_BYTES`); shortage records "the backup drive is nearly full" before copying.
+A full destination does not prevent the other copy. The staging file is size-limited to preserve 256 MiB on its filesystem too.
 
 The first run writes `.lesson3-installation` at each destination root using the database's installation
 UUID. Old unmarked backups are adopted. A marker for another installation **refuses writes and
 pruning**. Do not remove or replace a foreign marker to make the check pass: select that school's own
 backup folder. Invalid markers also refuse writes; a failed database identity read permits no copies.
 
-### One-time setup
+### School setup (password-locked recovery key)
+
+On the installed Linux host, configure ARES's public recipient as `BACKUP_AGE_RECIPIENT` in `.env`
+and ensure Postgres, migrations, the app and Gotenberg are already working. Install `age`,
+`age-keygen`, `rclone`, Bash, coreutils, cron and util-linux (`script`, `findmnt`, `flock`). If using USB,
+mount it on a different device from `/` and create a backup folder on that mounted drive. Then run
+as the operator who will own the scheduled jobs:
+
+```bash
+cd /srv/lesson3
+scripts/setup-school-backups.sh
+```
+
+The command prepares the destination markers and USB sentinel, suggests four random words from the
+credited EFF list, or accepts your own password of at least 12 characters typed twice. **Write it down
+and type the written password back** before any school key is created. Only the recovery sheet shows
+the password, directly on the terminal; stdout, logs, receipts and state files never receive it.
+The unlocked private identity is piped straight from `age-keygen` into `age`; it is never written.
+
+`school-recovery-key.age` is password-locked ciphertext, saved beside the disk backups and copied to
+the USB/cloud destination when configured. The public half becomes `BACKUP_AGE_RECIPIENT_SCHOOL`.
+ARES's recipient is unchanged. If a school public key was already configured without this setup's
+saved locked identity, setup may create a **new** school key (operator decision). Earlier backups
+still need the earlier school key or ARES; the new password cannot open them.
+
+The operator may be asked for `sudo` to create the disk directory and install the root-owned
+`/etc/cron.d/lesson3-backups`; jobs run as that operator, daily at 02:00, weekly on Sunday at 02:10,
+and monthly on the first at 02:20, in the server's time zone. With the standard cron directory, setup enables and starts the cron
+service. The app service is recreated once on
+its **installed image**, without building or pulling, to read the new settings. Setup then takes the
+first backup and runs the existing complete restore drill in a throwaway database, which it removes.
+Only after these succeed does it publish `out/ops/backup-setup.json` and print the final recovery sheet.
+Store that sheet away from the server.
+
+**After a power cut or error, run the same command again and enter the same backup password.**
+Completed checkpoints in `out/ops/.school-backup-setup/` contain only nonsecret metadata. Complete
+key ciphertext is staged and synced before being published, so a cut before or after publication
+reuses the saved key. A wrong password never replaces it. The setup receipt records the public
+recipient and setup dates, never the password or private key. `BACKUP_CRON_DIR` is an optional
+operator/test override for the cron directory; it defaults to `/etc/cron.d`.
+
+For recovery: plug in the drive, run the command below and **type the backup password when age asks**:
+
+```bash
+AGE_IDENTITY=/media/lesson3-backup/lesson3-backups/school-recovery-key.age \
+  scripts/restore-db.sh --local-file /media/lesson3-backup/lesson3-backups/daily/BACKUP.dump.age \
+  --into lesson3 --force-prod
+```
+
+Replace `BACKUP.dump.age` with the chosen file and follow the staged restore's checks and typed
+confirmation below. For a drill, use `--into lesson3_restore_check` and omit `--force-prod`.
+The encrypted backup, locked identity **and** password are all required; ARES's private identity
+remains an independent way to open the same backup. Setup's drill proves this backup restores here;
+it does not change "Full recovery: Not yet tested", which needs a rebuild on another machine.
+
+### Manual setup for existing online installations
 
 1. **Binaries (no sudo — installed to `~/bin`):** `age`, `age-keygen`, `rclone` (arm64). See the install
    block at the bottom of this section if they are not already present (`command -v age rclone`).
@@ -145,8 +201,8 @@ backup folder. Invalid markers also refuse writes; a failed database identity re
    ```
 
    Retention and encryption are acted on by the scripts. The app reads destination, age and school
-   recipient settings only to report their state. Setup automation and password-locked keys are
-   planned for Part 3b; this PR keeps the manual key and cron procedure.
+   recipient settings only to report their state. New school installations should use the setup
+   command above rather than generating school keys or writing cron lines by hand.
 
 5. **Cron — nightly + weekly + monthly** (`crontab -e`; the box is `America/Los_Angeles`, so these fire
    at 02:00 Pacific). Nightly → `daily/`, Sundays → `weekly/`, the 1st of the month → `monthly/`:
@@ -185,34 +241,34 @@ windows it applied); counts before/after via
   `out/ops/backup/<disk|usb|remote>/<stream>.json` (`daily`, `weekly`, `monthly`, `premigrate`), replaced atomically:
   - **`lastSuccess`**, with `coversUntil` (the moment `pg_dump` began, so the newest work the backup is
     sure to hold), `completedAt`, file, size and destination;
-  - **`seq`** on every success and failure: one counter for all streams, advanced under the lock, so
+  - **`seq`** on every attempt: one counter for all streams, advanced under the lock, so
     the page knows which attempt came last even when two share a second;
-  - **`lastFailure`**: time, stage (`setup`, `destination`, `dump`, `encrypt`, `upload`, `record`, `space`) and
-    one line of reason, written by an exit trap — so a backup that fails every night under cron no
-    longer looks the same as one never set up. (A run that gives up waiting for the lock writes
-    nothing: the run holding it owns the record.);
-  - **`lastNotConnected`**: optional time, sequence and reason for an absent USB (not a failure);
+  - **`lastAttempt`**: time, sequence and `outcome` (`success`, `failure`, `notConnected`);
+    failures include stage (`setup`, `destination`, `dump`, `encrypt`, `upload`, `record`, `space`)
+    and one line of reason. This replaces the separate failure/not-connected fields. The reader still
+    accepts those fields on records not yet rewritten;
   - **`history`**: the last 31 `coversUntil` values, and `recordingSince`.
 
-  A success keeps the stream's last failure line and a failure keeps its last success, byte for byte;
-  the page compares their times. `backup-db.sh` holds an `flock` on `out/ops/backup/.lock` for the whole
-  run, so two backups never run at once: the second waits (`BACKUP_LOCK_WAIT_SECONDS`, default 3600)
-  and both records survive. `out/ops/backup-status.json` (version 1) is no longer written; the page
-  reads it as older external-destination evidence until new records exist, and calls freshness "Unknown — history
-  incomplete" meanwhile. ⚑ `out/ops`, not `out`, is mounted into the app, read-only (narrowed
-  2026-08-21: `out/` holds unrelated host artifacts).
+  A failed attempt keeps the stream's last success and history; a later success replaces the
+  previous attempt. `backup-db.sh` holds an `flock` on `out/ops/backup/.lock` for the whole run;
+  a second run waits (`BACKUP_LOCK_WAIT_SECONDS`, default 3600). A run that gives up waiting writes
+  nothing. On the first new-script run, old `backup/<stream>.json` and version-1 `backup-status.json`
+  are **moved** into the external destination's folder under that lock. Where a newer stream file
+  already exists, the old duplicate is archived under `pre3a/`, never used to revive older success.
+  The app reads only the destination folders, including relocated version-1 evidence; no directory
+  inheritance remains. `out/ops`, not `out`, is mounted into the app read-only.
 - **Manage → System → Backups** turns those records into separate statements, each up to date,
   attention or unknown. There is no overall "Protected":
   - **Backup up to date:** each destination's newest *routine* `coversUntil`; disk/cloud use
     `BACKUP_MAX_DATA_LOSS`, USB uses `BACKUP_USB_MAX_AGE` (default `30d`). Fresh disk never hides
-    overdue USB. Old `backup/<stream>.json` remains external-only fallback until that stream gets its
-    destination record; malformed new records never revive old evidence;
+    overdue USB. Malformed records never revive archived evidence;
   - **Routine backups:** how many of the last 7 days had one;
   - **Last attempt:** each destination’s newest success, failure or neutral not-connected event;
   - **Agreed recovery time:** `RECOVERY_TARGET_TIME`;
   - **Full recovery:** "Not yet tested" until Phase B;
   - **Who recovers:** `BACKUP_RECOVERY_CONTACT`;
-  - **School recovery key:** with `BACKUP_KEY_HELD_BY`;
+  - **School recovery key:** "Password-locked (set up …)" from the matching setup receipt, or the
+    earlier manual-key status with `BACKUP_KEY_HELD_BY`;
   - **Restore:** while a restore journal is open.
 
   Times are the viewer's local time with a relative age; UTC, the destination, every stream's last

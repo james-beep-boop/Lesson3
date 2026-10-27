@@ -26,7 +26,7 @@ export type StatementState = 'ok' | 'attention' | 'unknown'
  * Text with instants in it. An instant is rendered in the VIEWER's local time by the panel (a server
  * render cannot know the viewer's zone), so statements carry the ISO string, never a formatted one.
  */
-export type Text = (string | { at: string })[]
+export type Text = (string | { at: string; dayOnly?: boolean })[]
 
 export interface BackupStatement {
   key:
@@ -60,7 +60,6 @@ export interface BackupStatus {
 
 const OPS_DIR = '/var/run/lesson3-ops'
 const BACKUP_RECORD_DIR = join(OPS_DIR, 'backup')
-const LEGACY_STATUS_FILE = join(OPS_DIR, 'backup-status.json')
 const RESTORE_JOURNAL_FILE = join(OPS_DIR, 'restore-journal.json')
 const MAX_RECORD_BYTES = 8_192
 const READ_TIMEOUT_MS = 1_000
@@ -107,13 +106,19 @@ export interface BackupNotConnected {
   reason: string
 }
 
+export type BackupAttempt =
+  | { seq?: number; at: string; outcome: 'success' | 'notConnected'; reason?: string }
+  | { seq?: number; at: string; outcome: 'failure'; stage: FailureStage; reason: string }
+
 /** Version 2: one per destination and stream, written by `backup-db.sh` under its lock. */
 export interface StreamRecord {
   version: 2
   stream: BackupStream
   recordingSince: string
   lastSuccess: BackupSuccess | null
-  lastFailure: BackupFailure | null
+  lastAttempt?: BackupAttempt | null
+  /** Read-only compatibility with records written before Part 3b. */
+  lastFailure?: BackupFailure | null
   lastNotConnected?: BackupNotConnected | null
   history: string[]
 }
@@ -177,13 +182,24 @@ const isFailure = (value: unknown): value is BackupFailure =>
 const isNotConnected = (value: unknown): value is BackupNotConnected =>
   isObject(value) && isSeq(value.seq) && isIsoUtcSeconds(value.at) && isBounded(value.reason, 1_024)
 
+const isAttempt = (value: unknown): value is BackupAttempt =>
+  isObject(value) &&
+  isSeq(value.seq) &&
+  isIsoUtcSeconds(value.at) &&
+  (value.outcome === 'failure'
+    ? isFailure(value)
+    : (value.outcome === 'success' || value.outcome === 'notConnected') &&
+      (value.reason === undefined || isBounded(value.reason, 1024)))
+
 export const isStreamRecord = (value: unknown): value is StreamRecord =>
   isObject(value) &&
   value.version === 2 &&
   BACKUP_STREAMS.includes(value.stream as BackupStream) &&
   isIsoUtcSeconds(value.recordingSince) &&
   (value.lastSuccess === null || isSuccess(value.lastSuccess)) &&
-  (value.lastFailure === null || isFailure(value.lastFailure)) &&
+  ('lastAttempt' in value || 'lastFailure' in value) &&
+  (value.lastAttempt == null || isAttempt(value.lastAttempt)) &&
+  (value.lastFailure == null || isFailure(value.lastFailure)) &&
   (value.lastNotConnected == null || isNotConnected(value.lastNotConnected)) &&
   Array.isArray(value.history) &&
   value.history.length <= 31 &&
@@ -260,8 +276,6 @@ export function parseAgreement(raw: string | undefined): Agreement {
 
 export interface BackupSettings {
   diskDir?: string
-  /** BACKUP_DISK_DIR was set explicitly (the default directory alone keeps an old install's page). */
-  diskDirSet?: boolean
   usbMaxAge?: string
   destinationKind?: BackupDestination
   destination?: string
@@ -270,6 +284,7 @@ export interface BackupSettings {
   recoveryContact?: string
   keyHeldBy?: string
   schoolRecipient?: string
+  keyLockedAt?: string
 }
 
 /**
@@ -282,7 +297,6 @@ export const backupSettingsFromEnv = (): BackupSettings => ({
     process.env.BACKUP_DISK_DIR === undefined
       ? '/var/lib/lesson3-backups'
       : process.env.BACKUP_DISK_DIR.trim() || undefined,
-  diskDirSet: !!process.env.BACKUP_DISK_DIR?.trim(),
   usbMaxAge: process.env.BACKUP_USB_MAX_AGE?.trim() || '30d',
   destination: process.env.BACKUP_RCLONE_REMOTE?.trim() || undefined,
   maxDataLoss: process.env.BACKUP_MAX_DATA_LOSS,
@@ -330,7 +344,8 @@ const STAGE_WORDS: Record<FailureStage, (removable: boolean) => string> = {
   upload: (removable) =>
     removable ? 'the backup could not be written to the drive' : 'the backup could not be sent',
   record: () => 'the result could not be recorded',
-  space: () => 'the server disk is nearly full',
+  space: (removable) =>
+    removable ? 'the backup drive is nearly full' : 'the server disk is nearly full',
 }
 
 const DISK_CAVEAT =
@@ -342,7 +357,8 @@ const shortKey = (key: string): string =>
 export function deriveBackupStatus(input: BackupInputs): BackupStatus {
   const { records, legacy, journal, settings, now } = input
   const removable =
-    settings.destinationKind !== 'disk' && isRemovableDestination(settings.destination)
+    settings.destinationKind === 'usb' ||
+    (settings.destinationKind !== 'disk' && isRemovableDestination(settings.destination))
   const routine = records.filter((r) => ROUTINE.includes(r.stream))
   const haveRecords = records.length > 0
   const statements: BackupStatement[] = []
@@ -423,11 +439,13 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
       statements.push(
         freshness(
           'attention',
-          [
-            `Backup overdue — the newest backup holds work up to ${ago(newestCovers, now)} ` +
-              `(${settings.destinationKind === 'usb' ? 'USB limit' : 'agreed'}: ${limit.words})`,
-            ...(settings.destinationKind === 'usb' ? ['. Plug in the backup drive.'] : []),
-          ],
+          settings.destinationKind === 'usb'
+            ? [
+                `Overdue — the newest is ${ago(newestCovers, now).replace(/ ago$/, ' old')}. Plug in the backup drive.`,
+              ]
+            : [
+                `Backup overdue — the newest backup holds work up to ${ago(newestCovers, now)} (agreed: ${limit.words})`,
+              ],
           covered,
         ),
       )
@@ -484,24 +502,35 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
   }
 
   // ── Last attempt: the newest event of any stream. ──
-  const events: Attempt[] = records.flatMap((r) => [
-    ...(r.lastNotConnected
+  const events: Attempt[] = records.flatMap<Attempt>((r) =>
+    r.lastAttempt
       ? [
           {
-            at: r.lastNotConnected.at,
-            seq: r.lastNotConnected.seq,
-            failure: null,
-            notConnected: true,
+            at: r.lastAttempt.at,
+            seq: r.lastAttempt.seq,
+            failure: r.lastAttempt.outcome === 'failure' ? r.lastAttempt : null,
+            notConnected: r.lastAttempt.outcome === 'notConnected',
           },
         ]
-      : []),
-    ...(r.lastSuccess
-      ? [{ at: r.lastSuccess.completedAt, seq: r.lastSuccess.seq, failure: null }]
-      : []),
-    ...(r.lastFailure
-      ? [{ at: r.lastFailure.at, seq: r.lastFailure.seq, failure: r.lastFailure }]
-      : []),
-  ])
+      : [
+          ...(r.lastNotConnected
+            ? [
+                {
+                  at: r.lastNotConnected.at,
+                  seq: r.lastNotConnected.seq,
+                  failure: null,
+                  notConnected: true,
+                },
+              ]
+            : []),
+          ...(r.lastSuccess
+            ? [{ at: r.lastSuccess.completedAt, seq: r.lastSuccess.seq, failure: null }]
+            : []),
+          ...(r.lastFailure
+            ? [{ at: r.lastFailure.at, seq: r.lastFailure.seq, failure: r.lastFailure }]
+            : []),
+        ],
+  )
   const last = events.length ? events.reduce((a, b) => (isLater(b, a) ? b : a)) : null
   if (last?.notConnected) {
     statements.push({
@@ -595,12 +624,18 @@ export function deriveBackupStatus(input: BackupInputs): BackupStatus {
       ? {
           key: 'recoveryKey',
           label: 'School recovery key',
-          state: settings.keyHeldBy ? 'ok' : 'attention',
-          value: ['School recovery key configured'],
+          state: settings.keyLockedAt || settings.keyHeldBy ? 'ok' : 'attention',
+          value: settings.keyLockedAt
+            ? ['Password-locked (set up ', { at: settings.keyLockedAt, dayOnly: true }, ')']
+            : ['School recovery key configured'],
           detail: [
-            ...heldBy,
+            ...(settings.keyLockedAt
+              ? [
+                  'Recovery needs the encrypted backup, school-recovery-key.age and the backup password. Keep the recovery sheet away from the server.',
+                ]
+              : heldBy),
             " Backups are encrypted to this school's key as well as ARES's. Backups written " +
-              'before this key was configured can still only be opened by ARES.',
+              'before this key was configured need the earlier school key or ARES.',
           ],
         }
       : {
@@ -727,7 +762,13 @@ function technicalDetails({ records, legacy, settings }: BackupInputs): BackupSt
         ? `holds work up to ${utc(s.coversUntil)}; completed ${utc(s.completedAt)}; ${s.filename}, ${mb(s.encryptedBytes)}`
         : 'none recorded',
     })
-    if (record.lastFailure) {
+    const attempt = record.lastAttempt
+    if (attempt) {
+      rows.push({
+        label: `${stream}: last attempt`,
+        value: `${utc(attempt.at)}: ${attempt.outcome === 'notConnected' ? 'not connected' : attempt.outcome}${attempt.outcome === 'failure' ? ` at ${attempt.stage}: ${attempt.reason}` : ''}`,
+      })
+    } else if (record.lastFailure) {
       rows.push({
         label: `${stream}: last failure`,
         value: `${utc(record.lastFailure.at)} at ${record.lastFailure.stage}: ${record.lastFailure.reason}`,
@@ -795,67 +836,63 @@ export interface DestinationEvidence {
   legacy: LegacyRecord | null
 }
 
-/** Keep unreadable new files distinct from missing ones: damaged evidence must not revive older success. */
-async function readStream(path: string, stream: BackupStream) {
-  const result = await withDeadline(
-    readJson(path, isStreamRecord)
-      .then((record) => ({ found: true, record: record?.stream === stream ? record : null }))
-      .catch((e: unknown) => ({ found: (e as { code?: string }).code !== 'ENOENT', record: null })),
-    READ_TIMEOUT_MS,
-  )
-  return result ?? { found: true, record: null }
-}
-
-/** Read the transitional layouts without combining evidence from different destinations. */
+/** Old files are relocated once by backup-db.sh. The app reads one directory layout only. */
 export async function collectBackupEvidence(settings: BackupSettings) {
-  const [old, legacy, fresh, journal] = await Promise.all([
+  const [destinations, journal, setup] = await Promise.all([
     Promise.all(
-      BACKUP_STREAMS.map((stream) => readStream(join(BACKUP_RECORD_DIR, `${stream}.json`), stream)),
-    ),
-    read(LEGACY_STATUS_FILE, isLegacyRecord),
-    Promise.all(
-      BACKUP_DESTINATIONS.map(async (kind) => ({
-        kind,
-        files: await Promise.all(
-          BACKUP_STREAMS.map((stream) =>
-            readStream(join(BACKUP_RECORD_DIR, kind, `${stream}.json`), stream),
+      BACKUP_DESTINATIONS.map(async (kind) => {
+        const [files, legacy] = await Promise.all([
+          Promise.all(
+            BACKUP_STREAMS.map(async (stream) => {
+              const record = await read(
+                join(BACKUP_RECORD_DIR, kind, `${stream}.json`),
+                isStreamRecord,
+              )
+              return record?.stream === stream ? record : null
+            }),
           ),
-        ),
-      })),
+          read(join(BACKUP_RECORD_DIR, kind, 'backup-status.json'), isLegacyRecord),
+        ])
+        return { kind, records: files.filter((r): r is StreamRecord => r !== null), legacy }
+      }),
     ),
     read(RESTORE_JOURNAL_FILE, isRestoreJournal),
+    read(join(OPS_DIR, 'backup-setup.json'), isSetupReceipt),
   ])
-  const externalPath =
-    settings.destination ??
-    old.find((r) => r.record?.lastSuccess)?.record?.lastSuccess?.destination ??
-    legacy?.destination
-  const externalKind = isRemovableDestination(externalPath) ? 'usb' : 'remote'
-  const oldRecords = old.flatMap((f) => (f.record ? [f.record] : []))
-  const grouped: DestinationEvidence[] = fresh.flatMap(({ kind, files }) => {
-    const own = files.some((f) => f.found)
-    const external = kind === externalKind
-    const configured = kind === 'disk' ? settings.diskDir : external && settings.destination
-    // Only the external destination inherits pre-3a evidence, and only until it has its own.
-    const inherits = external && !own
-    if (!configured && !own && !(inherits && (legacy || oldRecords.length))) return []
-    const records = files.flatMap((file, i) => {
-      const record = file.found ? file.record : external ? old[i].record : null
-      return record ? [record] : []
-    })
-    return [{ kind, records, legacy: inherits ? legacy : null }]
-  })
   return {
-    grouped,
-    old: oldRecords,
-    legacy,
+    grouped: destinations.filter((d) =>
+      d.kind === 'disk'
+        ? settings.diskDir || d.records.length || d.legacy
+        : d.kind === 'usb' ||
+          d.records.length ||
+          d.legacy ||
+          (settings.destination && !isRemovableDestination(settings.destination)),
+    ),
     journal,
-    hasDestinationRecords: fresh.some(({ files }) => files.some((f) => f.found)),
+    setup,
   }
 }
 
+interface SetupReceipt {
+  version: 1
+  installationId: string
+  recipient: string
+  keyCreatedAt: string
+  completedAt: string
+}
+const isSetupReceipt = (value: unknown): value is SetupReceipt =>
+  isObject(value) &&
+  value.version === 1 &&
+  typeof value.installationId === 'string' &&
+  /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value.installationId) &&
+  isBounded(value.recipient, 128) &&
+  /^age1[a-z0-9]+$/.test(value.recipient) &&
+  isIsoUtcSeconds(value.keyCreatedAt) &&
+  isIsoUtcSeconds(value.completedAt)
+
 const PER_DESTINATION = new Set<BackupStatement['key']>(['freshness', 'routine', 'lastAttempt'])
 
-/** Minimal truthful presentation between 3a and 3b: a fresh disk never hides an overdue USB. */
+/** Each destination has its own finding: a fresh disk never hides an overdue USB. */
 export function deriveDestinationBackupStatus(
   destinations: DestinationEvidence[],
   settings: BackupSettings,
@@ -867,6 +904,20 @@ export function deriveDestinationBackupStatus(
   const technical: BackupStatus['technical'] = []
   for (const { kind, records, legacy } of destinations) {
     const label = kind === 'disk' ? 'Disk' : kind === 'usb' ? 'USB' : 'Remote'
+    if (
+      kind === 'usb' &&
+      !isRemovableDestination(settings.destination) &&
+      !records.length &&
+      !legacy
+    ) {
+      statements.push({
+        key: 'usb:freshness',
+        label: 'USB backup',
+        state: 'unknown',
+        value: ['None set up. Add a USB drive for a backup that can leave the building.'],
+      })
+      continue
+    }
     const destinationSettings = {
       ...settings,
       destinationKind: kind,
@@ -883,6 +934,10 @@ export function deriveDestinationBackupStatus(
     for (const statement of result.statements.filter((s) => PER_DESTINATION.has(s.key))) {
       statements.push({
         ...statement,
+        value:
+          statement.key === 'freshness' && statement.state === 'ok'
+            ? ['Up to date — ', ...statement.value]
+            : statement.value,
         key: `${kind}:${statement.key}` as BackupStatement['key'],
         label:
           statement.key === 'freshness'
@@ -901,19 +956,8 @@ export function deriveDestinationBackupStatus(
 export async function collectBackupStatus(now = new Date()): Promise<BackupStatus> {
   const settings = backupSettingsFromEnv()
   const evidence = await collectBackupEvidence(settings)
-  // Old installs keep their existing presentation until 3a writes a destination record, or disk
-  // backup is explicitly configured. Old stream evidence remains scoped to the external target.
-  if (!evidence.hasDestinationRecords && !settings.diskDirSet) {
-    return deriveBackupStatus({
-      records: evidence.old,
-      legacy: evidence.legacy,
-      journal: evidence.journal,
-      settings: evidence.grouped.some((d) => d.kind === 'usb')
-        ? { ...settings, destinationKind: 'usb', maxDataLoss: settings.usbMaxAge }
-        : settings,
-      now,
-    })
-  }
+  if (evidence.setup && evidence.setup.recipient === settings.schoolRecipient)
+    settings.keyLockedAt = evidence.setup.keyCreatedAt
   return deriveDestinationBackupStatus(evidence.grouped, settings, evidence.journal, now)
 }
 

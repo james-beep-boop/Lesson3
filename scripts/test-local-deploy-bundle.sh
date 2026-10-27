@@ -44,6 +44,13 @@ grep -Eq "lesson3-migrate:v0\\.0\\.0@$migrate_digest" "$BUNDLE/compose.yaml" \
 ! grep -Eq '^[[:space:]]+build:' "$BUNDLE/compose.yaml" \
   || fail "release compose builds on the server"
 
+for helper in backup-common.sh backup-destinations.sh backup-password.sh; do
+  cmp "$ROOT/scripts/lib/$helper" "$BUNDLE/scripts/lib/$helper" || fail "backup helper $helper was not packaged"
+done
+cmp "$ROOT/scripts/setup-school-backups.sh" "$BUNDLE/scripts/setup-school-backups.sh" || fail "school setup was not packaged"
+cmp "$ROOT/scripts/vendor/eff_large_wordlist.txt" "$BUNDLE/scripts/vendor/eff_large_wordlist.txt" || fail "EFF word list was not packaged"
+cmp "$ROOT/NOTICE" "$BUNDLE/NOTICE" || fail "word-list attribution was not packaged"
+
 bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
 grep -Fq 'There is no default Lesson3 username or password.' "$BUNDLE/install.sh" \
   || fail "installer omits the no-default-credentials instruction"

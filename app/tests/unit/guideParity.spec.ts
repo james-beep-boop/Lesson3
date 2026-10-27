@@ -214,6 +214,18 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'reports status only; it cannot start a backup or restore data',
   },
   {
+    what: 'school setup has one resumable operator command',
+    claim: 'scripts/setup-school-backups.sh',
+  },
+  {
+    what: 'the written backup password is never persisted',
+    claim: 'The password is never saved in a file or log',
+  },
+  {
+    what: 'password recovery requires the encrypted identity as well as the backup',
+    claim: 'and the password from the recovery sheet',
+  },
+  {
     what: 'the recovery-key status describes the off-box school key accurately',
     claim: 'new backups are encrypted for a recovery key held by the school',
   },
