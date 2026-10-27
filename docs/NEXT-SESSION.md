@@ -46,13 +46,24 @@ with the paused Phase B plan.
   dump to independent disk and USB/cloud destinations, installation markers, space/retention guards,
   per-destination records and freshness. Real destination errors return nonzero after both attempts;
   absent USB is neutral. No new migration.
-- **Part 3b implemented, awaiting review** on `feat/school-backups-3b`: resumable setup,
+- **Part 3b merged** ([PR #463](https://github.com/james-beep-boop/Lesson3/pull/463), `f236fd9`): resumable setup,
   password-locked school key, schedule, first-backup restore drill, terminal-only recovery sheet and
   separate destination statements in Manage. Includes USB space checks, one-time record relocation
   and the canonical `lastAttempt` record (plan item 5). No migration. James permits a new school key
   when an older public recipient is configured; older backups still need their earlier key or ARES.
-  Setup resumes with its saved locked key and never replaces it. James merges; do not deploy.
-  Later parts still need their own approval.
+  Setup resumes with its saved locked key and never replaces it. Not deployed.
+- **Parts 1–3 of the school design are done.** Part 4 (the ARES stick builder) is Phase B's B1, which
+  `PLAN-phase-b-recovery` pauses until test machines exist, and parts 4–7 need one amd64 test machine
+  (design §14). Each needs its own approved plan first.
+- **Small follow-ups from the 3b review** (no test machine needed; one PR when wanted):
+  1. `deploy/online/update.sh`'s required-file check omits `scripts/lib/backup-*.sh`; the helper list is
+     kept by hand in five places (bundle builder, updater, two tests, the setup probe). Copy and check
+     `scripts/lib/` by pattern instead.
+  2. Remove `BACKUP_SETUP_STOP_AFTER` from `setup-school-backups.sh`: the probe already sees each
+     "<step> complete" line and can kill the process from outside (print one for `key-staged` too).
+  3. When `migrate_records` moves a pre-3b record, rewrite `lastFailure`/`lastNotConnected` into
+     `lastAttempt`, then drop the old-field branches in `lib/backupStatus.ts` (and their tests).
+  4. On resume, skip the key copy to USB/cloud and the cron reinstall once their checkpoints exist.
 - ⚑ **A new migration must also update `scripts/test-restore-db-stack.sh`** (`LATEST_MIGRATION` and
   `ONE_MIGRATION_BEHIND`), or the restore stack check fails "not a prefix" (it did on #459).
 ---
