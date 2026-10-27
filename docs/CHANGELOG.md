@@ -10,6 +10,27 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased (on `main`, not tagged or deployed)
 
+- The app's public name is **Lesson Plan Editor**. The Guide and technician manuals now separate
+  installation, lesson uploads, program updates, automatic backups and recovery, with plainer steps
+  for Kenyan high school teachers.
+- ARES lesson uploads track release names and dates, skip repeated and older releases, and show which
+  lessons will become Official before you confirm. A teacher's Official stays for the subject-grade
+  administrator to review. Release labels, Official-update notices and administrator messages help
+  explain what changed; long upload messages keep the existing 5,000-character limit.
+- Site administrators can set the school name in Manage. It appears on sign-in and the school's
+  headings without changing the generated lesson documents.
+- School backups can save independently to the server disk and to USB or cloud. Setup creates a
+  password-locked school recovery key, schedules backups, checks the first backup by restoring it,
+  and shows a recovery sheet. Interrupted setup resumes with the same key. Manage reports each copy
+  separately. Program updates now accept a working disk-only backup and retain the current backup
+  records with their recovery files. Whole-machine recovery remains **Not yet tested**.
+- Sign-in protection separates budgets for existing accounts and unknown addresses, so attempts
+  against invented accounts cannot spend the existing-account budget. Restore and undo clear cached
+  exports so downloaded files match the restored data.
+- This release includes two database migrations (lesson releases and school name). Use the normal
+  updater/deploy procedure so a backup is taken before migrations. Before deploying an internet-facing
+  installation, follow the trusted-proxy configuration in [SIGN-IN-PROTECTION.md](SIGN-IN-PROTECTION.md).
+
 - Manage and the lesson editor now use exactly the same text, border and grey shades as the rest of
   the site. The difference is slight: text is a very dark grey instead of pure black, borders are a
   touch lighter, and shaded areas take a faint cool tint. No database migration.

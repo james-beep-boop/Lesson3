@@ -260,7 +260,7 @@ const CLAIMS: { what: string; claim: string }[] = [
     // the data a backup holds — the fact an operator would otherwise misread from an upload time.
     what: 'backup freshness is judged by what the data covers, on Manage → System → Backups',
     claim:
-      'Backup up to date is judged by the moment a backup’s data was taken, not by when it was uploaded.',
+      'Backup up to date is judged by when the backup’s data was taken, not by when it was copied.',
   },
   {
     what: 'full recovery is reported as untested until Phase B shows it works',
@@ -271,9 +271,9 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'A limit of one week means accepting the loss of up to a week’s work.',
   },
   {
-    what: 'the removable-drive action line',
-    claim:
-      'connect the school’s backup drive and run the backup, then take the drive away from the server',
+    // Operator decision 2026-10-27: the drive normally stays plugged in, so the nightly backup reaches it.
+    what: 'the overdue-USB action line',
+    claim: 'Plug the drive back in so the next nightly backup can use it',
   },
   {
     // Design A1 (2026-10-21): a live restore is staged and reversible until the previous database is
