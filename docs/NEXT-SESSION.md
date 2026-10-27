@@ -20,6 +20,26 @@ not instructions. Older references to "see NEXT-SESSION" for a dated item mean t
 
 ---
 
+# Release v1.10 — 2026-10-27
+
+[PR #469](https://github.com/james-beep-boop/Lesson3/pull/469) and
+[PR #470](https://github.com/james-beep-boop/Lesson3/pull/470) merged after CI passed (main at
+`b8d49cb`). #469 stops a server set up before disk backups from failing every backup after an update:
+while the standard disk folder does not exist and has never held a backup, the disk copy is skipped
+with a note and Manage → System → Backups shows **Disk backup: None set up**. #470 renames the public
+name to **ARES Lesson Plans**, with "Find, download and print lesson plans." on the sign-in page. No
+migration. [CHANGELOG.md](CHANGELOG.md) records the changes.
+
+**Upgrading an existing server:** the updater keeps existing `.env` values, so set
+`EMAIL_FROM_NAME=ARES Lesson Plans` by hand; and create `/var/lib/lesson3-backups` (owned by the
+deploy user, mode 0700) to turn the disk copy on.
+
+The annotated `v1.10` tag triggers the release publisher; check
+[the publication workflow](https://github.com/james-beep-boop/Lesson3/actions/workflows/publish-containers.yml)
+before installing. **Not deployed by this session.** Use v1.10 for new school installations.
+
+---
+
 # Release v1.09 — 2026-10-27
 
 [PR #468](https://github.com/james-beep-boop/Lesson3/pull/468) merged as `981c2b6` after all four CI

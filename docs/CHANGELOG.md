@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased (on `main`, not tagged or deployed)
+## v1.10 (2026-10-27)
 
 - The public name is **ARES Lesson Plans** again (not "Lesson Plan Editor"), with "Find, download and
   print lesson plans." under it on the sign-in page. Most teachers come to find and print lessons, not
@@ -18,6 +18,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
   a note, the USB or online copy still runs, and **Manage → System → Backups** shows **Disk backup:
   None set up**. A folder someone chose, or one that has already held a backup, still has to work.
   (Found when the Rock's v1.09 deploy stopped on it.)
+- Upgrading: the updater never changes a value already in `.env`, so an existing server keeps its old
+  email sender name. Change `EMAIL_FROM_NAME` to `ARES Lesson Plans` there by hand. To turn the disk
+  copy on, create the folder (`sudo install -d -m 0700 -o <user> -g <user> /var/lib/lesson3-backups`).
 
 ## v1.09 (2026-10-27)
 
