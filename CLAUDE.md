@@ -75,16 +75,19 @@ and breaks a stored enum, a URL and a migration. What must never appear is an **
 
 | Context | Rule |
 |---|---|
-| UI text, a type label, `userTypeLabel` | **Never as a user type.** Say "Teacher with editing access". The public product name **Lesson Plan Editor** is allowed. |
-| New prose in SPEC, design docs, READMEs, the Guide | **Never as a user type.** The product name and statements of this prohibition are allowed. |
-| **Test names and failure messages** | **Never as a user type** — these are prose someone reads under pressure. A loop printing a fixture key produced "refuses a editor writing it" (2026-08-21). |
+| UI text, a type label, `userTypeLabel` | **Never.** Say "Teacher with editing access". |
+| New prose in SPEC, design docs, READMEs, the Guide | **Never**, except to state this prohibition. |
+| **Test names and failure messages** | **Never** — these are prose someone reads under pressure. A loop printing a fixture key produced "refuses a editor writing it" (2026-08-21). |
 | Code identifiers, stored values, routes | **Keep.** See above. |
 | Stating the rule (here, SPEC §8, a design doc's ⚑) | **Allowed** — naming the banned thing is how the ban is legible. |
 | **Dated records: `docs/DECISIONS.md`, `docs/CHANGELOG.md`, superseded handoffs, `docs/archive/`, and the pre-rename design docs** | **Leave them.** ⚑ Do NOT "excise" history: those entries describe what the label WAS, and rewriting them makes the 2026-07-29 rename decision incomprehensible and the record false. `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md` (the old handoff blocks, moved out of `docs/NEXT-SESSION.md` on 2026-10-18) carries the standing caveat that older blocks say "Editor" because that is what it was called at the time. |
 
-⚑ **The public product name is Lesson Plan Editor** (operator decision 2026-10-27). This use of
-“Editor” is allowed in headings, emails and documentation; it does not name a user type. Keep the
-three role labels above and never call a Teacher with editing access an “Editor”.
+⚑ **The public product name is ARES Lesson Plans**, with the line "Find, download and print lesson
+plans." under it on sign-in (operator decision 2026-10-27, the same day superseding "Lesson Plan
+Editor": most teachers come to find, download and print, not to edit). `Lesson3` is only the repository
+name. With "Editor" gone from the product name, the user-facing surface is clean again and must stay
+that way: `USER_GUIDE.md`, `/guide`, `README.md` and `AGENTS.md` do not use the word as a name or a
+type, and no `Editor` string literal reaches a screen. Treat a new occurrence as a defect.
 
 `Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one — to a Teacher with editing access for that subject-grade — in one transaction. `class` is reserved — the entity is always `SubjectGrade`. **`draft` has one meaning** (SPEC §5/§13,
 operator decision 2026-10-17, superseding the earlier reservation): a user's private, *unnumbered*

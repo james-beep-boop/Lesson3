@@ -7,7 +7,7 @@ import { getSession } from '@/lib/session'
 import { hasRegisteredUsers } from '@/lib/firstUserBootstrap'
 import { SignupForm } from './SignupForm'
 
-export const generateMetadata = () => schoolPageMetadata('Sign up — Lesson Plan Editor')
+export const generateMetadata = () => schoolPageMetadata('Sign up — ARES Lesson Plans')
 
 /** Open self-registration (2026-07-09): standard Payload create + login, new accounts are plain
  *  Teachers (privileged fields are create-gated server-side). On a site that cannot send email (no
@@ -21,7 +21,7 @@ export default async function SignupPage() {
   const emailEnabled = !!process.env.SMTP_HOST?.trim()
   return (
     <section className="login">
-      <h1 className="login-title">Lesson Plan Editor</h1>
+      <h1 className="login-title">ARES Lesson Plans</h1>
       <p className="login-subtitle">Create an account</p>
       <SignupForm emailEnabled={emailEnabled} />
       <p className="login-links">

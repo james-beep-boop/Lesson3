@@ -1,10 +1,10 @@
-# Lesson Plan Editor — User Guide
+# ARES Lesson Plans — User Guide
 
-Use Lesson Plan Editor to find and read ARES lesson plans. When you download a plan, the app makes the Word or
+Use ARES Lesson Plans to find and read ARES lesson plans. When you download a plan, the app makes the Word or
 PDF file for you.
 
 Use **Lessons** to find plans, a **lesson page** to read and share one plan, **Manage** to edit
-lessons and manage accounts, and **Messages** to contact other people with Lesson Plan Editor accounts. People
+lessons and manage accounts, and **Messages** to contact other people with ARES Lesson Plans accounts. People
 with editing access also see saved-version and comparison controls.
 
 This is the complete offline reference. The in-app guide at `/guide` shows an overview of each area
@@ -26,7 +26,7 @@ _Compare_ button.
   available. Its change date is separate from the ARES release date.
 - **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
-  If your school's Lesson Plan Editor site cannot send email — most school servers run with no internet — the
+  If your school's ARES Lesson Plans site cannot send email — most school servers run with no internet — the
   sign-up page says so: sign up as usual, then ask your school's Site administrator to approve your
   account, and sign in once they have. They can also create a reset link and give it to you
   directly. For security your session ends after a while and signs you out automatically — just
@@ -39,7 +39,7 @@ _Compare_ button.
 - **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
   keep that lesson in _My favorites_ at the top of the home page. Teachers see the current Official
   version when one is promoted. With editing access, a favorite stays on the exact version you chose;
-  Lesson Plan Editor marks it `vX (pinned)`. Favorites are private.
+  ARES Lesson Plans marks it `vX (pinned)`. Favorites are private.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
 - **Show details:** below the version information on a lesson page, choose *Show details* to see
@@ -63,11 +63,11 @@ _Compare_ button.
   generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
   day. _Email all_ and _Download as JSON_ appear when Advanced tools is switched on, and Email all only
   when the site can send email.
-- **Want to edit?** use _Request editing access_ on a lesson page. Lesson Plan Editor notifies the administrators
+- **Want to edit?** use _Request editing access_ on a lesson page. ARES Lesson Plans notifies the administrators
   for that subject and grade. You can request access once a day for each subject and grade. The
   limit applies separately to each teacher.
 - **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to anyone
-  with a Lesson Plan Editor account — a lesson page's _Share → Message a colleague_ item attaches that lesson
+  with an ARES Lesson Plans account — a lesson page's _Share → Message a colleague_ item attaches that lesson
   to your note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
   messages show as a small count on your avatar, and you get a short email telling you a message is
   waiting (never its content). Opening Messages marks everything shown as read.
@@ -95,13 +95,13 @@ entry points then disappear, and existing discussions are kept.
   The dot updates on navigation or reload.
 - **Your forum text stays only in the form.** Copy it before leaving, reloading or signing in again.
   If a result is uncertain, keep the form open and choose **Try again**; the fields stay locked until
-  Lesson Plan Editor finds the post or confirms it was posted.
+  ARES Lesson Plans finds the post or confirms it was posted.
 
 ## Editing
 
-With editing access, you can change most lesson content in Lesson Plan Editor. The subjects and grades you can
+With editing access, you can change most lesson content in ARES Lesson Plans. The subjects and grades you can
 edit depend on your role. Subject-grade and Site administrators can also edit. Make changes in
-Lesson Plan Editor, not in a Word file.
+ARES Lesson Plans, not in a Word file.
 
 - **Edit from the lesson:** open a lesson in the library and press *Edit* (or *Continue editing*,
   when you have a draft). The editing page opens ready to type, showing only the fields you may
@@ -119,18 +119,18 @@ Lesson Plan Editor, not in a Word file.
   changed and invite colleagues’ suggestions. Starting a discussion that references someone else’s
   saved version includes its author in the discussion’s blue-dot notifications.
 - **Drafts:** a draft is your private copy of changes you have not saved as a new version. While
-  you edit, Lesson Plan Editor saves a draft automatically, and a note below the buttons shows when. Only you
-  can see your drafts, even if someone else uses the same computer, and Lesson Plan Editor never restores a
+  you edit, ARES Lesson Plans saves a draft automatically, and a note below the buttons shows when. Only you
+  can see your drafts, even if someone else uses the same computer, and ARES Lesson Plans never restores a
   draft unless you choose to.
-- **Save as draft:** to stop for now, choose *Save as draft*. Lesson Plan Editor checks that your draft is
+- **Save as draft:** to stop for now, choose *Save as draft*. ARES Lesson Plans checks that your draft is
   saved, then closes the editor. A draft is kept for 30 days after you last worked on it. The
   **Manage** tab lists your drafts under *Lesson plans → Your drafts*, with *Continue editing* and
   *Discard*; the heading shows how many you have. To
   throw your changes away instead, choose *Discard changes*. Administrators: a draft holds only
   wording, not changes to lessons, phases, durations, rubrics or answer keys.
-- **Continue a draft:** when you have a draft, the *Edit* button says *Continue editing*. Lesson Plan Editor
+- **Continue a draft:** when you have a draft, the *Edit* button says *Continue editing*. ARES Lesson Plans
   asks whether to restore your draft. Your draft's wording appears in green; saved wording that
-  will be replaced is struck through in red. Lesson Plan Editor normally shows only what your draft changes.
+  will be replaced is struck through in red. ARES Lesson Plans normally shows only what your draft changes.
   Some changes cannot be shown word by word: *Emptied* means a field will be cleared, *Paragraph
   breaks changed* means only line breaks changed, and *Spacing only* means the words stayed the same.
   Choose *Restore my draft*, *Discard the draft*, or *Exit edit mode*, which keeps your draft and
@@ -143,7 +143,7 @@ Lesson Plan Editor, not in a Word file.
   Nothing is saved until you choose to save a version or draft in the editor.
 - **Combine versions:** when a plan has at least two versions and you have editing access, open
   a saved version and choose *More → Combine versions*. Choose another version and *Review combination*.
-  Lesson Plan Editor lists automatic changes and fields needing your choice. *Continue in editor* may switch
+  ARES Lesson Plans lists automatic changes and fields needing your choice. *Continue in editor* may switch
   you to the version whose plan details and answer keys must be preserved. For each remaining field,
   choose a version’s text (for example, *Use 1.0.1’s text*) or *Write my own*. You can change your choices until saving.
   If a comparison fails, choose *Retry combination*; your text stays on screen.
@@ -157,7 +157,7 @@ Lesson Plan Editor, not in a Word file.
   Deleting the version you were editing deletes its draft too. If that happens while the
   editor is open, copy your text before leaving the page.
 - **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and
-  additions in green. Lesson Plan Editor lists the parts that changed; choose one to jump to it. Turn off
+  additions in green. ARES Lesson Plans lists the parts that changed; choose one to jump to it. Turn off
   *Changes only* to read both versions in full. If a part says *Spacing or document structure
   changed*, the words are the same but arranged differently.
 
@@ -192,7 +192,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   _Create the first Site administrator_ form. There is no default username or password. After
   creating the first account, create and test a second Site administrator so someone can still manage
   the site if you forget your password.
-- **Install or update the server:** installing Lesson Plan Editor on a new school server is a job for
+- **Install or update the server:** installing ARES Lesson Plans on a new school server is a job for
   the technician. They follow the instructions that come with the program. Before they hand the server
   over, they should:
   1. create two Site administrator accounts and check that both can sign in;
@@ -232,7 +232,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
     program check that the files arrived undamaged.
 
   If the list or the report shows a problem:
-  - **The lessons need a newer program.** Ask the technician to update Lesson Plan Editor, then upload
+  - **The lessons need a newer program.** Ask the technician to update ARES Lesson Plans, then upload
     the same ZIP again.
   - **A file looks damaged.** Get a fresh copy of the ZIP and upload that instead.
   - **The whole set is refused** because an ARES release name was reused for different lessons. Ask
@@ -297,7 +297,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   confirmation.
   While the forum is off, follow **Moderate discussions** beside the switch to read, redact or
   delete. This view has no search, posting, pinning or unread tracking.
-- **Backups and recovery for server operators:** Being a Site administrator in Lesson Plan Editor does
+- **Backups and recovery for server operators:** Being a Site administrator in ARES Lesson Plans does
   not give you a server login or a recovery key. You can check backups in the browser. Setting them up
   and recovering data are jobs for the technician; their steps are at the end of this section.
 
@@ -343,7 +343,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
 
   **If you need to recover data**
 
-  Recovering data replaces everything in Lesson Plan Editor with the contents of a backup. It is not a
+  Recovering data replaces everything in ARES Lesson Plans with the contents of a backup. It is not a
   button in the browser: the technician does it. Before you call them, look at **School recovery key**
   on the Backups page:
   - **Password-locked (set up …)** — the technician needs the backup drive and the password from the
@@ -373,7 +373,7 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   - **Recover with a password-locked key:** you need the backup file, `school-recovery-key.age` and the
     password from the recovery sheet.
   - **Recover with a school-held key:** you need the backup file, the matching private key on the
-    machine where the restore will run (not on the Lesson Plan Editor server), and a temporary copy of
+    machine where the restore will run (not on the ARES Lesson Plans server), and a temporary copy of
     the database software running on that machine. `OPS.md` shows how to start it.
   - **A live restore** replaces all data. It checks the backup in a separate database first, stops the
     application itself, and keeps the previous database until you discard it, so the restore can be
@@ -404,7 +404,7 @@ These rules are also available from *Help* at the top of the editor.
 - Keep web addresses out of the label. Use the Web address box.
 - A label can't start with "- " or "|". Those turn the line into a bullet or a table.
 - Bold, italics, and underlining are not supported.
-- Change the field for the section you want to update. Lesson Plan Editor makes the Word and PDF files from
+- Change the field for the section you want to update. ARES Lesson Plans makes the Word and PDF files from
   these fields.
 
 ## Role Notes

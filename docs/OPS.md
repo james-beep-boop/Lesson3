@@ -23,7 +23,7 @@ or update has its own way to carry on, described below.
 
 Keep these three things apart:
 
-- the **Lesson Plan Editor sign-in password** — what people type in the browser;
+- the **ARES Lesson Plans sign-in password** — what people type in the browser;
 - the **backup password** — on the school's recovery sheet; it unlocks the backups;
 - the **secrets in `.env`** — used by the program itself. Never change them, and never copy them to
   another school.
@@ -206,7 +206,7 @@ recovery: Not yet tested**, which needs a whole machine rebuilt from its backups
 ## Recover lost data
 <a id="recover-lost-data"></a>
 
-Recovery **replaces everything** in Lesson Plan Editor with the contents of one backup. Work saved
+Recovery **replaces everything** in ARES Lesson Plans with the contents of one backup. Work saved
 after that backup is lost. Do this only when data is really lost or damaged, and agree it with the
 school's administrator first.
 
@@ -296,7 +296,7 @@ source checkout. A Site administrator's browser login does not grant a server lo
 ## Optional PDF link library
 
 Lesson prose can link to internet addresses and to PDFs in one flat directory on the Rock. This is a
-read-only folder, not file management: Lesson Plan Editor never writes, renames, replaces or deletes the
+read-only folder, not file management: ARES Lesson Plans never writes, renames, replaces or deletes the
 files. The Compose app receives only this mount:
 
 ```text
@@ -441,7 +441,7 @@ backup folder. Invalid markers also refuse writes; a failed database identity re
 5. **Cron — nightly + weekly + monthly** (`crontab -e`; the box is `America/Los_Angeles`, so these fire
    at 02:00 Pacific). Nightly → `daily/`, Sundays → `weekly/`, the 1st of the month → `monthly/`:
    ```
-   # Lesson Plan Editor DB backups — GFS retention (7 daily / 4 weekly / 12 monthly)
+   # ARES Lesson Plans DB backups — GFS retention (7 daily / 4 weekly / 12 monthly)
    0  2 * * *  /srv/lesson3/scripts/backup-db.sh                 >> /srv/lesson3/out/backup.log 2>&1
    10 2 * * 0  /srv/lesson3/scripts/backup-db.sh --label weekly  >> /srv/lesson3/out/backup.log 2>&1
    20 2 1 * *  /srv/lesson3/scripts/backup-db.sh --label monthly >> /srv/lesson3/out/backup.log 2>&1
@@ -456,7 +456,7 @@ env-overridable in `.env` (`PRUNE_EXPORT_JOB_DAYS` 14, `PRUNE_EMAIL_JOB_DAYS` 18
 pre-prune snapshot always exists:
 
 ```cron
-# Lesson Plan Editor retention prune (completed export jobs 14d / email+ping jobs 180d / failed 90d / rate counters 7d)
+# ARES Lesson Plans retention prune (completed export jobs 14d / email+ping jobs 180d / failed 90d / rate counters 7d)
 30 3 * * *  /srv/lesson3/scripts/prune-db.sh >> /srv/lesson3/out/prune.log 2>&1
 ```
 
@@ -508,7 +508,7 @@ windows it applied); counts before/after via
 
   Times are the viewer's local time with a relative age; UTC, the destination, every stream's last
   success and failure, and the school key's short fingerprint are under *Technical details*.
-- **The agreement settings are the school's, not Lesson Plan Editor's.** `BACKUP_MAX_DATA_LOSS` and
+- **The agreement settings are the school's, not the program's.** `BACKUP_MAX_DATA_LOSS` and
   `RECOVERY_TARGET_TIME` take `12h`, `1d` or `1w`; unset, the page says "Not agreed" (operator decision
   2026-10-21: every school is "Not agreed" until it agrees). `BACKUP_RECOVERY_CONTACT` (who, and how to
   reach them) and `BACKUP_KEY_HELD_BY` (where the private key is kept) are shown as "Recorded as …",
@@ -976,7 +976,7 @@ SMTP_PORT=465
 SMTP_USER=notifications@kenyalessons.org
 SMTP_PASS=<mailbox password — .env only, never committed>
 EMAIL_FROM_ADDRESS=notifications@kenyalessons.org   # keep == SMTP_USER (SPF/DKIM alignment)
-EMAIL_FROM_NAME=Lesson Plan Editor                    # display name; this env OVERRIDES the app default
+EMAIL_FROM_NAME=ARES Lesson Plans                    # display name; this env OVERRIDES the app default
 ```
 
 DreamHost routes outbound through MailChannels and DKIM-signs automatically — nothing to enable.
@@ -1000,7 +1000,7 @@ after changing email config and confirm the link is absolute.
   `p=quarantine`/`reject` later once reports confirm legit mail passes).
 
 **Verify after deploy:** trigger a real email (forgot-password on a known account, or a fresh signup's
-verification link) and confirm it lands in the inbox and reads `Lesson Plan Editor
+verification link) and confirm it lands in the inbox and reads `ARES Lesson Plans
 <notifications@kenyalessons.org>`; in Gmail's "Show original" both `SPF` and `DKIM` show **PASS**. A
 mail-tester.com run scores SPF/DKIM/DMARC in one shot.
 

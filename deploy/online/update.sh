@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply this release bundle to an existing bundle-based Lesson Plan Editor installation.
+# Apply this release bundle to an existing bundle-based ARES Lesson Plans installation.
 set -euo pipefail
 
 die() { echo "update: ERROR: $*" >&2; exit 1; }
@@ -49,7 +49,7 @@ for file in $(grep -hoE 'lib/backup-[[:alnum:]_.-]+\.sh' "$SOURCE/scripts/"*.sh 
 done
 [[ -f "$TARGET/compose.yaml" && -f "$TARGET/.env" && -f "$TARGET/.env.example" \
   && -f "$TARGET/VERSION" && -x "$TARGET/scripts/backup-db.sh" ]] \
-  || die "target is not a bundle-based Lesson Plan Editor installation"
+  || die "target is not a bundle-based ARES Lesson Plans installation"
 
 # The lock protects both the snapshot and phase transitions from concurrent updaters. A killed
 # process may leave it behind; never guess that a different updater (or its Compose child) is dead.
@@ -217,7 +217,7 @@ for _ in $(seq 1 60); do
     atomic_copy "$PENDING/bundle/VERSION" "$TARGET/VERSION"
     mkdir -p "$TARGET/releases"
     mv "$PENDING" "$recovery_dir"
-    echo "update: Lesson Plan Editor $new_version is ready at ${admin_url%/}/login"
+    echo "update: ARES Lesson Plans $new_version is ready at ${admin_url%/}/login"
     echo "update: original deployment files and backup evidence retained at $recovery_dir"
     exit 0
   fi
