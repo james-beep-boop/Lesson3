@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-27 — A missing default disk folder is "not set up", not a failure
+
+Found when the Rock's v1.09 deploy stopped: Part 3a made the server-disk copy default-on at
+`/var/lib/lesson3-backups`, which needs root to create. Every server set up before then has no such
+folder, so its first backup after updating failed. On the Rock, `deploy.sh` runs the newly pulled
+`backup-db.sh` and stopped before building; on a bundle install the update succeeds (its safety backup
+runs the old script) but every nightly backup after it reports a disk error. "Was it set explicitly?"
+cannot tell the cases apart, because `.env.example` writes the default line and the updater's
+missing-key check makes technicians copy it. **Rule (operator decision):** the default folder is
+skipped with a note while it does not exist **and** no disk backup has ever succeeded; Manage shows
+"Disk backup: None set up" (neutral, like USB). A folder someone chose, or a default one that has held
+a backup and vanished, is still an error. School setup creates the folder, so new schools are
+unaffected. Tests: `scripts/test-backup-status.sh` (run as a non-root user; skipped as root so they
+cannot create the real folder) and `tests/unit/backupStatus.spec.ts`.
+
+---
+
 ## 2026-10-27 — Correction: plain wording must still be checked against the code, claim by claim
 
 Lesson from PR #467 (Claude's plain-English Guide rewrite), corrected before merge. Simplifying the

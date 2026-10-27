@@ -8,6 +8,14 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (on `main`, not tagged or deployed)
+
+- A server set up before disk backups existed no longer fails every backup after updating. While the
+  standard disk folder (`/var/lib/lesson3-backups`) does not exist, the backup skips the disk copy with
+  a note, the USB or online copy still runs, and **Manage → System → Backups** shows **Disk backup:
+  None set up**. A folder someone chose, or one that has already held a backup, still has to work.
+  (Found when the Rock's v1.09 deploy stopped on it.)
+
 ## v1.09 (2026-10-27)
 
 - The installer's closing message now points to the school backup setup (ARES's public key, then

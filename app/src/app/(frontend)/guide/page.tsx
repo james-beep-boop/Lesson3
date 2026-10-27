@@ -955,6 +955,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     building.
                   </li>
                   <li>
+                    <strong>Disk backup: None set up</strong> means the server has no folder for the
+                    disk copy yet (usual after updating an older server). The other backups still
+                    run. Ask the technician to add the disk copy.
+                  </li>
+                  <li>
                     A line saying the <strong>last attempt</strong> failed: tell the technician. One
                     copy failing needs attention even if the other copy worked.
                   </li>
