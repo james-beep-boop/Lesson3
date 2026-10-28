@@ -11,6 +11,22 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-28 — Patch bumps: Payload 3.92.1, Gotenberg 8.39.0, Sentry 10.78.0, nodemailer 10.2.1, postcss 8.5.32
+
+Operator-approved maintenance. Payload 3.92.1's published `dist` differs from 3.92.0 only in
+`resetPassword` (now runs a `password` field override's `validate`; Users has no such override, so no
+behaviour change here), upload cropping/`req.file` handling (no upload collections), the
+`localizeStatus` migration helper (unused) and one new export. `@payloadcms/ui`, `next`, `db-postgres`
+and `drizzle` are byte-identical apart from `package.json`, so the #436 patch strings still match and
+the typing benchmark needs no re-run. Gotenberg 8.39.0 takes Go standard-library HIGH CVE fixes plus
+ExifTool and URL-route hardening; Lesson3 uses only the LibreOffice route. Both images are pinned by
+multi-architecture index digest (amd64 and arm64 present). The 2026-10-19 pixel comparison of
+generated PDFs was not repeated, because the cloud session has no Docker daemon; CI's PDF wire tests
+run against the rebuilt Arial image. New audit item, not fixable: `deepmerge` 4.3.1 under Payload
+(GHSA-gcqx-w48m-w2h4, npm severity low, no fixed release); Payload merges its own config with it.
+
+---
+
 ## 2026-10-28 — Correction: a dead-code scan needs configured entry points and dispositions
 
 Claude found an unused helper after the simplification evaluation dismissed an unconfigured Knip
