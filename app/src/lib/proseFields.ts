@@ -6,6 +6,7 @@ import { FRAMEWORK_PROSE_LABELS } from './frameworkProse'
 
 // Must stay in sync with the `prose()` fields in fields/lessonContent.ts. The native-field drift test
 // identifies intended editing-access prose by its factory's `canEditProse` marker.
+// Anything NOT listed is admin/system and is preserved from the original.
 export const LESSON_PROSE = ['title', 'overview', 'teacherReflection']
 export const SLO_PROSE = [
   'purpose',
