@@ -19,9 +19,9 @@ History before 2026-10-18 lives in `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO
 not instructions. Older references to "see NEXT-SESSION" for a dated item mean that file.
 
 **Proposed review process:** [Whole-codebase simplification review](PLAN-whole-codebase-simplification-2026-10-27.md)
-is ready for Claude and James to review. It covers reuse, simplicity, efficiency and responsibility
+is ready for Claude and James to review. It covers reuse, simplicity, efficiency and project conventions
 across the repository. Design only: the review has not started and no cleanup implementation is approved.
-It is separate from the broader security/correctness audit.
+Security review is outside its scope; the existing audit remains separate.
 
 ---
 

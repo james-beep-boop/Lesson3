@@ -14,12 +14,11 @@ Each reviewer reads source and follows callers; tests are supporting evidence an
 not the main discovery method. The coordinator checks the findings and proposes small cleanup PRs.
 Finding nothing worth changing is a successful result too.
 
-This is separate from the security and correctness work in [the audit handbook](audit/audit_plan.md)
-and [catalog](audit/catalog.md). Those plans retain their own rules, scope and progress. Their
-no-fan-out budget rule applies to that audit; this proposal explicitly uses bounded parallel review
-for maintainability. Approval of this proposal would authorize its review process, not start the
-other audit or authorize paid API usage. The older [sequential review plan](CODE-REVIEW-PLAN.md)
-is useful background, not the operating procedure for this review.
+**Scope: reuse, simplicity, efficiency and project conventions.** This is a code-quality review.
+Security testing, vulnerability hunting, penetration testing and the broader correctness audit are
+outside its scope. Existing [audit work](audit/audit_plan.md) stays separate, with its own progress
+and operating rules. This proposal uses bounded parallel reviewers for maintainability; it does
+not launch that audit. The older [sequential review plan](CODE-REVIEW-PLAN.md) is background only.
 
 ## Four review perspectives
 
@@ -28,10 +27,7 @@ is useful background, not the operating procedure for this review.
 | Reuse | Does another implementation or shared helper already do this? Have copies drifted? | Cite each implementation and its callers. Explain which semantics match and which differ. |
 | Simplicity | Can the same behavior be expressed with less state, branching or indirection? Is code actually unused? | Trace data and callers. Show the unnecessary step, state or abstraction and the behavior it currently preserves. |
 | Efficiency | Is work repeated, unbounded, or done for readers who do not need it? | Count queries, scans, serial calls, repeated calculations or transferred fields for a concrete path. State the input size and distinguish measured counts from estimates. |
-| Responsibility and consistency | Does a rule live in the right layer? Are callers deciding the same policy differently? Does the code fit the project's established pattern? | Trace the UI, endpoint, hook and helper involved. Identify the existing owner of the rule and cite current SPEC or decisions. |
-
-The last perspective is sometimes called “altitude”: whether code handles the right level of detail
-for its job. It is not permission to invent layers or reorganize the repository.
+| Project conventions | Does the code follow the repository's rules and established patterns? Do names, field definitions, shared components, settings and documentation agree? | Cite the exact rule in AGENTS, CLAUDE, SPEC or current decisions and the code that departs from it. Distinguish a written rule from personal preference. |
 
 All four read relevant tests, settings and documentation. For example, a default in `.env.example`
 can override an apparently correct default in application code. Similar-looking code is not enough
@@ -57,9 +53,9 @@ ordering, null handling and browser/server boundaries.
   extraction of every repeated fragment. Prefer the smallest change with a clear maintenance gain.
 - No fixture writes, load tests, deployment or configuration changes on the Rock or another live
   installation. Any runtime verification uses the documented disposable environment.
-- If a reviewer discovers a likely correctness, data-integrity or security defect, preserve its
-  evidence and route it to a separate bug/security review. Do not hide it in a refactor or claim
-  that this review establishes security. Do not publish exploitable details or secrets in reports.
+- If an unrelated bug is noticed incidentally, record a short follow-up separately. Do not expand
+  this review into bug hunting or mix behavior changes into a simplification. Keep private details
+  out of public reports.
 
 ## 1. Establish the review commit and coverage map
 
@@ -251,8 +247,8 @@ changes, the few highest-value proposals, deferred decisions, and checks not per
 independent review or missing source coverage means the evaluation is partial.
 
 Completion does not require changing code or accepting every proposed simplification. It means James
-can choose useful cleanup work from a defensible, resumable review, without mistaking it for a full
-security audit.
+can choose useful cleanup work from a defensible, resumable evaluation of reuse, simplicity,
+efficiency and project conventions.
 
 ## Questions for Claude's review of this proposal
 
