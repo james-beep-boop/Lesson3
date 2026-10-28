@@ -1,0 +1,601 @@
+{
+  "browser": "chromium",
+  "routeRoleViewportCombinations": 84,
+  "axeRules": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21aa"
+  ],
+  "violations": 0,
+  "documentOverflow": [],
+  "routes": [
+    {
+      "role": null,
+      "width": 360,
+      "path": "/login",
+      "status": 200,
+      "finalPath": "/login"
+    },
+    {
+      "role": null,
+      "width": 360,
+      "path": "/signup",
+      "status": 200,
+      "finalPath": "/signup"
+    },
+    {
+      "role": null,
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/login"
+    },
+    {
+      "role": null,
+      "width": 360,
+      "path": "/explore",
+      "status": 404,
+      "finalPath": "/explore"
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/login",
+      "status": 200,
+      "finalPath": "/login"
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/signup",
+      "status": 200,
+      "finalPath": "/signup"
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/login"
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/explore",
+      "status": 404,
+      "finalPath": "/explore"
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/login",
+      "status": 200,
+      "finalPath": "/login"
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/signup",
+      "status": 200,
+      "finalPath": "/signup"
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/login"
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/explore",
+      "status": 404,
+      "finalPath": "/explore"
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/lessons/171",
+      "status": 200,
+      "finalPath": "/lessons/171"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss"
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin"
+    }
+  ]
+}

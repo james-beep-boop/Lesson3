@@ -1,0 +1,181 @@
+{
+  "source": "6e75a173e822e4c4be42821b0a4af48ca457bd36",
+  "outcomes": [
+    {
+      "check": "unverified login denied",
+      "status": 403
+    },
+    {
+      "check": "immutable PATCH: Teacher",
+      "status": 403
+    },
+    {
+      "check": "no direct plan creation: Teacher",
+      "status": 403
+    },
+    {
+      "check": "no direct version creation: Teacher",
+      "status": 403
+    },
+    {
+      "check": "hidden email filter: Teacher",
+      "status": 400,
+      "observed": {
+        "matchedPeer": false,
+        "returnedEmail": false
+      }
+    },
+    {
+      "check": "GraphQL disabled GET: Teacher",
+      "status": 404
+    },
+    {
+      "check": "GraphQL disabled POST: Teacher",
+      "status": 404
+    },
+    {
+      "check": "immutable PATCH: Teacher with editing access",
+      "status": 403
+    },
+    {
+      "check": "no direct plan creation: Teacher with editing access",
+      "status": 403
+    },
+    {
+      "check": "no direct version creation: Teacher with editing access",
+      "status": 403
+    },
+    {
+      "check": "hidden email filter: Teacher with editing access",
+      "status": 400,
+      "observed": {
+        "matchedPeer": false,
+        "returnedEmail": false
+      }
+    },
+    {
+      "check": "GraphQL disabled GET: Teacher with editing access",
+      "status": 404
+    },
+    {
+      "check": "GraphQL disabled POST: Teacher with editing access",
+      "status": 404
+    },
+    {
+      "check": "immutable PATCH: Subject-grade administrator",
+      "status": 403
+    },
+    {
+      "check": "no direct plan creation: Subject-grade administrator",
+      "status": 403
+    },
+    {
+      "check": "no direct version creation: Subject-grade administrator",
+      "status": 403
+    },
+    {
+      "check": "hidden email filter: Subject-grade administrator",
+      "status": 400,
+      "observed": {
+        "matchedPeer": false,
+        "returnedEmail": false
+      }
+    },
+    {
+      "check": "GraphQL disabled GET: Subject-grade administrator",
+      "status": 404
+    },
+    {
+      "check": "GraphQL disabled POST: Subject-grade administrator",
+      "status": 404
+    },
+    {
+      "check": "immutable PATCH: Site administrator",
+      "status": 403
+    },
+    {
+      "check": "no direct plan creation: Site administrator",
+      "status": 403
+    },
+    {
+      "check": "no direct version creation: Site administrator",
+      "status": 403
+    },
+    {
+      "check": "hidden email filter: Site administrator",
+      "status": 200,
+      "observed": {
+        "matchedPeer": true,
+        "returnedEmail": true
+      }
+    },
+    {
+      "check": "GraphQL disabled GET: Site administrator",
+      "status": 404
+    },
+    {
+      "check": "GraphQL disabled POST: Site administrator",
+      "status": 404
+    },
+    {
+      "check": "immutable PATCH: Teacher with editing access in another subject-grade",
+      "status": 403
+    },
+    {
+      "check": "no direct plan creation: Teacher with editing access in another subject-grade",
+      "status": 403
+    },
+    {
+      "check": "no direct version creation: Teacher with editing access in another subject-grade",
+      "status": 403
+    },
+    {
+      "check": "hidden email filter: Teacher with editing access in another subject-grade",
+      "status": 400,
+      "observed": {
+        "matchedPeer": false,
+        "returnedEmail": false
+      }
+    },
+    {
+      "check": "GraphQL disabled GET: Teacher with editing access in another subject-grade",
+      "status": 404
+    },
+    {
+      "check": "GraphQL disabled POST: Teacher with editing access in another subject-grade",
+      "status": 404
+    },
+    {
+      "check": "immutable PATCH: Mixed capabilities",
+      "status": 403
+    },
+    {
+      "check": "no direct plan creation: Mixed capabilities",
+      "status": 403
+    },
+    {
+      "check": "no direct version creation: Mixed capabilities",
+      "status": 403
+    },
+    {
+      "check": "hidden email filter: Mixed capabilities",
+      "status": 400,
+      "observed": {
+        "matchedPeer": false,
+        "returnedEmail": false
+      }
+    },
+    {
+      "check": "GraphQL disabled GET: Mixed capabilities",
+      "status": 404
+    },
+    {
+      "check": "GraphQL disabled POST: Mixed capabilities",
+      "status": 404
+    },
+    {
+      "check": "anonymous private-version read denied",
+      "status": 403
+    }
+  ]
+}

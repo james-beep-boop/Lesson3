@@ -1,0 +1,13 @@
+# Model pilot — bounded execution versus judgment
+
+Coordinator: Codex Sol 6.1. Deterministic test and scan execution uses scripts without model calls. Claude Haiku model identifier reported by the CLI: `claude-haiku-5-5`; requested effort high, read-only stdin packets, no tool access or session persistence. Calls use the available subscription authentication; no API credentials or paid fallback are configured by this run. Reported dollar estimates are not established subscription charges.
+
+The initial three-file pilot correctly identified the immutability guard, the limits of the wiring test, ignored top-level JS statements and permitted expression-free template literals. The coordinator rejected the suggestion that a role-independent unit-test title alone was a product defect. This supports bounded source/test interpretation, not unrestricted high-stakes judgment.
+
+A 20-file ingest packet (169,803 bytes) timed out at 300 seconds with no returned report. No source coverage is credited for that attempt. Source work was split into bounded responsibility packets of at most about 1,500 source lines; large files are divided into explicitly numbered ranges. Each returned report remains author-verified until checked.
+
+P001 returned source claims and limits for five files. The coordinator checked its taxonomy/confirmation leads against the supported CLI, the separate development CLI and prepareItems: the --yes similar-name case reaches a second pass with an explicit empty approval list and is rejected, rather than looping forever. The reported development-CLI policy mismatch confuses two distinct commands. Silent handling of unrelated top-level JS statements is documented; no corpus-backed defect is established by that lead. BOM handling and deeper recursion remain questions, not confirmed defects.
+
+The pipeline runs one cheap-model session at a time, checkpoints each response and stops on timeout/error rather than silently skipping work. No complete source coverage or cost saving is claimed. Strong coordinator adjudication, clean-result sampling and independent opposite-family review remain required.
+
+Coordinator correction: the initial policy excerpt ended before SPEC's supported-production-CLI paragraph. That omission made the cheap worker's CLI-policy comparisons unreliable. The complete current upload/import section is now included in all unstarted source packets. The completed small P002 CLI claims are not accepted findings; they require recheck with that missing policy supplied. This is a briefing limitation, not evidence the product violates the specification. A subsequent large packet timed out too; the active pass uses roughly 650-line packets and medium effort. Original requests/results remain private and unchanged.

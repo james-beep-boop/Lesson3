@@ -1,0 +1,1609 @@
+{
+  "collections": [
+    {
+      "slug": "lesson-plans",
+      "access": {
+        "create": "lessonPlanCreate",
+        "delete": "lessonPlanDelete",
+        "read": "lessonPlanRead",
+        "unlock": "defaultUnlockAccess",
+        "update": "lessonPlanUpdate"
+      },
+      "endpoints": [
+        {
+          "method": "post",
+          "path": "/upload"
+        },
+        {
+          "method": "post",
+          "path": "/:id/request-editing"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [
+          "prewarmOfficialArtifacts",
+          "retargetFollowerFavorites"
+        ],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [
+          "cascadeDeleteLessonPlanVersions"
+        ],
+        "beforeLogin": [],
+        "beforeOperation": [
+          "refreshMutationAuthority"
+        ],
+        "beforeRead": [],
+        "beforeValidate": [
+          "enforcePlanSubjectGradeImmutable",
+          "validateOfficialVersionPointer",
+          "validatePublication"
+        ],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "lesson-bundle-versions",
+      "access": {
+        "create": "lessonBundleVersionCreate",
+        "delete": "lessonBundleVersionDelete",
+        "read": "lessonBundleVersionRead",
+        "unlock": "defaultUnlockAccess",
+        "update": "versionUpdateGrantForFormRenderOnly"
+      },
+      "endpoints": [
+        {
+          "method": "post",
+          "path": "/:id/recovery/start"
+        },
+        {
+          "method": "post",
+          "path": "/:id/recovery"
+        },
+        {
+          "method": "get",
+          "path": "/:id/recovery"
+        },
+        {
+          "method": "delete",
+          "path": "/:id/recovery"
+        },
+        {
+          "method": "get",
+          "path": "/:id/recovery/meta"
+        },
+        {
+          "method": "post",
+          "path": "/:id/recovery/meta/cleanup"
+        },
+        {
+          "method": "get",
+          "path": "/:id/recovery/unsaved-count"
+        },
+        {
+          "method": "get",
+          "path": "/:id/combine-preview"
+        },
+        {
+          "method": "get",
+          "path": "/:id/export"
+        },
+        {
+          "method": "get",
+          "path": "/:id/export/doc"
+        },
+        {
+          "method": "post",
+          "path": "/:id/export"
+        },
+        {
+          "method": "get",
+          "path": "/:id/export/status"
+        },
+        {
+          "method": "get",
+          "path": "/:id/preview"
+        },
+        {
+          "method": "post",
+          "path": "/:id/preview"
+        },
+        {
+          "method": "post",
+          "path": "/:id/preview-pdf"
+        },
+        {
+          "method": "post",
+          "path": "/:id/save-as-new"
+        },
+        {
+          "method": "post",
+          "path": "/:id/make-official"
+        },
+        {
+          "method": "post",
+          "path": "/:id/email"
+        },
+        {
+          "method": "get",
+          "path": "/:id/ares-export"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [
+          "enforceVersionImmutable",
+          "stampVersionLineage"
+        ],
+        "beforeDelete": [
+          "enforceOfficialNotDeletable",
+          "(anonymous)",
+          "(anonymous)"
+        ],
+        "beforeLogin": [],
+        "beforeOperation": [
+          "refreshMutationAuthority"
+        ],
+        "beforeRead": [],
+        "beforeValidate": [
+          "numberBundleVersionRows",
+          "enforceVersionPlanConsistency",
+          "enforceBundleVersionGeneratable"
+        ],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "subjects",
+      "access": {
+        "create": "siteAdminOnly",
+        "delete": "siteAdminOnly",
+        "read": "authenticated",
+        "unlock": "defaultUnlockAccess",
+        "update": "siteAdminOnly"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [
+          "refreshSubjectGradeTitles"
+        ],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [
+          "guardSubjectDelete"
+        ],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "subject-grades",
+      "access": {
+        "create": "siteAdminOnly",
+        "delete": "siteAdminOnly",
+        "read": "authenticated",
+        "unlock": "defaultUnlockAccess",
+        "update": "siteAdminOnly"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [
+          "(anonymous)"
+        ],
+        "beforeDelete": [
+          "guardSubjectGradeDelete"
+        ],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [
+          "(anonymous)"
+        ],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "users",
+      "access": {
+        "create": "usersCollectionCreate",
+        "delete": "siteAdminOnly",
+        "read": "usersCollectionRead",
+        "unlock": "siteAdminOnly",
+        "update": "usersCollectionUpdate",
+        "admin": "adminPanelAccess"
+      },
+      "endpoints": [
+        {
+          "method": "post",
+          "path": "/login"
+        },
+        {
+          "method": "get",
+          "path": "/search"
+        },
+        {
+          "method": "post",
+          "path": "/:id/assign-editor"
+        },
+        {
+          "method": "post",
+          "path": "/:id/unassign-editor"
+        },
+        {
+          "method": "post",
+          "path": "/:id/assign-subject-admin"
+        },
+        {
+          "method": "post",
+          "path": "/:id/unassign-subject-admin"
+        },
+        {
+          "method": "post",
+          "path": "/forgot-password"
+        },
+        {
+          "method": "post",
+          "path": "/verify/:id"
+        },
+        {
+          "method": "post",
+          "path": "/:id/reveal-reset-link"
+        },
+        {
+          "method": "post",
+          "path": "/:id/set-site-admin"
+        },
+        {
+          "method": "post",
+          "path": "/:id/set-sign-in-disabled"
+        },
+        {
+          "method": "post",
+          "path": "/forgot-password"
+        },
+        {
+          "method": "get",
+          "path": "/init"
+        },
+        {
+          "method": "post",
+          "path": "/login"
+        },
+        {
+          "method": "post",
+          "path": "/logout"
+        },
+        {
+          "method": "get",
+          "path": "/me"
+        },
+        {
+          "method": "post",
+          "path": "/refresh-token"
+        },
+        {
+          "method": "post",
+          "path": "/first-register"
+        },
+        {
+          "method": "post",
+          "path": "/reset-password"
+        },
+        {
+          "method": "post",
+          "path": "/unlock"
+        },
+        {
+          "method": "post",
+          "path": "/verify/:id"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [
+          "autoDemotePriorSubjectAdmins"
+        ],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [
+          "grantSiteAdminToFirstUser",
+          "guardPasswordChange",
+          "enforceAssignmentScope",
+          "stampAssignmentProvenance",
+          "guardLastSiteAdmin"
+        ],
+        "beforeDelete": [
+          "guardLastSiteAdminOnDelete",
+          "lockDeletingUser",
+          "(anonymous)",
+          "cascadeDeleteUserMessages",
+          "(anonymous)",
+          "cascadeDeleteUserParticipation"
+        ],
+        "beforeLogin": [
+          "refuseDisabledLogin"
+        ],
+        "beforeOperation": [
+          "suppressFirstUserVerificationEmail",
+          "rateLimitAuthOperations",
+          "equalizeLoginPasswordWork",
+          "refreshMutationAuthority"
+        ],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": [],
+        "afterError": [
+          "preserveAccountDisabledWire"
+        ]
+      }
+    },
+    {
+      "slug": "favorites",
+      "access": {
+        "create": "create",
+        "delete": "ownFavorites",
+        "read": "ownFavorites",
+        "unlock": "defaultUnlockAccess",
+        "update": "update"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [
+          "stampFavoriteUser",
+          "requireReadableFavoriteVersion"
+        ],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "messages",
+      "access": {
+        "create": "create",
+        "delete": "delete",
+        "read": "senderOrRecipient",
+        "unlock": "defaultUnlockAccess",
+        "update": "update"
+      },
+      "endpoints": [
+        {
+          "method": "post",
+          "path": "/mark-read"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [
+          "notifyRecipient"
+        ],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [
+          "stampSenderAndRateLimit",
+          "validateContextLink"
+        ],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "edit-recovery",
+      "access": {
+        "create": "closed",
+        "delete": "closed",
+        "read": "closed",
+        "unlock": "defaultUnlockAccess",
+        "update": "closed"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "discussion-topics",
+      "access": {
+        "create": "forumPosting",
+        "delete": "delete",
+        "read": "forumReading",
+        "unlock": "defaultUnlockAccess",
+        "update": "update"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/nav-state"
+        },
+        {
+          "method": "post",
+          "path": "/:id/delete"
+        },
+        {
+          "method": "post",
+          "path": "/:id/mark-read"
+        },
+        {
+          "method": "post",
+          "path": "/:id/pin"
+        },
+        {
+          "method": "post",
+          "path": "/:id/redact"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [
+          "joinTopicParticipants"
+        ],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [
+          "(anonymous)"
+        ],
+        "beforeDelete": [
+          "cascadeDeleteThread"
+        ],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [
+          "stampTopicCreate"
+        ],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "discussion-replies",
+      "access": {
+        "create": "forumPosting",
+        "delete": "delete",
+        "read": "forumReading",
+        "unlock": "defaultUnlockAccess",
+        "update": "update"
+      },
+      "endpoints": [
+        {
+          "method": "post",
+          "path": "/:id/redact"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [
+          "joinReplyAuthor"
+        ],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [
+          "(anonymous)",
+          "orderReply"
+        ],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [
+          "stampReplyCreate"
+        ],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "discussion-participation",
+      "access": {
+        "create": "create",
+        "delete": "delete",
+        "read": "ownParticipation",
+        "unlock": "defaultUnlockAccess",
+        "update": "update"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "payload-kv",
+      "access": {
+        "create": "create",
+        "delete": "delete",
+        "read": "read",
+        "unlock": "defaultUnlockAccess",
+        "update": "update"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "payload-jobs",
+      "access": {
+        "create": "create",
+        "delete": "delete",
+        "read": "read",
+        "unlock": "defaultUnlockAccess",
+        "update": "update"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/run"
+        },
+        {
+          "method": "get",
+          "path": "/handle-schedules"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [
+          "(anonymous)"
+        ],
+        "afterRefresh": [],
+        "beforeChange": [
+          "(anonymous)"
+        ],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "payload-locked-documents",
+      "access": {
+        "create": "lockCreate",
+        "delete": "lockDelete",
+        "read": "authenticated",
+        "unlock": "defaultUnlockAccess",
+        "update": "lockUpdate"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "payload-preferences",
+      "access": {
+        "create": "defaultAccess",
+        "delete": "preferenceAccess",
+        "read": "preferenceAccess",
+        "unlock": "defaultUnlockAccess",
+        "update": "preferenceAccess"
+      },
+      "endpoints": [
+        {
+          "method": "get",
+          "path": "/:key"
+        },
+        {
+          "method": "delete",
+          "path": "/:key"
+        },
+        {
+          "method": "post",
+          "path": "/:key"
+        },
+        {
+          "method": "get",
+          "path": "/count"
+        },
+        {
+          "method": "post",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/"
+        },
+        {
+          "method": "delete",
+          "path": "/:id"
+        },
+        {
+          "method": "post",
+          "path": "/access/:id?"
+        },
+        {
+          "method": "get",
+          "path": "/versions"
+        },
+        {
+          "method": "post",
+          "path": "/:id/duplicate"
+        },
+        {
+          "method": "get",
+          "path": "/"
+        },
+        {
+          "method": "get",
+          "path": "/:id"
+        },
+        {
+          "method": "get",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "post",
+          "path": "/versions/:id"
+        },
+        {
+          "method": "patch",
+          "path": "/"
+        },
+        {
+          "method": "patch",
+          "path": "/:id"
+        }
+      ],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    },
+    {
+      "slug": "payload-migrations",
+      "access": {
+        "create": "defaultAccess",
+        "delete": "defaultAccess",
+        "read": "defaultAccess",
+        "unlock": "defaultUnlockAccess",
+        "update": "defaultAccess"
+      },
+      "endpoints": [],
+      "hooks": {
+        "afterChange": [],
+        "afterDelete": [],
+        "afterForgotPassword": [],
+        "afterLogin": [],
+        "afterLogout": [],
+        "afterMe": [],
+        "afterOperation": [],
+        "afterRead": [],
+        "afterRefresh": [],
+        "beforeChange": [],
+        "beforeDelete": [],
+        "beforeLogin": [],
+        "beforeOperation": [],
+        "beforeRead": [],
+        "beforeValidate": [],
+        "me": [],
+        "refresh": []
+      }
+    }
+  ],
+  "globals": [
+    {
+      "slug": "system-settings",
+      "access": {
+        "read": "siteAdminOnly",
+        "update": "update"
+      }
+    },
+    {
+      "slug": "payload-jobs-stats",
+      "access": {
+        "read": "siteAdminOnly",
+        "update": "noApiWrites"
+      }
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "get",
+      "path": "/resource-library"
+    },
+    {
+      "method": "get",
+      "path": "/resource-library/file/:token"
+    },
+    {
+      "method": "get",
+      "path": "/server-time"
+    },
+    {
+      "method": "get",
+      "path": "/access"
+    }
+  ],
+  "graphqlDisabled": true
+}
