@@ -45,5 +45,5 @@ Source: `6e75a173e822e4c4be42821b0a4af48ca457bd36`. Audit-only.
 | C72 | in progress | title-search fixture dependency reproduced; review pending |
 | C80 | pending | Not yet assessed. |
 | C81 | pending | Not yet assessed. |
-| C82 | pending | Not yet assessed. |
+| C82 | qualified supplemental pass sealed | blind-seal.md records SHA-256 before comparison; late timing/model deviation means strict C82 remains unmet |
 | C83 | in progress | main change sweep through e9d38195: documentation only; final synthesis pending |
