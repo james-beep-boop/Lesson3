@@ -48,7 +48,7 @@ import {
 } from './releaseDecision'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
-import { latestRelease } from './releaseAncestry'
+import { latestRelease, type ReleaseRow } from './releaseAncestry'
 import { withReleaseFingerprint } from './releaseFingerprintContext'
 import {
   classifyMissingTaxonomy,
@@ -844,6 +844,51 @@ async function writePrepared(
     if (refused[0]) throw refused[0]
     if (upload && confirmationRequired(official, upload.confirmOfficial))
       throw new ConfirmOfficial(official)
+    // Only existing plans receiving a release need ancestry. Read their metadata together, after
+    // the locks and confirmation checks, rather than once per file in the write loop. A preceding
+    // write cannot change a later file's predecessor: duplicate sub-strand identities are rejected,
+    // and latestRelease only considers rows with the incoming file's own sub-strand identity.
+    const revisionPlanIds = [
+      ...new Set(
+        prepared.flatMap((p) => {
+          if (p.existingPlanId == null) return []
+          // Match the write loop's first decision, including legacy plans with repeated file names.
+          const decision = official.find((o) => o.file === p.name && o.plan === p.existingPlanId)
+          return decision && decision.decision !== 'new' ? [] : [p.existingPlanId]
+        }),
+      ),
+    ]
+    const ancestryByPlan = new Map<number, ReleaseRow[]>()
+    if (revisionPlanIds.length > 0) {
+      const { docs: history } = await payload.find({
+        collection: 'lesson-bundle-versions',
+        where: { lessonPlan: { in: revisionPlanIds } },
+        pagination: false,
+        depth: 0,
+        select: {
+          lessonPlan: true,
+          semver: true,
+          author: true,
+          sourceVersion: true,
+          mergedFrom: true,
+          meta: true,
+        },
+        req,
+      })
+      for (const v of history) {
+        const planId = relId(v.lessonPlan)!
+        const rows = ancestryByPlan.get(planId) ?? []
+        rows.push({
+          id: v.id,
+          semver: v.semver,
+          author: relId(v.author),
+          source: relId(v.sourceVersion),
+          second: relId(v.mergedFrom),
+          substrandId: v.meta?.substrand_id ?? null,
+        })
+        ancestryByPlan.set(planId, rows)
+      }
+    }
     const results: IngestResult[] = []
     const skipped: IngestRejection[] = []
     const alreadyHere: IngestRejection[] = []
@@ -871,25 +916,7 @@ async function writePrepared(
         // The preview computed it from this plan's history under the same locks.
         const semver =
           decision?.incomingSemver ?? (await nextMajorForPlan(payload, existingPlanId, req))
-        const { docs: history } = await payload.find({
-          collection: 'lesson-bundle-versions',
-          where: { lessonPlan: { equals: existingPlanId } },
-          pagination: false,
-          depth: 0,
-          select: { semver: true, author: true, sourceVersion: true, mergedFrom: true, meta: true },
-          req,
-        })
-        const predecessor = latestRelease(
-          history.map((v) => ({
-            id: v.id,
-            semver: v.semver,
-            author: relId(v.author),
-            source: relId(v.sourceVersion),
-            second: relId(v.mergedFrom),
-            substrandId: v.meta?.substrand_id ?? null,
-          })),
-          substrandId,
-        )
+        const predecessor = latestRelease(ancestryByPlan.get(existingPlanId) ?? [], substrandId)
         const version = await withReleaseFingerprint(
           req,
           fingerprint,
