@@ -221,9 +221,8 @@ export const saveAsNewEndpoint: Endpoint = {
     // 400, not 409: the request is well-formed, it just asks for nothing. The client disables Save
     // on a pristine form; this is the authoritative backstop (it also catches typed-then-reverted
     // content the client can't see).
-    if (
-      comparableContent(merged) === comparableContent(source as unknown as Record<string, unknown>)
-    ) {
+    const mergedComparable = comparableContent(merged)
+    if (mergedComparable === comparableContent(source as unknown as Record<string, unknown>)) {
       throw new APIError(
         'No changes to save — the content is identical to the version you opened.',
         400,
@@ -359,7 +358,7 @@ export const saveAsNewEndpoint: Endpoint = {
           editorTopLevelKeys: VERSION_EDITOR_KEYS,
         }) as Record<string, unknown>
         if (
-          comparableContent(permittedNow) !== comparableContent(merged) ||
+          comparableContent(permittedNow) !== mergedComparable ||
           (sourceDeleted && !canDeleteVersionDoc(currentCaller, source))
         )
           throw new APIError('Not allowed', 403)
