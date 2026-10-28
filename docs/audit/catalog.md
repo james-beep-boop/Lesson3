@@ -13,6 +13,9 @@ Reuse verified known issues/decisions, but do not suppress new contradictory evi
 ## Catalog use
 
 This is the full required catalog, not a declaration that setup or any audit is complete.
+This workflow is audit-only: report findings and evidence; do not implement fixes or open fix PRs.
+Continue through all agreed chunks, independent review and the final report. Checkpoint unavoidable
+pauses; required outstanding work means partial completion, not a completed audit.
 Read only the assigned chunk/unit and its immediate prerequisites with the operating handbook.
 Light/Strong indicate investigation depth, not provider, account or a promised model allowance;
 Hand means deterministic tooling. S/M/L are relative chunk sizes, not timing guarantees.

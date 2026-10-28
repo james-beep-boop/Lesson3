@@ -79,6 +79,11 @@ parallel subagents, additional paid capacity, new target access or product-code 
 
 ## Execution boundaries and runtime
 
+**Audit only: do not implement fixes or open fix PRs.** Deliver findings, evidence, independent
+reviews and the final report. Recommendations may describe remedies; implementation is a separate
+phase requiring separate operator authorization. Writing isolated audit/reproduction tests is
+evidence gathering, not permission to alter the implementation or existing tests.
+
 No product-code, tracked dependency/configuration, existing-test or vendor edits. Planned outputs:
 `docs/audit/**` and isolated `app/tests/audit/**`; tool installation/setup needs its authorized scope.
 Keep tools, corpora, browser sessions, raw logs, credentials and operational notes outside checkout.
@@ -193,6 +198,11 @@ record that in the progress table) before any comparison; later edits go in a se
 
 ## Completion and handoff
 
+Continue through the entire agreed scope, including independent review and the final report.
+At unavoidable quota or prerequisite limits, save the exact resume point, continue other eligible
+work and resume the blocked work when possible. Do not stop merely because an initial pass or
+the existing test suites finished. Do not declare the audit complete while required work remains.
+
 Stop when required coverage, existing-suite outcomes, review/response and report criteria are met,
 or the user stops work. Required coverage is per chunk: before starting, the executor writes a short
 chunk contract at the top of its report (mandatory checks, evidence artifacts, allowed exclusions with
@@ -231,5 +241,6 @@ false positives/misses on those examples, not the overall audit accuracy.
     Read audit_plan.md and your assigned catalog section, pinned source rules and relevant known issues.
     Assignment <ID>; role <role>; source SHA <sha>; approved scope <scope>; private config supplied separately.
     Verify before recording candidates. Persist component/coverage notes and sanitized evidence per file/test.
+    Audit only: no implementation fixes or fix PRs. New isolated audit/reproduction tests stay within scope.
     Return owned artifacts, review status, exact resume point and blockers. Follow the assigned review tier.
     Continue eligible assigned work within allowance/scope; checkpoint at limits and stop at completion.
