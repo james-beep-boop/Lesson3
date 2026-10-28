@@ -161,7 +161,7 @@ export const EditRecovery: CollectionConfig = {
     {
       // A SPARSE MAP OF PROSE LEAVES KEYED BY ROW ID — not a bundle snapshot. Row ids appear only as
       // keys, are validated against the current source on restore, and are never written back as
-      // field values. Derived from the `*_PROSE` whitelists in `hooks/fieldSplit.ts`, so admin-only
+      // field values. Derived from the `*_PROSE` whitelists in `lib/proseFields.ts`, so admin-only
       // fields (`resourceLinks`, `phase`, `rubric`, answer keys, META…) cannot enter a capture by
       // construction rather than by policy.
       //

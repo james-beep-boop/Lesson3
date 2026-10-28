@@ -30,7 +30,7 @@ import { isSafeHttpUrl, RESOURCE_PHASE_KEYS } from '../ingest/resourceLinks'
  * for anyone adding fields here:
  *   • A new field is admin-only BY DEFAULT.
  *   • To make a field editing-access-editable you must add it to the matching prose whitelist constant in
- *     `hooks/fieldSplit.ts` (and use `prose()` for the grammar hint). Forgetting only makes it
+ *     `lib/proseFields.ts` (and use `prose()` for the grammar hint). Forgetting only makes it
  *     non-editable by teachers with editing access — never silently editable.
  *   • Editing a container's array via the API requires submitting the FULL array (same rows/order);
  *     the hook rejects cardinality/order changes by teachers with editing access.
@@ -465,7 +465,7 @@ export const lessonEditableContentFields: Field[] = [
                 admin: { hidden: true, readOnly: true },
                 access: { create: systemOnly, update: systemOnly },
               },
-              // Administrator-only — see the ⚑ on `SUMMARY_LESSON_PROSE` in `hooks/fieldSplit.ts`
+              // Administrator-only — see the ⚑ on `SUMMARY_LESSON_PROSE` in `lib/proseFields.ts`
               // for why, and SPEC §5 for the permission it implements.
               adminOnly(structureText('title', 'Title')),
               prose('observed', 'Observed'),

@@ -16,7 +16,7 @@ import {
   insertParenthesizedUrl,
   validExternalUrl,
 } from '../../src/components/LinkedTextarea/insertLink'
-import { SLO_PROSE, FRAMEWORK_PROSE, SUMMARY_PROMPT_PROSE } from '../../src/hooks/fieldSplit'
+import { SLO_PROSE, FRAMEWORK_PROSE, SUMMARY_PROMPT_PROSE } from '../../src/lib/proseFields'
 
 const require = createRequire(import.meta.url)
 const { Document, Packer } = require('docx') as {

@@ -150,7 +150,7 @@ describe('edit-recovery projection', () => {
     expect(m['framework:21']).toEqual({ learnerExperience: 'LE', teacherMoves: 'TM' })
     expect(m[FINAL_EXPLANATION_KEY]).toEqual({ instructions: 'Do the thing.' })
     expect(m['section:31']).toEqual({ prompt: 'Explain X' })
-    // No `title`: administrator-only (see the ⚑ in `hooks/fieldSplit.ts`), so it is not teacher
+    // No `title`: administrator-only (see the ⚑ in `lib/proseFields.ts`), so it is not teacher
     // prose — and capturing it would offer to restore work the teacher could never have done.
     expect(m['summaryLesson:51']).toEqual({ observed: 'o', learned: 'l', explained: 'e' })
   })

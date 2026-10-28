@@ -13,7 +13,7 @@ import {
   labelError,
 } from '../../src/components/LinkedTextarea/insertLink'
 import { FRAMEWORK_PROSE_LABELS, LINKABLE_FIELD_LIST } from '../../src/lib/frameworkProse'
-import { FRAMEWORK_PROSE, PROSE_LABELS } from '../../src/hooks/fieldSplit'
+import { FRAMEWORK_PROSE, PROSE_LABELS } from '../../src/lib/proseFields'
 import { lessonContentFields } from '../../src/fields/lessonContent'
 
 afterEach(() => clearActiveLinkTarget())

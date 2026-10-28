@@ -10,7 +10,7 @@
  *
  * Same split, and the same reason, as `protocol.ts` holding the capture decisions.
  */
-import { PROSE_LABELS } from '../../hooks/fieldSplit'
+import { PROSE_LABELS } from '../../lib/proseFields'
 import {
   captureDiff,
   orphanHeading,
