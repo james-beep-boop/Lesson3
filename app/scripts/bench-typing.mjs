@@ -35,7 +35,7 @@
  * median and p90 are over ALL typed keys, with unreported keys counted as below the threshold; a
  * percentile that lands on one prints as "<16", never 0. `maxMs` is null when no key was reported.
  */
-import { chromium } from 'playwright'
+import { chromium } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 

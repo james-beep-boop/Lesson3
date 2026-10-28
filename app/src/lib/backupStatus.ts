@@ -941,6 +941,3 @@ export async function collectBackupStatus(now = new Date()): Promise<BackupStatu
     settings.keyLockedAt = evidence.setup.keyCreatedAt
   return deriveDestinationBackupStatus(evidence.grouped, settings, evidence.journal, now)
 }
-
-/** For the path-parity test: the container directory and file names this reader uses. */
-export const BACKUP_PATHS = { BACKUP_RECORD_DIR, RESTORE_JOURNAL_FILE }

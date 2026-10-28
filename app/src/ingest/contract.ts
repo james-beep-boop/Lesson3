@@ -147,10 +147,3 @@ export function contractDrift(raw: unknown): string[] {
   walk(raw, schema, '', out)
   return out
 }
-
-/** A one-line ingest warning when an object drifts from the contract (`null` if it conforms). */
-export function contractDriftSummary(raw: unknown): string | null {
-  const drift = contractDrift(raw)
-  if (drift.length === 0) return null
-  return `contract drift: ${drift.length} field(s) diverge from ares-contract.schema.json — run scripts/contract-drift.ts for detail`
-}
