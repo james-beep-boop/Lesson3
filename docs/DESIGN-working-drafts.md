@@ -19,7 +19,10 @@ then this for how it gets built.
 Addresses **L3-13** (session expiry silently destroys unsaved lesson edits) and the broader
 edit-durability gap: browser crash, forced refresh, device sleep, accidental tab close.
 
-> **Naming.** The feature is **edit recovery**, never "drafts" — `draft` already means an unofficial
+> **Naming update (2026-10-17):** The terminology below is historical. A private, unnumbered
+> copy of unsaved work is now called a **draft**; a numbered save is a **version**. See SPEC §5.
+>
+> **Naming at the time.** The feature is **edit recovery**, never "drafts" — `draft` already means an unofficial
 > *saved version* in this product (SPEC §13 reserved words), so "draft saved" would tell a teacher
 > their version was saved when it was not. Collection `edit-recovery`; UI "Unsaved changes backed up ·
 > <when>". Earlier revisions of this file said "working drafts" throughout; that name is retired.

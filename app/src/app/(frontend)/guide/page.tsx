@@ -192,9 +192,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Unread messages show as a count on your avatar. You get a short email saying a
-                  message is waiting, never its content. Opening Messages marks everything shown as
-                  read.
+                  Unread messages show as a count on your avatar. If the site can send email, you
+                  may also get a short email saying a message is waiting, without its content.
+                  Emails are limited, so check Messages for unread notes. Opening Messages marks
+                  everything shown as read.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -570,8 +571,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     you correct it.
                   </li>
                   <li>
-                    Change document settings, the Sub-strand overview, lesson duration, ARES
-                    keywords, lesson phases, assessment examples, and rubric rows.
+                    Change document settings, the Sub-strand overview, lesson duration, lesson
+                    phases, assessment examples, and rubric rows.
                   </li>
                 </ul>
               </GuideAccordionPanel>

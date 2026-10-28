@@ -1,5 +1,9 @@
 # How CBE Generation Works
 
+> **Historical copy.** For the current interchange contract, use
+> [docs/how-CBE-generation-works.md](docs/how-CBE-generation-works.md). In particular, generated
+> JSON now contains resolved resource links and is not simply a mirror of the authoring file.
+
 This document explains how the upstream **ARES CBE generation system**
 (`markknit/cbe-generation-system`, referenced in `docs/EXTERNAL-DEPENDENCIES.md`)
 actually produces its Kenyan CBE lesson-plan Word documents — what source

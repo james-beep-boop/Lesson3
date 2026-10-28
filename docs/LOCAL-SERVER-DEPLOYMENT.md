@@ -129,9 +129,9 @@ curl -fsS -o /dev/null http://SERVER_LAN_IP:3001/login && echo "login is reachab
 ```
 
 **What you should see:** `app`, `postgres` and `gotenberg` are running; `migrate` has finished (exited
-with status 0); and the last line prints `login is reachable`. Then, from another computer on the
-school network, sign in, open a lesson, and download it as Word and as PDF. Containers that are
-running do not prove that these work.
+with status 0); and the last line prints `login is reachable`. Next, create the administrators and
+upload the lessons as described below. Then check Word and PDF downloads during handover. Running
+containers alone do not prove that these work.
 
 ## Create the first administrator
 
@@ -544,13 +544,13 @@ leave it.
 
 The release workflow runs only for a version tag such as the repository's existing `v0.77` sequence
 (three-part tags such as `v1.2.3` are also accepted), and refuses a tag whose commit is not on `main`.
-Follow the normal protected-`main` pull-request process and wait for the full CI gate. Then update local
-`main`, create the next unused tag on that accepted commit, and push the tag:
+Follow the current working agreements in `AGENTS.md` and wait for the full CI gate. Then update local
+`main`, create an annotated tag for the next unused version on that accepted commit, and push the tag:
 
 ```bash
 git switch main
 git pull --ff-only
-git tag v0.84            # example only: confirm the next unused version first
+git tag -a v0.84 -m "ARES Lesson Plans v0.84"  # example only: confirm the next unused version first
 git push origin v0.84
 ```
 
