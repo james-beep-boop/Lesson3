@@ -1,0 +1,9 @@
+# Native read permission matrix — C21/C22 supplement
+
+Fixed baseline. Independently stated read expectations cover nine caller shapes: anonymous; previously authenticated account subsequently made unverified; plain Teacher; editing access in own/other subject-grade; Subject Administrator in own/other subject-grade; mixed assignments; Site Administrator. Actual requests use real HTTP sessions and depth2 list reads where applicable. A further run raised the limit to50 and recursively checked returned email addresses against caller/self or Site-Administrator authority; it also rejected exposed hash/salt/password/reset-token values. All162 cells still passed.
+
+All162 cells matched the reconciled expectations. Normal signed-in directory/content collections allow reads (ownership filters still apply for favorites, messages, preferences and participation); recovery and KV remain closed; jobs and both system globals are Site-Administrator-only. Unverified existing sessions are rejected. This supplement does not assert that every other returned field was individually checked or that all owner filters were attacked here; the existing wire suites and targeted probes supply separate evidence.
+
+The first run assumed a disabled migration surface would return404, giving nine mismatches. Installed Payload3.92 `dist/utilities/handleEndpoints.js` explicitly returns NOT_IMPLEMENTED when `endpoints === false`. Its built migration collection disables endpoints. The expected status was corrected to501 and the complete matrix repeated:162/162. This corrects the harness oracle, not the app. No migration rows were returned.
+
+Detailed cells: `read-matrix.json`. This is a complete native **read** matrix for these selected paths; the full catalog also requires write, custom-route, populated-field, page and adversarial-body cells. Those are not silently counted here.

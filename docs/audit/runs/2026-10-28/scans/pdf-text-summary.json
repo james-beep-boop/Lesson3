@@ -1,0 +1,74 @@
+[
+  {
+    "document": "Essential_Mathematics_Indices_finalExplanation",
+    "generatedPages": 7,
+    "oraclePages": 7,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Essential_Mathematics_Indices_lessonSequence",
+    "generatedPages": 56,
+    "oraclePages": 56,
+    "remainingNormalizedTextEqual": false
+  },
+  {
+    "document": "Essential_Mathematics_Indices_summaryTable",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Essential_Mathematics_Indices_teacherKey",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_finalExplanation",
+    "generatedPages": 7,
+    "oraclePages": 7,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_lessonSequence",
+    "generatedPages": 69,
+    "oraclePages": 69,
+    "remainingNormalizedTextEqual": false
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_summaryTable",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_teacherKey",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_finalExplanation",
+    "generatedPages": 7,
+    "oraclePages": 7,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_lessonSequence",
+    "generatedPages": 50,
+    "oraclePages": 50,
+    "remainingNormalizedTextEqual": false
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_summaryTable",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "remainingNormalizedTextEqual": true
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_teacherKey",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "remainingNormalizedTextEqual": true
+  }
+]

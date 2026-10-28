@@ -8,4 +8,8 @@ Stock Physics content gate: 1/5 passed. Stock adapter gate: 3/7 passed. The docu
 
 A separate diagnostic compared all ordered blocks for Physics 4.1, Essential Mathematics Indices and Mathematics Trigonometry I, accounting only for the existing oracle-only partial-match note exclusion and the approved exact copyright wording change. No remaining block mismatches appeared across the twelve documents. Section-C layout/package/hyperlink checks passed for all three lesson sequences. This is qualified diagnostic evidence, not a replacement strict fidelity pass. Generated documents and raw logs stay outside the repository.
 
-PDF page-image/text comparison, concurrent export load and fresh authoritative oracles matching approved attribution remain pending.
+The24 DOCX files (12 generated,12 upstream oracles) were converted serially through the actual docxToPdf/Gotenberg seam. Every PDF had a valid header. All12 document pairs have equal page counts,220 pages on each side. At72dpi,117 paired pages were pixel-identical and103 differed. These are strict raster differences, not silently accepted as fidelity passes.
+
+Nine non-lesson-sequence pairs have equal extracted text after only the declared copyright/partial-note normalization. All three lesson-sequence text comparisons still differ: removed oracle-only related-topic notes alter column interleaving in pdftotext output. The DOCX ordered-block comparison remains the better content-isolation evidence here. The coordinator inspected paired Physics pages2 and7: page2 is exact, and page7 visibly differs in the oracle-only resource note and consequent row positioning. No claim that every raster difference was manually inspected is made.
+
+Detailed sanitized measurements: pdf-text-summary.json and pdf-pixel-summary.json. Raw PDFs, extracted text and page images remain private. Concurrent export checks and fresh authoritative oracles matching approved attribution remain pending.

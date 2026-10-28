@@ -1,0 +1,194 @@
+[
+  {
+    "scenario": "anonymous login",
+    "connections": 1,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 3.77,
+      "p99": 41
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "anonymous login",
+    "connections": 5,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 6.87,
+      "p99": 31
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "anonymous login",
+    "connections": 10,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 15.21,
+      "p99": 69
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated catalogue",
+    "connections": 1,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 4.95,
+      "p99": 13
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated catalogue",
+    "connections": 5,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 15.1,
+      "p99": 66
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated catalogue",
+    "connections": 10,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 29.98,
+      "p99": 104
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated lesson",
+    "connections": 1,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 5.45,
+      "p99": 17
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated lesson",
+    "connections": 5,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 18.73,
+      "p99": 57
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated lesson",
+    "connections": 10,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 29.93,
+      "p99": 69
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated plan API",
+    "connections": 1,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 1.69,
+      "p99": 6
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated plan API",
+    "connections": 5,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 3.13,
+      "p99": 9
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  },
+  {
+    "scenario": "authenticated plan API",
+    "connections": 10,
+    "durationSeconds": 8,
+    "rateCap": 80,
+    "requests": 640,
+    "requestsPerSecond": 80,
+    "latencyMs": {
+      "mean": 5.72,
+      "p99": 15
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "non2xx": 0,
+    "healthFailed": false
+  }
+]

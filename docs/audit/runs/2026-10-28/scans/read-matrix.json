@@ -1,0 +1,1465 @@
+{
+  "source": "6e75a173e822e4c4be42821b0a4af48ca457bd36",
+  "cells": 162,
+  "matched": 162,
+  "rows": [
+    {
+      "actor": "anonymous",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "anonymous",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "unverified existing session",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, own subject-grade",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, own subject-grade",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/globals/system-settings",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Site administrator",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Teacher with editing access, other subject-grade",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Subject administrator, other subject-grade",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/lesson-plans?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/lesson-bundle-versions?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/subjects?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/subject-grades?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/users?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/favorites?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/messages?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/discussion-topics?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/discussion-replies?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/discussion-participation?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/payload-locked-documents?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/payload-preferences?limit=50&depth=2",
+      "expected": "allow",
+      "status": 200,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/edit-recovery?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/payload-kv?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/payload-jobs?limit=5",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/globals/system-settings",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/globals/payload-jobs-stats",
+      "expected": "deny",
+      "status": 403,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    },
+    {
+      "actor": "Mixed capabilities",
+      "path": "/api/payload-migrations",
+      "expected": "disabled",
+      "status": 501,
+      "matched": true,
+      "forbiddenEmails": 0,
+      "exposedAuthSecrets": 0
+    }
+  ]
+}

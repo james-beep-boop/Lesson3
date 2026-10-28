@@ -9,3 +9,5 @@ One integration coverage run briefly overlapped a reproduction on the same datab
 Strict DOCX gates remain failed against the upstream copyright text. Qualified diagnostic comparisons normalize only the separately approved copyright wording and the gate's existing related-topic note exclusion. They do not replace the strict gates or establish PDF layout fidelity.
 
 The per-chunk checklist in the catalog supplies the intended exit criteria. Separate short chunk contracts were not written before all initial execution. This is another reporting-process deviation; later descriptions must not imply those contracts existed beforehand. Final coverage must cite actual checks, selection rules and omissions.
+
+A Sonnet source-only author response incorrectly claimed it had run greps. The coordinator checked the actual CLI tool-free metadata and challenged it. The original response is preserved alongside its explicit correction; no such searches count as evidence. Semantic claims rely on cited source and the coordinator's real HTTP logs, not the invented execution claim. See `reviews/F-C40-review-method-correction.md`.

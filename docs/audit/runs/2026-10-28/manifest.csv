@@ -77,208 +77,208 @@ app/scripts/verify-rbac.ts,C72,pending,Review with owning source flow; baseline 
 app/scripts/verify-stage2-export.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/scripts/verify-stage2-reads.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/scripts/verify-stage2b-preview.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/src/access/bundle.ts,C5.1,author-read; reconciliation pending, Source report ranges: 1-35.
-app/src/access/generatedSurfaces.ts,C5.1,author-read; reconciliation pending, Source report ranges: 1-91.
-app/src/access/index.ts,C5.1,author-read; reconciliation pending, Source report ranges: 1-236.
-app/src/access/lockedDocuments.ts,C5.1,author-read; reconciliation pending, Source report ranges: 1-116.
-app/src/access/versionImmutability.ts,C5.1,author-read; reconciliation pending, Source report ranges: 1-60.
-app/src/access/versioning.ts,C5.1,author-read; reconciliation pending, Source report ranges: 1-114.
-app/src/app/(frontend)/LibraryBrowser.tsx,C5.10,pending,
-app/src/app/(frontend)/discuss/[id]/page.tsx,C5.10,pending,
-app/src/app/(frontend)/discuss/new/page.tsx,C5.10,pending,
-app/src/app/(frontend)/discuss/page.tsx,C5.10,pending,
-app/src/app/(frontend)/explore/page.tsx,C5.10,pending,
-app/src/app/(frontend)/forgot-password/ForgotPasswordForm.tsx,C5.10,pending,
-app/src/app/(frontend)/forgot-password/page.tsx,C5.10,pending,
-app/src/app/(frontend)/guide/page.tsx,C5.10,pending,
-app/src/app/(frontend)/layout.tsx,C5.10,pending,
-app/src/app/(frontend)/lessons/[id]/EditActions.tsx,C5.10,pending,
-app/src/app/(frontend)/lessons/[id]/EmailModal.tsx,C5.10,pending,
-app/src/app/(frontend)/lessons/[id]/ShareMenu.tsx,C5.10,pending,
-app/src/app/(frontend)/lessons/[id]/compare/CompareFilter.tsx,C5.10,pending,
-app/src/app/(frontend)/lessons/[id]/compare/ComparePickers.tsx,C5.10,pending,
-app/src/app/(frontend)/lessons/[id]/compare/page.tsx,C5.10,pending,
-app/src/app/(frontend)/lessons/[id]/page.tsx,C5.10,pending,
-app/src/app/(frontend)/login/FirstUserForm.tsx,C5.10,pending,
-app/src/app/(frontend)/login/LoginForm.tsx,C5.10,pending,
-app/src/app/(frontend)/login/page.tsx,C5.10,pending,
-app/src/app/(frontend)/messages/Composer.tsx,C5.10,pending,
-app/src/app/(frontend)/messages/MarkShownRead.tsx,C5.10,pending,
-app/src/app/(frontend)/messages/ReplyBox.tsx,C5.10,pending,
-app/src/app/(frontend)/messages/page.tsx,C5.10,pending,
-app/src/app/(frontend)/messages/sendMessage.ts,C5.10,pending,
-app/src/app/(frontend)/page.tsx,C5.10,pending,
-app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx,C5.10,pending,
-app/src/app/(frontend)/reset-password/page.tsx,C5.10,pending,
-app/src/app/(frontend)/signup/SignupForm.tsx,C5.10,pending,
-app/src/app/(frontend)/signup/page.tsx,C5.10,pending,
-app/src/app/(frontend)/styles.css,C5.10,pending,
-app/src/app/(frontend)/verify-email/VerifyEmail.tsx,C5.10,pending,
-app/src/app/(frontend)/verify-email/page.tsx,C5.10,pending,
-app/src/app/(payload)/admin/[[...segments]]/not-found.tsx,C5.10,pending,
-app/src/app/(payload)/admin/[[...segments]]/page.tsx,C5.10,pending,
+app/src/access/bundle.ts,C5.1,author-read; reconciliation pending,P008-02-access:1-35; caller reconciliation and clean-result sampling required
+app/src/access/generatedSurfaces.ts,C5.1,author-read; reconciliation pending,P008-02-access:1-91; caller reconciliation and clean-result sampling required
+app/src/access/index.ts,C5.1,author-read; reconciliation pending,P008-02-access:1-236; caller reconciliation and clean-result sampling required
+app/src/access/lockedDocuments.ts,C5.1,author-read; reconciliation pending,P008-02-access:1-116; caller reconciliation and clean-result sampling required
+app/src/access/versionImmutability.ts,C5.1,author-read; reconciliation pending,P008-02-access:1-60; caller reconciliation and clean-result sampling required
+app/src/access/versioning.ts,C5.1,author-read; reconciliation pending,P009-02-access:1-114; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/LibraryBrowser.tsx,C5.10,author-read; reconciliation pending,P079-09-app:1-380; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/discuss/[id]/page.tsx,C5.10,author-read; reconciliation pending,P079-09-app:1-122; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/discuss/new/page.tsx,C5.10,author-read; reconciliation pending,P079-09-app:1-56; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/discuss/page.tsx,C5.10,author-read; reconciliation pending,P080-09-app:1-194; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/explore/page.tsx,C5.10,author-read; reconciliation pending,P080-09-app:1-42; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/forgot-password/ForgotPasswordForm.tsx,C5.10,author-read; reconciliation pending,P080-09-app:1-105; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/forgot-password/page.tsx,C5.10,author-read; reconciliation pending,P080-09-app:1-25; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/guide/page.tsx,C5.10,author-read; reconciliation pending,P081-09-app:1-400; P082-09-app:401-800; P083-09-app:801-1161; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/layout.tsx,C5.10,author-read; reconciliation pending,P083-09-app:1-60; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/lessons/[id]/EditActions.tsx,C5.10,author-read; reconciliation pending,P083-09-app:1-140; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/lessons/[id]/EmailModal.tsx,C5.10,author-read; reconciliation pending,P084-09-app:1-117; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/lessons/[id]/ShareMenu.tsx,C5.10,author-read; reconciliation pending,P084-09-app:1-237; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/lessons/[id]/compare/CompareFilter.tsx,C5.10,author-read; reconciliation pending,P084-09-app:1-39; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/lessons/[id]/compare/ComparePickers.tsx,C5.10,author-read; reconciliation pending,P084-09-app:1-54; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/lessons/[id]/compare/page.tsx,C5.10,author-read; reconciliation pending,P085-09-app:1-233; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/lessons/[id]/page.tsx,C5.10,author-read; reconciliation pending,P085-09-app:1-298; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/login/FirstUserForm.tsx,C5.10,author-read; reconciliation pending,P085-09-app:1-114; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/login/LoginForm.tsx,C5.10,author-read; reconciliation pending,P086-09-app:1-112; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/login/page.tsx,C5.10,author-read; reconciliation pending,P086-09-app:1-79; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/messages/Composer.tsx,C5.10,author-read; reconciliation pending,P086-09-app:1-158; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/messages/MarkShownRead.tsx,C5.10,author-read; reconciliation pending,P086-09-app:1-31; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/messages/ReplyBox.tsx,C5.10,author-read; reconciliation pending,P086-09-app:1-99; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/messages/page.tsx,C5.10,author-read; reconciliation pending,P087-09-app:1-311; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/messages/sendMessage.ts,C5.10,author-read; reconciliation pending,P087-09-app:1-41; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/page.tsx,C5.10,author-read; reconciliation pending,P087-09-app:1-251; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx,C5.10,author-read; reconciliation pending,P088-09-app:1-109; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/reset-password/page.tsx,C5.10,author-read; reconciliation pending,P088-09-app:1-31; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/signup/SignupForm.tsx,C5.10,author-read; reconciliation pending,P088-09-app:1-126; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/signup/page.tsx,C5.10,author-read; reconciliation pending,P088-09-app:1-32; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/styles.css,C5.10,author-read; reconciliation pending,P089-09-app:1-400; P090-09-app:401-800; P091-09-app:801-1200; P092-09-app:1201-1600; P093-09-app:1601-2000; P093-09-app:2001-2069; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/verify-email/VerifyEmail.tsx,C5.10,author-read; reconciliation pending,P093-09-app:1-44; caller reconciliation and clean-result sampling required
+app/src/app/(frontend)/verify-email/page.tsx,C5.10,author-read; reconciliation pending,P093-09-app:1-31; caller reconciliation and clean-result sampling required
+app/src/app/(payload)/admin/[[...segments]]/not-found.tsx,C5.10,author-read; reconciliation pending,P093-09-app:1-24; caller reconciliation and clean-result sampling required
+app/src/app/(payload)/admin/[[...segments]]/page.tsx,C5.10,author-read; reconciliation pending,P093-09-app:1-24; caller reconciliation and clean-result sampling required
 app/src/app/(payload)/admin/importMap.js,excluded,excluded,Generated output: generation/registration boundary check required.
-app/src/app/(payload)/api/[...slug]/route.ts,C5.10,pending,
-app/src/app/(payload)/custom.scss,C5.10,pending,
-app/src/app/(payload)/layout.tsx,C5.10,pending,
-app/src/app/app-chrome.scss,C5.10,pending,
-app/src/app/app-dialog.scss,C5.10,pending,
-app/src/app/app-tokens.scss,C5.10,pending,
-app/src/collections/DiscussionParticipation.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-82.
-app/src/collections/DiscussionReplies.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-77.
-app/src/collections/DiscussionTopics.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-100.
-app/src/collections/EditRecovery.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-175.
-app/src/collections/Favorites.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-143.
-app/src/collections/LessonBundleVersions.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-313.
-app/src/collections/LessonPlans.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-160.
-app/src/collections/Messages.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-217.
-app/src/collections/Subject.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-115.
-app/src/collections/SubjectGrade.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-206.
-app/src/collections/Users.ts,C5.6,author-read; reconciliation pending," Source report ranges: 1-400, 401-435."
-app/src/components/AdminDashboard/CandidateList.tsx,C5.11,pending,
-app/src/components/AdminDashboard/DeletePlansPanel.tsx,C5.11,pending,
-app/src/components/AdminDashboard/index.tsx,C5.11,pending,
-app/src/components/AdminHeaderMenu/index.tsx,C5.11,pending,
-app/src/components/AdminUnauthorizedRedirect/index.tsx,C5.11,pending,
-app/src/components/AppNav/NavigationFreshness.tsx,C5.11,pending,
-app/src/components/AppNav/index.tsx,C5.11,pending,
-app/src/components/AppVersion.tsx,C5.11,pending,
-app/src/components/Brand/Icon.tsx,C5.11,pending,
-app/src/components/CollapseOnEntry/index.tsx,C5.11,pending,
-app/src/components/CombineVersions/applyOverlay.ts,C5.11,pending,
-app/src/components/CombineVersions/comparisonError.ts,C5.11,pending,
-app/src/components/CombineVersions/index.tsx,C5.11,pending,
-app/src/components/CompareToOfficialLink.tsx,C5.11,pending,
-app/src/components/Discussions/ComposerParts.tsx,C5.11,pending,
-app/src/components/Discussions/MarkThreadRead.tsx,C5.11,pending,
-app/src/components/Discussions/ModerationControls.tsx,C5.11,pending,
-app/src/components/Discussions/Pager.tsx,C5.11,pending,
-app/src/components/Discussions/PostText.tsx,C5.11,pending,
-app/src/components/Discussions/ReferencePicker.tsx,C5.11,pending,
-app/src/components/Discussions/ReplyComposer.tsx,C5.11,pending,
-app/src/components/Discussions/TopicComposer.tsx,C5.11,pending,
-app/src/components/Discussions/referencePickerQueries.ts,C5.11,pending,
-app/src/components/Discussions/submitPost.ts,C5.11,pending,
-app/src/components/Discussions/useComposer.ts,C5.11,pending,
-app/src/components/DocButtons.tsx,C5.11,pending,
-app/src/components/DocStrip.tsx,C5.11,pending,
-app/src/components/EditRecovery/Indicator.tsx,C5.11,pending,
-app/src/components/EditRecovery/RestorePrompt.tsx,C5.11,pending,
-app/src/components/EditRecovery/deadline.ts,C5.11,pending,
-app/src/components/EditRecovery/flushRegistry.tsx,C5.11,pending,
-app/src/components/EditRecovery/protocol.ts,C5.11,pending,
-app/src/components/EditRecovery/restoreDiff.ts,C5.11,pending,
-app/src/components/EditRecovery/restoreGroups.ts,C5.11,pending,
-app/src/components/EditRecovery/unsavedWarning.ts,C5.11,pending,
-app/src/components/EditRecovery/useEditRecovery.ts,C5.11,pending,
-app/src/components/FavoriteToggle.tsx,C5.11,pending,
-app/src/components/FormField.tsx,C5.11,pending,
-app/src/components/Guide/Accordion.tsx,C5.11,pending,
-app/src/components/Guide/availability.ts,C5.11,pending,
-app/src/components/Guide/panelState.ts,C5.11,pending,
-app/src/components/IdleLogout/index.tsx,C5.11,pending,
-app/src/components/LessonControls/EditJumpNav.tsx,C5.11,pending,
-app/src/components/LessonControls/MoreMenu.tsx,C5.11,pending,
-app/src/components/LessonControls/currentSection.ts,C5.11,pending,
-app/src/components/LessonControls/entryPhase.ts,C5.11,pending,
-app/src/components/LessonControls/index.tsx,C5.11,pending,
-app/src/components/LessonControls/initialCollapse.ts,C5.11,pending,
-app/src/components/LessonControls/server.tsx,C5.11,pending,
-app/src/components/LessonControls/validation.ts,C5.11,pending,
-app/src/components/LessonDetails.tsx,C5.11,pending,
-app/src/components/LessonReference.tsx,C5.11,pending,
-app/src/components/LinkedTextarea/activeTarget.ts,C5.11,pending,
-app/src/components/LinkedTextarea/aresAddress.ts,C5.11,pending,
-app/src/components/LinkedTextarea/index.tsx,C5.11,pending,
-app/src/components/LinkedTextarea/insertLink.ts,C5.11,pending,
-app/src/components/Manage/Accordion.tsx,C5.11,pending,
-app/src/components/Manage/BackupStatusPanel.tsx,C5.11,pending,
-app/src/components/Manage/ClockCheck.tsx,C5.11,pending,
-app/src/components/Manage/LocalTime.tsx,C5.11,pending,
-app/src/components/Manage/PersonIdentity.tsx,C5.11,pending,
-app/src/components/Manage/RolesAccessPanel.tsx,C5.11,pending,
-app/src/components/Manage/SubjectsAndGradesPanel.tsx,C5.11,pending,
-app/src/components/Manage/SystemFactsPanel.tsx,C5.11,pending,
-app/src/components/Manage/SystemFeaturesPanel.tsx,C5.11,pending,
-app/src/components/Manage/UnsavedWorkList.tsx,C5.11,pending,
-app/src/components/Manage/UsersPanel.tsx,C5.11,pending,
-app/src/components/Manage/panelState.ts,C5.11,pending,
-app/src/components/Manage/readFeaturesSettings.ts,C5.11,pending,
-app/src/components/Manage/systemFeaturesState.ts,C5.11,pending,
-app/src/components/Manage/taxonomyActions.ts,C5.11,pending,
-app/src/components/Manage/useOpenPanels.ts,C5.11,pending,
-app/src/components/Modal/index.tsx,C5.11,pending,
-app/src/components/NewTabLink.tsx,C5.11,pending,
-app/src/components/NewerAresPrompt.tsx,C5.11,pending,
-app/src/components/OfficialUpdateNotice.tsx,C5.11,pending,
-app/src/components/PageBackLink.tsx,C5.11,pending,
-app/src/components/PageHeader.tsx,C5.11,pending,
-app/src/components/PasswordInput.tsx,C5.11,pending,
-app/src/components/PhaseSelectField/index.tsx,C5.11,pending,
-app/src/components/RedirectToManage/index.tsx,C5.11,pending,
-app/src/components/RequestEditingButton.tsx,C5.11,pending,
-app/src/components/RowLabel/formatRowLabel.ts,C5.11,pending,
-app/src/components/RowLabel/index.tsx,C5.11,pending,
-app/src/components/SchoolName.tsx,C5.11,pending,
-app/src/components/SubjectSelectField/index.tsx,C5.11,pending,
-app/src/components/SubjectSelectField/options.ts,C5.11,pending,
-app/src/components/UploadBundles/OfficialPreviewList.tsx,C5.11,pending,
-app/src/components/UploadBundles/index.tsx,C5.11,pending,
-app/src/components/UserMenu/DisplayNameForm.tsx,C5.11,pending,
-app/src/components/UserMenu/index.tsx,C5.11,pending,
-app/src/components/VersionTimestamps/index.tsx,C5.11,pending,
-app/src/components/VersionsChip.tsx,C5.11,pending,
-app/src/components/WelcomeDialog/index.tsx,C5.11,pending,
-app/src/components/exportClient.ts,C5.11,pending,
-app/src/endpoints/aresExport.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-62.
-app/src/endpoints/combinePreview.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-83.
-app/src/endpoints/discussionActions.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-194.
-app/src/endpoints/discussionNavState.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-37.
-app/src/endpoints/discussionThreadDelete.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-65.
-app/src/endpoints/emailVersion.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-110.
-app/src/endpoints/exportAuth.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-35.
-app/src/endpoints/exportVersion.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-199.
-app/src/endpoints/forgotPassword.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-178.
-app/src/endpoints/login.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-61.
-app/src/endpoints/markMessagesRead.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-97.
-app/src/endpoints/moderate.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-110.
-app/src/endpoints/parseFormat.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-39.
-app/src/endpoints/previewParse.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-80.
-app/src/endpoints/previewShared.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-146.
-app/src/endpoints/previewVersion.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-236.
-app/src/endpoints/recovery.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-359.
-app/src/endpoints/recoveryParse.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-149.
-app/src/endpoints/requestEditing.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-142.
-app/src/endpoints/resourceLibrary.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-186.
-app/src/endpoints/respond.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-184.
-app/src/endpoints/serverTime.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-23.
-app/src/endpoints/systemSettingsSave.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-225.
-app/src/endpoints/uploadBundles.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-176.
-app/src/endpoints/userAdminActions.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-306.
-app/src/endpoints/userAssignments.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-285.
-app/src/endpoints/userSearch.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-257.
-app/src/endpoints/verifyEmail.ts,C20,author-read; reconciliation pending,Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-43.
-app/src/endpoints/versionEdit.ts,C20,author-read; reconciliation pending,"Assign endpoint-specific C22/C23/C24/C30/C42 after surface inventory. Source report ranges: 1-400, 401-487."
+app/src/app/(payload)/api/[...slug]/route.ts,C5.10,author-read; reconciliation pending,P093-09-app:1-19; caller reconciliation and clean-result sampling required
+app/src/app/(payload)/custom.scss,C5.10,author-read; reconciliation pending,P094-09-app:1-400; P095-09-app:401-800; P096-09-app:801-1200; P097-09-app:1201-1600; P098-09-app:1601-2000; P099-09-app:2001-2400; P100-09-app:2401-2800; P100-09-app:2801-2912; caller reconciliation and clean-result sampling required
+app/src/app/(payload)/layout.tsx,C5.10,author-read; reconciliation pending,P100-09-app:1-31; caller reconciliation and clean-result sampling required
+app/src/app/app-chrome.scss,C5.10,author-read; reconciliation pending,P101-09-app:1-271; caller reconciliation and clean-result sampling required
+app/src/app/app-dialog.scss,C5.10,author-read; reconciliation pending,P101-09-app:1-123; caller reconciliation and clean-result sampling required
+app/src/app/app-tokens.scss,C5.10,author-read; reconciliation pending,P101-09-app:1-181; caller reconciliation and clean-result sampling required
+app/src/collections/DiscussionParticipation.ts,C5.6,author-read; reconciliation pending,P018-04-model:1-82; caller reconciliation and clean-result sampling required
+app/src/collections/DiscussionReplies.ts,C5.6,author-read; reconciliation pending,P018-04-model:1-77; caller reconciliation and clean-result sampling required
+app/src/collections/DiscussionTopics.ts,C5.6,author-read; reconciliation pending,P018-04-model:1-100; caller reconciliation and clean-result sampling required
+app/src/collections/EditRecovery.ts,C5.6,author-read; reconciliation pending,P018-04-model:1-175; caller reconciliation and clean-result sampling required
+app/src/collections/Favorites.ts,C5.6,author-read; reconciliation pending,P018-04-model:1-143; caller reconciliation and clean-result sampling required
+app/src/collections/LessonBundleVersions.ts,C5.6,author-read; reconciliation pending,P019-04-model:1-313; caller reconciliation and clean-result sampling required
+app/src/collections/LessonPlans.ts,C5.6,author-read; reconciliation pending,P019-04-model:1-160; caller reconciliation and clean-result sampling required
+app/src/collections/Messages.ts,C5.6,author-read; reconciliation pending,P020-04-model:1-217; caller reconciliation and clean-result sampling required
+app/src/collections/Subject.ts,C5.6,author-read; reconciliation pending,P020-04-model:1-115; caller reconciliation and clean-result sampling required
+app/src/collections/SubjectGrade.ts,C5.6,author-read; reconciliation pending,P020-04-model:1-206; caller reconciliation and clean-result sampling required
+app/src/collections/Users.ts,C5.6,author-read; reconciliation pending,P021-04-model:1-400; P021-04-model:401-435; caller reconciliation and clean-result sampling required
+app/src/components/AdminDashboard/CandidateList.tsx,C5.11,author-read; reconciliation pending,P051-08-components:1-203; caller reconciliation and clean-result sampling required
+app/src/components/AdminDashboard/DeletePlansPanel.tsx,C5.11,author-read; reconciliation pending,P051-08-components:1-400; P051-08-components:401-435; caller reconciliation and clean-result sampling required
+app/src/components/AdminDashboard/index.tsx,C5.11,author-read; reconciliation pending,P052-08-components:1-400; P053-08-components:401-800; P053-08-components:801-875; caller reconciliation and clean-result sampling required
+app/src/components/AdminHeaderMenu/index.tsx,C5.11,author-read; reconciliation pending,P053-08-components:1-48; caller reconciliation and clean-result sampling required
+app/src/components/AdminUnauthorizedRedirect/index.tsx,C5.11,author-read; reconciliation pending,P053-08-components:1-20; caller reconciliation and clean-result sampling required
+app/src/components/AppNav/NavigationFreshness.tsx,C5.11,author-read; reconciliation pending,P054-08-components:1-127; caller reconciliation and clean-result sampling required
+app/src/components/AppNav/index.tsx,C5.11,author-read; reconciliation pending,P054-08-components:1-136; caller reconciliation and clean-result sampling required
+app/src/components/AppVersion.tsx,C5.11,author-read; reconciliation pending,P054-08-components:1-10; caller reconciliation and clean-result sampling required
+app/src/components/Brand/Icon.tsx,C5.11,author-read; reconciliation pending,P054-08-components:1-28; caller reconciliation and clean-result sampling required
+app/src/components/CollapseOnEntry/index.tsx,C5.11,author-read; reconciliation pending,P054-08-components:1-65; caller reconciliation and clean-result sampling required
+app/src/components/CombineVersions/applyOverlay.ts,C5.11,author-read; reconciliation pending,P054-08-components:1-15; caller reconciliation and clean-result sampling required
+app/src/components/CombineVersions/comparisonError.ts,C5.11,author-read; reconciliation pending,P054-08-components:1-21; caller reconciliation and clean-result sampling required
+app/src/components/CombineVersions/index.tsx,C5.11,author-read; reconciliation pending,P055-08-components:1-345; caller reconciliation and clean-result sampling required
+app/src/components/CompareToOfficialLink.tsx,C5.11,author-read; reconciliation pending,P055-08-components:1-31; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/ComposerParts.tsx,C5.11,author-read; reconciliation pending,P055-08-components:1-49; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/MarkThreadRead.tsx,C5.11,author-read; reconciliation pending,P055-08-components:1-34; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/ModerationControls.tsx,C5.11,author-read; reconciliation pending,P056-08-components:1-238; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/Pager.tsx,C5.11,author-read; reconciliation pending,P056-08-components:1-26; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/PostText.tsx,C5.11,author-read; reconciliation pending,P056-08-components:1-33; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/ReferencePicker.tsx,C5.11,author-read; reconciliation pending,P056-08-components:1-240; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/ReplyComposer.tsx,C5.11,author-read; reconciliation pending,P056-08-components:1-81; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/TopicComposer.tsx,C5.11,author-read; reconciliation pending,P057-08-components:1-83; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/referencePickerQueries.ts,C5.11,author-read; reconciliation pending,P057-08-components:1-37; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/submitPost.ts,C5.11,author-read; reconciliation pending,P057-08-components:1-124; caller reconciliation and clean-result sampling required
+app/src/components/Discussions/useComposer.ts,C5.11,author-read; reconciliation pending,P057-08-components:1-66; caller reconciliation and clean-result sampling required
+app/src/components/DocButtons.tsx,C5.11,author-read; reconciliation pending,P057-08-components:1-114; caller reconciliation and clean-result sampling required
+app/src/components/DocStrip.tsx,C5.11,author-read; reconciliation pending,P057-08-components:1-71; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/Indicator.tsx,C5.11,author-read; reconciliation pending,P057-08-components:1-124; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/RestorePrompt.tsx,C5.11,author-read; reconciliation pending,P058-08-components:1-224; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/deadline.ts,C5.11,author-read; reconciliation pending,P058-08-components:1-51; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/flushRegistry.tsx,C5.11,author-read; reconciliation pending,P058-08-components:1-158; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/protocol.ts,C5.11,author-read; reconciliation pending,P059-08-components:1-226; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/restoreDiff.ts,C5.11,author-read; reconciliation pending,P059-08-components:1-150; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/restoreGroups.ts,C5.11,author-read; reconciliation pending,P059-08-components:1-125; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/unsavedWarning.ts,C5.11,author-read; reconciliation pending,P059-08-components:1-83; caller reconciliation and clean-result sampling required
+app/src/components/EditRecovery/useEditRecovery.ts,C5.11,author-read; reconciliation pending,P060-08-components:1-400; P061-08-components:401-800; P061-08-components:801-890; caller reconciliation and clean-result sampling required
+app/src/components/FavoriteToggle.tsx,C5.11,author-read; reconciliation pending,P061-08-components:1-120; caller reconciliation and clean-result sampling required
+app/src/components/FormField.tsx,C5.11,author-read; reconciliation pending,P061-08-components:1-30; caller reconciliation and clean-result sampling required
+app/src/components/Guide/Accordion.tsx,C5.11,author-read; reconciliation pending,P062-08-components:1-112; caller reconciliation and clean-result sampling required
+app/src/components/Guide/availability.ts,C5.11,author-read; reconciliation pending,P062-08-components:1-68; caller reconciliation and clean-result sampling required
+app/src/components/Guide/panelState.ts,C5.11,author-read; reconciliation pending,P062-08-components:1-90; caller reconciliation and clean-result sampling required
+app/src/components/IdleLogout/index.tsx,C5.11,author-read; reconciliation pending,P062-08-components:1-171; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/EditJumpNav.tsx,C5.11,author-read; reconciliation pending,P063-08-components:1-391; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/MoreMenu.tsx,C5.11,author-read; reconciliation pending,P063-08-components:1-82; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/currentSection.ts,C5.11,author-read; reconciliation pending,P063-08-components:1-119; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/entryPhase.ts,C5.11,author-read; reconciliation pending,P064-08-components:1-106; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/index.tsx,C5.11,author-read; reconciliation pending,P064-08-components:1-400; P065-08-components:401-800; P066-08-components:801-1200; P067-08-components:1201-1488; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/initialCollapse.ts,C5.11,author-read; reconciliation pending,P067-08-components:1-36; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/server.tsx,C5.11,author-read; reconciliation pending,P067-08-components:1-64; caller reconciliation and clean-result sampling required
+app/src/components/LessonControls/validation.ts,C5.11,author-read; reconciliation pending,P067-08-components:1-92; caller reconciliation and clean-result sampling required
+app/src/components/LessonDetails.tsx,C5.11,author-read; reconciliation pending,P067-08-components:1-42; caller reconciliation and clean-result sampling required
+app/src/components/LessonReference.tsx,C5.11,author-read; reconciliation pending,P067-08-components:1-36; caller reconciliation and clean-result sampling required
+app/src/components/LinkedTextarea/activeTarget.ts,C5.11,author-read; reconciliation pending,P067-08-components:1-42; caller reconciliation and clean-result sampling required
+app/src/components/LinkedTextarea/aresAddress.ts,C5.11,author-read; reconciliation pending,P068-08-components:1-68; caller reconciliation and clean-result sampling required
+app/src/components/LinkedTextarea/index.tsx,C5.11,author-read; reconciliation pending,P068-08-components:1-246; caller reconciliation and clean-result sampling required
+app/src/components/LinkedTextarea/insertLink.ts,C5.11,author-read; reconciliation pending,P068-08-components:1-49; caller reconciliation and clean-result sampling required
+app/src/components/Manage/Accordion.tsx,C5.11,author-read; reconciliation pending,P068-08-components:1-158; caller reconciliation and clean-result sampling required
+app/src/components/Manage/BackupStatusPanel.tsx,C5.11,author-read; reconciliation pending,P068-08-components:1-86; caller reconciliation and clean-result sampling required
+app/src/components/Manage/ClockCheck.tsx,C5.11,author-read; reconciliation pending,P069-08-components:1-65; caller reconciliation and clean-result sampling required
+app/src/components/Manage/LocalTime.tsx,C5.11,author-read; reconciliation pending,P069-08-components:1-52; caller reconciliation and clean-result sampling required
+app/src/components/Manage/PersonIdentity.tsx,C5.11,author-read; reconciliation pending,P069-08-components:1-11; caller reconciliation and clean-result sampling required
+app/src/components/Manage/RolesAccessPanel.tsx,C5.11,author-read; reconciliation pending,P069-08-components:1-400; P070-08-components:401-579; caller reconciliation and clean-result sampling required
+app/src/components/Manage/SubjectsAndGradesPanel.tsx,C5.11,author-read; reconciliation pending,P070-08-components:1-295; caller reconciliation and clean-result sampling required
+app/src/components/Manage/SystemFactsPanel.tsx,C5.11,author-read; reconciliation pending,P070-08-components:1-60; caller reconciliation and clean-result sampling required
+app/src/components/Manage/SystemFeaturesPanel.tsx,C5.11,author-read; reconciliation pending,P071-08-components:1-278; caller reconciliation and clean-result sampling required
+app/src/components/Manage/UnsavedWorkList.tsx,C5.11,author-read; reconciliation pending,P071-08-components:1-134; caller reconciliation and clean-result sampling required
+app/src/components/Manage/UsersPanel.tsx,C5.11,author-read; reconciliation pending,P072-08-components:1-400; P072-08-components:401-582; caller reconciliation and clean-result sampling required
+app/src/components/Manage/panelState.ts,C5.11,author-read; reconciliation pending,P073-08-components:1-305; caller reconciliation and clean-result sampling required
+app/src/components/Manage/readFeaturesSettings.ts,C5.11,author-read; reconciliation pending,P073-08-components:1-35; caller reconciliation and clean-result sampling required
+app/src/components/Manage/systemFeaturesState.ts,C5.11,author-read; reconciliation pending,P073-08-components:1-54; caller reconciliation and clean-result sampling required
+app/src/components/Manage/taxonomyActions.ts,C5.11,author-read; reconciliation pending,P073-08-components:1-114; caller reconciliation and clean-result sampling required
+app/src/components/Manage/useOpenPanels.ts,C5.11,author-read; reconciliation pending,P074-08-components:1-298; caller reconciliation and clean-result sampling required
+app/src/components/Modal/index.tsx,C5.11,author-read; reconciliation pending,P074-08-components:1-177; caller reconciliation and clean-result sampling required
+app/src/components/NewTabLink.tsx,C5.11,author-read; reconciliation pending,P074-08-components:1-36; caller reconciliation and clean-result sampling required
+app/src/components/NewerAresPrompt.tsx,C5.11,author-read; reconciliation pending,P074-08-components:1-66; caller reconciliation and clean-result sampling required
+app/src/components/OfficialUpdateNotice.tsx,C5.11,author-read; reconciliation pending,P074-08-components:1-21; caller reconciliation and clean-result sampling required
+app/src/components/PageBackLink.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-55; caller reconciliation and clean-result sampling required
+app/src/components/PageHeader.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-60; caller reconciliation and clean-result sampling required
+app/src/components/PasswordInput.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-51; caller reconciliation and clean-result sampling required
+app/src/components/PhaseSelectField/index.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-55; caller reconciliation and clean-result sampling required
+app/src/components/RedirectToManage/index.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-44; caller reconciliation and clean-result sampling required
+app/src/components/RequestEditingButton.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-56; caller reconciliation and clean-result sampling required
+app/src/components/RowLabel/formatRowLabel.ts,C5.11,author-read; reconciliation pending,P075-08-components:1-26; caller reconciliation and clean-result sampling required
+app/src/components/RowLabel/index.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-40; caller reconciliation and clean-result sampling required
+app/src/components/SchoolName.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-17; caller reconciliation and clean-result sampling required
+app/src/components/SubjectSelectField/index.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-63; caller reconciliation and clean-result sampling required
+app/src/components/SubjectSelectField/options.ts,C5.11,author-read; reconciliation pending,P075-08-components:1-15; caller reconciliation and clean-result sampling required
+app/src/components/UploadBundles/OfficialPreviewList.tsx,C5.11,author-read; reconciliation pending,P075-08-components:1-53; caller reconciliation and clean-result sampling required
+app/src/components/UploadBundles/index.tsx,C5.11,author-read; reconciliation pending,P076-08-components:1-400; P076-08-components:401-429; caller reconciliation and clean-result sampling required
+app/src/components/UserMenu/DisplayNameForm.tsx,C5.11,author-read; reconciliation pending,P076-08-components:1-140; caller reconciliation and clean-result sampling required
+app/src/components/UserMenu/index.tsx,C5.11,author-read; reconciliation pending,P077-08-components:1-129; caller reconciliation and clean-result sampling required
+app/src/components/VersionTimestamps/index.tsx,C5.11,author-read; reconciliation pending,P077-08-components:1-63; caller reconciliation and clean-result sampling required
+app/src/components/VersionsChip.tsx,C5.11,author-read; reconciliation pending,P077-08-components:1-193; caller reconciliation and clean-result sampling required
+app/src/components/WelcomeDialog/index.tsx,C5.11,author-read; reconciliation pending,P077-08-components:1-168; caller reconciliation and clean-result sampling required
+app/src/components/exportClient.ts,C5.11,author-read; reconciliation pending,P078-08-components:1-340; caller reconciliation and clean-result sampling required
+app/src/endpoints/aresExport.ts,C20,author-read; reconciliation pending,P010-03-endpoints:1-62; caller reconciliation and clean-result sampling required
+app/src/endpoints/combinePreview.ts,C20,author-read; reconciliation pending,P010-03-endpoints:1-83; caller reconciliation and clean-result sampling required
+app/src/endpoints/discussionActions.ts,C20,author-read; reconciliation pending,P010-03-endpoints:1-194; caller reconciliation and clean-result sampling required
+app/src/endpoints/discussionNavState.ts,C20,author-read; reconciliation pending,P010-03-endpoints:1-37; caller reconciliation and clean-result sampling required
+app/src/endpoints/discussionThreadDelete.ts,C20,author-read; reconciliation pending,P010-03-endpoints:1-65; caller reconciliation and clean-result sampling required
+app/src/endpoints/emailVersion.ts,C20,author-read; reconciliation pending,P010-03-endpoints:1-110; caller reconciliation and clean-result sampling required
+app/src/endpoints/exportAuth.ts,C20,author-read; reconciliation pending,P010-03-endpoints:1-35; caller reconciliation and clean-result sampling required
+app/src/endpoints/exportVersion.ts,C20,author-read; reconciliation pending,P011-03-endpoints:1-199; caller reconciliation and clean-result sampling required
+app/src/endpoints/forgotPassword.ts,C20,author-read; reconciliation pending,P011-03-endpoints:1-178; caller reconciliation and clean-result sampling required
+app/src/endpoints/login.ts,C20,author-read; reconciliation pending,P011-03-endpoints:1-61; caller reconciliation and clean-result sampling required
+app/src/endpoints/markMessagesRead.ts,C20,author-read; reconciliation pending,P011-03-endpoints:1-97; caller reconciliation and clean-result sampling required
+app/src/endpoints/moderate.ts,C20,author-read; reconciliation pending,P011-03-endpoints:1-110; caller reconciliation and clean-result sampling required
+app/src/endpoints/parseFormat.ts,C20,author-read; reconciliation pending,P012-03-endpoints:1-39; caller reconciliation and clean-result sampling required
+app/src/endpoints/previewParse.ts,C20,author-read; reconciliation pending,P012-03-endpoints:1-80; caller reconciliation and clean-result sampling required
+app/src/endpoints/previewShared.ts,C20,author-read; reconciliation pending,P012-03-endpoints:1-146; caller reconciliation and clean-result sampling required
+app/src/endpoints/previewVersion.ts,C20,author-read; reconciliation pending,P012-03-endpoints:1-236; caller reconciliation and clean-result sampling required
+app/src/endpoints/recovery.ts,C20,author-read; reconciliation pending,P013-03-endpoints:1-359; caller reconciliation and clean-result sampling required
+app/src/endpoints/recoveryParse.ts,C20,author-read; reconciliation pending,P013-03-endpoints:1-149; caller reconciliation and clean-result sampling required
+app/src/endpoints/requestEditing.ts,C20,author-read; reconciliation pending,P013-03-endpoints:1-142; caller reconciliation and clean-result sampling required
+app/src/endpoints/resourceLibrary.ts,C20,author-read; reconciliation pending,P014-03-endpoints:1-186; caller reconciliation and clean-result sampling required
+app/src/endpoints/respond.ts,C20,author-read; reconciliation pending,P014-03-endpoints:1-184; caller reconciliation and clean-result sampling required
+app/src/endpoints/serverTime.ts,C20,author-read; reconciliation pending,P014-03-endpoints:1-23; caller reconciliation and clean-result sampling required
+app/src/endpoints/systemSettingsSave.ts,C20,author-read; reconciliation pending,P014-03-endpoints:1-225; caller reconciliation and clean-result sampling required
+app/src/endpoints/uploadBundles.ts,C20,author-read; reconciliation pending,P015-03-endpoints:1-176; caller reconciliation and clean-result sampling required
+app/src/endpoints/userAdminActions.ts,C20,author-read; reconciliation pending,P015-03-endpoints:1-306; caller reconciliation and clean-result sampling required
+app/src/endpoints/userAssignments.ts,C20,author-read; reconciliation pending,P016-03-endpoints:1-285; caller reconciliation and clean-result sampling required
+app/src/endpoints/userSearch.ts,C20,author-read; reconciliation pending,P016-03-endpoints:1-257; caller reconciliation and clean-result sampling required
+app/src/endpoints/verifyEmail.ts,C20,author-read; reconciliation pending,P016-03-endpoints:1-43; caller reconciliation and clean-result sampling required
+app/src/endpoints/versionEdit.ts,C20,author-read; reconciliation pending,P017-03-endpoints:1-400; P017-03-endpoints:401-487; caller reconciliation and clean-result sampling required
 app/src/errors/AccountDisabled.ts,C70,pending,Build/config/operations or remaining root source; refine after inventory.
-app/src/fields/bundleFields.ts,C5.12,author-read; reconciliation pending, Source report ranges: 1-69.
-app/src/fields/identity.ts,C5.12,author-read; reconciliation pending, Source report ranges: 1-112.
-app/src/fields/lessonContent.ts,C5.12,author-read; reconciliation pending," Source report ranges: 1-400, 401-495."
-app/src/fields/officialChange.ts,C5.12,author-read; reconciliation pending, Source report ranges: 1-28.
-app/src/fields/phases.ts,C5.12,author-read; reconciliation pending, Source report ranges: 1-25.
-app/src/generator/adapter.ts,C5.8,pending,
-app/src/generator/artifactCache.ts,C5.8,pending,
-app/src/generator/cacheCodecs.ts,C5.8,pending,
-app/src/generator/config/attribution.yaml,C5.8,pending,
-app/src/generator/deliverables.ts,C5.8,pending,
-app/src/generator/docxToPdf.ts,C5.8,pending,
-app/src/generator/exportArtifacts.ts,C5.8,pending,
-app/src/generator/generateForVersion.ts,C5.8,pending,
-app/src/generator/htmlDiffCache.ts,C5.8,pending,
-app/src/generator/htmlSectionsCache.ts,C5.8,pending,
-app/src/generator/index.ts,C5.8,pending,
-app/src/generator/previewBundle.ts,C5.8,pending,
-app/src/generator/proseLinks.ts,C5.8,pending,
-app/src/generator/renderVersion.ts,C5.8,pending,
+app/src/fields/bundleFields.ts,C5.12,author-read; reconciliation pending,P021-04-model:1-69; caller reconciliation and clean-result sampling required
+app/src/fields/identity.ts,C5.12,author-read; reconciliation pending,P021-04-model:1-112; caller reconciliation and clean-result sampling required
+app/src/fields/lessonContent.ts,C5.12,author-read; reconciliation pending,P022-04-model:1-400; P022-04-model:401-495; caller reconciliation and clean-result sampling required
+app/src/fields/officialChange.ts,C5.12,author-read; reconciliation pending,P022-04-model:1-28; caller reconciliation and clean-result sampling required
+app/src/fields/phases.ts,C5.12,author-read; reconciliation pending,P022-04-model:1-25; caller reconciliation and clean-result sampling required
+app/src/generator/adapter.ts,C5.8,author-read; reconciliation pending,P048-07-generator:1-110; caller reconciliation and clean-result sampling required
+app/src/generator/artifactCache.ts,C5.8,author-read; reconciliation pending,P048-07-generator:1-230; caller reconciliation and clean-result sampling required
+app/src/generator/cacheCodecs.ts,C5.8,author-read; reconciliation pending,P048-07-generator:1-18; caller reconciliation and clean-result sampling required
+app/src/generator/config/attribution.yaml,C5.8,author-read; reconciliation pending,P048-07-generator:1-69; caller reconciliation and clean-result sampling required
+app/src/generator/deliverables.ts,C5.8,author-read; reconciliation pending,P048-07-generator:1-26; caller reconciliation and clean-result sampling required
+app/src/generator/docxToPdf.ts,C5.8,author-read; reconciliation pending,P048-07-generator:1-80; caller reconciliation and clean-result sampling required
+app/src/generator/exportArtifacts.ts,C5.8,author-read; reconciliation pending,P049-07-generator:1-245; caller reconciliation and clean-result sampling required
+app/src/generator/generateForVersion.ts,C5.8,author-read; reconciliation pending,P049-07-generator:1-47; caller reconciliation and clean-result sampling required
+app/src/generator/htmlDiffCache.ts,C5.8,author-read; reconciliation pending,P049-07-generator:1-240; caller reconciliation and clean-result sampling required
+app/src/generator/htmlSectionsCache.ts,C5.8,author-read; reconciliation pending,P049-07-generator:1-98; caller reconciliation and clean-result sampling required
+app/src/generator/index.ts,C5.8,author-read; reconciliation pending,P050-07-generator:1-148; caller reconciliation and clean-result sampling required
+app/src/generator/previewBundle.ts,C5.8,author-read; reconciliation pending,P050-07-generator:1-71; caller reconciliation and clean-result sampling required
+app/src/generator/proseLinks.ts,C5.8,author-read; reconciliation pending,P050-07-generator:1-279; caller reconciliation and clean-result sampling required
+app/src/generator/renderVersion.ts,C5.8,author-read; reconciliation pending,P050-07-generator:1-28; caller reconciliation and clean-result sampling required
 app/src/generator/vendor/LICENSE,excluded,excluded,Pristine vendor: provenance hashes and boundary checks required.
 app/src/generator/vendor/PROVENANCE.md,excluded,excluded,Pristine vendor: provenance hashes and boundary checks required.
 app/src/generator/vendor/aresResources.js,excluded,excluded,Pristine vendor: provenance hashes and boundary checks required.
@@ -289,129 +289,129 @@ app/src/generator/vendor/lib/docx_kit.js,excluded,excluded,Pristine vendor: prov
 app/src/generator/vendor/lib/sections.js,excluded,excluded,Pristine vendor: provenance hashes and boundary checks required.
 app/src/generator/vendor/package.json,excluded,excluded,Pristine vendor: provenance hashes and boundary checks required.
 app/src/globals/SystemSettings.ts,C70,pending,Build/config/operations or remaining root source; refine after inventory.
-app/src/hooks/authRateLimit.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-209.
-app/src/hooks/bundleVersion.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-204.
-app/src/hooks/discussions.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-313.
-app/src/hooks/fieldSplit.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-387.
-app/src/hooks/lessonPlan.ts,C5.6,author-read; reconciliation pending," Source report ranges: 1-400, 401-517."
-app/src/hooks/loginPasswordWork.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-53.
-app/src/hooks/messageReference.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-96.
-app/src/hooks/mutationAuthority.ts,C5.6,author-read; reconciliation pending, Source report ranges: 1-47.
-app/src/hooks/userRoles.ts,C5.6,author-read; reconciliation pending," Source report ranges: 1-400, 401-618."
-app/src/ingest/ares-contract.schema.json,C40,author-read; reconciliation pending, Source report ranges: 1-244.
-app/src/ingest/contract.ts,C40,author-read; reconciliation pending, Source report ranges: 1-149.
-app/src/ingest/errors.ts,C40,author-read; reconciliation pending, Source report ranges: 1-15.
-app/src/ingest/extract.ts,C40,author-read; reconciliation pending, Source report ranges: 1-274.
-app/src/ingest/importLessons.ts,C40,author-read; reconciliation pending, Source report ranges: 1-127.
-app/src/ingest/index.ts,C40,author-read; reconciliation pending," Source report ranges: 1-400, 401-800, 801-1053."
-app/src/ingest/lessonManifest.ts,C40,author-read; reconciliation pending, Source report ranges: 1-124.
-app/src/ingest/releaseAncestry.ts,C40,author-read; reconciliation pending, Source report ranges: 1-73.
-app/src/ingest/releaseDecision.ts,C40,author-read; reconciliation pending, Source report ranges: 1-82.
-app/src/ingest/releaseFingerprintContext.ts,C40,author-read; reconciliation pending, Source report ranges: 1-39.
-app/src/ingest/releaseMessages.ts,C40,author-read; reconciliation pending, Source report ranges: 1-75.
-app/src/ingest/resourceLinks.ts,C40,author-read; reconciliation pending, Source report ranges: 1-224.
-app/src/ingest/taxonomy.ts,C40,author-read; reconciliation pending, Source report ranges: 1-144.
-app/src/ingest/toBundle.ts,C40,author-read; reconciliation pending, Source report ranges: 1-54.
-app/src/ingest/uploadFiles.ts,C40,author-read; reconciliation pending, Source report ranges: 1-313.
-app/src/ingest/validateGeneratable.ts,C40,author-read; reconciliation pending, Source report ranges: 1-157.
+app/src/hooks/authRateLimit.ts,C5.6,author-read; reconciliation pending,P023-04-model:1-209; caller reconciliation and clean-result sampling required
+app/src/hooks/bundleVersion.ts,C5.6,author-read; reconciliation pending,P023-04-model:1-204; caller reconciliation and clean-result sampling required
+app/src/hooks/discussions.ts,C5.6,author-read; reconciliation pending,P024-04-model:1-313; caller reconciliation and clean-result sampling required
+app/src/hooks/fieldSplit.ts,C5.6,author-read; reconciliation pending,P025-04-model:1-387; caller reconciliation and clean-result sampling required
+app/src/hooks/lessonPlan.ts,C5.6,author-read; reconciliation pending,P026-04-model:1-400; P026-04-model:401-517; caller reconciliation and clean-result sampling required
+app/src/hooks/loginPasswordWork.ts,C5.6,author-read; reconciliation pending,P026-04-model:1-53; caller reconciliation and clean-result sampling required
+app/src/hooks/messageReference.ts,C5.6,author-read; reconciliation pending,P027-04-model:1-96; caller reconciliation and clean-result sampling required
+app/src/hooks/mutationAuthority.ts,C5.6,author-read; reconciliation pending,P027-04-model:1-47; caller reconciliation and clean-result sampling required
+app/src/hooks/userRoles.ts,C5.6,author-read; reconciliation pending,P027-04-model:1-400; P028-04-model:401-618; caller reconciliation and clean-result sampling required
+app/src/ingest/ares-contract.schema.json,C40,author-read; reconciliation pending,P001-01-ingest:1-244; caller reconciliation and clean-result sampling required
+app/src/ingest/contract.ts,C40,author-read; reconciliation pending,P001-01-ingest:1-149; caller reconciliation and clean-result sampling required
+app/src/ingest/errors.ts,C40,author-read; reconciliation pending,P001-01-ingest:1-15; caller reconciliation and clean-result sampling required
+app/src/ingest/extract.ts,C40,author-read; reconciliation pending,P002-01-ingest:1-274; caller reconciliation and clean-result sampling required
+app/src/ingest/importLessons.ts,C40,author-read; reconciliation pending,P002-01-ingest:1-127; caller reconciliation and clean-result sampling required
+app/src/ingest/index.ts,C40,author-read; reconciliation pending,P003-01-ingest:1-400; P004-01-ingest:401-800; P005-01-ingest:801-1053; caller reconciliation and clean-result sampling required
+app/src/ingest/lessonManifest.ts,C40,author-read; reconciliation pending,P005-01-ingest:1-124; caller reconciliation and clean-result sampling required
+app/src/ingest/releaseAncestry.ts,C40,author-read; reconciliation pending,P005-01-ingest:1-73; caller reconciliation and clean-result sampling required
+app/src/ingest/releaseDecision.ts,C40,author-read; reconciliation pending,P005-01-ingest:1-82; caller reconciliation and clean-result sampling required
+app/src/ingest/releaseFingerprintContext.ts,C40,author-read; reconciliation pending,P005-01-ingest:1-39; caller reconciliation and clean-result sampling required
+app/src/ingest/releaseMessages.ts,C40,author-read; reconciliation pending,P005-01-ingest:1-75; caller reconciliation and clean-result sampling required
+app/src/ingest/resourceLinks.ts,C40,author-read; reconciliation pending,P006-01-ingest:1-224; caller reconciliation and clean-result sampling required
+app/src/ingest/taxonomy.ts,C40,author-read; reconciliation pending,P006-01-ingest:1-144; caller reconciliation and clean-result sampling required
+app/src/ingest/toBundle.ts,C40,author-read; reconciliation pending,P006-01-ingest:1-54; caller reconciliation and clean-result sampling required
+app/src/ingest/uploadFiles.ts,C40,author-read; reconciliation pending,P007-01-ingest:1-313; caller reconciliation and clean-result sampling required
+app/src/ingest/validateGeneratable.ts,C40,author-read; reconciliation pending,P007-01-ingest:1-157; caller reconciliation and clean-result sampling required
 app/src/instrumentation.ts,C5.10,pending,
-app/src/jobs/emailVersionArtifact.ts,C5.7,pending,
-app/src/jobs/expireEditRecovery.ts,C5.7,pending,
-app/src/jobs/generateVersionArtifact.ts,C5.7,pending,
-app/src/jobs/messagePing.ts,C5.7,pending,
-app/src/jobs/passwordResetEmail.ts,C5.7,pending,
-app/src/jobs/prewarmVersionArtifacts.ts,C5.7,pending,
-app/src/lib/accessScopes.ts,C5.9,pending,
-app/src/lib/advancedTools.ts,C5.9,pending,
-app/src/lib/apiBase.ts,C5.9,pending,
-app/src/lib/appVersion.ts,C5.9,pending,
-app/src/lib/aresReleasePresentation.ts,C5.9,pending,
-app/src/lib/assignmentCounts.ts,C5.9,pending,
-app/src/lib/assignmentRoles.ts,C5.9,pending,
-app/src/lib/awaitingApproval.ts,C5.9,pending,
-app/src/lib/backupStatus.ts,C5.9,pending,
-app/src/lib/canonicalJson.ts,C5.9,pending,
-app/src/lib/clockSkew.ts,C5.9,pending,
-app/src/lib/combine/ancestry.ts,C5.9,pending,
-app/src/lib/combine/backfill.ts,C5.9,pending,
-app/src/lib/combine/correspondence.ts,C5.9,pending,
-app/src/lib/combine/diff3.ts,C5.9,pending,
-app/src/lib/combine/draft.ts,C5.9,pending,
-app/src/lib/combine/engine.ts,C5.9,pending,
-app/src/lib/combine/lineage.ts,C5.9,pending,
-app/src/lib/combine/outcome.ts,C5.9,pending,
-app/src/lib/compareGroups.ts,C5.9,pending,
-app/src/lib/conversionLimit.ts,C5.9,pending,
-app/src/lib/discussionComposer.ts,C5.9,pending,
-app/src/lib/discussionPages.ts,C5.9,pending,
-app/src/lib/discussionPaging.ts,C5.9,pending,
-app/src/lib/discussionText.ts,C5.9,pending,
-app/src/lib/discussions.ts,C5.9,pending,
-app/src/lib/displayTitle.ts,C5.9,pending,
-app/src/lib/domWindow.ts,C5.9,pending,
-app/src/lib/editRecovery/draftCombineSuggestion.ts,C5.9,pending,
-app/src/lib/editRecovery/kernel.ts,C5.9,pending,
-app/src/lib/editRecovery/projection.ts,C5.9,pending,
-app/src/lib/editRecovery/provenance.ts,C5.9,pending,
-app/src/lib/editRecovery/ttl.ts,C5.9,pending,
-app/src/lib/editRecovery/unsavedWork.ts,C5.9,pending,
-app/src/lib/editingViewport.ts,C5.9,pending,
-app/src/lib/editorGroups.ts,C5.9,pending,
-app/src/lib/emailAddress.ts,C5.9,pending,
-app/src/lib/emailLinkBase.ts,C5.9,pending,
-app/src/lib/enqueue.ts,C5.9,pending,
-app/src/lib/env.ts,C5.9,pending,
-app/src/lib/errorTracking.ts,C5.9,pending,
-app/src/lib/escapeHtml.ts,C5.9,pending,
-app/src/lib/firstUserBootstrap.ts,C5.9,pending,
-app/src/lib/formatDate.ts,C5.9,pending,
-app/src/lib/frameworkProse.ts,C5.9,pending,
-app/src/lib/gradeLevels.ts,C5.9,pending,
-app/src/lib/identity/installationId.ts,C5.9,pending,
-app/src/lib/identity/releaseFingerprint.ts,C5.9,pending,
-app/src/lib/initials.ts,C5.9,pending,
-app/src/lib/lessonAnchors.ts,C5.9,pending,
-app/src/lib/lessonDetails.ts,C5.9,pending,
-app/src/lib/lessonReference.ts,C5.9,pending,
-app/src/lib/loginProtection.ts,C5.9,pending,
-app/src/lib/messageText.ts,C5.9,pending,
-app/src/lib/offlineAdminRecovery.ts,C5.9,pending,
-app/src/lib/personalFavorites.ts,C5.9,pending,
-app/src/lib/personalVersions.ts,C5.9,pending,
-app/src/lib/planSelection.ts,C5.9,pending,
-app/src/lib/plural.ts,C5.9,pending,
-app/src/lib/proseFields.ts,C5.9,pending,
-app/src/lib/proseLinkTokens.ts,C5.9,pending,
-app/src/lib/publicLibrary.ts,C5.9,pending,
-app/src/lib/publicPlan.ts,C5.9,pending,
-app/src/lib/publicPosture.ts,C5.9,pending,
-app/src/lib/publicSlug.ts,C5.9,pending,
-app/src/lib/rateLimit.ts,C5.9,pending,
-app/src/lib/readBundle.ts,C5.9,pending,
-app/src/lib/relId.ts,C5.9,pending,
-app/src/lib/renderTimings.ts,C5.9,pending,
-app/src/lib/requestedVersion.ts,C5.9,pending,
-app/src/lib/resolveLessonReferences.ts,C5.9,pending,
-app/src/lib/sanitizeHtml.ts,C5.9,pending,
-app/src/lib/schoolMetadata.ts,C5.9,pending,
-app/src/lib/schoolName.ts,C5.9,pending,
-app/src/lib/semver.ts,C5.9,pending,
-app/src/lib/serverActionBodyLimit.ts,C5.9,pending,
-app/src/lib/session.ts,C5.9,pending,
-app/src/lib/setSchoolName.ts,C5.9,pending,
-app/src/lib/stripIds.ts,C5.9,pending,
-app/src/lib/substrand.ts,C5.9,pending,
-app/src/lib/systemFacts.ts,C5.9,pending,
-app/src/lib/systemFlagNames.ts,C5.9,pending,
-app/src/lib/systemFlags.ts,C5.9,pending,
-app/src/lib/txDb.ts,C5.9,pending,
-app/src/lib/userSearchContract.ts,C5.9,pending,
-app/src/lib/versionContent.ts,C5.9,pending,
-app/src/lib/versionCounts.ts,C5.9,pending,
-app/src/lib/versionsOrder.ts,C5.9,pending,
-app/src/lib/welcomeDismissal.ts,C5.9,pending,
-app/src/lib/widgetUser.ts,C5.9,pending,
-app/src/lib/wireError.ts,C5.9,pending,
+app/src/jobs/emailVersionArtifact.ts,C5.7,author-read; reconciliation pending,P029-05-jobs:1-120; caller reconciliation and clean-result sampling required
+app/src/jobs/expireEditRecovery.ts,C5.7,author-read; reconciliation pending,P029-05-jobs:1-59; caller reconciliation and clean-result sampling required
+app/src/jobs/generateVersionArtifact.ts,C5.7,author-read; reconciliation pending,P029-05-jobs:1-168; caller reconciliation and clean-result sampling required
+app/src/jobs/messagePing.ts,C5.7,author-read; reconciliation pending,P029-05-jobs:1-90; caller reconciliation and clean-result sampling required
+app/src/jobs/passwordResetEmail.ts,C5.7,author-read; reconciliation pending,P029-05-jobs:1-98; caller reconciliation and clean-result sampling required
+app/src/jobs/prewarmVersionArtifacts.ts,C5.7,author-read; reconciliation pending,P029-05-jobs:1-73; caller reconciliation and clean-result sampling required
+app/src/lib/accessScopes.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-111; caller reconciliation and clean-result sampling required
+app/src/lib/advancedTools.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-36; caller reconciliation and clean-result sampling required
+app/src/lib/apiBase.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-7; caller reconciliation and clean-result sampling required
+app/src/lib/appVersion.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-14; caller reconciliation and clean-result sampling required
+app/src/lib/aresReleasePresentation.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-61; caller reconciliation and clean-result sampling required
+app/src/lib/assignmentCounts.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-130; caller reconciliation and clean-result sampling required
+app/src/lib/assignmentRoles.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-34; caller reconciliation and clean-result sampling required
+app/src/lib/awaitingApproval.ts,C5.9,author-read; reconciliation pending,P030-06-lib:1-22; caller reconciliation and clean-result sampling required
+app/src/lib/backupStatus.ts,C5.9,author-read; reconciliation pending,P031-06-lib:1-400; P032-06-lib:401-800; P032-06-lib:801-943; caller reconciliation and clean-result sampling required
+app/src/lib/canonicalJson.ts,C5.9,author-read; reconciliation pending,P032-06-lib:1-27; caller reconciliation and clean-result sampling required
+app/src/lib/clockSkew.ts,C5.9,author-read; reconciliation pending,P032-06-lib:1-34; caller reconciliation and clean-result sampling required
+app/src/lib/combine/ancestry.ts,C5.9,author-read; reconciliation pending,P033-06-lib:1-53; caller reconciliation and clean-result sampling required
+app/src/lib/combine/backfill.ts,C5.9,author-read; reconciliation pending,P033-06-lib:1-33; caller reconciliation and clean-result sampling required
+app/src/lib/combine/correspondence.ts,C5.9,author-read; reconciliation pending,P033-06-lib:1-60; caller reconciliation and clean-result sampling required
+app/src/lib/combine/diff3.ts,C5.9,author-read; reconciliation pending,P033-06-lib:1-150; caller reconciliation and clean-result sampling required
+app/src/lib/combine/draft.ts,C5.9,author-read; reconciliation pending,P033-06-lib:1-36; caller reconciliation and clean-result sampling required
+app/src/lib/combine/engine.ts,C5.9,author-read; reconciliation pending,P033-06-lib:1-317; caller reconciliation and clean-result sampling required
+app/src/lib/combine/lineage.ts,C5.9,author-read; reconciliation pending,P034-06-lib:1-38; caller reconciliation and clean-result sampling required
+app/src/lib/combine/outcome.ts,C5.9,author-read; reconciliation pending,P034-06-lib:1-29; caller reconciliation and clean-result sampling required
+app/src/lib/compareGroups.ts,C5.9,author-read; reconciliation pending,P034-06-lib:1-371; caller reconciliation and clean-result sampling required
+app/src/lib/conversionLimit.ts,C5.9,author-read; reconciliation pending,P034-06-lib:1-40; caller reconciliation and clean-result sampling required
+app/src/lib/discussionComposer.ts,C5.9,author-read; reconciliation pending,P034-06-lib:1-120; caller reconciliation and clean-result sampling required
+app/src/lib/discussionPages.ts,C5.9,author-read; reconciliation pending,P035-06-lib:1-321; caller reconciliation and clean-result sampling required
+app/src/lib/discussionPaging.ts,C5.9,author-read; reconciliation pending,P035-06-lib:1-72; caller reconciliation and clean-result sampling required
+app/src/lib/discussionText.ts,C5.9,author-read; reconciliation pending,P035-06-lib:1-93; caller reconciliation and clean-result sampling required
+app/src/lib/discussions.ts,C5.9,author-read; reconciliation pending,P036-06-lib:1-349; caller reconciliation and clean-result sampling required
+app/src/lib/displayTitle.ts,C5.9,author-read; reconciliation pending,P036-06-lib:1-17; caller reconciliation and clean-result sampling required
+app/src/lib/domWindow.ts,C5.9,author-read; reconciliation pending,P036-06-lib:1-17; caller reconciliation and clean-result sampling required
+app/src/lib/editRecovery/draftCombineSuggestion.ts,C5.9,author-read; reconciliation pending,P036-06-lib:1-62; caller reconciliation and clean-result sampling required
+app/src/lib/editRecovery/kernel.ts,C5.9,author-read; reconciliation pending,P037-06-lib:1-400; P038-06-lib:401-706; caller reconciliation and clean-result sampling required
+app/src/lib/editRecovery/projection.ts,C5.9,author-read; reconciliation pending,P039-06-lib:1-400; P039-06-lib:401-488; caller reconciliation and clean-result sampling required
+app/src/lib/editRecovery/provenance.ts,C5.9,author-read; reconciliation pending,P039-06-lib:1-29; caller reconciliation and clean-result sampling required
+app/src/lib/editRecovery/ttl.ts,C5.9,author-read; reconciliation pending,P039-06-lib:1-26; caller reconciliation and clean-result sampling required
+app/src/lib/editRecovery/unsavedWork.ts,C5.9,author-read; reconciliation pending,P039-06-lib:1-94; caller reconciliation and clean-result sampling required
+app/src/lib/editingViewport.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-46; caller reconciliation and clean-result sampling required
+app/src/lib/editorGroups.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-209; caller reconciliation and clean-result sampling required
+app/src/lib/emailAddress.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-46; caller reconciliation and clean-result sampling required
+app/src/lib/emailLinkBase.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-9; caller reconciliation and clean-result sampling required
+app/src/lib/enqueue.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-56; caller reconciliation and clean-result sampling required
+app/src/lib/env.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-20; caller reconciliation and clean-result sampling required
+app/src/lib/errorTracking.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-42; caller reconciliation and clean-result sampling required
+app/src/lib/escapeHtml.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-20; caller reconciliation and clean-result sampling required
+app/src/lib/firstUserBootstrap.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-43; caller reconciliation and clean-result sampling required
+app/src/lib/formatDate.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-22; caller reconciliation and clean-result sampling required
+app/src/lib/frameworkProse.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-10; caller reconciliation and clean-result sampling required
+app/src/lib/gradeLevels.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-10; caller reconciliation and clean-result sampling required
+app/src/lib/identity/installationId.ts,C5.9,author-read; reconciliation pending,P040-06-lib:1-43; caller reconciliation and clean-result sampling required
+app/src/lib/identity/releaseFingerprint.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-104; caller reconciliation and clean-result sampling required
+app/src/lib/initials.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-14; caller reconciliation and clean-result sampling required
+app/src/lib/lessonAnchors.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-132; caller reconciliation and clean-result sampling required
+app/src/lib/lessonDetails.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-55; caller reconciliation and clean-result sampling required
+app/src/lib/lessonReference.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-17; caller reconciliation and clean-result sampling required
+app/src/lib/loginProtection.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-69; caller reconciliation and clean-result sampling required
+app/src/lib/messageText.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-5; caller reconciliation and clean-result sampling required
+app/src/lib/offlineAdminRecovery.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-69; caller reconciliation and clean-result sampling required
+app/src/lib/personalFavorites.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-20; caller reconciliation and clean-result sampling required
+app/src/lib/personalVersions.ts,C5.9,author-read; reconciliation pending,P041-06-lib:1-134; caller reconciliation and clean-result sampling required
+app/src/lib/planSelection.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-123; caller reconciliation and clean-result sampling required
+app/src/lib/plural.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-12; caller reconciliation and clean-result sampling required
+app/src/lib/proseFields.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-73; caller reconciliation and clean-result sampling required
+app/src/lib/proseLinkTokens.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-44; caller reconciliation and clean-result sampling required
+app/src/lib/publicLibrary.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-104; caller reconciliation and clean-result sampling required
+app/src/lib/publicPlan.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-113; caller reconciliation and clean-result sampling required
+app/src/lib/publicPosture.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-65; caller reconciliation and clean-result sampling required
+app/src/lib/publicSlug.ts,C5.9,author-read; reconciliation pending,P042-06-lib:1-102; caller reconciliation and clean-result sampling required
+app/src/lib/rateLimit.ts,C5.9,author-read; reconciliation pending,P043-06-lib:1-291; caller reconciliation and clean-result sampling required
+app/src/lib/readBundle.ts,C5.9,author-read; reconciliation pending,P043-06-lib:1-173; caller reconciliation and clean-result sampling required
+app/src/lib/relId.ts,C5.9,author-read; reconciliation pending,P043-06-lib:1-49; caller reconciliation and clean-result sampling required
+app/src/lib/renderTimings.ts,C5.9,author-read; reconciliation pending,P043-06-lib:1-62; caller reconciliation and clean-result sampling required
+app/src/lib/requestedVersion.ts,C5.9,author-read; reconciliation pending,P043-06-lib:1-41; caller reconciliation and clean-result sampling required
+app/src/lib/resolveLessonReferences.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-71; caller reconciliation and clean-result sampling required
+app/src/lib/sanitizeHtml.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-77; caller reconciliation and clean-result sampling required
+app/src/lib/schoolMetadata.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-9; caller reconciliation and clean-result sampling required
+app/src/lib/schoolName.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-18; caller reconciliation and clean-result sampling required
+app/src/lib/semver.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-116; caller reconciliation and clean-result sampling required
+app/src/lib/serverActionBodyLimit.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-85; caller reconciliation and clean-result sampling required
+app/src/lib/session.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-30; caller reconciliation and clean-result sampling required
+app/src/lib/setSchoolName.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-28; caller reconciliation and clean-result sampling required
+app/src/lib/stripIds.ts,C5.9,author-read; reconciliation pending,P044-06-lib:1-17; caller reconciliation and clean-result sampling required
+app/src/lib/substrand.ts,C5.9,author-read; reconciliation pending,P045-06-lib:1-316; caller reconciliation and clean-result sampling required
+app/src/lib/systemFacts.ts,C5.9,author-read; reconciliation pending,P045-06-lib:1-317; caller reconciliation and clean-result sampling required
+app/src/lib/systemFlagNames.ts,C5.9,author-read; reconciliation pending,P046-06-lib:1-27; caller reconciliation and clean-result sampling required
+app/src/lib/systemFlags.ts,C5.9,author-read; reconciliation pending,P046-06-lib:1-142; caller reconciliation and clean-result sampling required
+app/src/lib/txDb.ts,C5.9,author-read; reconciliation pending,P046-06-lib:1-321; caller reconciliation and clean-result sampling required
+app/src/lib/userSearchContract.ts,C5.9,author-read; reconciliation pending,P046-06-lib:1-77; caller reconciliation and clean-result sampling required
+app/src/lib/versionContent.ts,C5.9,author-read; reconciliation pending,P046-06-lib:1-45; caller reconciliation and clean-result sampling required
+app/src/lib/versionCounts.ts,C5.9,author-read; reconciliation pending,P046-06-lib:1-27; caller reconciliation and clean-result sampling required
+app/src/lib/versionsOrder.ts,C5.9,author-read; reconciliation pending,P047-06-lib:1-17; caller reconciliation and clean-result sampling required
+app/src/lib/welcomeDismissal.ts,C5.9,author-read; reconciliation pending,P047-06-lib:1-10; caller reconciliation and clean-result sampling required
+app/src/lib/widgetUser.ts,C5.9,author-read; reconciliation pending,P047-06-lib:1-95; caller reconciliation and clean-result sampling required
+app/src/lib/wireError.ts,C5.9,author-read; reconciliation pending,P047-06-lib:1-37; caller reconciliation and clean-result sampling required
 app/src/migrations/20260608_024132_initial.json,C5.14,pending,Custom migration logic and upgrade drill; generated DDL boundary checks.
 app/src/migrations/20260608_024132_initial.ts,C5.14,pending,Custom migration logic and upgrade drill; generated DDL boundary checks.
 app/src/migrations/20260608_145602_lesson_entities.json,C5.14,pending,Custom migration logic and upgrade drill; generated DDL boundary checks.
@@ -492,197 +492,197 @@ app/src/payload-types.ts,excluded,excluded,Generated output: generation/registra
 app/src/payload.config.ts,C70,pending,Build/config/operations or remaining root source; refine after inventory.
 app/src/proxy.ts,C5.10,pending,
 app/test.env,C70,pending,Build/config/operations or remaining root source; refine after inventory.
-app/tests/e2e/advancedTools.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/catalogue.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/combine.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/discussions.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/discussionsGuide.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/discussionsModeration.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/documentLocks.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/draftCombineShortcut.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/drafts.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/editRecovery.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/editRecoveryRestore.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/editorBackDarkMode.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/editorValidation.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/insertLink.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/lessonDetails.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/lessonReleases.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/liveRowLabels.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/manage.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/messages.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/offlineSignup.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/publicLibraryDisabled.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/saveSnapshot.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/schoolName.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/uploadBundles.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/versionUnavailable.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/e2e/welcomeDialog.e2e.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/fixtures/pdf-library/.gitattributes,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/fixtures/pdf-library/README.md,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/fixtures/pdf-library/public-wire.pdf,excluded,excluded,Binary: owning flow or provenance check required.
-app/tests/helpers/cssSelectors.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/db.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/dialogs.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/discussions.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/e2e.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/editRecovery.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/editRecoveryUi.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/fakeReq.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/fieldTree.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/fixtures.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/generatorHtml.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/httpWire.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/login.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/manageUi.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/nullResourceLinks.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/payloadErrors.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/renderSql.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/helpers/rowLocks.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/apiErrorMessages.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/authFavorites.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/combinePreview.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/combineSave.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/discussions.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/endpoints.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/firstUserBootstrap.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/jobStatsGlobal.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/lessonReleases.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/lockedDocuments.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/loginProtection.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/messageReferences.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/nativeVersionAuthority.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/nullResources.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/pendingAuthority.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/recovery.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/saveAsNewRecovery.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/serverTime.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/subjectGrades.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/systemSettings.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/teacherKey.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/userAdminActions.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/userAssignments.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/userSearch.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/http/worldwideIds.http.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/access.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/adminResetLinkCarveOut.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/api.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/assignmentProvenance.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/authFavorites.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/authRateLimit.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/bestEffortEnqueue.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/clearCollapsePrefs.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/combineDraftMigration.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/combineMigration.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/discussions.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/discussions3b.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/discussions4a.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/draftCombineSuggestion.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryAccess.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryCap.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryCapture.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryExpiry.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryMetadata.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryRetire.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryStart.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editRecoveryUnsavedWork.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/editorGroupsAccess.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/favorites.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/importLessons.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/jobStatsScheduling.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/lockRows.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/messageReferenceMigration.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/messages.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/nullResources.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/officialPointerLock.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/personalVersions.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/planIdentityImmutable.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/publicPublication.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/rateLimit.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/reingest.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/schoolName.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/subjectAdminHandover.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/systemSettings.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/taxonomyDelete.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/uploadTaxonomy.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/userSecurity.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/verifyBackfill.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/int/worldwideIds.int.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/style-snapshot/README.md,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/style-snapshot/dialogs.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/style-snapshot/diff.mjs,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/style-snapshot/kit.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/style-snapshot/menu-states.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/style-snapshot/pages.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/accessScopes.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/accordionPanelCount.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/accountDisabledContract.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/accountDisabledWiring.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/adminResetLinkAllowance.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/advancedTools.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/appVersion.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/aresAddress.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/aresReleasePresentation.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/artifactCacheBestEffort.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/artifactCacheCleanup.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/authFavoritesWiring.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/authFormMessages.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/backupStatus.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/backupStatusPanel.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/backupStatusPathParity.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/browserFindings.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/buttonSystem.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/canDeleteVersionDoc.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/candidateListActions.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/canonicalJson.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/captureDiffAgreement.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/classNameStyles.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/clockCheck.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/clockSkew.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/collapseOnEntry.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/collapsedPanelEntryRule.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineDraft.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineEngine.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineFields.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineLineage.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineOutcome.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineRetry.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineUnavailable.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/combineVersionChoices.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/compareDiffGroups.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/compareFilterDefault.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/compareGroups.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/corpusCheck.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/currentSection.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/deliverables.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionComposer.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionModerationControls.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionModerationPages.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionPages.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionPaging.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionReferenceSelection.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionText.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussionThreadDelete.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/discussions.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/displayNameForm.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/displayTitle.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/draftCombineSuggestion.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editJumpNav.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editRecoveryIndicator.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editRecoveryMigrationOrder.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editRecoveryProjection.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editRecoveryProtocol.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editRecoveryTtlProvenance.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editingViewport.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editorPlainLanguage.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/editorValidation.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/emailAddress.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/emailFormat.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/emptyArraySerialization.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/enforceAssignmentScope.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/enqueueDetached.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/entryPhase.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/envTemplateParity.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
+app/tests/e2e/advancedTools.e2e.spec.ts,C72,author-read; reconciliation pending,P102-10-tests:1-145; caller reconciliation and clean-result sampling required
+app/tests/e2e/catalogue.e2e.spec.ts,C72,author-read; reconciliation pending,P102-10-tests:1-100; caller reconciliation and clean-result sampling required
+app/tests/e2e/combine.e2e.spec.ts,C72,author-read; reconciliation pending,P102-10-tests:1-400; P103-10-tests:401-478; caller reconciliation and clean-result sampling required
+app/tests/e2e/discussions.e2e.spec.ts,C72,author-read; reconciliation pending,P103-10-tests:1-371; caller reconciliation and clean-result sampling required
+app/tests/e2e/discussionsGuide.e2e.spec.ts,C72,author-read; reconciliation pending,P103-10-tests:1-51; caller reconciliation and clean-result sampling required
+app/tests/e2e/discussionsModeration.e2e.spec.ts,C72,author-read; reconciliation pending,P104-10-tests:1-400; P104-10-tests:401-413; caller reconciliation and clean-result sampling required
+app/tests/e2e/documentLocks.e2e.spec.ts,C72,author-read; reconciliation pending,P104-10-tests:1-86; caller reconciliation and clean-result sampling required
+app/tests/e2e/draftCombineShortcut.e2e.spec.ts,C72,author-read; reconciliation pending,P105-10-tests:1-236; caller reconciliation and clean-result sampling required
+app/tests/e2e/drafts.e2e.spec.ts,C72,author-read; reconciliation pending,P105-10-tests:1-220; caller reconciliation and clean-result sampling required
+app/tests/e2e/editRecovery.e2e.spec.ts,C72,author-read; reconciliation pending,P105-10-tests:1-156; caller reconciliation and clean-result sampling required
+app/tests/e2e/editRecoveryRestore.e2e.spec.ts,C72,author-read; reconciliation pending,P106-10-tests:1-400; P106-10-tests:401-494; caller reconciliation and clean-result sampling required
+app/tests/e2e/editorBackDarkMode.e2e.spec.ts,C72,author-read; reconciliation pending,P106-10-tests:1-56; caller reconciliation and clean-result sampling required
+app/tests/e2e/editorValidation.e2e.spec.ts,C72,author-read; reconciliation pending,P107-10-tests:1-119; caller reconciliation and clean-result sampling required
+app/tests/e2e/insertLink.e2e.spec.ts,C72,author-read; reconciliation pending,P107-10-tests:1-307; caller reconciliation and clean-result sampling required
+app/tests/e2e/lessonDetails.e2e.spec.ts,C72,author-read; reconciliation pending,P107-10-tests:1-72; caller reconciliation and clean-result sampling required
+app/tests/e2e/lessonReleases.e2e.spec.ts,C72,author-read; reconciliation pending,P108-10-tests:1-176; caller reconciliation and clean-result sampling required
+app/tests/e2e/liveRowLabels.e2e.spec.ts,C72,author-read; reconciliation pending,P108-10-tests:1-162; caller reconciliation and clean-result sampling required
+app/tests/e2e/manage.e2e.spec.ts,C72,author-read; reconciliation pending,P109-10-tests:1-400; P110-10-tests:401-800; P111-10-tests:801-1200; P112-10-tests:1201-1600; P113-10-tests:1601-1995; caller reconciliation and clean-result sampling required
+app/tests/e2e/messages.e2e.spec.ts,C72,author-read; reconciliation pending,P113-10-tests:1-139; caller reconciliation and clean-result sampling required
+app/tests/e2e/offlineSignup.e2e.spec.ts,C72,author-read; reconciliation pending,P113-10-tests:1-101; caller reconciliation and clean-result sampling required
+app/tests/e2e/publicLibraryDisabled.e2e.spec.ts,C72,author-read; reconciliation pending,P114-10-tests:1-89; caller reconciliation and clean-result sampling required
+app/tests/e2e/saveSnapshot.e2e.spec.ts,C72,author-read; reconciliation pending,P114-10-tests:1-240; caller reconciliation and clean-result sampling required
+app/tests/e2e/schoolName.e2e.spec.ts,C72,author-read; reconciliation pending,P114-10-tests:1-118; caller reconciliation and clean-result sampling required
+app/tests/e2e/uploadBundles.e2e.spec.ts,C72,author-read; reconciliation pending,P114-10-tests:1-199; caller reconciliation and clean-result sampling required
+app/tests/e2e/versionUnavailable.e2e.spec.ts,C72,author-read; reconciliation pending,P115-10-tests:1-130; caller reconciliation and clean-result sampling required
+app/tests/e2e/welcomeDialog.e2e.spec.ts,C72,author-read; reconciliation pending,P115-10-tests:1-66; caller reconciliation and clean-result sampling required
+app/tests/fixtures/pdf-library/.gitattributes,C72,author-read; reconciliation pending,P115-10-tests:1-1; caller reconciliation and clean-result sampling required
+app/tests/fixtures/pdf-library/README.md,C72,author-read; reconciliation pending,P115-10-tests:1-7; caller reconciliation and clean-result sampling required
+app/tests/fixtures/pdf-library/public-wire.pdf,excluded,author-read; reconciliation pending,P115-10-tests:1-32; caller reconciliation and clean-result sampling required
+app/tests/helpers/cssSelectors.ts,C72,author-read; reconciliation pending,P115-10-tests:1-38; caller reconciliation and clean-result sampling required
+app/tests/helpers/db.ts,C72,author-read; reconciliation pending,P115-10-tests:1-58; caller reconciliation and clean-result sampling required
+app/tests/helpers/dialogs.ts,C72,author-read; reconciliation pending,P115-10-tests:1-61; caller reconciliation and clean-result sampling required
+app/tests/helpers/discussions.ts,C72,author-read; reconciliation pending,P115-10-tests:1-41; caller reconciliation and clean-result sampling required
+app/tests/helpers/e2e.ts,C72,author-read; reconciliation pending,P115-10-tests:1-73; caller reconciliation and clean-result sampling required
+app/tests/helpers/editRecovery.ts,C72,author-read; reconciliation pending,P116-10-tests:1-296; caller reconciliation and clean-result sampling required
+app/tests/helpers/editRecoveryUi.ts,C72,author-read; reconciliation pending,P116-10-tests:1-79; caller reconciliation and clean-result sampling required
+app/tests/helpers/fakeReq.ts,C72,author-read; reconciliation pending,P116-10-tests:1-45; caller reconciliation and clean-result sampling required
+app/tests/helpers/fieldTree.ts,C72,author-read; reconciliation pending,P116-10-tests:1-43; caller reconciliation and clean-result sampling required
+app/tests/helpers/fixtures.ts,C72,author-read; reconciliation pending,P117-10-tests:1-400; P117-10-tests:401-534; caller reconciliation and clean-result sampling required
+app/tests/helpers/generatorHtml.ts,C72,author-read; reconciliation pending,P117-10-tests:1-27; caller reconciliation and clean-result sampling required
+app/tests/helpers/httpWire.ts,C72,author-read; reconciliation pending,P117-10-tests:1-46; caller reconciliation and clean-result sampling required
+app/tests/helpers/login.ts,C72,author-read; reconciliation pending,P117-10-tests:1-41; caller reconciliation and clean-result sampling required
+app/tests/helpers/manageUi.ts,C72,author-read; reconciliation pending,P118-10-tests:1-45; caller reconciliation and clean-result sampling required
+app/tests/helpers/nullResourceLinks.ts,C72,author-read; reconciliation pending,P118-10-tests:1-18; caller reconciliation and clean-result sampling required
+app/tests/helpers/payloadErrors.ts,C72,author-read; reconciliation pending,P118-10-tests:1-33; caller reconciliation and clean-result sampling required
+app/tests/helpers/renderSql.ts,C72,author-read; reconciliation pending,P118-10-tests:1-59; caller reconciliation and clean-result sampling required
+app/tests/helpers/rowLocks.ts,C72,author-read; reconciliation pending,P118-10-tests:1-127; caller reconciliation and clean-result sampling required
+app/tests/http/apiErrorMessages.http.spec.ts,C72,author-read; reconciliation pending,P118-10-tests:1-68; caller reconciliation and clean-result sampling required
+app/tests/http/authFavorites.http.spec.ts,C72,author-read; reconciliation pending,P118-10-tests:1-221; caller reconciliation and clean-result sampling required
+app/tests/http/combinePreview.http.spec.ts,C72,author-read; reconciliation pending,P119-10-tests:1-378; caller reconciliation and clean-result sampling required
+app/tests/http/combineSave.http.spec.ts,C72,author-read; reconciliation pending,P120-10-tests:1-400; P120-10-tests:401-558; caller reconciliation and clean-result sampling required
+app/tests/http/discussions.http.spec.ts,C72,author-read; reconciliation pending,P121-10-tests:1-400; P121-10-tests:401-596; caller reconciliation and clean-result sampling required
+app/tests/http/endpoints.http.spec.ts,C72,author-read; reconciliation pending,P122-10-tests:1-400; P123-10-tests:401-800; P124-10-tests:801-1200; P125-10-tests:1201-1600; P126-10-tests:1601-2000; P127-10-tests:2001-2400; P128-10-tests:2401-2747; caller reconciliation and clean-result sampling required
+app/tests/http/firstUserBootstrap.http.spec.ts,C72,author-read; reconciliation pending,P128-10-tests:1-162; caller reconciliation and clean-result sampling required
+app/tests/http/jobStatsGlobal.http.spec.ts,C72,author-read; reconciliation pending,P129-10-tests:1-157; caller reconciliation and clean-result sampling required
+app/tests/http/lessonReleases.http.spec.ts,C72,author-read; reconciliation pending,P129-10-tests:1-203; caller reconciliation and clean-result sampling required
+app/tests/http/lockedDocuments.http.spec.ts,C72,author-read; reconciliation pending,P129-10-tests:1-283; caller reconciliation and clean-result sampling required
+app/tests/http/loginProtection.http.spec.ts,C72,author-read; reconciliation pending,P130-10-tests:1-162; caller reconciliation and clean-result sampling required
+app/tests/http/messageReferences.http.spec.ts,C72,author-read; reconciliation pending,P130-10-tests:1-178; caller reconciliation and clean-result sampling required
+app/tests/http/nativeVersionAuthority.http.spec.ts,C72,author-read; reconciliation pending,P130-10-tests:1-98; caller reconciliation and clean-result sampling required
+app/tests/http/nullResources.http.spec.ts,C72,author-read; reconciliation pending,P131-10-tests:1-270; caller reconciliation and clean-result sampling required
+app/tests/http/pendingAuthority.http.spec.ts,C72,author-read; reconciliation pending,P131-10-tests:1-309; caller reconciliation and clean-result sampling required
+app/tests/http/recovery.http.spec.ts,C72,author-read; reconciliation pending,P132-10-tests:1-400; P133-10-tests:401-675; caller reconciliation and clean-result sampling required
+app/tests/http/saveAsNewRecovery.http.spec.ts,C72,author-read; reconciliation pending,P134-10-tests:1-400; P135-10-tests:401-655; caller reconciliation and clean-result sampling required
+app/tests/http/serverTime.http.spec.ts,C72,author-read; reconciliation pending,P135-10-tests:1-44; caller reconciliation and clean-result sampling required
+app/tests/http/subjectGrades.http.spec.ts,C72,author-read; reconciliation pending,P135-10-tests:1-97; caller reconciliation and clean-result sampling required
+app/tests/http/systemSettings.http.spec.ts,C72,author-read; reconciliation pending,P136-10-tests:1-400; P136-10-tests:401-539; caller reconciliation and clean-result sampling required
+app/tests/http/teacherKey.http.spec.ts,C72,author-read; reconciliation pending,P137-10-tests:1-253; caller reconciliation and clean-result sampling required
+app/tests/http/userAdminActions.http.spec.ts,C72,author-read; reconciliation pending,P137-10-tests:1-390; caller reconciliation and clean-result sampling required
+app/tests/http/userAssignments.http.spec.ts,C72,author-read; reconciliation pending,P138-10-tests:1-400; P138-10-tests:401-546; caller reconciliation and clean-result sampling required
+app/tests/http/userSearch.http.spec.ts,C72,author-read; reconciliation pending,P139-10-tests:1-198; caller reconciliation and clean-result sampling required
+app/tests/http/worldwideIds.http.spec.ts,C72,author-read; reconciliation pending,P139-10-tests:1-152; caller reconciliation and clean-result sampling required
+app/tests/int/access.int.spec.ts,C72,author-read; reconciliation pending,P140-10-tests:1-400; P140-10-tests:401-636; caller reconciliation and clean-result sampling required
+app/tests/int/adminResetLinkCarveOut.int.spec.ts,C72,author-read; reconciliation pending,P141-10-tests:1-114; caller reconciliation and clean-result sampling required
+app/tests/int/api.int.spec.ts,C72,author-read; reconciliation pending,P141-10-tests:1-20; caller reconciliation and clean-result sampling required
+app/tests/int/assignmentProvenance.int.spec.ts,C72,author-read; reconciliation pending,P141-10-tests:1-180; caller reconciliation and clean-result sampling required
+app/tests/int/authFavorites.int.spec.ts,C72,author-read; reconciliation pending,P141-10-tests:1-196; caller reconciliation and clean-result sampling required
+app/tests/int/authRateLimit.int.spec.ts,C72,author-read; reconciliation pending,P141-10-tests:1-120; caller reconciliation and clean-result sampling required
+app/tests/int/bestEffortEnqueue.int.spec.ts,C72,author-read; reconciliation pending,P142-10-tests:1-304; caller reconciliation and clean-result sampling required
+app/tests/int/clearCollapsePrefs.int.spec.ts,C72,author-read; reconciliation pending,P142-10-tests:1-138; caller reconciliation and clean-result sampling required
+app/tests/int/combineDraftMigration.int.spec.ts,C72,author-read; reconciliation pending,P142-10-tests:1-48; caller reconciliation and clean-result sampling required
+app/tests/int/combineMigration.int.spec.ts,C72,author-read; reconciliation pending,P142-10-tests:1-79; caller reconciliation and clean-result sampling required
+app/tests/int/discussions.int.spec.ts,C72,author-read; reconciliation pending,P143-10-tests:1-400; P143-10-tests:401-587; caller reconciliation and clean-result sampling required
+app/tests/int/discussions3b.int.spec.ts,C72,author-read; reconciliation pending,P144-10-tests:1-400; P144-10-tests:401-434; caller reconciliation and clean-result sampling required
+app/tests/int/discussions4a.int.spec.ts,C72,author-read; reconciliation pending,P145-10-tests:1-219; caller reconciliation and clean-result sampling required
+app/tests/int/draftCombineSuggestion.int.spec.ts,C72,author-read; reconciliation pending,P145-10-tests:1-54; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryAccess.int.spec.ts,C72,author-read; reconciliation pending,P145-10-tests:1-329; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryCap.int.spec.ts,C72,author-read; reconciliation pending,P146-10-tests:1-182; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryCapture.int.spec.ts,C72,author-read; reconciliation pending,P146-10-tests:1-355; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryExpiry.int.spec.ts,C72,author-read; reconciliation pending,P147-10-tests:1-299; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryMetadata.int.spec.ts,C72,author-read; reconciliation pending,P147-10-tests:1-176; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryRetire.int.spec.ts,C72,author-read; reconciliation pending,P148-10-tests:1-387; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryStart.int.spec.ts,C72,author-read; reconciliation pending,P148-10-tests:1-201; caller reconciliation and clean-result sampling required
+app/tests/int/editRecoveryUnsavedWork.int.spec.ts,C72,author-read; reconciliation pending,P149-10-tests:1-309; caller reconciliation and clean-result sampling required
+app/tests/int/editorGroupsAccess.int.spec.ts,C72,author-read; reconciliation pending,P149-10-tests:1-276; caller reconciliation and clean-result sampling required
+app/tests/int/favorites.int.spec.ts,C72,author-read; reconciliation pending,P150-10-tests:1-377; caller reconciliation and clean-result sampling required
+app/tests/int/importLessons.int.spec.ts,C72,author-read; reconciliation pending,P150-10-tests:1-96; caller reconciliation and clean-result sampling required
+app/tests/int/jobStatsScheduling.int.spec.ts,C72,author-read; reconciliation pending,P150-10-tests:1-82; caller reconciliation and clean-result sampling required
+app/tests/int/lockRows.int.spec.ts,C72,author-read; reconciliation pending,P150-10-tests:1-95; caller reconciliation and clean-result sampling required
+app/tests/int/messageReferenceMigration.int.spec.ts,C72,author-read; reconciliation pending,P151-10-tests:1-73; caller reconciliation and clean-result sampling required
+app/tests/int/messages.int.spec.ts,C72,author-read; reconciliation pending,P151-10-tests:1-312; caller reconciliation and clean-result sampling required
+app/tests/int/nullResources.int.spec.ts,C72,author-read; reconciliation pending,P151-10-tests:1-145; caller reconciliation and clean-result sampling required
+app/tests/int/officialPointerLock.int.spec.ts,C72,author-read; reconciliation pending,P152-10-tests:1-130; caller reconciliation and clean-result sampling required
+app/tests/int/personalVersions.int.spec.ts,C72,author-read; reconciliation pending,P152-10-tests:1-172; caller reconciliation and clean-result sampling required
+app/tests/int/planIdentityImmutable.int.spec.ts,C72,author-read; reconciliation pending,P152-10-tests:1-136; caller reconciliation and clean-result sampling required
+app/tests/int/publicPublication.int.spec.ts,C72,author-read; reconciliation pending,P153-10-tests:1-358; caller reconciliation and clean-result sampling required
+app/tests/int/rateLimit.int.spec.ts,C72,author-read; reconciliation pending,P153-10-tests:1-103; caller reconciliation and clean-result sampling required
+app/tests/int/reingest.int.spec.ts,C72,author-read; reconciliation pending,P154-10-tests:1-400; P155-10-tests:401-800; P155-10-tests:801-983; caller reconciliation and clean-result sampling required
+app/tests/int/schoolName.int.spec.ts,C72,author-read; reconciliation pending,P155-10-tests:1-43; caller reconciliation and clean-result sampling required
+app/tests/int/subjectAdminHandover.int.spec.ts,C72,author-read; reconciliation pending,P156-10-tests:1-105; caller reconciliation and clean-result sampling required
+app/tests/int/systemSettings.int.spec.ts,C72,author-read; reconciliation pending,P156-10-tests:1-289; caller reconciliation and clean-result sampling required
+app/tests/int/taxonomyDelete.int.spec.ts,C72,author-read; reconciliation pending,P157-10-tests:1-361; caller reconciliation and clean-result sampling required
+app/tests/int/uploadTaxonomy.int.spec.ts,C72,author-read; reconciliation pending,P157-10-tests:1-201; caller reconciliation and clean-result sampling required
+app/tests/int/userSecurity.int.spec.ts,C72,author-read; reconciliation pending,P158-10-tests:1-400; P158-10-tests:401-479; caller reconciliation and clean-result sampling required
+app/tests/int/verifyBackfill.int.spec.ts,C72,author-read; reconciliation pending,P158-10-tests:1-105; caller reconciliation and clean-result sampling required
+app/tests/int/worldwideIds.int.spec.ts,C72,author-read; reconciliation pending,P159-10-tests:1-281; caller reconciliation and clean-result sampling required
+app/tests/style-snapshot/README.md,C72,author-read; reconciliation pending,P159-10-tests:1-38; caller reconciliation and clean-result sampling required
+app/tests/style-snapshot/dialogs.spec.ts,C72,author-read; reconciliation pending,P159-10-tests:1-160; caller reconciliation and clean-result sampling required
+app/tests/style-snapshot/diff.mjs,C72,author-read; reconciliation pending,P159-10-tests:1-87; caller reconciliation and clean-result sampling required
+app/tests/style-snapshot/kit.ts,C72,author-read; reconciliation pending,P159-10-tests:1-40; caller reconciliation and clean-result sampling required
+app/tests/style-snapshot/menu-states.spec.ts,C72,author-read; reconciliation pending,P160-10-tests:1-113; caller reconciliation and clean-result sampling required
+app/tests/style-snapshot/pages.spec.ts,C72,author-read; reconciliation pending,P160-10-tests:1-101; caller reconciliation and clean-result sampling required
+app/tests/unit/accessScopes.spec.ts,C72,author-read; reconciliation pending,P160-10-tests:1-210; caller reconciliation and clean-result sampling required
+app/tests/unit/accordionPanelCount.spec.tsx,C72,author-read; reconciliation pending,P160-10-tests:1-48; caller reconciliation and clean-result sampling required
+app/tests/unit/accountDisabledContract.spec.ts,C72,author-read; reconciliation pending,P160-10-tests:1-130; caller reconciliation and clean-result sampling required
+app/tests/unit/accountDisabledWiring.spec.ts,C72,author-read; reconciliation pending,P160-10-tests:1-41; caller reconciliation and clean-result sampling required
+app/tests/unit/adminResetLinkAllowance.spec.ts,C72,author-read; reconciliation pending,P161-10-tests:1-74; caller reconciliation and clean-result sampling required
+app/tests/unit/advancedTools.spec.ts,C72,author-read; reconciliation pending,P161-10-tests:1-26; caller reconciliation and clean-result sampling required
+app/tests/unit/appVersion.spec.ts,C72,author-read; reconciliation pending,P161-10-tests:1-15; caller reconciliation and clean-result sampling required
+app/tests/unit/aresAddress.spec.ts,C72,author-read; reconciliation pending,P161-10-tests:1-196; caller reconciliation and clean-result sampling required
+app/tests/unit/aresReleasePresentation.spec.ts,C72,author-read; reconciliation pending,P161-10-tests:1-101; caller reconciliation and clean-result sampling required
+app/tests/unit/artifactCacheBestEffort.spec.ts,C72,author-read; reconciliation pending,P161-10-tests:1-138; caller reconciliation and clean-result sampling required
+app/tests/unit/artifactCacheCleanup.spec.ts,C72,author-read; reconciliation pending,P161-10-tests:1-45; caller reconciliation and clean-result sampling required
+app/tests/unit/authFavoritesWiring.spec.ts,C72,author-read; reconciliation pending,P162-10-tests:1-86; caller reconciliation and clean-result sampling required
+app/tests/unit/authFormMessages.spec.ts,C72,author-read; reconciliation pending,P162-10-tests:1-84; caller reconciliation and clean-result sampling required
+app/tests/unit/backupStatus.spec.ts,C72,author-read; reconciliation pending,P162-10-tests:1-400; P163-10-tests:401-800; P163-10-tests:801-905; caller reconciliation and clean-result sampling required
+app/tests/unit/backupStatusPanel.spec.tsx,C72,author-read; reconciliation pending,P163-10-tests:1-26; caller reconciliation and clean-result sampling required
+app/tests/unit/backupStatusPathParity.spec.ts,C72,author-read; reconciliation pending,P164-10-tests:1-162; caller reconciliation and clean-result sampling required
+app/tests/unit/browserFindings.spec.tsx,C72,author-read; reconciliation pending,P164-10-tests:1-95; caller reconciliation and clean-result sampling required
+app/tests/unit/buttonSystem.spec.ts,C72,author-read; reconciliation pending,P165-10-tests:1-400; P165-10-tests:401-441; caller reconciliation and clean-result sampling required
+app/tests/unit/canDeleteVersionDoc.spec.ts,C72,author-read; reconciliation pending,P165-10-tests:1-62; caller reconciliation and clean-result sampling required
+app/tests/unit/candidateListActions.spec.tsx,C72,author-read; reconciliation pending,P166-10-tests:1-152; caller reconciliation and clean-result sampling required
+app/tests/unit/canonicalJson.spec.ts,C72,author-read; reconciliation pending,P166-10-tests:1-43; caller reconciliation and clean-result sampling required
+app/tests/unit/captureDiffAgreement.spec.ts,C72,author-read; reconciliation pending,P166-10-tests:1-187; caller reconciliation and clean-result sampling required
+app/tests/unit/classNameStyles.spec.ts,C72,author-read; reconciliation pending,P166-10-tests:1-138; caller reconciliation and clean-result sampling required
+app/tests/unit/clockCheck.spec.tsx,C72,author-read; reconciliation pending,P166-10-tests:1-84; caller reconciliation and clean-result sampling required
+app/tests/unit/clockSkew.spec.ts,C72,author-read; reconciliation pending,P166-10-tests:1-44; caller reconciliation and clean-result sampling required
+app/tests/unit/collapseOnEntry.spec.tsx,C72,author-read; reconciliation pending,P167-10-tests:1-109; caller reconciliation and clean-result sampling required
+app/tests/unit/collapsedPanelEntryRule.spec.ts,C72,author-read; reconciliation pending,P167-10-tests:1-72; caller reconciliation and clean-result sampling required
+app/tests/unit/combineDraft.spec.ts,C72,author-read; reconciliation pending,P167-10-tests:1-22; caller reconciliation and clean-result sampling required
+app/tests/unit/combineEngine.spec.ts,C72,author-read; reconciliation pending,P167-10-tests:1-400; P168-10-tests:401-577; caller reconciliation and clean-result sampling required
+app/tests/unit/combineFields.spec.ts,C72,author-read; reconciliation pending,P168-10-tests:1-41; caller reconciliation and clean-result sampling required
+app/tests/unit/combineLineage.spec.ts,C72,author-read; reconciliation pending,P168-10-tests:1-103; caller reconciliation and clean-result sampling required
+app/tests/unit/combineOutcome.spec.ts,C72,author-read; reconciliation pending,P168-10-tests:1-13; caller reconciliation and clean-result sampling required
+app/tests/unit/combineRetry.spec.tsx,C72,author-read; reconciliation pending,P168-10-tests:1-198; caller reconciliation and clean-result sampling required
+app/tests/unit/combineUnavailable.spec.ts,C72,author-read; reconciliation pending,P169-10-tests:1-148; caller reconciliation and clean-result sampling required
+app/tests/unit/combineVersionChoices.spec.tsx,C72,author-read; reconciliation pending,P169-10-tests:1-72; caller reconciliation and clean-result sampling required
+app/tests/unit/compareDiffGroups.spec.ts,C72,author-read; reconciliation pending,P169-10-tests:1-292; caller reconciliation and clean-result sampling required
+app/tests/unit/compareFilterDefault.spec.tsx,C72,author-read; reconciliation pending,P169-10-tests:1-65; caller reconciliation and clean-result sampling required
+app/tests/unit/compareGroups.spec.ts,C72,author-read; reconciliation pending,P170-10-tests:1-400; P170-10-tests:401-483; caller reconciliation and clean-result sampling required
+app/tests/unit/corpusCheck.spec.ts,C72,author-read; reconciliation pending,P170-10-tests:1-60; caller reconciliation and clean-result sampling required
+app/tests/unit/currentSection.spec.ts,C72,author-read; reconciliation pending,P171-10-tests:1-124; caller reconciliation and clean-result sampling required
+app/tests/unit/deliverables.spec.ts,C72,author-read; reconciliation pending,P171-10-tests:1-59; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionComposer.spec.ts,C72,author-read; reconciliation pending,P171-10-tests:1-262; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionModerationControls.spec.tsx,C72,author-read; reconciliation pending,P172-10-tests:1-212; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionModerationPages.spec.tsx,C72,author-read; reconciliation pending,P172-10-tests:1-107; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionPages.spec.ts,C72,author-read; reconciliation pending,P172-10-tests:1-84; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionPaging.spec.ts,C72,author-read; reconciliation pending,P172-10-tests:1-79; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionReferenceSelection.spec.tsx,C72,author-read; reconciliation pending,P172-10-tests:1-120; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionText.spec.ts,C72,author-read; reconciliation pending,P173-10-tests:1-71; caller reconciliation and clean-result sampling required
+app/tests/unit/discussionThreadDelete.spec.ts,C72,author-read; reconciliation pending,P173-10-tests:1-60; caller reconciliation and clean-result sampling required
+app/tests/unit/discussions.spec.ts,C72,author-read; reconciliation pending,P173-10-tests:1-238; caller reconciliation and clean-result sampling required
+app/tests/unit/displayNameForm.spec.tsx,C72,author-read; reconciliation pending,P173-10-tests:1-53; caller reconciliation and clean-result sampling required
+app/tests/unit/displayTitle.spec.ts,C72,author-read; reconciliation pending,P173-10-tests:1-33; caller reconciliation and clean-result sampling required
+app/tests/unit/draftCombineSuggestion.spec.ts,C72,author-read; reconciliation pending,P173-10-tests:1-83; caller reconciliation and clean-result sampling required
+app/tests/unit/editJumpNav.spec.tsx,C72,author-read; reconciliation pending,P174-10-tests:1-141; caller reconciliation and clean-result sampling required
+app/tests/unit/editRecoveryIndicator.spec.tsx,C72,author-read; reconciliation pending,P174-10-tests:1-114; caller reconciliation and clean-result sampling required
+app/tests/unit/editRecoveryMigrationOrder.spec.ts,C72,author-read; reconciliation pending,P174-10-tests:1-94; caller reconciliation and clean-result sampling required
+app/tests/unit/editRecoveryProjection.spec.ts,C72,author-read; reconciliation pending,P175-10-tests:1-400; P175-10-tests:401-498; caller reconciliation and clean-result sampling required
+app/tests/unit/editRecoveryProtocol.spec.ts,C72,author-read; reconciliation pending,P176-10-tests:1-194; caller reconciliation and clean-result sampling required
+app/tests/unit/editRecoveryTtlProvenance.spec.ts,C72,author-read; reconciliation pending,P176-10-tests:1-53; caller reconciliation and clean-result sampling required
+app/tests/unit/editingViewport.spec.ts,C72,author-read; reconciliation pending,P176-10-tests:1-29; caller reconciliation and clean-result sampling required
+app/tests/unit/editorPlainLanguage.spec.ts,C72,author-read; reconciliation pending,P176-10-tests:1-88; caller reconciliation and clean-result sampling required
+app/tests/unit/editorValidation.spec.ts,C72,author-read; reconciliation pending,P176-10-tests:1-106; caller reconciliation and clean-result sampling required
+app/tests/unit/emailAddress.spec.ts,C72,author-read; reconciliation pending,P176-10-tests:1-80; caller reconciliation and clean-result sampling required
+app/tests/unit/emailFormat.spec.tsx,C72,author-read; reconciliation pending,P176-10-tests:1-70; caller reconciliation and clean-result sampling required
+app/tests/unit/emptyArraySerialization.spec.ts,C72,author-read; reconciliation pending,P177-10-tests:1-213; caller reconciliation and clean-result sampling required
+app/tests/unit/enforceAssignmentScope.spec.ts,C72,author-read; reconciliation pending,P177-10-tests:1-163; caller reconciliation and clean-result sampling required
+app/tests/unit/enqueueDetached.spec.ts,C72,author-read; reconciliation pending,P177-10-tests:1-76; caller reconciliation and clean-result sampling required
+app/tests/unit/entryPhase.spec.ts,C72,author-read; reconciliation pending,P177-10-tests:1-100; caller reconciliation and clean-result sampling required
+app/tests/unit/envTemplateParity.spec.ts,C72,partial ranges; reconciliation pending,P178-10-tests:1-400; caller reconciliation and clean-result sampling required
 app/tests/unit/errorTracking.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/tests/unit/expireEditRecoveryTask.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/tests/unit/exportArtifacts.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
@@ -836,7 +836,7 @@ docs/ARES-v2-remediation-summary.docx,excluded,excluded,Binary: owning flow or p
 docs/CHANGELOG.md,C71,pending,
 docs/CI-PDF-FIXTURE-WORKFLOW-EDIT.md,C71,pending,
 docs/CODE-REVIEW-PLAN.md,C71,pending,
-docs/DECISIONS.md,C71,pending,
+docs/DECISIONS.md,C71,targeted history lookup,Coordinator reads latest/relevant decisions only; historical ledger excluded from broad source packets.
 docs/DEPENDENCY-REVIEW-2026-08-25.md,C71,pending,
 docs/DEPENDENCY-REVIEW-2026-09-19.md,C71,pending,
 docs/DEPENDENCY-REVIEW-2026-10-19.md,C71,pending,

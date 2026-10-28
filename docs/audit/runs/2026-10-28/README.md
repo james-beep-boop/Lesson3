@@ -11,8 +11,8 @@
 
 [Progress](progress.md) and [tracked-file manifest](manifest.csv) distinguish pending reading from actual coverage. Existing tests do not count as reading all source. Raw logs and target secrets remain outside the checkout.
 
-The opposite-family review and fresh blind pass remain required and pending. Findings are author-verified until the required review is recorded. Hardware/deployment-only checks will be reported separately if their prerequisites are unavailable.
+Opposite-family reviews are recorded per finding. The supplemental omission check is sealed and reconciled separately; its late scheduling/model deviation does not satisfy strict C82. See method-limitations.md. Hardware/deployment-only checks remain separate from local coverage.
 
 #483 merged after all four CI checks passed as `e9d3819539ada6cc9aadef2c84cd1794f419a3fd`. The main-change sweep contains only the reviewed audit-method documents; no product/runtime change from the fixed source. #484 remains the draft release-preparation PR. No tag or release created.
 
-One candidate is locally reproduced: [F-C40-001](findings/F-C40-001.md), padded sub-strand identity creates duplicate plans on re-import. Required author response remains pending.
+Priority accepted findings: [F-C31-001](findings/F-C31-001.md), omitted administrator-only UNIT content in a teacher save; [F-C40-001](findings/F-C40-001.md), padded identity creates duplicate plans. [F-C63-003](findings/F-C63-003.md), text lost while logout waits, is also Medium and reproduced in both browsers. Lower-impact observations and unresolved leads have separate files; source review and required runtime work are still in progress.

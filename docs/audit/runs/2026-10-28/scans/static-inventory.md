@@ -1,0 +1,7 @@
+# Static policy inventory — C10/C13/C14/C15 supplement
+
+Baseline-only lexical scan:17 suppression mentions (one is explanatory prose, not a directive); all14 workflow uses entries pin immutable40-hex action revisions; one previously known non-exact dependency range remains for development-only testing-library/dom. The lockfile fixes the installed version. Override declarations are retained for provenance review.
+
+All33 tracked shell files pass bash -n. The older ShellCheck parser reported errors around unquoted literal done and associative DONE references, plus sourced fragments with no shell directive. Those scanner parse diagnostics are not actual Bash syntax failures. Source inspection finds deliberate cross-file variables and test literals among other warnings. Their full per-hit semantic triage is still pending. Hadolint's four observations concern unpinned apk install and consecutive RUN layers, not a demonstrated failed build.
+
+The strict report-only lint pass produced34 cognitive-complexity observations; its largest sampled functions are importLessons/uploadFiles and backup status. Counts alone are maintainability observations, not correctness defects. The existing project lint/type/format gates passed unchanged. Suppressions, CSS literal/media/z-index counts, dependency ranges and action pins are in static-inventory.json. CSS lexical counts are not computed styles or evidence a selector is unused.

@@ -1,0 +1,92 @@
+[
+  {
+    "scenario": "home and catalogue",
+    "path": "/",
+    "finalPath": "/",
+    "runtimeError": null,
+    "scores": {
+      "performance": 1,
+      "accessibility": 1,
+      "best-practices": 0.79
+    },
+    "metrics": {
+      "lcpMs": 1518.9,
+      "blockingMs": 13,
+      "cls": 0,
+      "totalBytes": 169830,
+      "requests": 12
+    }
+  },
+  {
+    "scenario": "lesson",
+    "path": "/lessons/186",
+    "finalPath": "/lessons/186",
+    "runtimeError": null,
+    "scores": {
+      "performance": 1,
+      "accessibility": 1,
+      "best-practices": 0.79
+    },
+    "metrics": {
+      "lcpMs": 925.1096,
+      "blockingMs": 34,
+      "cls": 0,
+      "totalBytes": 20127,
+      "requests": 12
+    }
+  },
+  {
+    "scenario": "editor view",
+    "path": "/admin/collections/lesson-bundle-versions/560",
+    "finalPath": "/admin/collections/lesson-bundle-versions/560",
+    "runtimeError": null,
+    "scores": {
+      "performance": 0.93,
+      "accessibility": 1,
+      "best-practices": 0.79
+    },
+    "metrics": {
+      "lcpMs": 2554.5918,
+      "blockingMs": 179.5,
+      "cls": 0.06652029181586372,
+      "totalBytes": 657761,
+      "requests": 19
+    }
+  },
+  {
+    "scenario": "discussions",
+    "path": "/discuss",
+    "finalPath": "/discuss",
+    "runtimeError": null,
+    "scores": {
+      "performance": 1,
+      "accessibility": 1,
+      "best-practices": 0.79
+    },
+    "metrics": {
+      "lcpMs": 626.2234108520507,
+      "blockingMs": 1.5,
+      "cls": 0,
+      "totalBytes": 8780,
+      "requests": 13
+    }
+  },
+  {
+    "scenario": "Guide",
+    "path": "/guide",
+    "finalPath": "/guide",
+    "runtimeError": null,
+    "scores": {
+      "performance": 1,
+      "accessibility": 1,
+      "best-practices": 0.79
+    },
+    "metrics": {
+      "lcpMs": 921.7357999999999,
+      "blockingMs": 20.5,
+      "cls": 0,
+      "totalBytes": 22489,
+      "requests": 12
+    }
+  }
+]

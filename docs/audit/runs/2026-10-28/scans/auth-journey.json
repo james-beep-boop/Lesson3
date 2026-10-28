@@ -1,0 +1,82 @@
+{
+  "source": "6e75a173e822e4c4be42821b0a4af48ca457bd36",
+  "checks": [
+    {
+      "check": "signup cannot self-verify or grant site administration",
+      "passed": true
+    },
+    {
+      "check": "unverified login refused",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "captured verification link works",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "verification token single use",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "two native sessions work concurrently",
+      "passed": true
+    },
+    {
+      "check": "HTTP cookie is HttpOnly and SameSite Lax",
+      "passed": true
+    },
+    {
+      "check": "foreign-origin cookie write denied before mutation",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "trusted-origin positive write control",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "logout revokes only its native session",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "forgot-password pair has identical status and body",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "reset page strips cross-origin referrer query",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "captured reset link changes password",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "reset revokes the other old native session",
+      "passed": true
+    },
+    {
+      "check": "old password fails after reset",
+      "passed": true,
+      "status": 401
+    },
+    {
+      "check": "new password authenticates",
+      "passed": true
+    },
+    {
+      "check": "reset token single use",
+      "passed": true,
+      "status": 403
+    }
+  ],
+  "passed": 16,
+  "mode": "isolated HTTP host with configured CSRF origin and capture-only SMTP"
+}

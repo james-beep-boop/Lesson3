@@ -1,0 +1,11 @@
+# Previous-release upgrade drill — C5.14
+
+A separate disposable ARM stack used the published, checksummed v1.10 bundle and its immutable app/migration images. Release source: `c8d8f3d22c432061c8bff27e8357dd9f2d4feb91`. It was upgraded to audit baseline `6e75a173e822e4c4be42821b0a4af48ca457bd36`. No live installation was used; no tag, release or deployment was created.
+
+The old image migrated a fresh database through39 migrations. The fixture populated all16 registered collections and both globals: an imported ARES Official and history, scoped users, a saved candidate, a favorite, private message, discussion, recoverable captured prose, school settings, preference, KV, a held future job and supporting records. Seven native HTTP smoke checks passed before the upgrade. With the old app stopped and automatic jobs quiescent, all33 public tables were compared using canonical ordered-row counts and hashes. Every table matched after the new migration step. The migration/schema delta between these versions is empty; this is data preservation across an app upgrade, not proof of every historical schema transition.
+
+The new app passed12 native checks: ordinary sign-in, Official uid/pointer, favorite, private message, discussion, captured prose, retained existing session, retained saved candidate, school name, preference, KV and Word export. A pre-existing capture remains readable; this does not prove all interrupted in-memory editor states survive an upgrade.
+
+Harness: `app/tests/audit/upgrade-fixture.ts`. Raw image pulls, checksum, migration, hash and HTTP logs remain private. Fixture setup corrections were retained: explicit nulls required by ingestion; a fresh release identity rather than expecting a no-manifest upload to replace a legacy Official; the audit migration image's default user rather than imposing an incompatible uid on its source-file permissions; and running export jobs inside the app that owns its cache rather than the separate migration container. None is filed as a product defect.
+
+Limits: local ARM, representative v1.10→baseline, small synthetic data, no schema change in this pair. This does not replace amd64 wipe/reinstall, real power-cut, production-size or all historical-version testing.

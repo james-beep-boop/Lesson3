@@ -1,0 +1,1257 @@
+[
+  {
+    "document": "Essential_Mathematics_Indices_finalExplanation",
+    "generatedPages": 7,
+    "oraclePages": 7,
+    "pixelEqualPages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "differentPages": [
+      {
+        "page": 7,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          276,
+          735,
+          295
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Essential_Mathematics_Indices_lessonSequence",
+    "generatedPages": 56,
+    "oraclePages": 56,
+    "pixelEqualPages": [
+      1,
+      2,
+      3,
+      5,
+      6,
+      11,
+      12,
+      13,
+      18,
+      19,
+      24,
+      25,
+      26,
+      27,
+      28,
+      30,
+      31,
+      36,
+      37,
+      38,
+      39,
+      42,
+      43,
+      44,
+      45,
+      46,
+      48,
+      50,
+      51,
+      52,
+      56
+    ],
+    "differentPages": [
+      {
+        "page": 4,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          259,
+          735,
+          279
+        ]
+      },
+      {
+        "page": 7,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          213,
+          123,
+          291
+        ]
+      },
+      {
+        "page": 8,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          213,
+          123,
+          290
+        ]
+      },
+      {
+        "page": 9,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          142,
+          123,
+          220
+        ]
+      },
+      {
+        "page": 10,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          228,
+          659,
+          236
+        ]
+      },
+      {
+        "page": 14,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          87,
+          123,
+          280
+        ]
+      },
+      {
+        "page": 15,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          309,
+          124,
+          511
+        ]
+      },
+      {
+        "page": 16,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          139,
+          123,
+          321
+        ]
+      },
+      {
+        "page": 17,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          441,
+          659,
+          449
+        ]
+      },
+      {
+        "page": 20,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          389,
+          123,
+          467
+        ]
+      },
+      {
+        "page": 21,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          467,
+          123,
+          545
+        ]
+      },
+      {
+        "page": 22,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          191,
+          739,
+          553
+        ]
+      },
+      {
+        "page": 23,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          277,
+          659,
+          285
+        ]
+      },
+      {
+        "page": 29,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          312,
+          659,
+          320
+        ]
+      },
+      {
+        "page": 32,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          298,
+          123,
+          488
+        ]
+      },
+      {
+        "page": 33,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          244,
+          123,
+          453
+        ]
+      },
+      {
+        "page": 34,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          87,
+          123,
+          299
+        ]
+      },
+      {
+        "page": 35,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          217,
+          659,
+          225
+        ]
+      },
+      {
+        "page": 40,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          274,
+          123,
+          428
+        ]
+      },
+      {
+        "page": 41,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          408,
+          659,
+          416
+        ]
+      },
+      {
+        "page": 47,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          453,
+          123,
+          531
+        ]
+      },
+      {
+        "page": 49,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          229,
+          659,
+          237
+        ]
+      },
+      {
+        "page": 53,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          528,
+          739,
+          557
+        ]
+      },
+      {
+        "page": 54,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          57,
+          123,
+          232
+        ]
+      },
+      {
+        "page": 55,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          228,
+          659,
+          236
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Essential_Mathematics_Indices_summaryTable",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "pixelEqualPages": [
+      1,
+      2,
+      3
+    ],
+    "differentPages": [
+      {
+        "page": 4,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          87,
+          735,
+          106
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Essential_Mathematics_Indices_teacherKey",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "pixelEqualPages": [
+      1,
+      2,
+      3
+    ],
+    "differentPages": [
+      {
+        "page": 4,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          245,
+          735,
+          264
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_finalExplanation",
+    "generatedPages": 7,
+    "oraclePages": 7,
+    "pixelEqualPages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "differentPages": [
+      {
+        "page": 7,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          245,
+          735,
+          264
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_lessonSequence",
+    "generatedPages": 69,
+    "oraclePages": 69,
+    "pixelEqualPages": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      12,
+      13,
+      18,
+      19,
+      23,
+      24,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      36,
+      37,
+      38,
+      39,
+      40,
+      42,
+      43,
+      44,
+      45,
+      46,
+      48,
+      49,
+      61,
+      62,
+      63,
+      67,
+      69
+    ],
+    "differentPages": [
+      {
+        "page": 5,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          270,
+          735,
+          289
+        ]
+      },
+      {
+        "page": 8,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          334,
+          123,
+          412
+        ]
+      },
+      {
+        "page": 9,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          387,
+          123,
+          448
+        ]
+      },
+      {
+        "page": 10,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          253,
+          123,
+          331
+        ]
+      },
+      {
+        "page": 11,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          175,
+          659,
+          184
+        ]
+      },
+      {
+        "page": 14,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          449,
+          123,
+          527
+        ]
+      },
+      {
+        "page": 15,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          387,
+          123,
+          464
+        ]
+      },
+      {
+        "page": 16,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          109,
+          123,
+          309
+        ]
+      },
+      {
+        "page": 17,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          146,
+          659,
+          155
+        ]
+      },
+      {
+        "page": 20,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          232,
+          123,
+          309
+        ]
+      },
+      {
+        "page": 21,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          181,
+          123,
+          548
+        ]
+      },
+      {
+        "page": 22,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          426,
+          659,
+          434
+        ]
+      },
+      {
+        "page": 25,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          367,
+          123,
+          538
+        ]
+      },
+      {
+        "page": 26,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          413,
+          739,
+          556
+        ]
+      },
+      {
+        "page": 27,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          475
+        ]
+      },
+      {
+        "page": 28,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          395,
+          659,
+          403
+        ]
+      },
+      {
+        "page": 35,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          96,
+          659,
+          105
+        ]
+      },
+      {
+        "page": 41,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          495,
+          659,
+          503
+        ]
+      },
+      {
+        "page": 47,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          368,
+          659,
+          377
+        ]
+      },
+      {
+        "page": 50,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          314,
+          123,
+          392
+        ]
+      },
+      {
+        "page": 51,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          313,
+          123,
+          391
+        ]
+      },
+      {
+        "page": 52,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          137,
+          123,
+          198
+        ]
+      },
+      {
+        "page": 53,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          136,
+          659,
+          144
+        ]
+      },
+      {
+        "page": 54,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          542,
+          123,
+          551
+        ]
+      },
+      {
+        "page": 55,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          553
+        ]
+      },
+      {
+        "page": 56,
+        "sameDimensions": true,
+        "differenceBounds": [
+          66,
+          57,
+          120,
+          82
+        ]
+      },
+      {
+        "page": 57,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          159,
+          123,
+          323
+        ]
+      },
+      {
+        "page": 58,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          314,
+          123,
+          478
+        ]
+      },
+      {
+        "page": 59,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          179,
+          123,
+          353
+        ]
+      },
+      {
+        "page": 60,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          265,
+          659,
+          273
+        ]
+      },
+      {
+        "page": 64,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          298,
+          123,
+          470
+        ]
+      },
+      {
+        "page": 65,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          335,
+          123,
+          506
+        ]
+      },
+      {
+        "page": 66,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          292,
+          123,
+          483
+        ]
+      },
+      {
+        "page": 68,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          177,
+          659,
+          186
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_summaryTable",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "pixelEqualPages": [
+      1,
+      2,
+      3
+    ],
+    "differentPages": [
+      {
+        "page": 4,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          267,
+          735,
+          287
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Mathematics_Trigonometry_I_teacherKey",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "pixelEqualPages": [
+      1,
+      2,
+      3
+    ],
+    "differentPages": [
+      {
+        "page": 4,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          148,
+          735,
+          167
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_finalExplanation",
+    "generatedPages": 7,
+    "oraclePages": 7,
+    "pixelEqualPages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "differentPages": [
+      {
+        "page": 7,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          346,
+          735,
+          366
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_lessonSequence",
+    "generatedPages": 50,
+    "oraclePages": 50,
+    "pixelEqualPages": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      18,
+      25,
+      30,
+      31,
+      32,
+      35,
+      36,
+      38,
+      44,
+      50
+    ],
+    "differentPages": [
+      {
+        "page": 5,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          302,
+          735,
+          322
+        ]
+      },
+      {
+        "page": 7,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          118,
+          739,
+          558
+        ]
+      },
+      {
+        "page": 8,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          58,
+          739,
+          558
+        ]
+      },
+      {
+        "page": 9,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          57,
+          123,
+          186
+        ]
+      },
+      {
+        "page": 10,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          149,
+          123,
+          331
+        ]
+      },
+      {
+        "page": 11,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          100,
+          123,
+          281
+        ]
+      },
+      {
+        "page": 12,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          422,
+          659,
+          430
+        ]
+      },
+      {
+        "page": 13,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          543,
+          123,
+          552
+        ]
+      },
+      {
+        "page": 14,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          476
+        ]
+      },
+      {
+        "page": 15,
+        "sameDimensions": true,
+        "differenceBounds": [
+          55,
+          58,
+          738,
+          556
+        ]
+      },
+      {
+        "page": 16,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          57,
+          123,
+          351
+        ]
+      },
+      {
+        "page": 17,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          265,
+          659,
+          273
+        ]
+      },
+      {
+        "page": 19,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          140,
+          274,
+          552
+        ]
+      },
+      {
+        "page": 20,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          551
+        ]
+      },
+      {
+        "page": 21,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          553
+        ]
+      },
+      {
+        "page": 22,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          552
+        ]
+      },
+      {
+        "page": 23,
+        "sameDimensions": true,
+        "differenceBounds": [
+          66,
+          58,
+          97,
+          74
+        ]
+      },
+      {
+        "page": 24,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          138,
+          659,
+          146
+        ]
+      },
+      {
+        "page": 26,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          68,
+          123,
+          470
+        ]
+      },
+      {
+        "page": 27,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          181,
+          123,
+          550
+        ]
+      },
+      {
+        "page": 28,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          481
+        ]
+      },
+      {
+        "page": 29,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          436,
+          659,
+          445
+        ]
+      },
+      {
+        "page": 33,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          232,
+          123,
+          414
+        ]
+      },
+      {
+        "page": 34,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          315,
+          123,
+          496
+        ]
+      },
+      {
+        "page": 37,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          86,
+          659,
+          94
+        ]
+      },
+      {
+        "page": 39,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          157,
+          739,
+          554
+        ]
+      },
+      {
+        "page": 40,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          492
+        ]
+      },
+      {
+        "page": 41,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          325,
+          123,
+          471
+        ]
+      },
+      {
+        "page": 42,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          170,
+          123,
+          354
+        ]
+      },
+      {
+        "page": 43,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          451,
+          659,
+          460
+        ]
+      },
+      {
+        "page": 45,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          235,
+          123,
+          445
+        ]
+      },
+      {
+        "page": 46,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          95,
+          123,
+          548
+        ]
+      },
+      {
+        "page": 47,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          58,
+          123,
+          549
+        ]
+      },
+      {
+        "page": 48,
+        "sameDimensions": true,
+        "differenceBounds": [
+          60,
+          59,
+          123,
+          522
+        ]
+      },
+      {
+        "page": 49,
+        "sameDimensions": true,
+        "differenceBounds": [
+          142,
+          509,
+          659,
+          517
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_summaryTable",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "pixelEqualPages": [
+      1,
+      2,
+      3
+    ],
+    "differentPages": [
+      {
+        "page": 4,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          257,
+          735,
+          276
+        ]
+      }
+    ]
+  },
+  {
+    "document": "Physics_Greenhouse_Effect_and_Climate_Change_teacherKey",
+    "generatedPages": 4,
+    "oraclePages": 4,
+    "pixelEqualPages": [
+      1,
+      2,
+      3
+    ],
+    "differentPages": [
+      {
+        "page": 4,
+        "sameDimensions": true,
+        "differenceBounds": [
+          54,
+          386,
+          735,
+          405
+        ]
+      }
+    ]
+  }
+]

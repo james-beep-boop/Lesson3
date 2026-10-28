@@ -1,0 +1,271 @@
+{
+  "source": "6e75a173e822e4c4be42821b0a4af48ca457bd36",
+  "suppressions": [
+    {
+      "path": "app/src/components/AdminDashboard/index.tsx",
+      "line": 631,
+      "text": "{/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full load intended, see above */}"
+    },
+    {
+      "path": "app/src/components/AdminHeaderMenu/index.tsx",
+      "line": 40,
+      "text": "{/* eslint-disable-next-line @next/next/no-html-link-for-pages */}"
+    },
+    {
+      "path": "app/src/components/AppNav/index.tsx",
+      "line": 68,
+      "text": "{/* eslint-disable @next/next/no-html-link-for-pages */}"
+    },
+    {
+      "path": "app/src/components/CombineVersions/index.tsx",
+      "line": 110,
+      "text": "// eslint-disable-next-line react-hooks/set-state-in-effect"
+    },
+    {
+      "path": "app/src/components/CombineVersions/index.tsx",
+      "line": 116,
+      "text": "// eslint-disable-next-line react-hooks/exhaustive-deps"
+    },
+    {
+      "path": "app/src/components/CombineVersions/index.tsx",
+      "line": 141,
+      "text": "// eslint-disable-next-line react-hooks/set-state-in-effect"
+    },
+    {
+      "path": "app/src/components/CombineVersions/index.tsx",
+      "line": 144,
+      "text": "// eslint-disable-next-line react-hooks/exhaustive-deps"
+    },
+    {
+      "path": "app/src/components/CombineVersions/index.tsx",
+      "line": 243,
+      "text": "// eslint-disable-next-line @next/next/no-location-assign-relative-destination"
+    },
+    {
+      "path": "app/src/components/LessonControls/index.tsx",
+      "line": 273,
+      "text": "// eslint-disable-next-line react-hooks/set-state-in-effect"
+    },
+    {
+      "path": "app/src/components/LessonControls/index.tsx",
+      "line": 377,
+      "text": "// eslint-disable-next-line react-hooks/exhaustive-deps -- `fields` is the form state getData reads"
+    },
+    {
+      "path": "app/src/components/LessonControls/index.tsx",
+      "line": 1048,
+      "text": "// eslint-disable-next-line @next/next/no-location-assign-relative-destination"
+    },
+    {
+      "path": "app/src/components/Manage/ClockCheck.tsx",
+      "line": 49,
+      "text": "// eslint-disable-next-line react-hooks/exhaustive-deps"
+    },
+    {
+      "path": "app/src/components/UserMenu/index.tsx",
+      "line": 79,
+      "text": "// eslint-disable-next-line @next/next/no-location-assign-relative-destination"
+    },
+    {
+      "path": "app/tests/unit/enqueueDetached.spec.ts",
+      "line": 10,
+      "text": "* `@ts-expect-error` \u2014 if either mistake ever compiles again, tsc fails on the now-unused directive."
+    },
+    {
+      "path": "app/tests/unit/enqueueDetached.spec.ts",
+      "line": 62,
+      "text": "// @ts-expect-error \u2014 a caller req would rejoin the transaction; the whole point is that it cannot be passed"
+    },
+    {
+      "path": "app/tests/unit/enqueueDetached.spec.ts",
+      "line": 72,
+      "text": "// @ts-expect-error \u2014 passwordResetEmail wants { userId }, not messagePing's shape"
+    },
+    {
+      "path": "app/tests/unit/payloadUiPatchBehaviour.spec.tsx",
+      "line": 18,
+      "text": "/* eslint-disable react-hooks/immutability -- a test harness: components deliberately hand their"
+    }
+  ],
+  "workflowActions": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "line": 47,
+      "action": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "line": 65,
+      "action": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "line": 104,
+      "action": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 23,
+      "action": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 58,
+      "action": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 61,
+      "action": "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 62,
+      "action": "docker/login-action@dbcb813823bdd20940b903addbd779551569679f",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 68,
+      "action": "docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 102,
+      "action": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 105,
+      "action": "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 106,
+      "action": "docker/login-action@dbcb813823bdd20940b903addbd779551569679f",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 123,
+      "action": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 126,
+      "action": "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
+      "immutableSha": true,
+      "local": false
+    },
+    {
+      "path": ".github/workflows/publish-containers.yml",
+      "line": 127,
+      "action": "docker/login-action@dbcb813823bdd20940b903addbd779551569679f",
+      "immutableSha": true,
+      "local": false
+    }
+  ],
+  "dependencyRanges": [
+    {
+      "group": "devDependencies",
+      "name": "@testing-library/dom",
+      "declared": "^10.4.2"
+    }
+  ],
+  "overrides": {
+    "@xmldom/xmldom": "0.8.15",
+    "baseline-browser-mapping": "2.11.0",
+    "browserslist": "4.28.7",
+    "postcss": {
+      ".": "8.5.31",
+      "nanoid": "3.3.18"
+    },
+    "nodemailer": "10.1.7",
+    "js-yaml": "5.5.0",
+    "fast-uri": "3.1.9",
+    "source-map-js": "1.2.2",
+    "sass": "1.79.6",
+    "immutable": "4.3.9",
+    "sharp": "0.35.5",
+    "docx": {
+      "nanoid": "5.1.16"
+    },
+    "brace-expansion": "1.1.21",
+    "@typescript-eslint/typescript-estree": {
+      "brace-expansion": "5.0.12"
+    },
+    "vite": "7.3.7",
+    "happy-dom": "21.0.4"
+  },
+  "cssLexicalInventory": [
+    {
+      "path": "app/src/app/(frontend)/styles.css",
+      "important": 1,
+      "hexColorLiterals": 12,
+      "pxLiterals": 121,
+      "zIndexValues": {
+        "20": 1,
+        "30": 1
+      },
+      "mediaQueries": [
+        "(prefers-reduced-motion: no-preference) ",
+        "(max-width: 640px) ",
+        "(max-width: 640px)` won unseen,\n     shipping 'Favorited' at 1.35rem \u2026 Where scoping is possible, prefer it \u2014 an order assertion is\n     only as good as its view of the file.\" Winning outright needs no assertion about order and\n     survives anyone moving these blocks. (`.btn` and this variant are mutually exclusive in\n     `FavoriteToggle.tsx`, so `:not(.btn)` filters nothing here \u2014 it is kept to read as the sibling\n     of the base rule's scoping, and the repeated class carries the weight.)\n     \u2691 AND 0.9rem, NOT the 0.95rem this rule used to ask for: measured against its neighbours at\n     375px, the row reads \"12 lessons\" 14.4 / \"Supporting documents\" 13.6 / PDF-Word buttons 13. At\n     0.95rem (15.2px) the word \"Favorite\" would still be the LARGEST thing in the row it sits in.\n     0.9rem makes it a peer of `.substrand-count`, which is what it is. The 44px touch target is\n     unaffected \u2014 `min-height` comes from the block above and does not follow the font. */\n  .fav-toggle.fav-toggle--label-mobile:not(.btn) "
+      ]
+    },
+    {
+      "path": "app/src/app/(payload)/custom.scss",
+      "important": 1,
+      "hexColorLiterals": 35,
+      "pxLiterals": 215,
+      "zIndexValues": {
+        "20": 2
+      },
+      "mediaQueries": [
+        "(prefers-reduced-motion: reduce) ",
+        "(max-width: 640px) ",
+        "(max-width: 640px) ",
+        "(max-width: 640px) ",
+        "(max-width: 900px) ",
+        "(max-width: 640px) ",
+        "(max-width: 640px) ",
+        "(max-width: 1024px) ",
+        "(max-width: 640px) ",
+        "(prefers-reduced-motion: reduce) ",
+        "(max-width: 640px) ",
+        "(max-width: 640px) "
+      ]
+    },
+    {
+      "path": "app/src/app/app-tokens.scss",
+      "important": 0,
+      "hexColorLiterals": 16,
+      "pxLiterals": 64,
+      "zIndexValues": {},
+      "mediaQueries": []
+    }
+  ],
+  "qualification": "Lexical counts, not computed CSS or confirmed defects; duplicate selector semantics require parser/cascade review."
+}

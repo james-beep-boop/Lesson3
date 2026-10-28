@@ -1,0 +1,9 @@
+# Dependency triage — C11 (partial)
+
+Both pinned-tree npm audit runs report7 package entries:5 moderate,2 low, no high/critical. These are propagated package entries, not7 independently demonstrated product vulnerabilities. No package or lockfile was changed.
+
+- The five moderate entries are the nested esbuild → esbuild-kit → drizzle-kit → Postgres-adapter chain. The [reviewed advisory](https://github.com/advisories/GHSA-67mh-4wv8-2f99) concerns esbuild's development server. The app serves Next, and no app source starts that esbuild server. This narrows the immediate production scenario; it is not a guarantee about every developer command.
+- The all-dependency tree additionally includes an esbuild version under Vite affected by a [Windows development-server file-serving advisory](https://github.com/advisories/GHSA-g7r4-m6w7-qqqr). The exercised stack is Linux; the advisory's specific Windows precondition was not present.
+- deepmerge and Payload are the two low entries for [prototype poisoning of a returned merged object](https://github.com/advisories/GHSA-gcqx-w48m-w2h4). Installed Payload imports deepmerge through `utilities/deepMerge.js`; field beforeChange validation uses it with stored and submitted data. The app-level ingest prototype corpus passes, but that does not prove every native framework merge path safe. Runtime exploitability remains unestablished. The advisory lists no patched version, so no automatic upgrade remedy is asserted.
+
+All three advisory pages were checked on2026-10-28. Installed source and lockfile remain the version authority. Further native-merge reachability review, override provenance and duplicate-resolution triage are pending. Static inventory finds one previously known caret range (`@testing-library/dom`, development-only); the lockfile fixes the installed tree.
