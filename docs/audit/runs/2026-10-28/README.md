@@ -1,6 +1,8 @@
 # Correctness audit — 2026-10-28
 
-**Status: in progress; not a completed audit.**
+**Status: wrapped up early at the operator’s request; partial audit, ready for Claude’s review.**
+
+Start with [the results and handoff](REPORT.md). No whole-codebase completion claim.
 
 - Source baseline: `6e75a173e822e4c4be42821b0a4af48ca457bd36` (main after #482).
 - Execution rules: reviewed PR #483, head `9f85afc7c4f948c1da504c77a74c53ac1fa964b7`, plus the operator’s audit-only instruction.
@@ -15,4 +17,4 @@ Opposite-family reviews are recorded per finding. The supplemental omission chec
 
 #483 merged after all four CI checks passed as `e9d3819539ada6cc9aadef2c84cd1794f419a3fd`. The main-change sweep contains only the reviewed audit-method documents; no product/runtime change from the fixed source. #484 remains the draft release-preparation PR. No tag or release created.
 
-Priority accepted findings: [F-C31-001](findings/F-C31-001.md), omitted administrator-only UNIT content in a teacher save; [F-C40-001](findings/F-C40-001.md), padded identity creates duplicate plans. [F-C63-003](findings/F-C63-003.md), text lost while logout waits, is also Medium and reproduced in both browsers. [F-C63-004](findings/F-C63-004.md) records the conditional real-expiry failure and successful-capture controls, with causation limits. Lower-impact observations and unresolved leads have separate files; source review and required runtime work are still in progress.
+Priority accepted findings: [F-C31-001](findings/F-C31-001.md), omitted administrator-only UNIT content in a teacher save; [F-C40-001](findings/F-C40-001.md), padded identity creates duplicate plans. [F-C63-003](findings/F-C63-003.md), text lost while logout waits, is also Medium and reproduced in both browsers. [F-C63-004](findings/F-C63-004.md) records the conditional real-expiry failure and successful-capture controls, with causation limits. Lower-impact observations and unresolved leads have separate files; remaining source review and runtime work are unfinished at the operator-directed stop.

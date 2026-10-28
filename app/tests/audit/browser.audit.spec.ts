@@ -12,6 +12,7 @@ import { loginAs, E2E_BASE as BASE } from '../helpers/e2e'
 import { createTopicAs, clearPostingCaps } from '../helpers/discussions'
 import { drizzleOf } from '../helpers/db'
 import { welcomeDismissedKey } from '../../src/lib/welcomeDismissal'
+import { openEditor, expandLessons } from '../helpers/editRecoveryUi'
 const require = createRequire(import.meta.url)
 type AxeResult = {
   violations: {
@@ -393,18 +394,16 @@ for (const captureFails of [true, false]) {
     const expires = (
       JSON.parse(Buffer.from(token!.split('.')[1], 'base64url').toString()) as { exp: number }
     ).exp
-    await page
-      .context()
-      .addCookies([
-        {
-          name: 'payload-token',
-          value: token!,
-          url: BASE,
-          httpOnly: true,
-          sameSite: 'Lax',
-          expires,
-        },
-      ])
+    await page.context().addCookies([
+      {
+        name: 'payload-token',
+        value: token!,
+        url: BASE,
+        httpOnly: true,
+        sameSite: 'Lax',
+        expires,
+      },
+    ])
     await page.addInitScript(
       (key) => localStorage.setItem(key, '1'),
       welcomeDismissedKey(fx.users.editor.id),
@@ -595,4 +594,78 @@ test('audit: stored teacher text remains inert in sampled browser surfaces', asy
         'One img/onerror payload in names, topic titles/bodies, replies, messages and lesson prose; browser/frontend/admin/HTML preview samples only. Email and Office viewers not exercised.',
     }),
   )
+})
+
+test('audit: consecutive link insertions use the visible caret in both browsers', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await loginAs(page, fx, 'editor')
+  await openEditor(page, fx.version.id)
+  await expandLessons(page)
+  for (const button of await page.getByRole('button', { name: 'Show All', exact: true }).all())
+    if (await button.isVisible()) await button.click()
+  const field = page.locator('#field-lessons__0__framework__0__learnerExperience')
+  await field.fill('Alpha Beta')
+  await field.press('Home')
+  for (let i = 0; i < 5; i++) await field.press('ArrowRight')
+  const insert = page.getByRole('button', { name: 'Insert link', exact: true })
+  for (const suffix of ['one', 'two']) {
+    if (suffix === 'two') {
+      const caret = await field.evaluate((el) => (el as HTMLTextAreaElement).selectionStart)
+      expect(caret).toBeLessThan((await field.inputValue()).indexOf('Beta'))
+    }
+    await insert.click()
+    const dialog = page.getByRole('dialog', { name: 'Insert link' })
+    await dialog.getByLabel('Web address').fill(`https://example.invalid/${suffix}`)
+    await dialog.getByRole('button', { name: 'Insert address', exact: true }).click()
+    await expect(dialog).not.toBeVisible()
+    await expect(field).toBeFocused()
+  }
+  const value = await field.inputValue()
+  console.log(
+    JSON.stringify({
+      consecutiveLinkProbe: info.project.name,
+      oneBeforeTwo: value.indexOf('/one') < value.indexOf('/two'),
+      twoBeforeTrailingWord: value.indexOf('/two') < value.indexOf('Beta'),
+    }),
+  )
+  expect(value.indexOf('/one')).toBeLessThan(value.indexOf('/two'))
+  expect(value.indexOf('/two'), 'Second insertion must remain before trailing text').toBeLessThan(
+    value.indexOf('Beta'),
+  )
+})
+
+test('audit: reset-link copy gives manual instructions on a plain HTTP school origin', async ({
+  page,
+}, info) => {
+  await loginAs(page, fx, 'siteAdmin')
+  await page.goto(`${BASE}/admin?open=users,users.accounts`)
+  const search = page.locator('.lp-users__filters input[type="search"]')
+  await search.fill(fx.users.teacher.email)
+  const row = page
+    .locator('.lp-users__row')
+    .filter({ has: page.locator('.lp-users__summary').filter({ hasText: fx.users.teacher.email }) })
+  await expect(row).toHaveCount(1)
+  await row.locator('.lp-users__summary').click()
+  await row.getByRole('button', { name: 'Reveal reset link', exact: true }).click()
+  await expect(row.locator('.lp-users__reset input')).toHaveValue(/\/reset-password\?token=/)
+  const contextFacts = await page.evaluate(() => ({
+    secure: window.isSecureContext,
+    hasClipboard: typeof navigator.clipboard !== 'undefined',
+  }))
+  expect(contextFacts.secure).toBe(false)
+  expect(contextFacts.hasClipboard).toBe(false)
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await row.getByRole('button', { name: 'Copy link', exact: true }).click()
+  console.log(
+    JSON.stringify({
+      resetCopyProbe: info.project.name,
+      ...contextFacts,
+      clipboardTypeErrors: errors.filter((message) => message.includes('writeText')).length,
+      manualInputStillVisible: await row.locator('.lp-users__reset input').isVisible(),
+    }),
+  )
+  await expect(row).toContainText('Could not copy automatically — select and copy the link below.')
 })

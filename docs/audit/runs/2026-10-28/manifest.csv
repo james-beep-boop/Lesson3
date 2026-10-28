@@ -20,7 +20,7 @@ path,owner,status,notes
 .nvmrc,C70,pending,Build/config/operations or remaining root source; refine after inventory.
 AGENTS.md,C70,pending,Build/config/operations or remaining root source; refine after inventory.
 CLAUDE.md,C70,pending,Build/config/operations or remaining root source; refine after inventory.
-COMPUTING-ENVIRONMENT.md,C70,pending,Build/config/operations or remaining root source; refine after inventory.
+COMPUTING-ENVIRONMENT.md,C70,coordinator routing check; source packet excluded,Read privately for machine roles/capabilities and local test placement. Access metadata is not reproduced in public evidence; not application code.
 LICENSE,C71,pending,
 NOTICE,C71,pending,
 README.md,C71,pending,
@@ -691,20 +691,20 @@ app/tests/unit/exportJobDedupe.spec.ts,C72,author-read; reconciliation pending,P
 app/tests/unit/exportKind.spec.ts,C72,author-read; reconciliation pending,P180-10-tests:1-20; caller reconciliation and clean-result sampling required
 app/tests/unit/extract.spec.ts,C72,author-read; reconciliation pending,P180-10-tests:1-197; caller reconciliation and clean-result sampling required
 app/tests/unit/favoriteToggle.spec.tsx,C72,author-read; reconciliation pending,P180-10-tests:1-35; caller reconciliation and clean-result sampling required
-app/tests/unit/fieldSplitContainers.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/filterRows.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/firstUserBootstrap.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/firstUserRoleLock.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/firstUserVerificationEmail.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/forgotPasswordFailure.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/generatedSurfaces.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/generatorGrade.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/generatorUpgrade.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/guideAccess.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/guideCompareVisual.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/guidePanelState.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/guideParity.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/htmlDiffCacheWiring.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
+app/tests/unit/fieldSplitContainers.spec.ts,C72,author-read; reconciliation pending,P181-10-tests:1-168; caller reconciliation and clean-result sampling required
+app/tests/unit/filterRows.spec.ts,C72,author-read; reconciliation pending,P181-10-tests:1-56; caller reconciliation and clean-result sampling required
+app/tests/unit/firstUserBootstrap.spec.ts,C72,author-read; reconciliation pending,P181-10-tests:1-49; caller reconciliation and clean-result sampling required
+app/tests/unit/firstUserRoleLock.spec.ts,C72,author-read; reconciliation pending,P181-10-tests:1-96; caller reconciliation and clean-result sampling required
+app/tests/unit/firstUserVerificationEmail.spec.ts,C72,author-read; reconciliation pending,P181-10-tests:1-49; caller reconciliation and clean-result sampling required
+app/tests/unit/forgotPasswordFailure.spec.tsx,C72,author-read; reconciliation pending,P181-10-tests:1-89; caller reconciliation and clean-result sampling required
+app/tests/unit/generatedSurfaces.spec.ts,C72,author-read; reconciliation pending,P182-10-tests:1-167; caller reconciliation and clean-result sampling required
+app/tests/unit/generatorGrade.spec.ts,C72,author-read; reconciliation pending,P182-10-tests:1-69; caller reconciliation and clean-result sampling required
+app/tests/unit/generatorUpgrade.spec.ts,C72,author-read; reconciliation pending,P182-10-tests:1-400; P183-10-tests:401-646; caller reconciliation and clean-result sampling required
+app/tests/unit/guideAccess.spec.tsx,C72,author-read; reconciliation pending,P183-10-tests:1-148; caller reconciliation and clean-result sampling required
+app/tests/unit/guideCompareVisual.spec.tsx,C72,author-read; reconciliation pending,P184-10-tests:1-400; P184-10-tests:401-533; caller reconciliation and clean-result sampling required
+app/tests/unit/guidePanelState.spec.ts,C72,author-read; reconciliation pending,P184-10-tests:1-35; caller reconciliation and clean-result sampling required
+app/tests/unit/guideParity.spec.ts,C72,author-read; reconciliation pending,P185-10-tests:1-400; P185-10-tests:401-415; caller reconciliation and clean-result sampling required
+app/tests/unit/htmlDiffCacheWiring.spec.ts,C72,author-read; reconciliation pending,P185-10-tests:1-167; caller reconciliation and clean-result sampling required
 app/tests/unit/htmlDiffContract.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/tests/unit/htmlSectionsCache.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/tests/unit/idleLogoutScreenClear.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.

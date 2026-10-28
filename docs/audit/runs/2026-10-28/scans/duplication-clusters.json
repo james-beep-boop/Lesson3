@@ -1,0 +1,268 @@
+[
+  {
+    "id": 1,
+    "lines": 10,
+    "first": {
+      "name": "scripts/adapter-fidelity.ts",
+      "start": 19,
+      "end": 28
+    },
+    "second": {
+      "name": "scripts/fidelity-spike.ts",
+      "start": 18,
+      "end": 27
+    }
+  },
+  {
+    "id": 2,
+    "lines": 20,
+    "first": {
+      "name": "scripts/adapter-fidelity.ts",
+      "start": 63,
+      "end": 82
+    },
+    "second": {
+      "name": "scripts/fidelity-spike.ts",
+      "start": 34,
+      "end": 54
+    }
+  },
+  {
+    "id": 3,
+    "lines": 16,
+    "first": {
+      "name": "src/app/(payload)/admin/[[...segments]]/not-found.tsx",
+      "start": 6,
+      "end": 21
+    },
+    "second": {
+      "name": "src/app/(payload)/admin/[[...segments]]/page.tsx",
+      "start": 6,
+      "end": 21
+    }
+  },
+  {
+    "id": 4,
+    "lines": 10,
+    "first": {
+      "name": "src/app/(frontend)/reset-password/page.tsx",
+      "start": 11,
+      "end": 20
+    },
+    "second": {
+      "name": "src/app/(frontend)/verify-email/page.tsx",
+      "start": 11,
+      "end": 20
+    }
+  },
+  {
+    "id": 5,
+    "lines": 16,
+    "first": {
+      "name": "src/app/(frontend)/reset-password/ResetPasswordForm.tsx",
+      "start": 90,
+      "end": 105
+    },
+    "second": {
+      "name": "src/app/(frontend)/signup/SignupForm.tsx",
+      "start": 107,
+      "end": 122
+    }
+  },
+  {
+    "id": 6,
+    "lines": 9,
+    "first": {
+      "name": "src/app/(frontend)/login/LoginForm.tsx",
+      "start": 41,
+      "end": 49
+    },
+    "second": {
+      "name": "src/app/(frontend)/signup/SignupForm.tsx",
+      "start": 23,
+      "end": 31
+    }
+  },
+  {
+    "id": 7,
+    "lines": 11,
+    "first": {
+      "name": "src/app/(frontend)/login/LoginForm.tsx",
+      "start": 98,
+      "end": 108
+    },
+    "second": {
+      "name": "src/app/(frontend)/signup/SignupForm.tsx",
+      "start": 112,
+      "end": 122
+    }
+  },
+  {
+    "id": 8,
+    "lines": 9,
+    "first": {
+      "name": "src/app/(frontend)/login/FirstUserForm.tsx",
+      "start": 101,
+      "end": 109
+    },
+    "second": {
+      "name": "src/app/(frontend)/signup/SignupForm.tsx",
+      "start": 114,
+      "end": 122
+    }
+  },
+  {
+    "id": 9,
+    "lines": 9,
+    "first": {
+      "name": "src/app/(frontend)/forgot-password/ForgotPasswordForm.tsx",
+      "start": 35,
+      "end": 43
+    },
+    "second": {
+      "name": "src/app/(frontend)/signup/SignupForm.tsx",
+      "start": 23,
+      "end": 31
+    }
+  },
+  {
+    "id": 10,
+    "lines": 11,
+    "first": {
+      "name": "src/app/(frontend)/forgot-password/ForgotPasswordForm.tsx",
+      "start": 91,
+      "end": 101
+    },
+    "second": {
+      "name": "src/app/(frontend)/signup/SignupForm.tsx",
+      "start": 112,
+      "end": 122
+    }
+  },
+  {
+    "id": 11,
+    "lines": 10,
+    "first": {
+      "name": "src/components/EditRecovery/useEditRecovery.ts",
+      "start": 749,
+      "end": 758
+    },
+    "second": {
+      "name": "src/components/EditRecovery/useEditRecovery.ts",
+      "start": 707,
+      "end": 716
+    }
+  },
+  {
+    "id": 12,
+    "lines": 23,
+    "first": {
+      "name": "src/components/Discussions/ReplyComposer.tsx",
+      "start": 53,
+      "end": 75
+    },
+    "second": {
+      "name": "src/components/Discussions/TopicComposer.tsx",
+      "start": 55,
+      "end": 77
+    }
+  },
+  {
+    "id": 13,
+    "lines": 10,
+    "first": {
+      "name": "src/components/Discussions/ModerationControls.tsx",
+      "start": 205,
+      "end": 214
+    },
+    "second": {
+      "name": "src/components/Manage/SystemFeaturesPanel.tsx",
+      "start": 245,
+      "end": 254
+    }
+  },
+  {
+    "id": 14,
+    "lines": 10,
+    "first": {
+      "name": "src/components/AdminDashboard/CandidateList.tsx",
+      "start": 155,
+      "end": 164
+    },
+    "second": {
+      "name": "src/components/Manage/UnsavedWorkList.tsx",
+      "start": 97,
+      "end": 106
+    }
+  },
+  {
+    "id": 15,
+    "lines": 8,
+    "first": {
+      "name": "src/fields/identity.ts",
+      "start": 99,
+      "end": 106
+    },
+    "second": {
+      "name": "src/fields/identity.ts",
+      "start": 55,
+      "end": 62
+    }
+  },
+  {
+    "id": 16,
+    "lines": 9,
+    "first": {
+      "name": "src/endpoints/recovery.ts",
+      "start": 332,
+      "end": 340
+    },
+    "second": {
+      "name": "src/endpoints/recovery.ts",
+      "start": 83,
+      "end": 91
+    }
+  },
+  {
+    "id": 17,
+    "lines": 9,
+    "first": {
+      "name": "src/endpoints/previewVersion.ts",
+      "start": 140,
+      "end": 148
+    },
+    "second": {
+      "name": "src/endpoints/previewVersion.ts",
+      "start": 113,
+      "end": 121
+    }
+  },
+  {
+    "id": 18,
+    "lines": 8,
+    "first": {
+      "name": "src/endpoints/aresExport.ts",
+      "start": 24,
+      "end": 31
+    },
+    "second": {
+      "name": "src/endpoints/versionEdit.ts",
+      "start": 89,
+      "end": 95
+    }
+  },
+  {
+    "id": 19,
+    "lines": 7,
+    "first": {
+      "name": "src/collections/SubjectGrade.ts",
+      "start": 164,
+      "end": 170
+    },
+    "second": {
+      "name": "src/collections/SubjectGrade.ts",
+      "start": 139,
+      "end": 145
+    }
+  }
+]

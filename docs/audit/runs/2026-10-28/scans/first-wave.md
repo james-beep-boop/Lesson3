@@ -11,3 +11,5 @@ The initial PATCH probe submitted only system-only fields and received Payload's
 The DB-free malicious corpus checks dynamic JS/getters/computed keys/spread/template expressions, JSON prototype keys/malformed/scalar roots, bounded high-compression expansion, entry-count overflow, corrupt ZIPs and unsupported web extensions. A settled per-file extraction failure is replayed by item.extract, rather than being placed in prepareUploadFiles.rejected; the probe now tests that actual contract. Corpus results are recorded when the run exits successfully.
 
 Full per-field/collection matrices, controlled race additions, UI role/route crawl and independent opposite-family review remain pending. No audit finding is confirmed by this baseline alone.
+
+The two email-disabled endpoint controls later passed on the no-SMTP target: valid email-export request returns503, and public forgot-password submission preserves an administrator-issued token. Other cases were filtered out of this targeted repeat. Combined distinct baseline HTTP cases across modes:498. Raw no-email control log remains private.
