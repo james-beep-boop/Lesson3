@@ -1,6 +1,6 @@
 # ARES Lesson Plans: v1.10 simplification review
 
-**Status: Claude reviewed the original five cleanup PRs; no merges authorized.**
+**Status: #474–#480 merged after Claude's review, green CI and James's approval.**
 Review source: annotated `v1.10`, commit `c8d8f3d22c432061c8bff27e8357dd9f2d4feb91`.
 Fixes were rechecked against main `e304387b`, preserving its newer sign-in tagline.
 
@@ -31,17 +31,18 @@ proposed main-tree changes. Links there preserve the detailed record without imp
 | [476](https://github.com/james-beep-boop/Lesson3/pull/476) | Reuse the database pool accessor. | Claude: correct. |
 | [478](https://github.com/james-beep-boop/Lesson3/pull/478) | Put pure prose vocabulary below enforcement. | Claude: correct; requested comment restored in edfd52cc. |
 | [479](https://github.com/james-beep-boop/Lesson3/pull/479) | Reuse immutable save comparison. | Claude: correct. |
-| [480](https://github.com/james-beep-boop/Lesson3/pull/480) | Configure dead-code checks; remove three unused declarations. | New draft; needs Claude's review and CI. |
+| [480](https://github.com/james-beep-boop/Lesson3/pull/480) | Configure dead-code checks; remove three unused declarations. | Claude: correct; CI passed. |
 
-The original five had green CI when Claude reviewed them. #478's comment-only push reruns CI;
-#480 has types/lint/format, 1,976 unit tests and 16 contract checks passing locally. PR checks remain
-the current CI source of truth. No schema/renderer change was needed.
+All cleanup PRs passed CI on their latest commits before merging. #478's known clock-dependent
+rate-limit test passed on re-run. The combined changes also passed typecheck and all 1,976 unit tests.
+No schema/renderer change was needed.
 
 ## Outcome and next work
 
 See [findings.md](findings.md) for chosen fixes/deferred items and [cross-group.md](cross-group.md)
-for shared-flow reasoning. The timeout follow-up remains the useful next reliability task.
+for shared-flow reasoning. The timeout follow-up #481 also merged after all four CI checks passed.
 James chose to delete contractDriftSummary; upload contract validation already blocks invalid input.
 
-All cleanup PRs remain drafts. Claude's review does not itself lift James's explicit merge hold.
+The superseded planning PRs #472 and #473 were closed without merging. New cleanup PRs still need
+Claude's review before merging.
 No tag, release, deployment or live configuration change is included.
