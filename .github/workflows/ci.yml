@@ -145,12 +145,20 @@ jobs:
 
       - name: Wait for app health
         run: |
+          deadline=$((SECONDS + 300))
           for i in $(seq 1 60); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/ || true)
+            remaining=$((deadline - SECONDS))
+            ((remaining > 0)) || break
+            code=$(curl --max-time "$((remaining < 5 ? remaining : 5))" -s -o /dev/null -w '%{http_code}' http://localhost:3001/ || true)
             if [ "$code" = "307" ]; then echo "app healthy (/ -> 307)"; exit 0; fi
-            sleep 5
+            remaining=$((deadline - SECONDS))
+            ((remaining > 0)) || break
+            sleep "$((remaining < 5 ? remaining : 5))"
           done
           echo "::error::app did not become healthy"; docker compose logs --tail 80; exit 1
+
+      - name: installer and CI readiness branches (stubbed)
+        run: ./scripts/test-readiness.sh
 
       # Branch cover for deploy.sh's sidecar decision, with git/docker stubbed. That decision shipped
       # three defects in three days and CI never invoked deploy.sh at all — it runs `up -d --build`
