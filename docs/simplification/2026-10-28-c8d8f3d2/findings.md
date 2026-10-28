@@ -1,5 +1,8 @@
 # Consolidated findings
 
+Claude reviewed the original five fixes. Detailed source references and reviewer notes remain on the
+[evidence branch](https://github.com/james-beep-boop/Lesson3/tree/review/simplification-v1.10-evidence). Nothing is merged; James’s hold remains active.
+
 Source SHA is fixed in README; implementation is revalidated against current main per fix.
 
 ## S-P01-001 — batch ancestry metadata for existing-plan imports
@@ -103,8 +106,8 @@ candidates, not failing assertions or product defects:
 - Reuse test-owned `drizzleOf` for the remaining adapter casts in rate-limit, message and endpoint
   suites; use test-owned `rowsOf` in recovery fixture plumbing. Keep fixture setup independent of
   production `txDb` and preserve cleanup SQL/order and result fallbacks.
-- Reuse `formReq`/`statusOf` in `parsePreviewCandidate.spec.ts`, preserving malformed-body callbacks,
-  absent headers and refusal status semantics.
+- Reuse `statusOf` in `parsePreviewCandidate.spec.ts`, preserving malformed-body callbacks,
+  absent headers and refusal status semantics. The never-used `formReq` helper was removed in #480.
 - Extend test `fieldTree` with generic `childrenOf`/`byName` for the resource/prose drift tests.
   Keep displayed-child/prose recursion local and retain field-order/empty-child semantics.
 - Share the repeated 429-backoff setup within `useEditRecovery.spec.tsx`; keep separate retry,
@@ -143,3 +146,12 @@ assignment route construction, repeated recovery DELETE transport, UploadBundles
 and a redundant private-search empty branch. Most are small; none justifies a broad UI rewrite. The
 editor's Advanced-tools-only version-picker query deserves a focused follow-up with continuation
 browser coverage if selected. No additional product behavior is changed by this evaluation report.
+
+## Dead-code follow-up — PR #480
+
+Claude correctly identified the gap in the unconfigured scan. The configured pass was followed through
+hit by hit; its counts, controls and limits are in first-pass/README.md and the archived ledger.
+James chose deletion of contractDriftSummary. Import already calls contractDrift and blocks invalid
+files; it was never missing that validation. Also removed the unused BACKUP_PATHS object and formReq
+test helper. The benchmark now uses the declared Playwright package. Existing local types/functions
+and compatibility re-export paths were retained; no blanket deletion or feature change.

@@ -1,27 +1,53 @@
-# Mechanical first pass
+# Mechanical checks and the dead-code correction
 
-Source: tag `v1.10`, `c8d8f3d22c432061c8bff27e8357dd9f2d4feb91`. All Node tools ran through
-`scripts/in-deps.sh`, on Node 24.22.1, against the separate review checkout. Product dependencies
-and configuration were unchanged. These are navigation leads, not verified defects.
+Source: fixed v1.10 `c8d8f3d22c432061c8bff27e8357dd9f2d4feb91`; fixes rechecked against main.
+All Node tools ran through scripts/in-deps.sh, Node 24.22.1. Tool dependencies stayed in an external
+prefix; no audit packages were added to the application.
 
-- `jscpd@4.0.5`, JSON reporter, source/app scripts/root shell scripts: 19 clusters before filtering;
-  18 after removing the generated Payload route pair. Generated types, vendor and migrations were
-  excluded by glob. Retained source pairs are in `duplicates.json`.
-- Separate `jscpd@4.0.5` scan of tests: 97 clusters, recorded as file/line references in
-  `test-duplicates.json`. Reviewers use these for cross-packet navigation. Similar fixture setup
-  does not justify combining independent assertions, permission cases or mutable test state.
-- `knip@5.66.0`, JSON reporter: 67 unused-file leads and 82 file issue groups before filtering.
-  The default entrypoint detection does not understand this project's CLI, Payload configuration,
-  migration registry and style-test entrypoints. Therefore its unused-file list is mostly false
-  positives. Generated migrations are omitted from the committed navigation report.
-  Two `npx` launches failed to resolve Knip's TypeScript peer dependency. Successful run used a
-  separate temporary tool prefix with exact `knip@5.66.0` and `typescript@5.9.3`, then
-  `knip --directory /app --reporter json`; exit 1 denotes findings, stderr empty.
-- Installed `typescript@5.9.3`: `tsc --noEmit --noUnusedLocals --noUnusedParameters`, exit 2 with
-  unused-symbol diagnostics. Most are automatic-JSX-runtime React imports and unused test mock
-  parameters, rather than unused runtime code. No tsconfig change made.
-- `helpers.md` indexes exported declarations in lib/access/hooks/fields. Reviewers establish their
-  semantics from source; the index alone is not a conclusion that two helpers are interchangeable.
+## Original checks
 
-Full raw tool logs, transient dependencies and package lock stay outside the repository. The
-curated outputs contain source references, no environment values or operational credentials.
+- jscpd 4.0.5: 18 retained source clusters after excluding generated output; 97 test clusters.
+  Hits were checked for distinct permission/null/race/fixture contracts before considering reuse.
+- TypeScript 5.9.3 unused-local/parameter pass: mostly JSX-era React imports and mock parameters.
+- **Knip 5.66.0 was initially unconfigured.** Its 67 unused-file leads were largely framework/CLI
+  entries, but dismissing the list missed real unused declarations. That run was insufficient.
+
+## Configured follow-up
+
+PR #480 adds app/knip.json with explicit Next routes/proxy/instrumentation, Payload config, migration
+registry, top-level CLIs, test suites and test/config entry points. Test helpers remain traversed
+modules, not blanket entry points that would hide unused helpers. Migration registry edges are
+traversed; generated/migration output and vendor files are not deletion targets. Next 16's proxy
+convention was confirmed from installed source: the old Knip plugin did not recognize it automatically.
+
+At the fixed baseline: **0 unused files, 56 export hits, 93 type-export hits, one dependency hit and
+one undeclared import**. Every hit has a disposition in the [evidence ledger](https://github.com/james-beep-boop/Lesson3/tree/review/simplification-v1.10-evidence/docs/simplification/2026-10-28-c8d8f3d2/first-pass).
+An additional include-entry-exports run exposed only REQUEST_HEADER (used locally) and Next's
+proxy/config convention exports; all three were retained.
+
+- Remove unused contractDriftSummary (James approved), BACKUP_PATHS and the formReq test helper.
+- Keep 51 declarations with local uses: unused outward exports do not mean dead implementations.
+- Keep two unused forwarding API paths whose implementations are live; an export-only sweep is optional.
+- Keep 93 locally used types; unused type exports are not dead runtime code.
+- Keep tsx: CI invokes it and Playwright preloads tsx/esm through NODE_OPTIONS.
+- Import benchmark Chromium via declared @playwright/test, not transitive playwright. Installed
+  source/runtime checks confirmed the identical Chromium object.
+
+After cleanup: 0 unused files, 53 export hits and 93 type hits retained with dispositions; only the
+known external-loader tsx dependency hit remains. Temporary negative controls proved detection of an
+unreachable file and an unused export in a live module, then were removed.
+
+## Reproduce and limits
+
+Use app/knip.json from #480 and pinned knip@5.66.0/typescript@5.9.3 in an external tool prefix, then:
+
+```sh
+scripts/in-deps.sh --network none -v /absolute/audit-tools:/audit -- \
+  /audit/node_modules/.bin/knip --config knip.json --reporter json
+```
+
+Exit 1 denotes retained findings, not a clean result. The evidence branch keeps exact config,
+before/after/entry-export/control output and per-symbol identifier references. Static results still
+need caller and dynamic-registration checks. Intentional CLI entry points are not proof every CLI
+is still useful; shell functions, CSS classes, generated/vendor internals and dynamically named
+members are outside this scan. No claim of exhaustive runtime reachability or security coverage.

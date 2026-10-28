@@ -1,0 +1,2384 @@
+[
+  {
+    "file": "tests/helpers/fixtures.ts",
+    "kind": "exports",
+    "name": "minimalStoredResourceLinks",
+    "line": 158,
+    "local": [
+      158,
+      207
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "tests/helpers/editRecovery.ts",
+    "kind": "exports",
+    "name": "countRecoveryRows",
+    "line": 75,
+    "local": [
+      75,
+      288
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/substrand.ts",
+    "kind": "exports",
+    "name": "bundleSearchText",
+    "line": 245,
+    "local": [
+      245,
+      286
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "tests/helpers/dialogs.ts",
+    "kind": "exports",
+    "name": "expectPairedActions",
+    "line": 15,
+    "local": [
+      15,
+      57
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/access/lockedDocuments.ts",
+    "kind": "exports",
+    "name": "canEditLockTarget",
+    "line": 62,
+    "local": [
+      62,
+      111
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/editRecovery/kernel.ts",
+    "kind": "exports",
+    "name": "MAX_ACTIVE_CAPTURES",
+    "line": 98,
+    "local": [
+      98,
+      122
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/editRecovery/kernel.ts",
+    "kind": "types",
+    "name": "RetireResult",
+    "line": 307,
+    "local": [
+      307,
+      336
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/editRecovery/kernel.ts",
+    "kind": "types",
+    "name": "ExpiryReport",
+    "line": 382,
+    "local": [
+      382,
+      462,
+      463,
+      494
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/editRecovery/kernel.ts",
+    "kind": "types",
+    "name": "ActiveCapture",
+    "line": 497,
+    "local": [
+      497,
+      519
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/editRecovery/kernel.ts",
+    "kind": "types",
+    "name": "CaptureMetadata",
+    "line": 541,
+    "local": [
+      541,
+      581
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/editRecovery/kernel.ts",
+    "kind": "types",
+    "name": "OwnCapture",
+    "line": 613,
+    "local": [
+      613,
+      634
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "tests/helpers/rowLocks.ts",
+    "kind": "exports",
+    "name": "BLOCKED_WINDOW_MS",
+    "line": 25,
+    "local": [
+      25,
+      118
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "tests/helpers/rowLocks.ts",
+    "kind": "types",
+    "name": "LockTransaction",
+    "line": 27,
+    "local": [
+      27,
+      31,
+      54,
+      78,
+      90
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "tests/helpers/rowLocks.ts",
+    "kind": "types",
+    "name": "LockableTestTable",
+    "line": 35,
+    "local": [
+      35,
+      52
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/resourceLinks.ts",
+    "kind": "exports",
+    "name": "isResourcePhaseKey",
+    "line": 54,
+    "local": [
+      54,
+      150,
+      203
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/ingest/resourceLinks.ts",
+    "kind": "exports",
+    "name": "isEmptyResourceGroup",
+    "line": 179,
+    "local": [
+      81,
+      179,
+      190
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/ingest/resourceLinks.ts",
+    "kind": "types",
+    "name": "ResourcePhaseKey",
+    "line": 12,
+    "local": [
+      12,
+      44,
+      47,
+      54,
+      55,
+      139,
+      201
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/resourceLinks.ts",
+    "kind": "types",
+    "name": "AresResourceRecord",
+    "line": 26,
+    "local": [
+      26,
+      39,
+      40,
+      188,
+      193
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/resourceLinks.ts",
+    "kind": "types",
+    "name": "AresPhaseResources",
+    "line": 38,
+    "local": [
+      38,
+      44,
+      46
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/lessonManifest.ts",
+    "kind": "exports",
+    "name": "LESSON_PROGRAM_VERSION",
+    "line": 8,
+    "local": [
+      8,
+      29
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/ingest/lessonManifest.ts",
+    "kind": "types",
+    "name": "ManifestFile",
+    "line": 17,
+    "local": [
+      15,
+      17,
+      97,
+      99
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/lessonManifest.ts",
+    "kind": "types",
+    "name": "LessonSetEntry",
+    "line": 95,
+    "local": [
+      95,
+      104
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/semver.ts",
+    "kind": "exports",
+    "name": "bumpSemver",
+    "line": 7,
+    "local": [
+      7,
+      115
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/editRecovery/projection.ts",
+    "kind": "exports",
+    "name": "normaliseProseValue",
+    "line": 155,
+    "local": [
+      155,
+      169
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/editRecovery/projection.ts",
+    "kind": "types",
+    "name": "ProseValue",
+    "line": 75,
+    "local": [
+      75,
+      76,
+      116,
+      122,
+      155,
+      155,
+      164,
+      165,
+      175,
+      312,
+      368,
+      399
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/editRecovery/projection.ts",
+    "kind": "types",
+    "name": "ApplyReport",
+    "line": 287,
+    "local": [
+      287,
+      395
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/editRecovery/projection.ts",
+    "kind": "types",
+    "name": "CaptureChange",
+    "line": 316,
+    "local": [
+      316,
+      318,
+      353
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/editRecovery/projection.ts",
+    "kind": "types",
+    "name": "CaptureDiff",
+    "line": 318,
+    "local": [
+      318,
+      348,
+      349
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/systemFlags.ts",
+    "kind": "exports",
+    "name": "systemFlagsFor",
+    "line": 112,
+    "local": [
+      112,
+      120
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/systemFlags.ts",
+    "kind": "exports",
+    "name": "systemSettingsForRender",
+    "line": 132,
+    "local": [
+      132,
+      138,
+      142
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/systemFlags.ts",
+    "kind": "types",
+    "name": "RenderSettings",
+    "line": 46,
+    "local": [
+      46,
+      67,
+      132
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/LinkedTextarea/aresAddress.ts",
+    "kind": "exports",
+    "name": "withoutAresNavigation",
+    "line": 15,
+    "local": [
+      15,
+      65
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "BACKUP_DESTINATIONS",
+    "line": 49,
+    "local": [
+      49,
+      811
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "BACKUP_STREAMS",
+    "line": 67,
+    "local": [
+      67,
+      68,
+      185,
+      197,
+      728,
+      814
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "isIsoUtcSeconds",
+    "line": 141,
+    "local": [
+      141,
+      158,
+      159,
+      168,
+      176,
+      186,
+      191,
+      196,
+      236,
+      237,
+      858,
+      859
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "isStreamRecord",
+    "line": 182,
+    "local": [
+      182,
+      817
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "isLegacyRecord",
+    "line": 193,
+    "local": [
+      193,
+      822
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "isRestoreJournal",
+    "line": 231,
+    "local": [
+      231,
+      827
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "DEFAULT_DISK_DIR",
+    "line": 281,
+    "local": [
+      281,
+      286,
+      891
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "backupSettingsFromEnv",
+    "line": 283,
+    "local": [
+      283,
+      938
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "isRemovableDestination",
+    "line": 326,
+    "local": [
+      326,
+      353,
+      724,
+      837,
+      877
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "isLater",
+    "line": 641,
+    "local": [
+      507,
+      641
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "deriveDestinationBackupStatus",
+    "line": 864,
+    "local": [
+      864,
+      942
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "exports",
+    "name": "BACKUP_PATHS",
+    "line": 946,
+    "local": [
+      946
+    ],
+    "external": [],
+    "disposition": "remove-unused-declaration",
+    "reason": "No caller or local use. backupStatusPathParity.spec.ts reads OPS_DIR/BACKUP_RECORD_DIR/RESTORE_JOURNAL_FILE source constants rather than importing this object."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "StatementState",
+    "line": 23,
+    "local": [
+      23,
+      43,
+      366,
+      455
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupStatement",
+    "line": 31,
+    "local": [
+      31,
+      52,
+      356,
+      366,
+      458,
+      651,
+      861,
+      922
+    ],
+    "external": [
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 23
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 23
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 54
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 54
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 59
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 430
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupDestination",
+    "line": 48,
+    "local": [
+      41,
+      48,
+      49,
+      265,
+      802
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupStream",
+    "line": 68,
+    "local": [
+      68,
+      69,
+      110,
+      121,
+      185,
+      197
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupSuccess",
+    "line": 87,
+    "local": [
+      87,
+      112,
+      155
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupFailure",
+    "line": 96,
+    "local": [
+      96,
+      165,
+      632
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupAttempt",
+    "line": 103,
+    "local": [
+      103,
+      113,
+      173
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "StreamRecord",
+    "line": 108,
+    "local": [
+      108,
+      182,
+      300,
+      803,
+      824
+    ],
+    "external": [
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 21
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 21
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 31
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 32
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 33
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "LegacyRecord",
+    "line": 118,
+    "local": [
+      118,
+      193,
+      301,
+      804
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "RestoreJournal",
+    "line": 224,
+    "local": [
+      224,
+      231,
+      302,
+      651,
+      867
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupSettings",
+    "line": 262,
+    "local": [
+      262,
+      283,
+      303,
+      808,
+      866
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "BackupInputs",
+    "line": 299,
+    "local": [
+      299,
+      349,
+      716
+    ],
+    "external": [
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 22
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 22
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 52
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 54
+      },
+      {
+        "file": "tests/unit/backupStatus.spec.ts",
+        "line": 459
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/backupStatus.ts",
+    "kind": "types",
+    "name": "DestinationEvidence",
+    "line": 801,
+    "local": [
+      801,
+      865
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "tests/helpers/cssSelectors.ts",
+    "kind": "exports",
+    "name": "escapeForRegExp",
+    "line": 16,
+    "local": [
+      16,
+      36
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/combine/draft.ts",
+    "kind": "exports",
+    "name": "MAX_COMBINE_CONTEXT_BYTES",
+    "line": 5,
+    "local": [
+      5,
+      28
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/versionContent.ts",
+    "kind": "exports",
+    "name": "contentOf",
+    "line": 38,
+    "local": [
+      38,
+      45
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/components/LessonControls/currentSection.ts",
+    "kind": "exports",
+    "name": "LESSON_ROW_PREFIX",
+    "line": 23,
+    "local": [
+      23,
+      28,
+      31
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/discussionPaging.ts",
+    "kind": "exports",
+    "name": "REPLY_PAGE_SIZE",
+    "line": 11,
+    "local": [
+      11,
+      14,
+      45,
+      46
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/components/LessonControls/validation.ts",
+    "kind": "exports",
+    "name": "fieldErrorMessage",
+    "line": 4,
+    "local": [
+      4,
+      19,
+      36,
+      41
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/components/Guide/panelState.ts",
+    "kind": "exports",
+    "name": "GUIDE_PANEL_IDS",
+    "line": 7,
+    "local": [
+      7,
+      46,
+      48,
+      66
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/components/Guide/panelState.ts",
+    "kind": "exports",
+    "name": "isGuidePanelId",
+    "line": 50,
+    "local": [
+      50,
+      82,
+      86
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/ingest/contract.ts",
+    "kind": "exports",
+    "name": "contractDriftSummary",
+    "line": 152,
+    "local": [
+      152
+    ],
+    "external": [],
+    "disposition": "remove-unused-declaration",
+    "reason": "No caller or local use; James approved deletion. ingest/index.ts already calls contractDrift as a blocking preflight gate."
+  },
+  {
+    "file": "src/endpoints/userAssignments.ts",
+    "kind": "exports",
+    "name": "nextRows",
+    "line": 134,
+    "local": [
+      134,
+      259
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "tests/helpers/fakeReq.ts",
+    "kind": "exports",
+    "name": "formReq",
+    "line": 33,
+    "local": [
+      33
+    ],
+    "external": [],
+    "disposition": "remove-unused-declaration",
+    "reason": "No caller or local use. parsePreviewCandidate.spec.ts retains its local request fixture; JSON/bodyless helpers are still used."
+  },
+  {
+    "file": "src/components/AppNav/NavigationFreshness.tsx",
+    "kind": "exports",
+    "name": "NAV_CHECK_TIMEOUT_MS",
+    "line": 33,
+    "local": [
+      33,
+      39
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/generator/proseLinks.ts",
+    "kind": "exports",
+    "name": "hasParenthesizedUrl",
+    "line": 20,
+    "local": [
+      16,
+      20,
+      79
+    ],
+    "external": [
+      {
+        "file": "src/components/LinkedTextarea/insertLink.ts",
+        "line": 1
+      },
+      {
+        "file": "src/components/LinkedTextarea/insertLink.ts",
+        "line": 44
+      },
+      {
+        "file": "src/lib/proseLinkTokens.ts",
+        "line": 43
+      }
+    ],
+    "disposition": "keep-unused-forwarding-export",
+    "reason": "Implementation is live via lib/proseLinkTokens and used by proseLinks; only this forwarding API path is unused. No runtime deletion justified."
+  },
+  {
+    "file": "src/lib/publicSlug.ts",
+    "kind": "exports",
+    "name": "MIN_PUBLIC_SLUG_LENGTH",
+    "line": 21,
+    "local": [
+      21,
+      54
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/endpoints/recovery.ts",
+    "kind": "exports",
+    "name": "recoveryStartEndpoint",
+    "line": 149,
+    "local": [
+      149,
+      352
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/endpoints/recovery.ts",
+    "kind": "exports",
+    "name": "recoveryDiscardEndpoint",
+    "line": 255,
+    "local": [
+      255,
+      355
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/endpoints/recovery.ts",
+    "kind": "exports",
+    "name": "recoveryMetaEndpoint",
+    "line": 281,
+    "local": [
+      281,
+      356
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/endpoints/recovery.ts",
+    "kind": "exports",
+    "name": "recoveryCleanupEndpoint",
+    "line": 292,
+    "local": [
+      292,
+      357
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/endpoints/recovery.ts",
+    "kind": "exports",
+    "name": "recoveryUnsavedCountEndpoint",
+    "line": 329,
+    "local": [
+      329,
+      358
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "scripts/lib/docxDiff.ts",
+    "kind": "exports",
+    "name": "norm",
+    "line": 65,
+    "local": [
+      65,
+      77,
+      102,
+      106
+    ],
+    "external": [
+      {
+        "file": "src/ingest/taxonomy.ts",
+        "line": 93
+      },
+      {
+        "file": "src/ingest/taxonomy.ts",
+        "line": 94
+      },
+      {
+        "file": "src/ingest/taxonomy.ts",
+        "line": 94
+      },
+      {
+        "file": "src/ingest/taxonomy.ts",
+        "line": 102
+      },
+      {
+        "file": "src/ingest/taxonomy.ts",
+        "line": 103
+      },
+      {
+        "file": "src/ingest/taxonomy.ts",
+        "line": 107
+      },
+      {
+        "file": "tests/unit/buttonSystem.spec.ts",
+        "line": 334
+      },
+      {
+        "file": "tests/unit/buttonSystem.spec.ts",
+        "line": 337
+      }
+    ],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "scripts/lib/docxDiff.ts",
+    "kind": "exports",
+    "name": "stripResourceColumns",
+    "line": 68,
+    "local": [
+      68,
+      116
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "scripts/lib/docxDiff.ts",
+    "kind": "exports",
+    "name": "blocks",
+    "line": 97,
+    "local": [
+      38,
+      38,
+      40,
+      45,
+      97,
+      117,
+      158
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "scripts/lib/docxDiff.ts",
+    "kind": "exports",
+    "name": "toBlocks",
+    "line": 113,
+    "local": [
+      113,
+      155,
+      156
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "scripts/lib/docxDiff.ts",
+    "kind": "exports",
+    "name": "diffBlocks",
+    "line": 127,
+    "local": [
+      127,
+      164
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "scripts/lib/docxDiff.ts",
+    "kind": "types",
+    "name": "DiffResult",
+    "line": 120,
+    "local": [
+      120,
+      127
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/previewShared.ts",
+    "kind": "exports",
+    "name": "MAX_PREVIEW_JSON_BYTES",
+    "line": 19,
+    "local": [
+      19
+    ],
+    "external": [
+      {
+        "file": "src/endpoints/previewParse.ts",
+        "line": 15
+      },
+      {
+        "file": "src/endpoints/previewParse.ts",
+        "line": 23
+      },
+      {
+        "file": "src/endpoints/previewParse.ts",
+        "line": 66
+      },
+      {
+        "file": "tests/unit/serverActionBodyLimit.spec.ts",
+        "line": 26
+      },
+      {
+        "file": "tests/unit/serverActionBodyLimit.spec.ts",
+        "line": 35
+      }
+    ],
+    "disposition": "keep-unused-forwarding-export",
+    "reason": "Live parser constant is consumed from previewParse; only this compatibility re-export is unused. Keep apart from dead implementation removal."
+  },
+  {
+    "file": "src/endpoints/previewShared.ts",
+    "kind": "exports",
+    "name": "PREVIEW_HEADERS",
+    "line": 93,
+    "local": [
+      93,
+      145
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/lib/assignmentRoles.ts",
+    "kind": "exports",
+    "name": "ASSIGNMENT_ROLES",
+    "line": 18,
+    "local": [
+      18,
+      19
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/components/EditRecovery/deadline.ts",
+    "kind": "exports",
+    "name": "DeadlineExceeded",
+    "line": 22,
+    "local": [
+      22,
+      38
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "src/components/CombineVersions/index.tsx",
+    "kind": "exports",
+    "name": "nothingToCombine",
+    "line": 34,
+    "local": [
+      34,
+      91
+    ],
+    "external": [],
+    "disposition": "keep-live-local-use",
+    "reason": "Knip reports an unused outward export; the declaration has local identifier uses in its own module. Preserve implementation; reducing exported API is optional, not runtime dead-code deletion."
+  },
+  {
+    "file": "tests/helpers/login.ts",
+    "kind": "types",
+    "name": "LoginOptions",
+    "line": 3,
+    "local": [
+      3,
+      22
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/fields/phases.ts",
+    "kind": "types",
+    "name": "Phase",
+    "line": 19,
+    "local": [
+      19,
+      24
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/txDb.ts",
+    "kind": "types",
+    "name": "LockableTable",
+    "line": 101,
+    "local": [
+      101,
+      116,
+      144,
+      304
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/txDb.ts",
+    "kind": "types",
+    "name": "AdvisoryLockName",
+    "line": 214,
+    "local": [
+      214,
+      223
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/offlineAdminRecovery.ts",
+    "kind": "types",
+    "name": "OfflineAdminRecoveryResult",
+    "line": 7,
+    "local": [
+      7,
+      22
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "scripts/lib/preferences.ts",
+    "kind": "types",
+    "name": "PreferenceRow",
+    "line": 18,
+    "local": [
+      18,
+      41
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "scripts/lib/stripCollapsed.ts",
+    "kind": "types",
+    "name": "StripResult",
+    "line": 15,
+    "local": [
+      15,
+      22
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/discussionPages.ts",
+    "kind": "types",
+    "name": "ReferenceView",
+    "line": 25,
+    "local": [
+      23,
+      25,
+      208
+    ],
+    "external": [
+      {
+        "file": "src/app/(frontend)/messages/page.tsx",
+        "line": 4
+      },
+      {
+        "file": "src/app/(frontend)/messages/page.tsx",
+        "line": 274
+      },
+      {
+        "file": "src/components/LessonReference.tsx",
+        "line": 2
+      },
+      {
+        "file": "src/components/LessonReference.tsx",
+        "line": 15
+      },
+      {
+        "file": "src/lib/lessonReference.ts",
+        "line": 4
+      },
+      {
+        "file": "src/lib/resolveLessonReferences.ts",
+        "line": 4
+      },
+      {
+        "file": "src/lib/resolveLessonReferences.ts",
+        "line": 21
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/discussionPages.ts",
+    "kind": "types",
+    "name": "ThreadView",
+    "line": 211,
+    "local": [
+      211,
+      235
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/index.ts",
+    "kind": "types",
+    "name": "CreatedTaxonomy",
+    "line": 224,
+    "local": [
+      224,
+      236,
+      239,
+      367
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/validateGeneratable.ts",
+    "kind": "types",
+    "name": "GeneratableFieldError",
+    "line": 37,
+    "local": [
+      37,
+      44,
+      45
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/personalVersions.ts",
+    "kind": "types",
+    "name": "OfficialByPlan",
+    "line": 54,
+    "local": [
+      54,
+      60
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/personalVersions.ts",
+    "kind": "types",
+    "name": "PersonalVersionRow",
+    "line": 73,
+    "local": [
+      73,
+      86
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/publicPlan.ts",
+    "kind": "types",
+    "name": "PublicPlanMiss",
+    "line": 36,
+    "local": [
+      36,
+      40
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/publicPlan.ts",
+    "kind": "types",
+    "name": "PublicPlanResult",
+    "line": 38,
+    "local": [
+      38,
+      58
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/combine/engine.ts",
+    "kind": "types",
+    "name": "CombineSide",
+    "line": 57,
+    "local": [
+      57,
+      83,
+      91,
+      243,
+      255
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/combine/engine.ts",
+    "kind": "types",
+    "name": "CombineRefusal",
+    "line": 59,
+    "local": [
+      59,
+      87,
+      100,
+      198
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/combine/engine.ts",
+    "kind": "types",
+    "name": "CombineChange",
+    "line": 77,
+    "local": [
+      77,
+      95,
+      181,
+      277
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/accessScopes.ts",
+    "kind": "types",
+    "name": "AccessScopes",
+    "line": 23,
+    "local": [
+      23,
+      33,
+      54
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/accessScopes.ts",
+    "kind": "types",
+    "name": "AccessSummary",
+    "line": 60,
+    "local": [
+      60,
+      84
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/advancedTools.ts",
+    "kind": "types",
+    "name": "AdvancedAction",
+    "line": 27,
+    "local": [
+      27,
+      35
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/readBundle.ts",
+    "kind": "types",
+    "name": "ReadableVersionListItem",
+    "line": 52,
+    "local": [
+      52,
+      82,
+      96
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/compareGroups.ts",
+    "kind": "types",
+    "name": "LogicalGroup",
+    "line": 56,
+    "local": [
+      56,
+      244,
+      252
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/lessonAnchors.ts",
+    "kind": "types",
+    "name": "LessonAnchor",
+    "line": 17,
+    "local": [
+      17,
+      56,
+      57,
+      83
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/lessonAnchors.ts",
+    "kind": "types",
+    "name": "AnnotatedSection",
+    "line": 80,
+    "local": [
+      80,
+      90,
+      110
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/lessonAnchors.ts",
+    "kind": "types",
+    "name": "DocNavItem",
+    "line": 98,
+    "local": [
+      98,
+      110,
+      111
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/Discussions/submitPost.ts",
+    "kind": "types",
+    "name": "SubmitOutcome",
+    "line": 14,
+    "local": [
+      14,
+      85
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/Discussions/submitPost.ts",
+    "kind": "types",
+    "name": "SubmitOptions",
+    "line": 34,
+    "local": [
+      34,
+      84
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/discussionText.ts",
+    "kind": "types",
+    "name": "TextSegment",
+    "line": 32,
+    "local": [
+      32,
+      72,
+      73
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/generator/exportArtifacts.ts",
+    "kind": "types",
+    "name": "DeliverableResult",
+    "line": 226,
+    "local": [
+      226,
+      237
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/EditRecovery/flushRegistry.tsx",
+    "kind": "types",
+    "name": "PreExpiryFlush",
+    "line": 37,
+    "local": [
+      37,
+      55
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/EditRecovery/flushRegistry.tsx",
+    "kind": "types",
+    "name": "SafetyProbe",
+    "line": 52,
+    "local": [
+      52,
+      56
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/EditRecovery/flushRegistry.tsx",
+    "kind": "types",
+    "name": "FlushRegistry",
+    "line": 59,
+    "local": [
+      59,
+      87,
+      102,
+      112,
+      151,
+      158
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "tests/helpers/renderSql.ts",
+    "kind": "types",
+    "name": "RenderedSql",
+    "line": 19,
+    "local": [
+      19,
+      24
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/taxonomy.ts",
+    "kind": "types",
+    "name": "PendingTaxonomy",
+    "line": 32,
+    "local": [
+      32,
+      82,
+      88,
+      97
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/LessonControls/initialCollapse.ts",
+    "kind": "types",
+    "name": "CollapseRowsAction",
+    "line": 3,
+    "local": [
+      3,
+      20,
+      23
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/EditRecovery/useEditRecovery.ts",
+    "kind": "types",
+    "name": "RecoveryEntry",
+    "line": 94,
+    "local": [
+      94,
+      141,
+      197,
+      242,
+      269
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/releaseDecision.ts",
+    "kind": "types",
+    "name": "ReleaseVersion",
+    "line": 5,
+    "local": [
+      5,
+      14,
+      15,
+      19,
+      59
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/ingest/releaseDecision.ts",
+    "kind": "types",
+    "name": "ReleaseDecision",
+    "line": 12,
+    "local": [
+      12,
+      22,
+      53
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/LessonControls/MoreMenu.tsx",
+    "kind": "types",
+    "name": "MoreMenuItem",
+    "line": 15,
+    "local": [
+      15,
+      22
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/planSelection.ts",
+    "kind": "types",
+    "name": "GroupState",
+    "line": 25,
+    "local": [
+      25,
+      40
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/recoveryParse.ts",
+    "kind": "types",
+    "name": "SaveRecoveryToken",
+    "line": 128,
+    "local": [
+      128,
+      130
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/requestedVersion.ts",
+    "kind": "types",
+    "name": "RequestedVersion",
+    "line": 28,
+    "local": [
+      28,
+      34
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/resourceLibrary.ts",
+    "kind": "types",
+    "name": "PdfResource",
+    "line": 24,
+    "local": [
+      24,
+      139
+    ],
+    "external": [
+      {
+        "file": "src/components/LinkedTextarea/index.tsx",
+        "line": 24
+      },
+      {
+        "file": "src/components/LinkedTextarea/index.tsx",
+        "line": 31
+      },
+      {
+        "file": "src/components/LinkedTextarea/index.tsx",
+        "line": 33
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/resourceLibrary.ts",
+    "kind": "types",
+    "name": "ReadPdfResult",
+    "line": 36,
+    "local": [
+      36,
+      82
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/EditRecovery/restoreDiff.ts",
+    "kind": "types",
+    "name": "FieldRender",
+    "line": 79,
+    "local": [
+      79,
+      132,
+      137
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/systemSettingsSave.ts",
+    "kind": "types",
+    "name": "SaveBody",
+    "line": 56,
+    "local": [
+      56,
+      67,
+      89
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/systemFacts.ts",
+    "kind": "types",
+    "name": "FactStatus",
+    "line": 36,
+    "local": [
+      36,
+      42,
+      106
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/Manage/SystemFeaturesPanel.tsx",
+    "kind": "types",
+    "name": "FeaturesSnapshot",
+    "line": 20,
+    "local": [
+      20,
+      50
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/Manage/systemFeaturesState.ts",
+    "kind": "types",
+    "name": "FeaturesState",
+    "line": 13,
+    "local": [
+      13,
+      26,
+      26,
+      44
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/Manage/systemFeaturesState.ts",
+    "kind": "types",
+    "name": "FeaturesAction",
+    "line": 21,
+    "local": [
+      21,
+      26
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/globals/SystemSettings.ts",
+    "kind": "types",
+    "name": "SystemFlag",
+    "line": 61,
+    "local": [
+      7,
+      61,
+      82,
+      83,
+      87
+    ],
+    "external": [
+      {
+        "file": "src/lib/systemFlagNames.ts",
+        "line": 13
+      },
+      {
+        "file": "src/lib/systemFlagNames.ts",
+        "line": 26
+      },
+      {
+        "file": "src/lib/systemFlags.ts",
+        "line": 24
+      },
+      {
+        "file": "src/lib/systemFlags.ts",
+        "line": 26
+      },
+      {
+        "file": "src/lib/systemFlags.ts",
+        "line": 32
+      },
+      {
+        "file": "src/lib/systemFlags.ts",
+        "line": 77
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/lib/renderTimings.ts",
+    "kind": "types",
+    "name": "RenderTimings",
+    "line": 25,
+    "local": [
+      25,
+      36,
+      41
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/app/(frontend)/lessons/[id]/compare/ComparePickers.tsx",
+    "kind": "types",
+    "name": "CompareOption",
+    "line": 10,
+    "local": [
+      10,
+      19
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/jobs/passwordResetEmail.ts",
+    "kind": "types",
+    "name": "PasswordResetEmailInput",
+    "line": 37,
+    "local": [
+      37,
+      45
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "scripts/lib/fidelityFixture.ts",
+    "kind": "types",
+    "name": "FidelityFixture",
+    "line": 25,
+    "local": [
+      25,
+      45
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/moderate.ts",
+    "kind": "types",
+    "name": "Db",
+    "line": 20,
+    "local": [
+      20,
+      75,
+      103
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/moderate.ts",
+    "kind": "types",
+    "name": "ModerationTarget",
+    "line": 23,
+    "local": [
+      23,
+      31,
+      103
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/moderate.ts",
+    "kind": "types",
+    "name": "Moderation",
+    "line": 29,
+    "local": [
+      29,
+      74
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/endpoints/parseFormat.ts",
+    "kind": "types",
+    "name": "ExportKind",
+    "line": 11,
+    "local": [
+      8,
+      11,
+      21
+    ],
+    "external": [
+      {
+        "file": "src/generator/exportArtifacts.ts",
+        "line": 29
+      },
+      {
+        "file": "src/generator/exportArtifacts.ts",
+        "line": 35
+      },
+      {
+        "file": "src/generator/exportArtifacts.ts",
+        "line": 68
+      },
+      {
+        "file": "src/generator/exportArtifacts.ts",
+        "line": 76
+      },
+      {
+        "file": "src/generator/exportArtifacts.ts",
+        "line": 83
+      },
+      {
+        "file": "src/jobs/emailVersionArtifact.ts",
+        "line": 24
+      },
+      {
+        "file": "src/jobs/emailVersionArtifact.ts",
+        "line": 34
+      },
+      {
+        "file": "src/jobs/generateVersionArtifact.ts",
+        "line": 25
+      },
+      {
+        "file": "src/jobs/generateVersionArtifact.ts",
+        "line": 35
+      },
+      {
+        "file": "scripts/verify-stage2-export.ts",
+        "line": 22
+      },
+      {
+        "file": "scripts/verify-stage2-export.ts",
+        "line": 54
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/Manage/SubjectsAndGradesPanel.tsx",
+    "kind": "types",
+    "name": "AssignmentCounts",
+    "line": 27,
+    "local": [
+      23,
+      27,
+      43
+    ],
+    "external": [
+      {
+        "file": "src/lib/assignmentCounts.ts",
+        "line": 19
+      },
+      {
+        "file": "src/lib/assignmentCounts.ts",
+        "line": 26
+      },
+      {
+        "file": "src/lib/assignmentCounts.ts",
+        "line": 53
+      },
+      {
+        "file": "src/lib/assignmentCounts.ts",
+        "line": 66
+      },
+      {
+        "file": "src/lib/assignmentCounts.ts",
+        "line": 118
+      }
+    ],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "src/components/Manage/taxonomyActions.ts",
+    "kind": "types",
+    "name": "TaxonomyOperation",
+    "line": 36,
+    "local": [
+      36,
+      40,
+      52,
+      67
+    ],
+    "external": [],
+    "disposition": "keep-type-used-locally",
+    "reason": "Unused exported type API, not dead runtime: identifier is used elsewhere in the defining module. Retain the type and avoid an export-only sweep."
+  },
+  {
+    "file": "package.json",
+    "kind": "devDependencies",
+    "name": "tsx",
+    "disposition": "keep-external-loader-consumer",
+    "reason": "CI invokes npx tsx scripts/contract-check.ts; test:e2e preloads tsx/esm in NODE_OPTIONS. App-only import graph misses these executable/loader consumers."
+  },
+  {
+    "file": "scripts/bench-typing.mjs",
+    "kind": "unlisted",
+    "name": "playwright",
+    "disposition": "use-declared-package",
+    "reason": "Import chromium from declared @playwright/test. Installed source and runtime equality prove same chromium object; no dependency added."
+  },
+  {
+    "file": "scripts/login-client.mjs",
+    "kind": "entry-export",
+    "name": "REQUEST_HEADER",
+    "disposition": "keep-live-local-use",
+    "reason": "Additional include-entry-exports hit. Module-local header name is used by installLoginClientTracking; module is preloaded by dev/start commands."
+  },
+  {
+    "file": "src/proxy.ts",
+    "kind": "entry-export",
+    "name": "proxy",
+    "disposition": "keep-framework-entry",
+    "reason": "Next 16 invokes the proxy convention; installed constants PROXY_FILENAME=proxy and source entry confirm it is not an unused file/function."
+  },
+  {
+    "file": "src/proxy.ts",
+    "kind": "entry-export",
+    "name": "config",
+    "disposition": "keep-framework-entry",
+    "reason": "Next consumes the exported matcher configuration for its proxy entry."
+  }
+]

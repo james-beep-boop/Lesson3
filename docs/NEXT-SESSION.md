@@ -18,9 +18,9 @@ Teacher *with editing access* is not a fourth type (SPEC §8). A **draft** is pr
 History before 2026-10-18 lives in `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md` — a record,
 not instructions. Older references to "see NEXT-SESSION" for a dated item mean that file.
 
-**In progress: v1.10 simplification evaluation.** James approved review of the fixed `v1.10` tag.
-[Execution record](simplification/2026-10-28-c8d8f3d2/README.md) tracks file coverage, findings and
-cleanup PRs. Reuse, simplicity, efficiency and altitude; project conventions constrain all four.
+**v1.10 simplification: Claude reviewed the five original cleanup PRs.** James approved review of the fixed `v1.10` tag.
+[Execution record](simplification/2026-10-28-c8d8f3d2/README.md) summarizes coverage, findings and
+cleanup PRs; detailed evidence stays on its linked branch. The configured dead-code follow-up is #480. Reuse, simplicity, efficiency and altitude; project conventions constrain all four.
 **Leave cleanup PRs open for Claude review. James has put merging on hold until he says to proceed.**
 No release or deployment is included. The broader security audit remains separate.
 

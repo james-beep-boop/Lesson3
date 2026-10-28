@@ -105,6 +105,13 @@ under `app/.review-tmp/` lands in the disposable checkout; copy it into the repo
 | A helper inventory | One line per exported function in `app/src/lib/`, `access/`, `hooks/` and `fields/`: name, path, purpose. The organizer writes it from source. |
 | Known hot paths | Seed efficiency with measured slow paths, starting with the Manage "versions" lookup (340–470 ms, 2026-10-24). |
 
+**Knip completion rule (correction after Claude review, 2026-10-28):** configure Next routes/proxy,
+Payload config, migration registry, CLI and test entry points before accepting the result. Record a
+disposition for every hit, separating unused implementations from unused outward exports/types and
+checking dynamic registrations. Prove the configuration with temporary unreachable-file/unused-export
+controls, then remove those controls. An unconfigured scan followed by dismissing its list is not a
+completed dead-code pass. Keep bulk evidence on the evidence branch and the repository summary short.
+
 Tool output is navigation, not findings. Every packet brief includes the relevant clusters, hits
 and the full helper inventory.
 

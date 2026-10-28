@@ -11,6 +11,18 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-28 — Correction: a dead-code scan needs configured entry points and dispositions
+
+Claude found an unused helper after the simplification evaluation dismissed an unconfigured Knip
+list as mostly false positives. Manual file-reading coverage did not make that a completed dead-code
+check. Configure framework, Payload, migration, CLI and test entry points; work through every hit.
+Distinguish unused outward exports and locally used types from unused implementations, check dynamic
+registrations, and use temporary negative controls to prove the scan can report real omissions.
+Keep detailed evidence off main and summarize the result. James approved deleting contractDriftSummary;
+uploads already call contractDrift as a blocking preflight check, so no upload warning was added.
+
+---
+
 ## 2026-10-27 — Sign-in line: "Find, edit and print lesson plans."
 
 Operator decision, after v1.10 shipped with "Find, download and print lesson plans." under the name.

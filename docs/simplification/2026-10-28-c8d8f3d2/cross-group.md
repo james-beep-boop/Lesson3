@@ -1,5 +1,8 @@
 # Cross-group synthesis
 
+Detailed packet evidence is retained on the [evidence branch](https://github.com/james-beep-boop/Lesson3/tree/review/simplification-v1.10-evidence).
+The initial dead-code check was insufficient; see first-pass/README.md for the configured follow-up.
+
 Bounded coordinator pass after packet reviews, fixed v1.10 c8d8f3d2. This combines the source-backed
 packet findings and helper map; it does not pretend every source file was reread by the coordinator.
 All four runtime-code perspectives, test reuse/simplicity and documentation/config consistency are
@@ -74,7 +77,7 @@ The mechanical 97 duplicate clusters are navigation leads, not 97 defects.
 
 ## Outcome and limits
 
-Five focused cleanup PRs are drafts, awaiting Claude and James. No merge, tag, release, deployment or
+Claude reviewed the original five cleanup PRs; the new dead-code cleanup needs review. All remain drafts, awaiting James. No merge, tag, release, deployment or
 live configuration change occurred. This is a maintainability evaluation of v1.10, not a security
 audit or a performance benchmark of a deployed school. It does not cover future main changes.
 Selected fixes were revalidated against main e304387b, preserving its newer sign-in tagline. Remaining
