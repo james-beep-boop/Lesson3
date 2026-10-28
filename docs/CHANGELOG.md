@@ -8,10 +8,22 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased (on `main`, not tagged or deployed)
+## v1.11 (2026-10-28)
 
 - The line under the name on the sign-in page (and the site description) is now "Find, edit and print
   lesson plans.", naming editing, which the v1.10 line left out.
+- The Guide no longer promises an email for every message. You get one only when it is your only
+  unread message, and only up to a daily limit, so check **Messages** for unread notes.
+- The Guide no longer lists ARES keywords among the lesson settings an administrator can change; they
+  are kept exactly as ARES supplied them.
+- Technician instructions match the current scripts: Rock setup uses `scripts/create-env.sh` and
+  `scripts/deploy.sh`, and the local-server and go-live checklists are in the right order.
+- A new installation stops waiting for the app after five minutes, even if the server stops
+  answering mid-request, and then shows the logs. Before, one stalled request could make it wait
+  much longer.
+- Uploading several lesson plans at once makes fewer database reads. Nothing else changes.
+- Internal clean-up after a review of the whole codebase; no change to what teachers or technicians
+  see.
 
 ## v1.10 (2026-10-27)
 

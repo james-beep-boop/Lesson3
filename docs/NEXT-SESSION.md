@@ -18,16 +18,38 @@ Teacher *with editing access* is not a fourth type (SPEC §8). A **draft** is pr
 History before 2026-10-18 lives in `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md` — a record,
 not instructions. Older references to "see NEXT-SESSION" for a dated item mean that file.
 
-**v1.10 simplification: #474–#480 merged after Claude's review, green CI and James's approval.** The review used the fixed `v1.10` tag.
-[Execution record](simplification/2026-10-28-c8d8f3d2/README.md) summarizes coverage, findings and
-cleanup PRs; detailed evidence stays on its linked branch. The configured dead-code follow-up is #480. Reuse, simplicity, efficiency and altitude; project conventions constrain all four.
-The superseded planning PRs #472 and #473 were closed without merging. #481 (bounded readiness
-requests) also merged after all four CI checks passed. New cleanup PRs still need Claude's review.
-No release or deployment is included. The broader security audit remains separate.
-
 **Future reviews:** [Two reusable audit workflows](AUDIT-WORKFLOWS.md) preserves the correctness
 and testing method and the whole-codebase simplification method, including altitude. Use it to
 start a fresh run; previous approvals and completion counts do not carry over.
+
+---
+
+# Release v1.11 — 2026-10-28
+
+Everything merged since v1.10 (main at `6e75a17` plus the docs-only #483 and this release note).
+No migration and no new setting.
+
+- **Sign-in line** (#471): "Find, edit and print lesson plans."
+- **Guide and manual corrections** (#475): message emails are described as they actually work (only
+  when the message is the recipient's only unread one, within a daily limit); ARES keywords are no
+  longer listed as something administrators can change; the Rock setup, local-server and go-live
+  rehearsal steps match the current scripts.
+- **Installer readiness bound** (#481): `deploy/online/install.sh` and the CI health wait stop after
+  five minutes, and each check times out after five seconds, the same as `scripts/deploy.sh`.
+  `scripts/test-readiness.sh` covers both in CI.
+- **Whole-codebase simplification of v1.10** (#474, #476, #478–#480, record in #477): batched
+  ancestry reads for multi-plan imports, shared prose field names moved out of the enforcement hook
+  so browser code no longer imports it, a configured dead-code scan (`app/knip.json`) and three
+  unused declarations removed. No behaviour change. The
+  [execution record](simplification/2026-10-28-c8d8f3d2/README.md) lists coverage, findings and the
+  optional backlog; detailed evidence stays on its linked branch. Planning PRs #472 and #473 were
+  closed without merging.
+- **NOTICE** (#482) lists all four vendored generator files and defers pins to `PROVENANCE.md`.
+
+[CHANGELOG.md](CHANGELOG.md) records the changes. The annotated `v1.11` tag triggers the release
+publisher; check
+[the publication workflow](https://github.com/james-beep-boop/Lesson3/actions/workflows/publish-containers.yml)
+before installing. **Not deployed by this session.** Use v1.11 for new school installations.
 
 ---
 
