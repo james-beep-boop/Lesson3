@@ -74,7 +74,8 @@ export const txDb = async (
 }
 
 /**
- * The POOL drizzle handle, for a trusted read-only aggregate that belongs to no caller's transaction.
+ * The POOL drizzle handle, for work deliberately independent of a caller's transaction.
+ * Read-only aggregates use it, as do rate-limit charges that must survive a caller rollback.
  *
  * ⚑ THE CAST LIVES HERE, ONCE. This file opens by claiming to own "how this project talks to
  * drizzle… one definition means a Payload upgrade that moves `sessions` breaks in one place, rather
@@ -86,7 +87,8 @@ export const txDb = async (
  * ⚑ DELIBERATELY NOT `txDb`. `txDb` REFUSES the pool when a transaction is active, which is right for
  * a write that must commit with its caller. These are read-only aggregates issued from a server
  * render with no transaction in play, and they want the pool — so they get a named door rather than
- * a second private copy of the same cast.
+ * a second private copy of the same cast. Rate-limit charges also deliberately use the pool;
+ * feature writes that belong to the caller must continue using txDb instead.
  */
 export const poolDb = (payload: { db: unknown }): DrizzleHandle =>
   (payload.db as { drizzle: DrizzleHandle }).drizzle
