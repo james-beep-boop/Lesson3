@@ -8,10 +8,12 @@ Education.
     app/src/generator/vendor/lib/build_docs.js
     app/src/generator/vendor/lib/docx_kit.js
     app/src/generator/vendor/lib/sections.js
+    app/src/generator/vendor/lib/attribution.js
 
 These files are copied **byte-verbatim** from the ARES CBE generation system
-(`markknit/cbe-generation-system`, pinned commit `742c8a9`, vendored 2026-07-19; see
-`app/src/generator/vendor/PROVENANCE.md` for the SHA-256 table). The upstream project adopted the MIT
+(`markknit/cbe-generation-system`; see `app/src/generator/vendor/PROVENANCE.md` for the current
+library source pin, separate attribution configuration pin, vendoring date and SHA-256 table).
+The upstream project adopted the MIT
 License in commit `15283e42a49975a0c6e56dbca088e7588ba0c078` on 2026-09-20 UTC, with copyright
 `2026 markknit`.
 
