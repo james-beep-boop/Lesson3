@@ -93,3 +93,53 @@ Seven files corrected surgically, 105 Guide tests/lint/format pass. Held for Cla
   the SQL lookup and hydration currently has observable failure behavior.
 - Do not change generator per-group work, Combine path indexing or search keystroke behavior without
   a representative measurement. These are performance leads, not verified slow paths.
+
+## Test-only reuse backlog
+
+The completed unit/helper passes found small opportunities, recorded here for follow-up rather than
+creating multiple tiny PRs while five focused cleanup PRs await Claude. These are maintainability
+candidates, not failing assertions or product defects:
+
+- Reuse test-owned `drizzleOf` for the remaining adapter casts in rate-limit, message and endpoint
+  suites; use test-owned `rowsOf` in recovery fixture plumbing. Keep fixture setup independent of
+  production `txDb` and preserve cleanup SQL/order and result fallbacks.
+- Reuse `formReq`/`statusOf` in `parsePreviewCandidate.spec.ts`, preserving malformed-body callbacks,
+  absent headers and refusal status semantics.
+- Extend test `fieldTree` with generic `childrenOf`/`byName` for the resource/prose drift tests.
+  Keep displayed-child/prose recursion local and retain field-order/empty-child semantics.
+- Share the repeated 429-backoff setup within `useEditRecovery.spec.tsx`; keep separate retry,
+  unmount and session-ending assertions and deterministic timers.
+
+Most of the 97 mechanical test-duplication clusters express different contracts. No test removal or
+wide fixture rewrite is proposed. Detailed file/line references and rejected reductions are in the
+numbered test progress reports.
+
+## Operational and configuration follow-ups
+
+- NOTICE still lists the July generator pin and three files, while the authoritative provenance
+  record names the October pin and four files. Correcting the notice to refer to the current record
+  avoids maintaining a second stale pin list. Preserve upstream licence wording and both grants.
+- `@testing-library/dom` is the only direct caret dependency (`^10.4.2`). The lockfile currently
+  resolves 10.4.2, so `npm ci` is fixed; a small follow-up can pin that same version without upgrading.
+- `verify-edit-recovery-cascade.ts` has another private adapter cast that can use `poolDb`.
+  Preserve the diagnostic's independent fixture setup and cleanup. No product defect claimed.
+- The install readiness loop and CI startup loop limit attempts but not each curl request. A stalled
+  response can exceed the nominal wait. The updater already has a deadline/request timeout. This is
+  a source-confirmed reliability follow-up, not a measured performance claim or a completed fix.
+- Keep the separate post-lock ancestry projection after PR #474: it already removes N per-plan
+  queries. Reusing the release-preview history too would save one further call while broadening and
+  coupling projections; no measurement warrants that added coupling now.
+- `verify-stage2-export` renders the same immutable DOCX twice, once per output kind. It is a manual
+  diagnostic of separate cold paths. Keep it unless its intended independence or measured run time
+  justifies sharing the generated snapshot; do not weaken its output checks.
+
+Additional test reuse candidates: shared `httpWire.login` in three newer wire suites, the existing
+`createTopicAs` helper in the first discussion suite, and a narrow valid one-phase raw ARES fixture
+builder across upload/import tests. Keep malformed/null-resource and all-five-phase fixtures separate;
+keep HTTP wrappers and assertions local. These are a follow-up backlog, not changes in the five drafts.
+
+Additional UI reuse/simplicity candidates are in the two UI progress groups: shared wire-error parsing,
+assignment route construction, repeated recovery DELETE transport, UploadBundles results derivation
+and a redundant private-search empty branch. Most are small; none justifies a broad UI rewrite. The
+editor's Advanced-tools-only version-picker query deserves a focused follow-up with continuation
+browser coverage if selected. No additional product behavior is changed by this evaluation report.

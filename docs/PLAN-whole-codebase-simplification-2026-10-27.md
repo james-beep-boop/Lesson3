@@ -125,7 +125,7 @@ than rediscovered.
 | Generated, vendored, historical, binary | Not reviewed. List them as excluded, with the reason. |
 
 Enumerate tracked files with `git ls-files` at the SHA and give each one a packet or an exclusion
-reason. Coverage is one list: path, packet (or exclusion reason), status `pending | read | partial`.
+reason. Coverage is one list: path, packet (or exclusion reason), status `pending | read | partial` (or `boundary-checked` for generated migration boundaries).
 No per-perspective states.
 
 **Packet size.** About 1,000–2,000 lines of handwritten source per packet, grouped by
@@ -241,7 +241,7 @@ Report location: `docs/simplification/<date>-<source-short-sha>/`, created when 
 
 - `README.md`: source SHA, cost estimate, pilot numbers, progress, decisions for James, resume point.
 - `first-pass/`: tool output and the helper inventory.
-- `coverage.md`: the one coverage list from §2.
+- `coverage.json`: the one machine-readable coverage list from §2.
 - `progress/<packet>-<perspective>.md`: a short record per reviewer run, a few lines long: files
   completed, files partly read (with where it stopped), files not started, and dependencies read
   outside the packet. This is what makes interrupted work resumable.

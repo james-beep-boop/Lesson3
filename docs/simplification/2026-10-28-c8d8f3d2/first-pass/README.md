@@ -7,6 +7,9 @@ and configuration were unchanged. These are navigation leads, not verified defec
 - `jscpd@4.0.5`, JSON reporter, source/app scripts/root shell scripts: 19 clusters before filtering;
   18 after removing the generated Payload route pair. Generated types, vendor and migrations were
   excluded by glob. Retained source pairs are in `duplicates.json`.
+- Separate `jscpd@4.0.5` scan of tests: 97 clusters, recorded as file/line references in
+  `test-duplicates.json`. Reviewers use these for cross-packet navigation. Similar fixture setup
+  does not justify combining independent assertions, permission cases or mutable test state.
 - `knip@5.66.0`, JSON reporter: 67 unused-file leads and 82 file issue groups before filtering.
   The default entrypoint detection does not understand this project's CLI, Payload configuration,
   migration registry and style-test entrypoints. Therefore its unused-file list is mostly false

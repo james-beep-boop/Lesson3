@@ -1,6 +1,6 @@
 # ARES Lesson Plans: v1.10 simplification evaluation
 
-**Status: in progress.** This is a maintainability evaluation, not a security audit.
+**Status: source review complete; cleanup PRs held for Claude.** This is a maintainability evaluation, not a security audit.
 
 ## Scope and authorization
 
@@ -17,8 +17,10 @@
 ## Coverage and size
 
 `coverage.json` accounts for all **940** files tracked at the source SHA: 427 source/config/script
-files, 326 tests, 76 migrations, 56 current documentation files and 55 explicit exclusions. Some
-source entries are configuration and receive consistency checks. Generated migration DDL receives
+files, 325 tests, 76 migrations, 56 current documentation files and 56 explicit exclusions. A PDF
+fixture initially counted with tests was corrected to a binary exclusion; only its metadata was checked.
+Some source inventory entries are configuration (consistency checks) or shell test harnesses (reuse,
+simplicity and conventions); their `reviewScope` records that distinction. Generated migration DDL receives
 boundary/registry checks; custom migration logic is read separately, not all 145,110 DDL lines.
 `packets.json` contains the exact file lists; no directory-wide completion is inferred from a search.
 There are 70 initial packets, including small groups and two pilot packets. Test packets are larger
@@ -50,11 +52,11 @@ Fix-specific verification will be recorded with each PR and its exact comparison
 
 ## Current work and resume point
 
-All four perspectives have completed the shared libraries, core collections/fields/hooks/access,
-and service packets. UI reviews have completed reuse, simplicity and efficiency; altitude is finishing.
-The operations/development packets have completed reuse. Test packets are now being read separately
-for reuse and simplicity. Documentation consistency completed its assigned list. Per-file status stays
-partial until every required perspective is recorded.
+All runtime source packets have their required reviews recorded. Tests have reuse/simplicity and
+convention checks; current documentation and configuration have consistency checks. The exact v1.10
+tracked-file set was rechecked: **808 reviewed, 76 migration boundary-checked, 56 excluded; no pending
+or partial entries**. This is scoped coverage, not a claim that generated DDL, vendor code or binaries
+were manually reviewed. See the migration and exclusion evidence for those limits.
 
 Cleanup PRs are open and **held for Claude’s review**:
 
@@ -63,6 +65,9 @@ Cleanup PRs are open and **held for Claude’s review**:
 - [#476](https://github.com/james-beep-boop/Lesson3/pull/476): reuse the shared database adapter accessor.
 - [#478](https://github.com/james-beep-boop/Lesson3/pull/478): put pure prose vocabulary below enforcement hooks.
 - [#479](https://github.com/james-beep-boop/Lesson3/pull/479): reuse prepared content comparison during Save as new.
+
+[verification.md](verification.md) records exact heads and local/CI evidence; the save-comparison
+PR’s main checks are still running at this checkpoint.
 
 This draft PR is the execution journal. No cleanup PR has been merged. See `findings.md`, `coverage.json`
 and `progress/` for evidence and the remaining work.
@@ -74,14 +79,17 @@ v1.10 evaluation. Fixes preserve it. Later main changes must be compared before 
 
 ## Cross-group synthesis
 
-Pending: import/CLI/web policy; editing and saved versions; public/authenticated artifacts; operations
-settings and records; release bundle/install/manual wiring; shared frontend/admin presentation.
+The bounded cross-group pass is recorded in [cross-group.md](cross-group.md): imports, editing,
+reading/artifacts, operations, publication and frontend/Guide behavior. Remaining candidates and
+intentional duplication are in `findings.md`; they are not claimed fixed.
 
-Completion is not claimed while coverage or required synthesis remains pending.
+Source review is finished. Claude's review and James's instruction are required before any merge;
+selected fixes and CI evidence remain attached to their own draft PRs. No releases or deployments.
 
 ## Status meanings
 
 A source file is `read` only when all four required perspectives have completed it. `partial`
 includes files fully read by some reviewers while other perspectives remain pending. Tests need
 reuse/simplicity; current documentation/configuration needs consistency. Exclusions have reasons,
-not an invented claim of manual review. More detailed per-perspective coverage is in progress notes.
+not an invented claim of manual review. Migration `boundary-checked` means registration/schema
+checks plus the explicitly listed manual backfill reads; it does not mean all DDL was read. More detailed per-perspective coverage is in progress notes.
