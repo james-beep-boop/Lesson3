@@ -29,10 +29,6 @@ export const jsonReq = (json: () => Promise<unknown>, contentLength?: number) =>
 export const bodylessReq = (contentLength?: number) =>
   ({ headers: headersWith(contentLength) }) as never
 
-/** A request whose body arrives as multipart form data. */
-export const formReq = (formData: () => Promise<unknown>, contentLength?: number) =>
-  ({ headers: headersWith(contentLength), formData }) as never
-
 /**
  * The status an APIError carries, or `undefined` when the call resolved.
  *
