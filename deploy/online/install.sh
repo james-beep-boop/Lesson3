@@ -94,8 +94,11 @@ docker compose pull
 echo "install: starting Postgres, applying migrations, then starting the app"
 docker compose up -d --no-build
 
+deadline=$((SECONDS + 300))
 for _ in $(seq 1 60); do
-  if curl -fsS "$health_url" >/dev/null 2>&1; then
+  remaining=$((deadline - SECONDS))
+  ((remaining > 0)) || break
+  if curl -fsS --max-time "$((remaining < 5 ? remaining : 5))" "$health_url" >/dev/null 2>&1; then
     login_url="${admin_url%/}/login"
     echo
     echo "install: ARES Lesson Plans is ready."
@@ -121,7 +124,9 @@ for _ in $(seq 1 60); do
     echo "install: Manage -> System -> Backups shows what the backup records say once backups run."
     exit 0
   fi
-  sleep 5
+  remaining=$((deadline - SECONDS))
+  ((remaining > 0)) || break
+  sleep "$((remaining < 5 ? remaining : 5))"
 done
 
 docker compose logs --tail 100 >&2 || true
