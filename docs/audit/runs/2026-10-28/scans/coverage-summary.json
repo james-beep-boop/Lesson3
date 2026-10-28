@@ -1,0 +1,356 @@
+{
+  "unitExplicitSource": {
+    "lines": 8908,
+    "covered": 5636,
+    "percent": 63.27,
+    "groups": {
+      "src/instrumentation.ts": {
+        "files": 1,
+        "lines": 9,
+        "covered": 4
+      },
+      "src/payload.config.ts": {
+        "files": 1,
+        "lines": 27,
+        "covered": 9
+      },
+      "src/proxy.ts": {
+        "files": 1,
+        "lines": 11,
+        "covered": 0
+      },
+      "src/access": {
+        "files": 6,
+        "lines": 164,
+        "covered": 100
+      },
+      "src/app": {
+        "files": 35,
+        "lines": 630,
+        "covered": 177
+      },
+      "src/collections": {
+        "files": 11,
+        "lines": 157,
+        "covered": 35
+      },
+      "src/components": {
+        "files": 95,
+        "lines": 3053,
+        "covered": 2081
+      },
+      "src/endpoints": {
+        "files": 29,
+        "lines": 1005,
+        "covered": 350
+      },
+      "src/errors": {
+        "files": 1,
+        "lines": 10,
+        "covered": 10
+      },
+      "src/fields": {
+        "files": 5,
+        "lines": 54,
+        "covered": 39
+      },
+      "src/generator": {
+        "files": 13,
+        "lines": 349,
+        "covered": 315
+      },
+      "src/globals": {
+        "files": 1,
+        "lines": 20,
+        "covered": 2
+      },
+      "src/hooks": {
+        "files": 9,
+        "lines": 550,
+        "covered": 352
+      },
+      "src/ingest": {
+        "files": 15,
+        "lines": 997,
+        "covered": 642
+      },
+      "src/jobs": {
+        "files": 6,
+        "lines": 108,
+        "covered": 26
+      },
+      "src/lib": {
+        "files": 91,
+        "lines": 1764,
+        "covered": 1494
+      }
+    },
+    "zeroCovered": [
+      {
+        "path": "src/components/AdminDashboard/index.tsx",
+        "lines": 98
+      },
+      {
+        "path": "src/components/AdminDashboard/DeletePlansPanel.tsx",
+        "lines": 70
+      },
+      {
+        "path": "src/components/Manage/SubjectsAndGradesPanel.tsx",
+        "lines": 58
+      },
+      {
+        "path": "src/app/(frontend)/page.tsx",
+        "lines": 45
+      },
+      {
+        "path": "src/app/(frontend)/lessons/[id]/compare/page.tsx",
+        "lines": 44
+      },
+      {
+        "path": "src/app/(frontend)/messages/page.tsx",
+        "lines": 39
+      },
+      {
+        "path": "src/app/(frontend)/lessons/[id]/page.tsx",
+        "lines": 38
+      },
+      {
+        "path": "src/app/(frontend)/lessons/[id]/EditActions.tsx",
+        "lines": 30
+      },
+      {
+        "path": "src/app/(frontend)/messages/Composer.tsx",
+        "lines": 27
+      },
+      {
+        "path": "src/app/(frontend)/login/FirstUserForm.tsx",
+        "lines": 26
+      },
+      {
+        "path": "src/components/DocButtons.tsx",
+        "lines": 26
+      },
+      {
+        "path": "src/components/Manage/taxonomyActions.ts",
+        "lines": 26
+      },
+      {
+        "path": "src/app/(frontend)/messages/ReplyBox.tsx",
+        "lines": 24
+      },
+      {
+        "path": "src/components/UserMenu/index.tsx",
+        "lines": 23
+      },
+      {
+        "path": "src/lib/editorGroups.ts",
+        "lines": 23
+      },
+      {
+        "path": "src/components/WelcomeDialog/index.tsx",
+        "lines": 22
+      },
+      {
+        "path": "src/components/Discussions/useComposer.ts",
+        "lines": 21
+      },
+      {
+        "path": "src/components/Manage/UnsavedWorkList.tsx",
+        "lines": 21
+      },
+      {
+        "path": "src/components/RequestEditingButton.tsx",
+        "lines": 17
+      },
+      {
+        "path": "src/lib/publicPlan.ts",
+        "lines": 16
+      },
+      {
+        "path": "src/components/SubjectSelectField/index.tsx",
+        "lines": 15
+      },
+      {
+        "path": "src/lib/editRecovery/unsavedWork.ts",
+        "lines": 14
+      },
+      {
+        "path": "src/components/NewerAresPrompt.tsx",
+        "lines": 13
+      },
+      {
+        "path": "src/app/(frontend)/verify-email/VerifyEmail.tsx",
+        "lines": 12
+      },
+      {
+        "path": "src/lib/renderTimings.ts",
+        "lines": 12
+      },
+      {
+        "path": "src/proxy.ts",
+        "lines": 11
+      },
+      {
+        "path": "src/components/AppNav/index.tsx",
+        "lines": 11
+      },
+      {
+        "path": "src/app/(frontend)/discuss/new/page.tsx",
+        "lines": 8
+      },
+      {
+        "path": "src/app/(frontend)/lessons/[id]/compare/ComparePickers.tsx",
+        "lines": 8
+      },
+      {
+        "path": "src/components/DocStrip.tsx",
+        "lines": 8
+      },
+      {
+        "path": "src/lib/setSchoolName.ts",
+        "lines": 8
+      },
+      {
+        "path": "src/lib/identity/installationId.ts",
+        "lines": 8
+      },
+      {
+        "path": "src/lib/session.ts",
+        "lines": 7
+      },
+      {
+        "path": "src/app/(frontend)/login/page.tsx",
+        "lines": 6
+      },
+      {
+        "path": "src/app/(frontend)/messages/MarkShownRead.tsx",
+        "lines": 6
+      },
+      {
+        "path": "src/app/(frontend)/signup/page.tsx",
+        "lines": 6
+      },
+      {
+        "path": "src/app/(payload)/api/[...slug]/route.ts",
+        "lines": 6
+      },
+      {
+        "path": "src/endpoints/exportAuth.ts",
+        "lines": 6
+      },
+      {
+        "path": "src/app/(frontend)/layout.tsx",
+        "lines": 5
+      },
+      {
+        "path": "src/app/(frontend)/forgot-password/page.tsx",
+        "lines": 5
+      },
+      {
+        "path": "src/app/(payload)/layout.tsx",
+        "lines": 5
+      },
+      {
+        "path": "src/components/RedirectToManage/index.tsx",
+        "lines": 5
+      },
+      {
+        "path": "src/app/(frontend)/messages/sendMessage.ts",
+        "lines": 4
+      },
+      {
+        "path": "src/app/(frontend)/explore/page.tsx",
+        "lines": 3
+      },
+      {
+        "path": "src/app/(frontend)/reset-password/page.tsx",
+        "lines": 3
+      },
+      {
+        "path": "src/app/(frontend)/verify-email/page.tsx",
+        "lines": 3
+      },
+      {
+        "path": "src/components/Discussions/MarkThreadRead.tsx",
+        "lines": 3
+      },
+      {
+        "path": "src/generator/generateForVersion.ts",
+        "lines": 3
+      },
+      {
+        "path": "src/lib/awaitingApproval.ts",
+        "lines": 3
+      },
+      {
+        "path": "src/app/(payload)/admin/[[...segments]]/not-found.tsx",
+        "lines": 2
+      },
+      {
+        "path": "src/app/(payload)/admin/[[...segments]]/page.tsx",
+        "lines": 2
+      },
+      {
+        "path": "src/components/AdminHeaderMenu/index.tsx",
+        "lines": 2
+      },
+      {
+        "path": "src/components/Manage/SystemFactsPanel.tsx",
+        "lines": 2
+      },
+      {
+        "path": "src/lib/schoolMetadata.ts",
+        "lines": 2
+      },
+      {
+        "path": "src/lib/welcomeDismissal.ts",
+        "lines": 2
+      },
+      {
+        "path": "src/components/LessonDetails.tsx",
+        "lines": 1
+      },
+      {
+        "path": "src/components/AdminUnauthorizedRedirect/index.tsx",
+        "lines": 1
+      },
+      {
+        "path": "src/components/Brand/Icon.tsx",
+        "lines": 1
+      }
+    ]
+  },
+  "integrationSerialImportedDenominator": {
+    "lines": {
+      "total": 5137,
+      "covered": 2731,
+      "skipped": 0,
+      "pct": 53.16
+    },
+    "statements": {
+      "total": 6046,
+      "covered": 3065,
+      "skipped": 0,
+      "pct": 50.69
+    },
+    "functions": {
+      "total": 1216,
+      "covered": 681,
+      "skipped": 0,
+      "pct": 56
+    },
+    "branches": {
+      "total": 4269,
+      "covered": 1745,
+      "skipped": 0,
+      "pct": 40.87
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "limits": "V8-reported instrumentable lines, not physical LOC or whole-codebase completeness. Do not add overlapping suite percentages. Private negative control excluded."
+}

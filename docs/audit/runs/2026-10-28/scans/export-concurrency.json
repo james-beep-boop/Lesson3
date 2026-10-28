@@ -1,0 +1,60 @@
+{
+  "source": "6e75a173e822e4c4be42821b0a4af48ca457bd36",
+  "target": "dedicated disposable upgrade stack",
+  "concurrentPrepare": 12,
+  "coalescedJobs": 2,
+  "concurrentDeliveries": 12,
+  "seconds": 0.4110199969999994,
+  "health": 200,
+  "results": [
+    {
+      "kind": "docx",
+      "bytes": 12668
+    },
+    {
+      "kind": "pdf",
+      "bytes": 207376
+    },
+    {
+      "kind": "docx",
+      "bytes": 12668
+    },
+    {
+      "kind": "pdf",
+      "bytes": 207376
+    },
+    {
+      "kind": "docx",
+      "bytes": 12668
+    },
+    {
+      "kind": "pdf",
+      "bytes": 207376
+    },
+    {
+      "kind": "docx",
+      "bytes": 12668
+    },
+    {
+      "kind": "pdf",
+      "bytes": 207376
+    },
+    {
+      "kind": "docx",
+      "bytes": 12668
+    },
+    {
+      "kind": "pdf",
+      "bytes": 207376
+    },
+    {
+      "kind": "docx",
+      "bytes": 12668
+    },
+    {
+      "kind": "pdf",
+      "bytes": 207376
+    }
+  ],
+  "limits": "One small synthetic version; no saturation or large-school capacity claim"
+}

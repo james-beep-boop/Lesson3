@@ -1,0 +1,90 @@
+[
+  {
+    "file": "app-chrome.scss",
+    "countsByRule": {
+      "alpha-value-notation": 1,
+      "color-function-alias-notation": 1,
+      "color-function-notation": 1,
+      "comment-empty-line-before": 10,
+      "media-feature-range-notation": 1,
+      "no-descending-specificity": 1,
+      "rule-empty-line-before": 18,
+      "selector-class-pattern": 33
+    },
+    "duplicateSelectors": []
+  },
+  {
+    "file": "app-dialog.scss",
+    "countsByRule": {
+      "alpha-value-notation": 2,
+      "color-function-alias-notation": 2,
+      "color-function-notation": 2,
+      "comment-empty-line-before": 6,
+      "rule-empty-line-before": 10,
+      "selector-class-pattern": 16
+    },
+    "duplicateSelectors": []
+  },
+  {
+    "file": "app-tokens.scss",
+    "countsByRule": {
+      "comment-empty-line-before": 10,
+      "value-keyword-case": 1
+    },
+    "duplicateSelectors": []
+  },
+  {
+    "file": "custom.scss",
+    "countsByRule": {
+      "scss/double-slash-comment-empty-line-before": 23,
+      "scss/comment-no-empty": 44,
+      "alpha-value-notation": 1,
+      "color-function-alias-notation": 1,
+      "color-function-notation": 1,
+      "custom-property-empty-line-before": 1,
+      "declaration-empty-line-before": 2,
+      "media-feature-range-notation": 10,
+      "no-descending-specificity": 33,
+      "no-duplicate-selectors": 4,
+      "property-no-vendor-prefix": 1,
+      "rule-empty-line-before": 32,
+      "selector-class-pattern": 121,
+      "selector-id-pattern": 4
+    },
+    "duplicateSelectors": [
+      {
+        "line": 1514,
+        "text": "Unexpected duplicate selector \".collection-edit--lesson-bundle-versions\", first used at line 1499 (no-duplicate-selectors)"
+      },
+      {
+        "line": 1620,
+        "text": "Unexpected duplicate selector \".collection-edit--lesson-bundle-versions\", first used at line 1499 (no-duplicate-selectors)"
+      },
+      {
+        "line": 2095,
+        "text": "Unexpected duplicate selector \"&__msg\", first used at line 1467 (no-duplicate-selectors)"
+      },
+      {
+        "line": 2664,
+        "text": "Unexpected duplicate selector \".collection-edit--lesson-bundle-versions\", first used at line 1499 (no-duplicate-selectors)"
+      }
+    ]
+  },
+  {
+    "file": "styles.css",
+    "countsByRule": {
+      "alpha-value-notation": 3,
+      "at-rule-empty-line-before": 1,
+      "color-function-alias-notation": 3,
+      "color-function-notation": 3,
+      "comment-empty-line-before": 106,
+      "declaration-empty-line-before": 1,
+      "media-feature-range-notation": 1,
+      "no-descending-specificity": 12,
+      "property-no-vendor-prefix": 3,
+      "rule-empty-line-before": 179,
+      "selector-class-pattern": 107
+    },
+    "duplicateSelectors": []
+  }
+]

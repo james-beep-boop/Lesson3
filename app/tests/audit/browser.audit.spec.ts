@@ -120,7 +120,7 @@ test('audit: route, viewport and accessibility crawl', async ({
             h1: [...document.querySelectorAll('h1')].map((x) => x.textContent),
           }))
           const axe = await new AxeBuilder({ page })
-            .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
             .analyze()
           const name = `${browserName}-${role ?? 'anonymous'}-${width}-${path.replace(/[^a-z0-9]/gi, '_')}`
           await page.screenshot({ path: `${artifact}/${name}.png`, fullPage: true })
@@ -364,121 +364,235 @@ for (const mode of ['unsafe before deadline', 'becomes unsafe during logout'] as
   })
 }
 
-test('audit: native session expiry preserves lesson text when capture is unavailable', async ({
+for (const captureFails of [true, false]) {
+  test(`audit: native session expiry preserves lesson text with ${captureFails ? 'unavailable' : 'confirmed'} capture`, async ({
+    page,
+  }, info) => {
+    const visited: string[] = []
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) visited.push(new URL(frame.url()).pathname)
+    })
+    test.setTimeout(155000)
+    const auth = fx.payload.collections.users.config.auth
+    if (!auth) throw new Error('Native user auth configuration required')
+    const prior = auth.tokenExpiration
+    let token: string | undefined
+    // Change only this isolated SDK issuer in memory, then restore it. The running app is untouched.
+    try {
+      auth.tokenExpiration = 120
+      token = (
+        await fx.payload.login({
+          collection: 'users',
+          data: { email: fx.users.editor.email, password: fx.password },
+        })
+      ).token
+    } finally {
+      auth.tokenExpiration = prior
+    }
+    expect(token).toBeTruthy()
+    const expires = (
+      JSON.parse(Buffer.from(token!.split('.')[1], 'base64url').toString()) as { exp: number }
+    ).exp
+    await page
+      .context()
+      .addCookies([
+        {
+          name: 'payload-token',
+          value: token!,
+          url: BASE,
+          httpOnly: true,
+          sameSite: 'Lax',
+          expires,
+        },
+      ])
+    await page.addInitScript(
+      (key) => localStorage.setItem(key, '1'),
+      welcomeDismissedKey(fx.users.editor.id),
+    )
+    // Model a failed refresh transport and unavailable capture; do not fake the server's expiry clock.
+    await page.route('**/api/users/refresh-token**', (r) => r.abort('failed'))
+    await page.route(`**/api/lesson-bundle-versions/${fx.version.id}/recovery`, (r) =>
+      captureFails && r.request().method() === 'POST'
+        ? r.fulfill({
+            status: 503,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              errors: [{ message: 'Audit simulated capture unavailability' }],
+            }),
+          })
+        : r.continue(),
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}`)
+    await page.getByRole('button', { name: /^(Edit|Continue editing)$/ }).click()
+    await page.getByRole('button', { name: 'Show All', exact: true }).first().click()
+    const overview = page.locator('#field-lessons__0__overview')
+    const marker = `Audit native-expiry only copy ${info.project.name} ${fx.plan.id}`
+    const refused = page.waitForResponse(
+      (r) =>
+        r.url().endsWith('/recovery') &&
+        r.request().method() === 'POST' &&
+        r.status() === (captureFails ? 503 : 200),
+    )
+    await overview.fill(marker)
+    await expect(
+      page.getByRole('button', { name: 'Save as new version', exact: true }),
+    ).toBeEnabled()
+    await refused
+    console.log(
+      JSON.stringify({
+        nativeExpiryProbe: info.project.name,
+        stage: `${captureFails ? 'capture refused' : 'capture confirmed'}; waiting for genuine native token expiry`,
+        secondsLeft: Math.ceil(expires - Date.now() / 1000),
+      }),
+    )
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, expires * 1000 - Date.now() + 1500)),
+    )
+    const me = await page.request.get(`${BASE}/api/users/me`, {
+      headers: { Authorization: `JWT ${token}` },
+    })
+    const who = (await me.json()) as { user?: unknown }
+    expect(who.user).toBeFalsy()
+    const navigated = await page.waitForURL(/logout-inactivity/, { timeout: 4000 }).then(
+      () => true,
+      () => false,
+    )
+    await page.waitForTimeout(6000)
+    console.log(
+      JSON.stringify({
+        nativeExpiryFinal: info.project.name,
+        path: new URL(page.url()).pathname,
+        visited,
+        bodyCharacters: (await page.locator('body').innerText()).length,
+      }),
+    )
+    await page.screenshot({
+      path: `${artifact}/${info.project.name}-native-expiry-${captureFails ? 'unavailable' : 'confirmed'}.png`,
+    })
+    const rows = await fx.payload.find({
+      collection: 'edit-recovery',
+      where: {
+        and: [
+          { user: { equals: fx.users.editor.id } },
+          { sourceVersion: { equals: fx.version.id } },
+        ],
+      },
+      overrideAccess: true,
+      depth: 0,
+    })
+    const persisted = JSON.stringify(rows.docs[0]?.content).includes(marker)
+    const inputReadable =
+      (await overview.isVisible()) && (await overview.inputValue()).includes(marker)
+    const visibleTextReadable = (await page.locator('body').innerText()).includes(marker)
+    console.log(
+      JSON.stringify({
+        nativeExpiryProbe: info.project.name,
+        stage: 'expired',
+        serverRecognizesUser: Boolean(who.user),
+        navigated,
+        persisted,
+        inputReadable,
+        visibleTextReadable,
+        clock: 'real browser and server clocks; native SDK-issued two-minute session',
+      }),
+    )
+    expect(
+      persisted || inputReadable || visibleTextReadable,
+      'Session expiry must preserve a confirmed capture or leave unconfirmed work readable',
+    ).toBe(true)
+  })
+}
+
+test('audit: stored teacher text remains inert in sampled browser surfaces', async ({
   page,
 }, info) => {
-  const visited: string[] = []
-  page.on('framenavigated', (frame) => {
-    if (frame === page.mainFrame()) visited.push(new URL(frame.url()).pathname)
-  })
-  test.setTimeout(155000)
-  const auth = fx.payload.collections.users.config.auth
-  if (!auth) throw new Error('Native user auth configuration required')
-  const prior = auth.tokenExpiration
-  let token: string | undefined
-  // Change only this isolated SDK issuer in memory, then restore it. The running app is untouched.
-  try {
-    auth.tokenExpiration = 120
-    token = (
-      await fx.payload.login({
-        collection: 'users',
-        data: { email: fx.users.editor.email, password: fx.password },
-      })
-    ).token
-  } finally {
-    auth.tokenExpiration = prior
+  test.setTimeout(120000)
+  const probe = '<img src=x onerror="window.__auditExecuted=1">'
+  const signedIn = async (role: RoleKey) => {
+    const response = await page.request.post(`${BASE}/api/users/login`, {
+      data: { email: fx.users[role].email, password: fx.password },
+    })
+    expect(response.status()).toBe(200)
+    return ((await response.json()) as { token: string }).token
   }
-  expect(token).toBeTruthy()
-  const expires = (
-    JSON.parse(Buffer.from(token!.split('.')[1], 'base64url').toString()) as { exp: number }
-  ).exp
-  await page
-    .context()
-    .addCookies([
-      { name: 'payload-token', value: token!, url: BASE, httpOnly: true, sameSite: 'Lax', expires },
-    ])
-  await page.addInitScript(
-    (key) => localStorage.setItem(key, '1'),
-    welcomeDismissedKey(fx.users.editor.id),
-  )
-  // Model a failed refresh transport and unavailable capture; do not fake the server's expiry clock.
-  await page.route('**/api/users/refresh-token**', (r) => r.abort('failed'))
-  await page.route(`**/api/lesson-bundle-versions/${fx.version.id}/recovery`, (r) =>
-    r.request().method() === 'POST'
-      ? r.fulfill({
-          status: 503,
-          contentType: 'application/json',
-          body: JSON.stringify({ errors: [{ message: 'Audit simulated capture unavailability' }] }),
-        })
-      : r.continue(),
-  )
-  await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}`)
-  await page.getByRole('button', { name: /^(Edit|Continue editing)$/ }).click()
-  await page.getByRole('button', { name: 'Show All', exact: true }).first().click()
-  const overview = page.locator('#field-lessons__0__overview')
-  const marker = `Audit native-expiry only copy ${info.project.name} ${fx.plan.id}`
-  const refused = page.waitForResponse(
-    (r) => r.url().endsWith('/recovery') && r.request().method() === 'POST' && r.status() === 503,
-  )
-  await overview.fill(marker)
-  await expect(page.getByRole('button', { name: 'Save as new version', exact: true })).toBeEnabled()
-  await refused
-  console.log(
-    JSON.stringify({
-      nativeExpiryProbe: info.project.name,
-      stage: 'capture refused; waiting for genuine native token expiry',
-      secondsLeft: Math.ceil(expires - Date.now() / 1000),
-    }),
-  )
-  await new Promise((resolve) =>
-    setTimeout(resolve, Math.max(0, expires * 1000 - Date.now() + 1500)),
-  )
-  const me = await page.request.get(`${BASE}/api/users/me`, {
-    headers: { Authorization: `JWT ${token}` },
+  const teacher = await signedIn('teacher')
+  const headers = { Authorization: `JWT ${teacher}` }
+  const name = await page.request.patch(`${BASE}/api/users/${fx.users.teacher.id}`, {
+    headers,
+    data: { name: probe },
   })
-  const who = (await me.json()) as { user?: unknown }
-  expect(who.user).toBeFalsy()
-  const navigated = await page.waitForURL(/logout-inactivity/, { timeout: 4000 }).then(
-    () => true,
-    () => false,
-  )
-  await page.waitForTimeout(6000)
-  console.log(
-    JSON.stringify({
-      nativeExpiryFinal: info.project.name,
-      path: new URL(page.url()).pathname,
-      visited,
-      bodyCharacters: (await page.locator('body').innerText()).length,
-    }),
-  )
-  await page.screenshot({ path: `${artifact}/${info.project.name}-native-expiry.png` })
-  const rows = await fx.payload.find({
-    collection: 'edit-recovery',
-    where: {
-      and: [{ user: { equals: fx.users.editor.id } }, { sourceVersion: { equals: fx.version.id } }],
+  expect(name.status()).toBe(200)
+  const topic = await page.request.post(`${BASE}/api/discussion-topics`, {
+    headers,
+    data: {
+      title: `Audit ${fx.plan.id} ${probe}`,
+      body: probe,
+      submissionKey: crypto.randomUUID(),
     },
-    overrideAccess: true,
-    depth: 0,
   })
-  const persisted = JSON.stringify(rows.docs[0]?.content).includes(marker)
-  const inputReadable =
-    (await overview.isVisible()) && (await overview.inputValue()).includes(marker)
-  const visibleTextReadable = (await page.locator('body').innerText()).includes(marker)
+  expect(topic.status()).toBe(201)
+  const topicId = ((await topic.json()) as { doc: { id: number } }).doc.id
+  const reply = await page.request.post(`${BASE}/api/discussion-replies`, {
+    headers,
+    data: { topic: topicId, body: probe, joinedAtSeq: 0, submissionKey: crypto.randomUUID() },
+  })
+  expect(reply.status()).toBe(201)
+  const message = await page.request.post(`${BASE}/api/messages`, {
+    headers,
+    data: { recipient: fx.users.editor.id, body: probe },
+  })
+  expect(message.status()).toBe(201)
+  const editing = await signedIn('editor')
+  const source = structuredClone(fx.version)
+  source.lessons![0].overview = probe
+  const data = new FormData()
+  data.set('data', JSON.stringify(source))
+  const save = await fetch(`${BASE}/api/lesson-bundle-versions/${source.id}/save-as-new`, {
+    method: 'POST',
+    headers: { Authorization: `JWT ${editing}` },
+    body: data,
+  })
+  expect(save.status).toBe(200)
+  const candidate = ((await save.json()) as { id: number }).id
+  const checked = []
+  for (const path of [
+    '/discuss',
+    `/discuss/${topicId}`,
+    '/messages',
+    `/lessons/${fx.plan.id}?version=${candidate}`,
+    `/admin/collections/lesson-bundle-versions/${candidate}`,
+    `/api/lesson-bundle-versions/${candidate}/preview`,
+  ]) {
+    await page.goto(BASE + path)
+    await page.locator('body').waitFor()
+    if (path.startsWith('/admin/')) {
+      await page.getByRole('button', { name: /^(Edit|Continue editing)$/ }).click()
+      await page.getByRole('button', { name: 'Show All', exact: true }).first().click()
+      await expect(page.locator('#field-lessons__0__overview')).toHaveValue(probe)
+    } else if (path.startsWith('/discuss/')) {
+      await expect(page.locator('.disc-post__text').first()).toContainText(probe)
+      await expect(page.locator('.disc-post__text').last()).toContainText(probe)
+      await expect(page.locator('.disc-post__meta').first()).toContainText(probe)
+    } else if (path === '/messages')
+      await expect(page.locator('.msg-body').first()).toContainText(probe)
+    else if (path.startsWith('/lessons/'))
+      await expect(page.locator('.doc-preview').first()).toContainText(probe)
+    else await expect(page.locator('body')).toContainText(probe)
+    expect(await page.evaluate(() => Reflect.get(window, '__auditExecuted'))).toBeUndefined()
+    expect(await page.locator('[onerror*="__auditExecuted"]').count()).toBe(0)
+    checked.push({
+      path: path.replace(String(candidate), ':candidate').replace(String(topicId), ':topic'),
+      scriptExecuted: false,
+      activePayloadElements: 0,
+    })
+  }
   console.log(
     JSON.stringify({
-      nativeExpiryProbe: info.project.name,
-      stage: 'expired',
-      serverRecognizesUser: Boolean(who.user),
-      navigated,
-      persisted,
-      inputReadable,
-      visibleTextReadable,
-      clock: 'real browser and server clocks; native SDK-issued two-minute session',
+      storedTextProbe: info.project.name,
+      checked,
+      limits:
+        'One img/onerror payload in names, topic titles/bodies, replies, messages and lesson prose; browser/frontend/admin/HTML preview samples only. Email and Office viewers not exercised.',
     }),
   )
-  expect(
-    persisted || inputReadable || visibleTextReadable,
-    'A failed capture must not make genuine session expiry erase the only copy',
-  ).toBe(true)
 })

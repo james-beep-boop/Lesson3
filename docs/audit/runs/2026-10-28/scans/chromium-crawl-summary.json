@@ -1,601 +1,1355 @@
 {
-  "browser": "chromium",
-  "routeRoleViewportCombinations": 84,
-  "axeRules": [
+  "source": "6e75a173e822e4c4be42821b0a4af48ca457bd36",
+  "findings": [
+    {
+      "role": null,
+      "width": 360,
+      "path": "/login",
+      "status": 200,
+      "finalPath": "/login",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "Sign in \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 360,
+      "path": "/signup",
+      "status": 200,
+      "finalPath": "/signup",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "Sign up \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/login",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "Sign in \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 360,
+      "path": "/explore",
+      "status": 404,
+      "finalPath": "/explore",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "404: This page could not be found.",
+        "h1": [
+          "404"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/login",
+      "status": 200,
+      "finalPath": "/login",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "Sign in \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/signup",
+      "status": 200,
+      "finalPath": "/signup",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "Sign up \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/login",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "Sign in \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 768,
+      "path": "/explore",
+      "status": 404,
+      "finalPath": "/explore",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "404: This page could not be found.",
+        "h1": [
+          "404"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/login",
+      "status": 200,
+      "finalPath": "/login",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "Sign in \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/signup",
+      "status": 200,
+      "finalPath": "/signup",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "Sign up \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/login",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "Sign in \u2014 ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": null,
+      "width": 1280,
+      "path": "/explore",
+      "status": 404,
+      "finalPath": "/explore",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "404: This page could not be found.",
+        "h1": [
+          "404"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "teacher",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "editor",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "subjectAdmin",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 360,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 360,
+        "documentWidth": 360,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 768,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 768,
+        "documentWidth": 768,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/guide",
+      "status": 200,
+      "finalPath": "/guide",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ARES Lesson Plans"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/lessons/198",
+      "status": 200,
+      "finalPath": "/lessons/198",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "ZZ_INT_2cd3cd36-5020-409e-a3b0-6e4ee515d25c_Sub-strand"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/messages",
+      "status": 200,
+      "finalPath": "/messages",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Messages"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/discuss",
+      "status": 200,
+      "finalPath": "/discuss",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "ARES Lesson Plans",
+        "h1": [
+          "Discussions"
+        ]
+      },
+      "violations": []
+    },
+    {
+      "role": "siteAdmin",
+      "width": 1280,
+      "path": "/admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "metrics": {
+        "width": 1280,
+        "documentWidth": 1280,
+        "title": "Dashboard \u2014 ARES Lesson Plans",
+        "h1": [
+          "Manage"
+        ]
+      },
+      "violations": []
+    }
+  ],
+  "axeTags": [
     "wcag2a",
     "wcag2aa",
+    "wcag21a",
     "wcag21aa"
-  ],
-  "violations": 0,
-  "documentOverflow": [],
-  "routes": [
-    {
-      "role": null,
-      "width": 360,
-      "path": "/login",
-      "status": 200,
-      "finalPath": "/login"
-    },
-    {
-      "role": null,
-      "width": 360,
-      "path": "/signup",
-      "status": 200,
-      "finalPath": "/signup"
-    },
-    {
-      "role": null,
-      "width": 360,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/login"
-    },
-    {
-      "role": null,
-      "width": 360,
-      "path": "/explore",
-      "status": 404,
-      "finalPath": "/explore"
-    },
-    {
-      "role": null,
-      "width": 768,
-      "path": "/login",
-      "status": 200,
-      "finalPath": "/login"
-    },
-    {
-      "role": null,
-      "width": 768,
-      "path": "/signup",
-      "status": 200,
-      "finalPath": "/signup"
-    },
-    {
-      "role": null,
-      "width": 768,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/login"
-    },
-    {
-      "role": null,
-      "width": 768,
-      "path": "/explore",
-      "status": 404,
-      "finalPath": "/explore"
-    },
-    {
-      "role": null,
-      "width": 1280,
-      "path": "/login",
-      "status": 200,
-      "finalPath": "/login"
-    },
-    {
-      "role": null,
-      "width": 1280,
-      "path": "/signup",
-      "status": 200,
-      "finalPath": "/signup"
-    },
-    {
-      "role": null,
-      "width": 1280,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/login"
-    },
-    {
-      "role": null,
-      "width": 1280,
-      "path": "/explore",
-      "status": 404,
-      "finalPath": "/explore"
-    },
-    {
-      "role": "teacher",
-      "width": 360,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "teacher",
-      "width": 360,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "teacher",
-      "width": 360,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "teacher",
-      "width": 360,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "teacher",
-      "width": 360,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "teacher",
-      "width": 360,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "teacher",
-      "width": 768,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "teacher",
-      "width": 768,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "teacher",
-      "width": 768,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "teacher",
-      "width": 768,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "teacher",
-      "width": 768,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "teacher",
-      "width": 768,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "teacher",
-      "width": 1280,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "teacher",
-      "width": 1280,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "teacher",
-      "width": 1280,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "teacher",
-      "width": 1280,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "teacher",
-      "width": 1280,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "teacher",
-      "width": 1280,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "editor",
-      "width": 360,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "editor",
-      "width": 360,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "editor",
-      "width": 360,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "editor",
-      "width": 360,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "editor",
-      "width": 360,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "editor",
-      "width": 360,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "editor",
-      "width": 768,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "editor",
-      "width": 768,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "editor",
-      "width": 768,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "editor",
-      "width": 768,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "editor",
-      "width": 768,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "editor",
-      "width": 768,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "editor",
-      "width": 1280,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "editor",
-      "width": 1280,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "editor",
-      "width": 1280,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "editor",
-      "width": 1280,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "editor",
-      "width": 1280,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "editor",
-      "width": 1280,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 360,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 360,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 360,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 360,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 360,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 360,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 768,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 768,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 768,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 768,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 768,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 768,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 1280,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 1280,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 1280,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 1280,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 1280,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "subjectAdmin",
-      "width": 1280,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 360,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 360,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 360,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 360,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 360,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 360,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 768,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 768,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 768,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 768,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 768,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 768,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 1280,
-      "path": "/",
-      "status": 200,
-      "finalPath": "/"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 1280,
-      "path": "/guide",
-      "status": 200,
-      "finalPath": "/guide"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 1280,
-      "path": "/lessons/171",
-      "status": 200,
-      "finalPath": "/lessons/171"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 1280,
-      "path": "/messages",
-      "status": 200,
-      "finalPath": "/messages"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 1280,
-      "path": "/discuss",
-      "status": 200,
-      "finalPath": "/discuss"
-    },
-    {
-      "role": "siteAdmin",
-      "width": 1280,
-      "path": "/admin",
-      "status": 200,
-      "finalPath": "/admin"
-    }
   ]
 }

@@ -1,0 +1,119 @@
+{
+  "literalVersionWrites": [
+    {
+      "file": "src/endpoints/versionEdit.ts",
+      "line": 281,
+      "operation": "create",
+      "receiver": "req.payload",
+      "options": [
+        "overrideAccess: true"
+      ]
+    },
+    {
+      "file": "src/endpoints/versionEdit.ts",
+      "line": 336,
+      "operation": "delete",
+      "receiver": "req.payload",
+      "options": [
+        "id: source.id",
+        "overrideAccess: true"
+      ]
+    },
+    {
+      "file": "src/endpoints/versionEdit.ts",
+      "line": 466,
+      "operation": "delete",
+      "receiver": "req.payload",
+      "options": [
+        "id: previousOfficialId",
+        "overrideAccess: true"
+      ]
+    },
+    {
+      "file": "scripts/seed-local-dev.ts",
+      "line": 73,
+      "operation": "delete",
+      "receiver": "payload",
+      "options": [
+        "where: { lessonPlan: { equals: plan.id } }",
+        "overrideAccess: true"
+      ]
+    },
+    {
+      "file": "scripts/seed-local-dev.ts",
+      "line": 146,
+      "operation": "create",
+      "receiver": "payload",
+      "options": [
+        "overrideAccess: true"
+      ]
+    },
+    {
+      "file": "scripts/verify-edit-recovery-cascade.ts",
+      "line": 142,
+      "operation": "delete",
+      "receiver": "payload",
+      "options": [
+        "where: { title: { equals: `${MARK}cascade-check` } }",
+        "overrideAccess: true"
+      ]
+    },
+    {
+      "file": "scripts/verify-edit-recovery-cascade.ts",
+      "line": 181,
+      "operation": "create",
+      "receiver": "payload",
+      "options": [
+        "overrideAccess: true"
+      ]
+    },
+    {
+      "file": "scripts/verify-edit-recovery-cascade.ts",
+      "line": 203,
+      "operation": "delete",
+      "receiver": "payload",
+      "options": [
+        "id: created.id",
+        "overrideAccess: true"
+      ]
+    }
+  ],
+  "dynamicCollectionWrites": [
+    {
+      "file": "src/hooks/lessonPlan.ts",
+      "line": 392,
+      "operation": "delete",
+      "collection": "LESSON_BUNDLE_VERSIONS"
+    },
+    {
+      "file": "src/ingest/index.ts",
+      "line": 924,
+      "operation": "create",
+      "collection": "LESSON_BUNDLE_VERSIONS"
+    },
+    {
+      "file": "src/ingest/index.ts",
+      "line": 938,
+      "operation": "update",
+      "collection": "LESSON_PLANS"
+    },
+    {
+      "file": "src/ingest/index.ts",
+      "line": 979,
+      "operation": "create",
+      "collection": "LESSON_PLANS"
+    },
+    {
+      "file": "src/ingest/index.ts",
+      "line": 992,
+      "operation": "create",
+      "collection": "LESSON_BUNDLE_VERSIONS"
+    },
+    {
+      "file": "src/ingest/index.ts",
+      "line": 1005,
+      "operation": "update",
+      "collection": "LESSON_PLANS"
+    }
+  ]
+}

@@ -682,15 +682,15 @@ app/tests/unit/emptyArraySerialization.spec.ts,C72,author-read; reconciliation p
 app/tests/unit/enforceAssignmentScope.spec.ts,C72,author-read; reconciliation pending,P177-10-tests:1-163; caller reconciliation and clean-result sampling required
 app/tests/unit/enqueueDetached.spec.ts,C72,author-read; reconciliation pending,P177-10-tests:1-76; caller reconciliation and clean-result sampling required
 app/tests/unit/entryPhase.spec.ts,C72,author-read; reconciliation pending,P177-10-tests:1-100; caller reconciliation and clean-result sampling required
-app/tests/unit/envTemplateParity.spec.ts,C72,partial ranges; reconciliation pending,P178-10-tests:1-400; caller reconciliation and clean-result sampling required
-app/tests/unit/errorTracking.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/expireEditRecoveryTask.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/exportArtifacts.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/exportClient.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/exportJobDedupe.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/exportKind.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/extract.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
-app/tests/unit/favoriteToggle.spec.tsx,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
+app/tests/unit/envTemplateParity.spec.ts,C72,author-read; reconciliation pending,P178-10-tests:1-400; P179-10-tests:401-683; caller reconciliation and clean-result sampling required
+app/tests/unit/errorTracking.spec.ts,C72,author-read; reconciliation pending,P179-10-tests:1-87; caller reconciliation and clean-result sampling required
+app/tests/unit/expireEditRecoveryTask.spec.ts,C72,author-read; reconciliation pending,P179-10-tests:1-42; caller reconciliation and clean-result sampling required
+app/tests/unit/exportArtifacts.spec.ts,C72,author-read; reconciliation pending,P179-10-tests:1-122; caller reconciliation and clean-result sampling required
+app/tests/unit/exportClient.spec.ts,C72,author-read; reconciliation pending,P180-10-tests:1-298; caller reconciliation and clean-result sampling required
+app/tests/unit/exportJobDedupe.spec.ts,C72,author-read; reconciliation pending,P180-10-tests:1-37; caller reconciliation and clean-result sampling required
+app/tests/unit/exportKind.spec.ts,C72,author-read; reconciliation pending,P180-10-tests:1-20; caller reconciliation and clean-result sampling required
+app/tests/unit/extract.spec.ts,C72,author-read; reconciliation pending,P180-10-tests:1-197; caller reconciliation and clean-result sampling required
+app/tests/unit/favoriteToggle.spec.tsx,C72,author-read; reconciliation pending,P180-10-tests:1-35; caller reconciliation and clean-result sampling required
 app/tests/unit/fieldSplitContainers.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/tests/unit/filterRows.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.
 app/tests/unit/firstUserBootstrap.spec.ts,C72,pending,Review with owning source flow; baseline tests alone do not count as source review.

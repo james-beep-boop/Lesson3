@@ -1,0 +1,74 @@
+[
+  {
+    "storedTextProbe": "chromium",
+    "checked": [
+      {
+        "path": "/discuss",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/discuss/:topic",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/messages",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/lessons/202?version=:candidate",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/admin/collections/lesson-bundle-versions/:candidate",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/api/lesson-bundle-versions/:candidate/preview",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      }
+    ],
+    "limits": "One img/onerror payload in names, topic titles/bodies, replies, messages and lesson prose; browser/frontend/admin/HTML preview samples only. Email and Office viewers not exercised."
+  },
+  {
+    "storedTextProbe": "webkit",
+    "checked": [
+      {
+        "path": "/discuss",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/discuss/:topic",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/messages",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/lessons/203?version=:candidate",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/admin/collections/lesson-bundle-versions/:candidate",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      },
+      {
+        "path": "/api/lesson-bundle-versions/:candidate/preview",
+        "scriptExecuted": false,
+        "activePayloadElements": 0
+      }
+    ],
+    "limits": "One img/onerror payload in names, topic titles/bodies, replies, messages and lesson prose; browser/frontend/admin/HTML preview samples only. Email and Office viewers not exercised."
+  }
+]
