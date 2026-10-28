@@ -239,6 +239,7 @@ describe('re-ingest (SPEC §7)', () => {
           [plans[1].id, '2.0.0', entry === 'confirmed upload'],
         ])
         if (entry === 'confirmed upload') {
+          // Repeating the upload skips both plans and must not add an ancestry read.
           const repeated = await ingestUploadItems(payload, incoming)
           expect(repeated.skipped).toHaveLength(2)
           expect(repeated.bundles).toEqual([])

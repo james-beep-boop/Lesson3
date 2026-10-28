@@ -845,17 +845,17 @@ async function writePrepared(
     if (upload && confirmationRequired(official, upload.confirmOfficial))
       throw new ConfirmOfficial(official)
     // Only existing plans receiving a release need ancestry. Read their metadata together, after
-    // the locks and confirmation checks, rather than once per file in the write loop.
+    // the locks and confirmation checks, rather than once per file in the write loop. A preceding
+    // write cannot change a later file's predecessor: duplicate sub-strand identities are rejected,
+    // and latestRelease only considers rows with the incoming file's own sub-strand identity.
     const revisionPlanIds = [
       ...new Set(
-        prepared.flatMap((p) =>
-          p.existingPlanId != null &&
-          !official.some(
-            (o) => o.file === p.name && o.plan === p.existingPlanId && o.decision !== 'new',
-          )
-            ? [p.existingPlanId]
-            : [],
-        ),
+        prepared.flatMap((p) => {
+          if (p.existingPlanId == null) return []
+          // Match the write loop's first decision, including legacy plans with repeated file names.
+          const decision = official.find((o) => o.file === p.name && o.plan === p.existingPlanId)
+          return decision && decision.decision !== 'new' ? [] : [p.existingPlanId]
+        }),
       ),
     ]
     const ancestryByPlan = new Map<number, ReleaseRow[]>()
