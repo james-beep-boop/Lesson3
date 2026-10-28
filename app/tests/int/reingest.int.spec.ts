@@ -168,6 +168,106 @@ describe('re-ingest (SPEC §7)', () => {
     expect(await officialOf(planId)).toBe(officialBefore) // still unmoved
   })
 
+  it.each(['atomic CLI', 'confirmed upload'] as const)(
+    'loads ancestry once for a multi-plan revision through %s',
+    async (entry) => {
+      const prefix = entry === 'atomic CLI' ? '97.211' : '97.212'
+      const raws = [rawBundle(`${prefix}.a`, 'Batch A'), rawBundle(`${prefix}.b`, 'Batch B')]
+      const plans = await ingestItems(
+        payload,
+        raws.map((raw, i) => item(`batch-${i}.json`, raw)),
+      )
+      const firstIds = await Promise.all(plans.map((plan) => officialOf(plan.id)))
+      await ingestItems(payload, [item('batch-a-second.json', raws[0])])
+      const second = (
+        await payload.find({
+          collection: 'lesson-bundle-versions',
+          where: {
+            and: [{ lessonPlan: { equals: plans[0].id } }, { semver: { equals: '2.0.0' } }],
+          },
+          depth: 0,
+        })
+      ).docs[0]
+      const predecessors = [second.id, firstIds[1]!]
+      for (const [i, plan] of plans.entries()) {
+        await payload.create({
+          collection: 'lesson-bundle-versions',
+          data: {
+            ...rawToBundle(raws[i] as never),
+            lessonPlan: plan.id,
+            subjectGrade: plan.subjectGrade,
+            semver: i === 0 ? '2.0.9' : '1.0.9',
+            sourceVersion: predecessors[i],
+          } as never,
+        })
+      }
+      const incoming = raws.map((raw, i) => {
+        const changed = structuredClone(raw)
+        ;(changed.LESSONS as Record<string, unknown>[])[0].overview = 'New release prose'
+        return item(`batch-${i}.json`, changed)
+      })
+      const find = payload.find.bind(payload)
+      const ancestryReads: { transactionID: unknown; user: unknown }[] = []
+      const spy = vi.spyOn(payload, 'find').mockImplementation(((
+        args: Parameters<Payload['find']>[0],
+      ) => {
+        if (
+          args.collection === 'lesson-bundle-versions' &&
+          args.select &&
+          'author' in args.select &&
+          'sourceVersion' in args.select &&
+          'mergedFrom' in args.select &&
+          'meta' in args.select
+        ) {
+          ancestryReads.push({ transactionID: args.req?.transactionID, user: args.req?.user })
+        }
+        return find(args)
+      }) as typeof payload.find)
+      try {
+        const results =
+          entry === 'atomic CLI'
+            ? await ingestItems(payload, incoming)
+            : await (async () => {
+                const preview = await ingestUploadItems(payload, incoming)
+                expect(preview.needsConfirmation).toBe(true)
+                expect(ancestryReads).toHaveLength(0)
+                return (await ingestUploadItems(payload, incoming, undefined, preview.previewToken))
+                  .bundles
+              })()
+        expect(results.map((r) => [r.id, r.semver, r.official])).toEqual([
+          [plans[0].id, '3.0.0', entry === 'confirmed upload'],
+          [plans[1].id, '2.0.0', entry === 'confirmed upload'],
+        ])
+        if (entry === 'confirmed upload') {
+          const repeated = await ingestUploadItems(payload, incoming)
+          expect(repeated.skipped).toHaveLength(2)
+          expect(repeated.bundles).toEqual([])
+        }
+        for (const [i, result] of results.entries()) {
+          const version = (
+            await payload.find({
+              collection: 'lesson-bundle-versions',
+              where: {
+                and: [{ lessonPlan: { equals: result.id } }, { semver: { equals: result.semver } }],
+              },
+              depth: 0,
+            })
+          ).docs[0]
+          expect(relId(version.sourceVersion)).toBe(predecessors[i])
+          expect(version.lineage).toEqual(i === 0 ? [firstIds[0], second.id] : [firstIds[1]])
+          expect(await officialOf(result.id)).toBe(
+            entry === 'confirmed upload' ? version.id : firstIds[i],
+          )
+        }
+        expect(ancestryReads).toHaveLength(1)
+        expect(ancestryReads[0].transactionID).toBeDefined()
+        expect(ancestryReads[0].user).toBeNull()
+      } finally {
+        spy.mockRestore()
+      }
+    },
+  )
+
   it('links releases past teacher patches and combines teacher prose with new release resources', async () => {
     const raw = rawBundle('97.201', 'Release ancestry')
     const [{ id: planId }] = await ingestItems(payload, [item('release1.json', raw)])
