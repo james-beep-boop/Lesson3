@@ -41,6 +41,18 @@ method. Their dated status, account allocation and prior-run approvals are histo
 record fresh run state separately. The older [sequential review plan](CODE-REVIEW-PLAN.md) is useful
 background, rather than a second checklist to execute in parallel.
 
+**Model allocation:** use scripts first and **Haiku or Luna extensively for bounded execution**:
+running established checks, collecting evidence, inventorying source and implementing straightforward
+tests from approved scenarios and assertions. **Sol 6.1 or a stronger Claude model** coordinates,
+defines expected behaviour and missing cases, leads difficult investigations and reviews important
+claims. A test's execution may be routine while deciding what it must prove is difficult.
+The [handbook allocation](audit/audit_plan.md#model-allocation--cheap-execution-strong-judgment)
+defines worker briefs, escalation and a pilot comparing cheap-model work with independent strong
+checks. Independently sample results marked clean to detect omissions. Measure coordination,
+review and rework along with worker cost; do not assume a saving or adequate coverage from speed.
+These defaults supersede the older sequential plan's model choices for this workflow, without
+authorizing new parallel sessions, spending or operations.
+
 - Establish baseline lint, formatting, types, unit, integration, HTTP, browser, build and fidelity
   evidence as applicable. Record unavailable environments and exactly what remains untested.
 - Build the endpoint/role/action matrix from the current specification. Exercise denied requests

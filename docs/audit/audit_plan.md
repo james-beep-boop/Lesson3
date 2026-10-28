@@ -33,6 +33,50 @@ At quota, persist exact resume state and pause that account; eligible independen
 Keep one model session per account, no subagent fan-out, and reserve allowance for review/responses.
 [OpenAI pricing](https://learn.chatgpt.com/docs/pricing) lists Plus at $20/month; actual limits vary.
 
+## Model allocation — cheap execution, strong judgment
+
+Use **Haiku or Luna by default for bounded testing work**, after a pilot establishes that the
+chosen model handles that task reliably. Use **Sol 6.1 or a stronger Claude model** for coordination,
+test design, difficult investigation and consequential review. These are allocation defaults,
+not claims that the models are interchangeable or guaranteed cheapest on every account. Verify
+availability and allowance at the start of the run; record exact model/version and reasoning setting.
+This allocation supersedes the older sequential plan's Sonnet/Opus defaults for this workflow.
+
+| Work | Default allocation |
+|---|---|
+| Execute established suites; collect exit status, logs and artifacts | Deterministic scripts first. Haiku/Luna for bounded execution and summaries when needed. |
+| Inventory files/endpoints; check documentation against a named implementation | Haiku/Luna with source citations and explicit scope. |
+| Implement straightforward tests from an approved scenario and expected result; reproduce a specified defect | Haiku/Luna, within the audit's allowed test paths and disposable target. |
+| Decide expected behaviour, missing scenarios, assertions and coverage priorities | Sol 6.1 or stronger Claude model, using the specification and source. |
+| Investigate authorization, transaction races, data loss, recovery and cross-module failures | Strong model leads; Haiku/Luna may execute precisely specified checks. |
+| Reconcile findings, assess impact and independently review important claims | Strong model, with the opposite-family review tiers below. |
+
+Do not spend model calls repeatedly running deterministic commands or rereading unchanged logs.
+A worker brief names the source SHA, relevant rules/files, fixture/target, allowed operations,
+scenario, expected result, required assertions, evidence to retain and stopping conditions.
+For example, an unauthorized-write test must assert both the denial response and unchanged data;
+checking only the response does not establish that authorization preceded the write.
+
+Workers escalate ambiguous requirements, unexpected writes/results, framework uncertainty and
+failures crossing module boundaries. They preserve the evidence rather than weaken assertions,
+change expected behaviour, reset a target or broaden their assignment to obtain a pass.
+The strong coordinator resolves the question before dependent testing continues.
+
+Pilot representative easy and difficult assignments before scaling up. Compare cheap-model work
+with independent strong-model checks against the same baseline, including known defects and cases
+expected to be clean. Check test validity, missed conditions, reproducibility and review/rework effort.
+Retain the cheaper allocation only where it meets the required quality; escalate task classes that
+do not. Do not promise a saving or set an arbitrary cheap-model percentage before measuring.
+
+During the run, independently sample work reported **clean**, not just reported findings. Record
+the selection rule, sampled scope and results. A missed material issue triggers wider checking of
+that task class. Existing review tiers still apply to findings; this sampling additionally checks
+for omissions. Count worker, coordination, review and rework costs together, or label cost unknown
+when counters are unavailable. Cheaper execution does not establish adequate test design or coverage.
+
+This split can run sequentially within the account/session limits above. It does not authorize
+parallel subagents, additional paid capacity, new target access or product-code edits.
+
 ## Execution boundaries and runtime
 
 No product-code, tracked dependency/configuration, existing-test or vendor edits. Planned outputs:

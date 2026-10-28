@@ -16,6 +16,11 @@ This is the full required catalog, not a declaration that setup or any audit is 
 Read only the assigned chunk/unit and its immediate prerequisites with the operating handbook.
 Light/Strong indicate investigation depth, not provider, account or a promised model allowance;
 Hand means deterministic tooling. S/M/L are relative chunk sizes, not timing guarantees.
+Apply the handbook's [model allocation](audit_plan.md#model-allocation--cheap-execution-strong-judgment):
+scripts first, then Haiku/Luna for bounded execution; Sol 6.1 or stronger Claude for test design,
+complex investigation and consequential review. A Strong chunk may contain many cheap-model checks;
+its lead retains responsibility for scenarios, assertions and interpretation. A Light chunk still
+escalates ambiguity or consequential failures. Sample clean results as well as reported findings.
 Source paths in the Phase 5 table are relative to `app/` unless already prefixed `app/`.
 Exclude generated output/build caches from manual line review; inspect provenance, inputs and
 trust boundaries. Manifest exclusions need reasons, not an assumption that generated code is safe.
