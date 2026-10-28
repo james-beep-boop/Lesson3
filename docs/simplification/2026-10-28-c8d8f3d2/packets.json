@@ -1,0 +1,1377 @@
+{
+  "documentation-01": {
+    "treatment": "consistency",
+    "group": "documentation",
+    "lines": 3494,
+    "files": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      "COMPUTING-ENVIRONMENT.md",
+      "README.md",
+      "SPEC.md",
+      "USER_GUIDE.md",
+      "docs/CI-PDF-FIXTURE-WORKFLOW-EDIT.md",
+      "docs/DESIGN-CRITIQUE-2026-07-12.md",
+      "docs/DESIGN-ares-release-combine-2026-10-19.md",
+      "docs/DESIGN-backup-recovery-2026-10-21.md",
+      "docs/DESIGN-button-system-2026-07-30.md"
+    ]
+  },
+  "documentation-02": {
+    "treatment": "consistency",
+    "group": "documentation",
+    "lines": 3426,
+    "files": [
+      "docs/DESIGN-d1-deployment-amendments-2026-08-21.md",
+      "docs/DESIGN-discussions-2026-10-09.md",
+      "docs/DESIGN-editor-usability-2026-07-25.md",
+      "docs/DESIGN-generator-upgrade-2026-10-06.md",
+      "docs/DESIGN-guide-tutorial-2026-09-24.md",
+      "docs/DESIGN-insert-link-ares-2026-10-18.md",
+      "docs/DESIGN-manage-accordion-2026-08-16.md"
+    ]
+  },
+  "documentation-03": {
+    "treatment": "consistency",
+    "group": "documentation",
+    "lines": 2937,
+    "files": [
+      "docs/DESIGN-modes-connectivity-network-2026-10-19.md",
+      "docs/DESIGN-next-direction-2026-08-19.md",
+      "docs/DESIGN-public-library.md",
+      "docs/DESIGN-read-page-accordion-2026-08-29.md",
+      "docs/DESIGN-school-commissioning-and-updates-2026-10-26.md",
+      "docs/DESIGN-system-panel-2026-08-21.md",
+      "docs/DESIGN-user-model-language-2026-07-29.md",
+      "docs/DESIGN-visual-system-2026-07-31.md",
+      "docs/DESIGN-who-manages-what-2026-08-29.md"
+    ]
+  },
+  "documentation-04": {
+    "treatment": "consistency",
+    "group": "documentation",
+    "lines": 3487,
+    "files": [
+      "docs/DESIGN-working-drafts.md",
+      "docs/EXTERNAL-DEPENDENCIES.md",
+      "docs/GO-LIVE-REHEARSAL.md",
+      "docs/LOCAL-SERVER-DEPLOYMENT.md",
+      "docs/NEXT-SESSION.md",
+      "docs/OPS.md",
+      "docs/ROCK5B-SETUP.md",
+      "docs/SIGN-IN-PROTECTION.md"
+    ]
+  },
+  "documentation-05": {
+    "treatment": "consistency",
+    "group": "documentation",
+    "lines": 2220,
+    "files": [
+      "docs/drift.md",
+      "docs/evidence/attribution-node-24.22.1-comparison.json",
+      "docs/evidence/gotenberg-8.38.0-comparison.json",
+      "docs/how-CBE-generation-works.md",
+      "docs/spikes/discussions-finished-2026-10-11/README.md",
+      "docs/spikes/discussions-finished-2026-10-11/RESULTS.md",
+      "docs/spikes/discussions-finished-2026-10-11/mac-results.json",
+      "docs/spikes/discussions-finished-2026-10-11/measure.mjs",
+      "docs/spikes/discussions-finished-2026-10-11/rock-results.json",
+      "docs/spikes/discussions-search-2026-10-09/README.md",
+      "docs/spikes/discussions-search-2026-10-09/config.ts",
+      "docs/spikes/discussions-search-2026-10-09/correctness.ts",
+      "docs/spikes/discussions-search-2026-10-09/measure.ts",
+      "docs/spikes/discussions-search-2026-10-09/measure2.ts",
+      "docs/spikes/discussions-search-2026-10-09/search.sql",
+      "docs/spikes/discussions-search-2026-10-09/seed.sql",
+      "docs/spikes/discussions-search-2026-10-09/titlebody.ts",
+      "docs/spikes/discussions-search-2026-10-09/titles.ts",
+      "docs/spikes/discussions-search-2026-10-09/titlesem.ts",
+      "how-CBE-generation-works.md",
+      "system_panel_functions.md"
+    ]
+  },
+  "migrations-01": {
+    "treatment": "migration",
+    "group": "migrations",
+    "lines": 145110,
+    "files": [
+      "app/src/migrations/20260608_024132_initial.json",
+      "app/src/migrations/20260608_024132_initial.ts",
+      "app/src/migrations/20260608_145602_lesson_entities.json",
+      "app/src/migrations/20260608_145602_lesson_entities.ts",
+      "app/src/migrations/20260608_224715_bundle_versioning.json",
+      "app/src/migrations/20260608_224715_bundle_versioning.ts",
+      "app/src/migrations/20260609_164927_subjectgrade_unique_drop_media.json",
+      "app/src/migrations/20260609_164927_subjectgrade_unique_drop_media.ts",
+      "app/src/migrations/20260609_170000_drop_subject_slug.json",
+      "app/src/migrations/20260609_170000_drop_subject_slug.ts",
+      "app/src/migrations/20260622_210554_add_unit_fields.json",
+      "app/src/migrations/20260622_210554_add_unit_fields.ts",
+      "app/src/migrations/20260623_151918_add_payload_jobs.json",
+      "app/src/migrations/20260623_151918_add_payload_jobs.ts",
+      "app/src/migrations/20260624_221905_official_version_model.json",
+      "app/src/migrations/20260624_221905_official_version_model.ts",
+      "app/src/migrations/20260625_125532_drop_lesson_bundles.json",
+      "app/src/migrations/20260625_125532_drop_lesson_bundles.ts",
+      "app/src/migrations/20260628_154237_add_version_semver_unique.json",
+      "app/src/migrations/20260628_154237_add_version_semver_unique.ts",
+      "app/src/migrations/20260629_213000_add_rate_limit_counters.ts",
+      "app/src/migrations/20260702_015014_add_version_author.json",
+      "app/src/migrations/20260702_015014_add_version_author.ts",
+      "app/src/migrations/20260702_194849_add_favorites.json",
+      "app/src/migrations/20260702_194849_add_favorites.ts",
+      "app/src/migrations/20260702_230926_add_email_task.json",
+      "app/src/migrations/20260702_230926_add_email_task.ts",
+      "app/src/migrations/20260703_041716_add_messaging.json",
+      "app/src/migrations/20260703_041716_add_messaging.ts",
+      "app/src/migrations/20260706_175339_favorites_per_version.json",
+      "app/src/migrations/20260706_175339_favorites_per_version.ts",
+      "app/src/migrations/20260710_041621_add_email_verification.json",
+      "app/src/migrations/20260710_041621_add_email_verification.ts",
+      "app/src/migrations/20260719_185124_ares_resource_links_cutover.json",
+      "app/src/migrations/20260719_185124_ares_resource_links_cutover.ts",
+      "app/src/migrations/20260719_210359_resource_links_child_rows.json",
+      "app/src/migrations/20260719_210359_resource_links_child_rows.ts",
+      "app/src/migrations/20260721_025518_add_password_reset_email_task.json",
+      "app/src/migrations/20260721_025518_add_password_reset_email_task.ts",
+      "app/src/migrations/20260806_185943_add_edit_recovery.json",
+      "app/src/migrations/20260806_185943_add_edit_recovery.ts",
+      "app/src/migrations/20260812_180000_dedupe_pending_export_jobs.ts",
+      "app/src/migrations/20260814_235248_add_public_publication.json",
+      "app/src/migrations/20260814_235248_add_public_publication.ts",
+      "app/src/migrations/20260817_141942_add_sign_in_disabled.json",
+      "app/src/migrations/20260817_141942_add_sign_in_disabled.ts",
+      "app/src/migrations/20260820_223208_add_assignment_provenance.json",
+      "app/src/migrations/20260820_223208_add_assignment_provenance.ts",
+      "app/src/migrations/20260821_234341_add_system_settings.json",
+      "app/src/migrations/20260821_234341_add_system_settings.ts",
+      "app/src/migrations/20260822_011614_drop_outbound_email_flag.json",
+      "app/src/migrations/20260822_011614_drop_outbound_email_flag.ts",
+      "app/src/migrations/20260919_222201_add_reset_password_requested_at.json",
+      "app/src/migrations/20260919_222201_add_reset_password_requested_at.ts",
+      "app/src/migrations/20261009_082909_add_forum_enabled.json",
+      "app/src/migrations/20261009_082909_add_forum_enabled.ts",
+      "app/src/migrations/20261009_125057_add_discussions.json",
+      "app/src/migrations/20261009_125057_add_discussions.ts",
+      "app/src/migrations/20261012_012355_add_message_version_labels.json",
+      "app/src/migrations/20261012_012355_add_message_version_labels.ts",
+      "app/src/migrations/20261018_072213_combine_lineage.json",
+      "app/src/migrations/20261018_072213_combine_lineage.ts",
+      "app/src/migrations/20261018_095242_combine_draft_context.json",
+      "app/src/migrations/20261018_095242_combine_draft_context.ts",
+      "app/src/migrations/20261019_120000_release_ancestry.ts",
+      "app/src/migrations/20261019_211325_worldwide_ids.json",
+      "app/src/migrations/20261019_211325_worldwide_ids.ts",
+      "app/src/migrations/20261020_092934_advanced_tools.json",
+      "app/src/migrations/20261020_092934_advanced_tools.ts",
+      "app/src/migrations/20261024_094011_native_lock_scope.json",
+      "app/src/migrations/20261024_094011_native_lock_scope.ts",
+      "app/src/migrations/20261026_103510_lesson_releases_1a.json",
+      "app/src/migrations/20261026_103510_lesson_releases_1a.ts",
+      "app/src/migrations/20261026_195602_school_name.json",
+      "app/src/migrations/20261026_195602_school_name.ts",
+      "app/src/migrations/index.ts"
+    ]
+  },
+  "access-01": {
+    "treatment": "source",
+    "group": "access",
+    "lines": 652,
+    "files": [
+      "app/src/access/bundle.ts",
+      "app/src/access/generatedSurfaces.ts",
+      "app/src/access/index.ts",
+      "app/src/access/lockedDocuments.ts",
+      "app/src/access/versionImmutability.ts",
+      "app/src/access/versioning.ts"
+    ]
+  },
+  "admin-wiring-01": {
+    "treatment": "source",
+    "group": "admin-wiring",
+    "lines": 2912,
+    "files": [
+      "app/src/app/(payload)/custom.scss"
+    ]
+  },
+  "admin-wiring-02": {
+    "treatment": "source",
+    "group": "admin-wiring",
+    "lines": 575,
+    "files": [
+      "app/src/app/app-chrome.scss",
+      "app/src/app/app-dialog.scss",
+      "app/src/app/app-tokens.scss"
+    ]
+  },
+  "app-scripts-01": {
+    "treatment": "source",
+    "group": "app-scripts",
+    "lines": 2323,
+    "files": [
+      "app/scripts/adapter-fidelity.ts",
+      "app/scripts/bench-typing.mjs",
+      "app/scripts/check-approuter.mjs",
+      "app/scripts/clear-editor-collapse-prefs.ts",
+      "app/scripts/contract-check.ts",
+      "app/scripts/contract-drift.ts",
+      "app/scripts/corpus-check.ts",
+      "app/scripts/corpus-resource-check.ts",
+      "app/scripts/fidelity-spike.ts",
+      "app/scripts/import-lessons.ts",
+      "app/scripts/ingest-extract-check.ts",
+      "app/scripts/ingest.ts",
+      "app/scripts/lib/docxDiff.ts",
+      "app/scripts/lib/fidelityFixture.ts",
+      "app/scripts/lib/localDbGuard.ts",
+      "app/scripts/lib/payloadRowIds.ts",
+      "app/scripts/lib/preferences.ts",
+      "app/scripts/lib/stripCollapsed.ts",
+      "app/scripts/login-client.mjs",
+      "app/scripts/patch-payload-ui.mjs",
+      "app/scripts/recover-site-admin.ts",
+      "app/scripts/reset-installation-id.ts"
+    ]
+  },
+  "app-scripts-02": {
+    "treatment": "source",
+    "group": "app-scripts",
+    "lines": 1423,
+    "files": [
+      "app/scripts/restore-check.ts",
+      "app/scripts/roundtrip-regression.ts",
+      "app/scripts/seed-local-dev.ts",
+      "app/scripts/seed-users.ts",
+      "app/scripts/set-school-name.ts",
+      "app/scripts/verify-edit-recovery-cascade.ts",
+      "app/scripts/verify-rbac.ts",
+      "app/scripts/verify-stage2-export.ts",
+      "app/scripts/verify-stage2-reads.ts",
+      "app/scripts/verify-stage2b-preview.ts"
+    ]
+  },
+  "collections-01": {
+    "treatment": "source",
+    "group": "collections",
+    "lines": 2023,
+    "files": [
+      "app/src/collections/DiscussionParticipation.ts",
+      "app/src/collections/DiscussionReplies.ts",
+      "app/src/collections/DiscussionTopics.ts",
+      "app/src/collections/EditRecovery.ts",
+      "app/src/collections/Favorites.ts",
+      "app/src/collections/LessonBundleVersions.ts",
+      "app/src/collections/LessonPlans.ts",
+      "app/src/collections/Messages.ts",
+      "app/src/collections/Subject.ts",
+      "app/src/collections/SubjectGrade.ts",
+      "app/src/collections/Users.ts"
+    ]
+  },
+  "components-01": {
+    "treatment": "source",
+    "group": "components",
+    "lines": 2359,
+    "files": [
+      "app/src/components/AdminDashboard/CandidateList.tsx",
+      "app/src/components/AdminDashboard/DeletePlansPanel.tsx",
+      "app/src/components/AdminDashboard/index.tsx",
+      "app/src/components/AdminHeaderMenu/index.tsx",
+      "app/src/components/AdminUnauthorizedRedirect/index.tsx",
+      "app/src/components/AppNav/NavigationFreshness.tsx",
+      "app/src/components/AppNav/index.tsx",
+      "app/src/components/AppVersion.tsx",
+      "app/src/components/Brand/Icon.tsx",
+      "app/src/components/CollapseOnEntry/index.tsx",
+      "app/src/components/CombineVersions/applyOverlay.ts",
+      "app/src/components/CombineVersions/comparisonError.ts",
+      "app/src/components/CombineVersions/index.tsx",
+      "app/src/components/CompareToOfficialLink.tsx"
+    ]
+  },
+  "components-02": {
+    "treatment": "source",
+    "group": "components",
+    "lines": 2337,
+    "files": [
+      "app/src/components/Discussions/ComposerParts.tsx",
+      "app/src/components/Discussions/MarkThreadRead.tsx",
+      "app/src/components/Discussions/ModerationControls.tsx",
+      "app/src/components/Discussions/Pager.tsx",
+      "app/src/components/Discussions/PostText.tsx",
+      "app/src/components/Discussions/ReferencePicker.tsx",
+      "app/src/components/Discussions/ReplyComposer.tsx",
+      "app/src/components/Discussions/TopicComposer.tsx",
+      "app/src/components/Discussions/referencePickerQueries.ts",
+      "app/src/components/Discussions/submitPost.ts",
+      "app/src/components/Discussions/useComposer.ts",
+      "app/src/components/DocButtons.tsx",
+      "app/src/components/DocStrip.tsx",
+      "app/src/components/EditRecovery/Indicator.tsx",
+      "app/src/components/EditRecovery/RestorePrompt.tsx",
+      "app/src/components/EditRecovery/deadline.ts",
+      "app/src/components/EditRecovery/flushRegistry.tsx",
+      "app/src/components/EditRecovery/protocol.ts",
+      "app/src/components/EditRecovery/restoreDiff.ts",
+      "app/src/components/EditRecovery/restoreGroups.ts",
+      "app/src/components/EditRecovery/unsavedWarning.ts"
+    ]
+  },
+  "components-03": {
+    "treatment": "source",
+    "group": "components",
+    "lines": 2179,
+    "files": [
+      "app/src/components/EditRecovery/useEditRecovery.ts",
+      "app/src/components/FavoriteToggle.tsx",
+      "app/src/components/FormField.tsx",
+      "app/src/components/Guide/Accordion.tsx",
+      "app/src/components/Guide/availability.ts",
+      "app/src/components/Guide/panelState.ts",
+      "app/src/components/IdleLogout/index.tsx",
+      "app/src/components/LessonControls/EditJumpNav.tsx",
+      "app/src/components/LessonControls/MoreMenu.tsx",
+      "app/src/components/LessonControls/currentSection.ts",
+      "app/src/components/LessonControls/entryPhase.ts"
+    ]
+  },
+  "components-04": {
+    "treatment": "source",
+    "group": "components",
+    "lines": 2321,
+    "files": [
+      "app/src/components/LessonControls/index.tsx",
+      "app/src/components/LessonControls/initialCollapse.ts",
+      "app/src/components/LessonControls/server.tsx",
+      "app/src/components/LessonControls/validation.ts",
+      "app/src/components/LessonDetails.tsx",
+      "app/src/components/LessonReference.tsx",
+      "app/src/components/LinkedTextarea/activeTarget.ts",
+      "app/src/components/LinkedTextarea/aresAddress.ts",
+      "app/src/components/LinkedTextarea/index.tsx",
+      "app/src/components/LinkedTextarea/insertLink.ts",
+      "app/src/components/Manage/Accordion.tsx"
+    ]
+  },
+  "components-05": {
+    "treatment": "source",
+    "group": "components",
+    "lines": 2142,
+    "files": [
+      "app/src/components/Manage/BackupStatusPanel.tsx",
+      "app/src/components/Manage/ClockCheck.tsx",
+      "app/src/components/Manage/LocalTime.tsx",
+      "app/src/components/Manage/PersonIdentity.tsx",
+      "app/src/components/Manage/RolesAccessPanel.tsx",
+      "app/src/components/Manage/SubjectsAndGradesPanel.tsx",
+      "app/src/components/Manage/SystemFactsPanel.tsx",
+      "app/src/components/Manage/SystemFeaturesPanel.tsx",
+      "app/src/components/Manage/UnsavedWorkList.tsx",
+      "app/src/components/Manage/UsersPanel.tsx"
+    ]
+  },
+  "components-06": {
+    "treatment": "source",
+    "group": "components",
+    "lines": 2339,
+    "files": [
+      "app/src/components/Manage/panelState.ts",
+      "app/src/components/Manage/readFeaturesSettings.ts",
+      "app/src/components/Manage/systemFeaturesState.ts",
+      "app/src/components/Manage/taxonomyActions.ts",
+      "app/src/components/Manage/useOpenPanels.ts",
+      "app/src/components/Modal/index.tsx",
+      "app/src/components/NewTabLink.tsx",
+      "app/src/components/NewerAresPrompt.tsx",
+      "app/src/components/OfficialUpdateNotice.tsx",
+      "app/src/components/PageBackLink.tsx",
+      "app/src/components/PageHeader.tsx",
+      "app/src/components/PasswordInput.tsx",
+      "app/src/components/PhaseSelectField/index.tsx",
+      "app/src/components/RedirectToManage/index.tsx",
+      "app/src/components/RequestEditingButton.tsx",
+      "app/src/components/RowLabel/formatRowLabel.ts",
+      "app/src/components/RowLabel/index.tsx",
+      "app/src/components/SchoolName.tsx",
+      "app/src/components/SubjectSelectField/index.tsx",
+      "app/src/components/SubjectSelectField/options.ts",
+      "app/src/components/UploadBundles/OfficialPreviewList.tsx",
+      "app/src/components/UploadBundles/index.tsx",
+      "app/src/components/UserMenu/DisplayNameForm.tsx",
+      "app/src/components/UserMenu/index.tsx"
+    ]
+  },
+  "components-07": {
+    "treatment": "source",
+    "group": "components",
+    "lines": 764,
+    "files": [
+      "app/src/components/VersionTimestamps/index.tsx",
+      "app/src/components/VersionsChip.tsx",
+      "app/src/components/WelcomeDialog/index.tsx",
+      "app/src/components/exportClient.ts"
+    ]
+  },
+  "deployment-01": {
+    "treatment": "source",
+    "group": "deployment",
+    "lines": 1220,
+    "files": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/publish-containers.yml",
+      "deploy/online/compose.template.yaml",
+      "deploy/online/install.sh",
+      "deploy/online/update.sh",
+      "docker-compose.local.yml",
+      "docker-compose.test.yml",
+      "docker-compose.yml",
+      "gotenberg/Dockerfile"
+    ]
+  },
+  "development-01": {
+    "treatment": "source",
+    "group": "development",
+    "lines": 1249,
+    "files": [
+      ".claude/launch.json",
+      ".claude/settings.json",
+      ".env.example",
+      ".gitignore",
+      ".nvmrc",
+      "LICENSE",
+      "NOTICE",
+      "app/.dockerignore",
+      "app/.env.example",
+      "app/.gitignore",
+      "app/.npmrc",
+      "app/.nvmrc",
+      "app/.prettierignore",
+      "app/.prettierrc.json",
+      "app/.yarnrc",
+      "app/Dockerfile",
+      "app/LICENSE",
+      "app/README.md",
+      "app/eslint.config.mjs",
+      "app/next.config.ts",
+      "app/package.json",
+      "app/playwright.config.ts",
+      "app/playwright.style.config.ts",
+      "app/public/.gitkeep",
+      "app/test.env",
+      "app/tsconfig.json",
+      "app/vitest.config.mts",
+      "app/vitest.http.config.mts",
+      "app/vitest.setup.ts",
+      "app/vitest.unit.config.mts",
+      "out/ops/.gitkeep",
+      "out/resource-library/.gitkeep"
+    ]
+  },
+  "endpoints-01": {
+    "treatment": "source",
+    "group": "endpoints",
+    "lines": 2382,
+    "files": [
+      "app/src/endpoints/aresExport.ts",
+      "app/src/endpoints/combinePreview.ts",
+      "app/src/endpoints/discussionActions.ts",
+      "app/src/endpoints/discussionNavState.ts",
+      "app/src/endpoints/discussionThreadDelete.ts",
+      "app/src/endpoints/emailVersion.ts",
+      "app/src/endpoints/exportAuth.ts",
+      "app/src/endpoints/exportVersion.ts",
+      "app/src/endpoints/forgotPassword.ts",
+      "app/src/endpoints/login.ts",
+      "app/src/endpoints/markMessagesRead.ts",
+      "app/src/endpoints/moderate.ts",
+      "app/src/endpoints/parseFormat.ts",
+      "app/src/endpoints/previewParse.ts",
+      "app/src/endpoints/previewShared.ts",
+      "app/src/endpoints/previewVersion.ts",
+      "app/src/endpoints/recovery.ts",
+      "app/src/endpoints/recoveryParse.ts",
+      "app/src/endpoints/requestEditing.ts"
+    ]
+  },
+  "endpoints-02": {
+    "treatment": "source",
+    "group": "endpoints",
+    "lines": 2173,
+    "files": [
+      "app/src/endpoints/resourceLibrary.ts",
+      "app/src/endpoints/respond.ts",
+      "app/src/endpoints/serverTime.ts",
+      "app/src/endpoints/systemSettingsSave.ts",
+      "app/src/endpoints/uploadBundles.ts",
+      "app/src/endpoints/userAdminActions.ts",
+      "app/src/endpoints/userAssignments.ts",
+      "app/src/endpoints/userSearch.ts",
+      "app/src/endpoints/verifyEmail.ts",
+      "app/src/endpoints/versionEdit.ts"
+    ]
+  },
+  "errors-01": {
+    "treatment": "source",
+    "group": "errors",
+    "lines": 120,
+    "files": [
+      "app/src/errors/AccountDisabled.ts"
+    ]
+  },
+  "fields-01": {
+    "treatment": "source",
+    "group": "fields",
+    "lines": 729,
+    "files": [
+      "app/src/fields/bundleFields.ts",
+      "app/src/fields/identity.ts",
+      "app/src/fields/lessonContent.ts",
+      "app/src/fields/officialChange.ts",
+      "app/src/fields/phases.ts"
+    ]
+  },
+  "frontend-01": {
+    "treatment": "source",
+    "group": "frontend",
+    "lines": 2284,
+    "files": [
+      "app/src/app/(frontend)/LibraryBrowser.tsx",
+      "app/src/app/(frontend)/discuss/[id]/page.tsx",
+      "app/src/app/(frontend)/discuss/new/page.tsx",
+      "app/src/app/(frontend)/discuss/page.tsx",
+      "app/src/app/(frontend)/explore/page.tsx",
+      "app/src/app/(frontend)/forgot-password/ForgotPasswordForm.tsx",
+      "app/src/app/(frontend)/forgot-password/page.tsx",
+      "app/src/app/(frontend)/guide/page.tsx",
+      "app/src/app/(frontend)/layout.tsx",
+      "app/src/app/(frontend)/lessons/[id]/EditActions.tsx"
+    ]
+  },
+  "frontend-02": {
+    "treatment": "source",
+    "group": "frontend",
+    "lines": 2314,
+    "files": [
+      "app/src/app/(frontend)/lessons/[id]/EmailModal.tsx",
+      "app/src/app/(frontend)/lessons/[id]/ShareMenu.tsx",
+      "app/src/app/(frontend)/lessons/[id]/compare/CompareFilter.tsx",
+      "app/src/app/(frontend)/lessons/[id]/compare/ComparePickers.tsx",
+      "app/src/app/(frontend)/lessons/[id]/compare/page.tsx",
+      "app/src/app/(frontend)/lessons/[id]/page.tsx",
+      "app/src/app/(frontend)/login/FirstUserForm.tsx",
+      "app/src/app/(frontend)/login/LoginForm.tsx",
+      "app/src/app/(frontend)/login/page.tsx",
+      "app/src/app/(frontend)/messages/Composer.tsx",
+      "app/src/app/(frontend)/messages/MarkShownRead.tsx",
+      "app/src/app/(frontend)/messages/ReplyBox.tsx",
+      "app/src/app/(frontend)/messages/page.tsx",
+      "app/src/app/(frontend)/messages/sendMessage.ts",
+      "app/src/app/(frontend)/page.tsx",
+      "app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx",
+      "app/src/app/(frontend)/reset-password/page.tsx"
+    ]
+  },
+  "frontend-03": {
+    "treatment": "source",
+    "group": "frontend",
+    "lines": 2302,
+    "files": [
+      "app/src/app/(frontend)/signup/SignupForm.tsx",
+      "app/src/app/(frontend)/signup/page.tsx",
+      "app/src/app/(frontend)/styles.css",
+      "app/src/app/(frontend)/verify-email/VerifyEmail.tsx",
+      "app/src/app/(frontend)/verify-email/page.tsx"
+    ]
+  },
+  "generator-01": {
+    "treatment": "source",
+    "group": "generator",
+    "lines": 1689,
+    "files": [
+      "app/src/generator/adapter.ts",
+      "app/src/generator/artifactCache.ts",
+      "app/src/generator/cacheCodecs.ts",
+      "app/src/generator/config/attribution.yaml",
+      "app/src/generator/deliverables.ts",
+      "app/src/generator/docxToPdf.ts",
+      "app/src/generator/exportArtifacts.ts",
+      "app/src/generator/generateForVersion.ts",
+      "app/src/generator/htmlDiffCache.ts",
+      "app/src/generator/htmlSectionsCache.ts",
+      "app/src/generator/index.ts",
+      "app/src/generator/previewBundle.ts",
+      "app/src/generator/proseLinks.ts",
+      "app/src/generator/renderVersion.ts"
+    ]
+  },
+  "globals-01": {
+    "treatment": "source",
+    "group": "globals",
+    "lines": 277,
+    "files": [
+      "app/src/globals/SystemSettings.ts"
+    ]
+  },
+  "hooks-01": {
+    "treatment": "source",
+    "group": "hooks",
+    "lines": 1887,
+    "files": [
+      "app/src/hooks/authRateLimit.ts",
+      "app/src/hooks/bundleVersion.ts",
+      "app/src/hooks/discussions.ts",
+      "app/src/hooks/fieldSplit.ts",
+      "app/src/hooks/lessonPlan.ts",
+      "app/src/hooks/loginPasswordWork.ts",
+      "app/src/hooks/messageReference.ts",
+      "app/src/hooks/mutationAuthority.ts"
+    ]
+  },
+  "hooks-02": {
+    "treatment": "source",
+    "group": "hooks",
+    "lines": 618,
+    "files": [
+      "app/src/hooks/userRoles.ts"
+    ]
+  },
+  "ingest-01": {
+    "treatment": "source",
+    "group": "ingest",
+    "lines": 1895,
+    "files": [
+      "app/src/ingest/ares-contract.schema.json",
+      "app/src/ingest/contract.ts",
+      "app/src/ingest/errors.ts",
+      "app/src/ingest/extract.ts",
+      "app/src/ingest/importLessons.ts",
+      "app/src/ingest/releaseAncestry.ts",
+      "app/src/ingest/releaseFingerprintContext.ts",
+      "app/src/ingest/releaseMessages.ts",
+      "app/src/ingest/resourceLinks.ts",
+      "app/src/ingest/taxonomy.ts",
+      "app/src/ingest/toBundle.ts",
+      "app/src/ingest/uploadFiles.ts",
+      "app/src/ingest/validateGeneratable.ts"
+    ]
+  },
+  "instrumentation.ts-01": {
+    "treatment": "source",
+    "group": "instrumentation.ts",
+    "lines": 38,
+    "files": [
+      "app/src/instrumentation.ts"
+    ]
+  },
+  "jobs-01": {
+    "treatment": "source",
+    "group": "jobs",
+    "lines": 611,
+    "files": [
+      "app/src/jobs/emailVersionArtifact.ts",
+      "app/src/jobs/expireEditRecovery.ts",
+      "app/src/jobs/generateVersionArtifact.ts",
+      "app/src/jobs/messagePing.ts",
+      "app/src/jobs/passwordResetEmail.ts",
+      "app/src/jobs/prewarmVersionArtifacts.ts"
+    ]
+  },
+  "lib-01": {
+    "treatment": "source",
+    "group": "lib",
+    "lines": 2395,
+    "files": [
+      "app/src/lib/accessScopes.ts",
+      "app/src/lib/advancedTools.ts",
+      "app/src/lib/apiBase.ts",
+      "app/src/lib/aresReleasePresentation.ts",
+      "app/src/lib/assignmentCounts.ts",
+      "app/src/lib/assignmentRoles.ts",
+      "app/src/lib/awaitingApproval.ts",
+      "app/src/lib/canonicalJson.ts",
+      "app/src/lib/clockSkew.ts",
+      "app/src/lib/compareGroups.ts",
+      "app/src/lib/conversionLimit.ts",
+      "app/src/lib/discussionComposer.ts",
+      "app/src/lib/discussionPages.ts",
+      "app/src/lib/discussionPaging.ts",
+      "app/src/lib/discussionText.ts",
+      "app/src/lib/discussions.ts",
+      "app/src/lib/displayTitle.ts",
+      "app/src/lib/domWindow.ts",
+      "app/src/lib/editingViewport.ts",
+      "app/src/lib/editorGroups.ts",
+      "app/src/lib/emailAddress.ts",
+      "app/src/lib/emailLinkBase.ts",
+      "app/src/lib/enqueue.ts",
+      "app/src/lib/env.ts",
+      "app/src/lib/errorTracking.ts",
+      "app/src/lib/escapeHtml.ts",
+      "app/src/lib/firstUserBootstrap.ts",
+      "app/src/lib/formatDate.ts",
+      "app/src/lib/frameworkProse.ts",
+      "app/src/lib/gradeLevels.ts"
+    ]
+  },
+  "lib-02": {
+    "treatment": "source",
+    "group": "lib",
+    "lines": 2343,
+    "files": [
+      "app/src/lib/initials.ts",
+      "app/src/lib/lessonAnchors.ts",
+      "app/src/lib/lessonDetails.ts",
+      "app/src/lib/lessonReference.ts",
+      "app/src/lib/loginProtection.ts",
+      "app/src/lib/messageText.ts",
+      "app/src/lib/offlineAdminRecovery.ts",
+      "app/src/lib/personalFavorites.ts",
+      "app/src/lib/personalVersions.ts",
+      "app/src/lib/planSelection.ts",
+      "app/src/lib/plural.ts",
+      "app/src/lib/proseLinkTokens.ts",
+      "app/src/lib/publicLibrary.ts",
+      "app/src/lib/publicPlan.ts",
+      "app/src/lib/publicPosture.ts",
+      "app/src/lib/publicSlug.ts",
+      "app/src/lib/rateLimit.ts",
+      "app/src/lib/readBundle.ts",
+      "app/src/lib/relId.ts",
+      "app/src/lib/renderTimings.ts",
+      "app/src/lib/requestedVersion.ts",
+      "app/src/lib/resolveLessonReferences.ts",
+      "app/src/lib/sanitizeHtml.ts",
+      "app/src/lib/schoolMetadata.ts",
+      "app/src/lib/schoolName.ts",
+      "app/src/lib/serverActionBodyLimit.ts",
+      "app/src/lib/session.ts",
+      "app/src/lib/setSchoolName.ts",
+      "app/src/lib/stripIds.ts",
+      "app/src/lib/substrand.ts"
+    ]
+  },
+  "lib-03": {
+    "treatment": "source",
+    "group": "lib",
+    "lines": 1116,
+    "files": [
+      "app/src/lib/systemFacts.ts",
+      "app/src/lib/systemFlagNames.ts",
+      "app/src/lib/systemFlags.ts",
+      "app/src/lib/txDb.ts",
+      "app/src/lib/userSearchContract.ts",
+      "app/src/lib/versionContent.ts",
+      "app/src/lib/versionCounts.ts",
+      "app/src/lib/versionsOrder.ts",
+      "app/src/lib/welcomeDismissal.ts",
+      "app/src/lib/widgetUser.ts",
+      "app/src/lib/wireError.ts"
+    ]
+  },
+  "lib-combine-01": {
+    "treatment": "source",
+    "group": "lib-combine",
+    "lines": 716,
+    "files": [
+      "app/src/lib/combine/ancestry.ts",
+      "app/src/lib/combine/backfill.ts",
+      "app/src/lib/combine/correspondence.ts",
+      "app/src/lib/combine/diff3.ts",
+      "app/src/lib/combine/draft.ts",
+      "app/src/lib/combine/engine.ts",
+      "app/src/lib/combine/lineage.ts",
+      "app/src/lib/combine/outcome.ts"
+    ]
+  },
+  "lib-editRecovery-01": {
+    "treatment": "source",
+    "group": "lib-editRecovery",
+    "lines": 1405,
+    "files": [
+      "app/src/lib/editRecovery/draftCombineSuggestion.ts",
+      "app/src/lib/editRecovery/kernel.ts",
+      "app/src/lib/editRecovery/projection.ts",
+      "app/src/lib/editRecovery/provenance.ts",
+      "app/src/lib/editRecovery/ttl.ts",
+      "app/src/lib/editRecovery/unsavedWork.ts"
+    ]
+  },
+  "lib-identity-01": {
+    "treatment": "source",
+    "group": "lib-identity",
+    "lines": 147,
+    "files": [
+      "app/src/lib/identity/installationId.ts",
+      "app/src/lib/identity/releaseFingerprint.ts"
+    ]
+  },
+  "operations-01": {
+    "treatment": "source",
+    "group": "operations",
+    "lines": 1843,
+    "files": [
+      "scripts/backup-db.sh",
+      "scripts/build-local-deploy-bundle.sh",
+      "scripts/create-env.sh",
+      "scripts/deploy.sh",
+      "scripts/dev-seed.sh",
+      "scripts/dev-server.sh",
+      "scripts/heartbeat.sh",
+      "scripts/in-deps.sh",
+      "scripts/lib.sh",
+      "scripts/lib/backup-password.sh",
+      "scripts/lib/dev-env.sh",
+      "scripts/lib/release-images.sh",
+      "scripts/lib/restore-probe-tools.Dockerfile",
+      "scripts/lib/setup-school-backups-probe.mjs",
+      "scripts/merge-release-images.sh",
+      "scripts/prune-db.sh",
+      "scripts/publish-release-bundle.sh"
+    ]
+  },
+  "operations-02": {
+    "treatment": "source",
+    "group": "operations",
+    "lines": 2331,
+    "files": [
+      "scripts/restore-db.sh",
+      "scripts/setup-school-backups.sh",
+      "scripts/test-backup-status.sh",
+      "scripts/test-deploy-sidecar.sh",
+      "scripts/test-local-deploy-bundle.sh",
+      "scripts/test-merge-release-images.sh"
+    ]
+  },
+  "operations-03": {
+    "treatment": "source",
+    "group": "operations",
+    "lines": 1527,
+    "files": [
+      "scripts/test-online-update.sh",
+      "scripts/test-publish-release-bundle.sh",
+      "scripts/test-restore-db-stack.sh",
+      "scripts/test-restore-db.sh",
+      "scripts/test-vendor-generator.sh",
+      "scripts/vendor-generator.sh",
+      "scripts/verify-release-bundle-images.sh"
+    ]
+  },
+  "payload.config.ts-01": {
+    "treatment": "source",
+    "group": "payload.config.ts",
+    "lines": 298,
+    "files": [
+      "app/src/payload.config.ts"
+    ]
+  },
+  "proxy.ts-01": {
+    "treatment": "source",
+    "group": "proxy.ts",
+    "lines": 88,
+    "files": [
+      "app/src/proxy.ts"
+    ]
+  },
+  "tests-e2e-01": {
+    "treatment": "tests",
+    "group": "tests-e2e",
+    "lines": 3480,
+    "files": [
+      "app/tests/e2e/advancedTools.e2e.spec.ts",
+      "app/tests/e2e/catalogue.e2e.spec.ts",
+      "app/tests/e2e/combine.e2e.spec.ts",
+      "app/tests/e2e/discussions.e2e.spec.ts",
+      "app/tests/e2e/discussionsGuide.e2e.spec.ts",
+      "app/tests/e2e/discussionsModeration.e2e.spec.ts",
+      "app/tests/e2e/documentLocks.e2e.spec.ts",
+      "app/tests/e2e/draftCombineShortcut.e2e.spec.ts",
+      "app/tests/e2e/drafts.e2e.spec.ts",
+      "app/tests/e2e/editRecovery.e2e.spec.ts",
+      "app/tests/e2e/editRecoveryRestore.e2e.spec.ts",
+      "app/tests/e2e/editorBackDarkMode.e2e.spec.ts",
+      "app/tests/e2e/editorValidation.e2e.spec.ts",
+      "app/tests/e2e/insertLink.e2e.spec.ts",
+      "app/tests/e2e/lessonDetails.e2e.spec.ts",
+      "app/tests/e2e/lessonReleases.e2e.spec.ts"
+    ]
+  },
+  "tests-e2e-02": {
+    "treatment": "tests",
+    "group": "tests-e2e",
+    "lines": 3239,
+    "files": [
+      "app/tests/e2e/liveRowLabels.e2e.spec.ts",
+      "app/tests/e2e/manage.e2e.spec.ts",
+      "app/tests/e2e/messages.e2e.spec.ts",
+      "app/tests/e2e/offlineSignup.e2e.spec.ts",
+      "app/tests/e2e/publicLibraryDisabled.e2e.spec.ts",
+      "app/tests/e2e/saveSnapshot.e2e.spec.ts",
+      "app/tests/e2e/schoolName.e2e.spec.ts",
+      "app/tests/e2e/uploadBundles.e2e.spec.ts",
+      "app/tests/e2e/versionUnavailable.e2e.spec.ts",
+      "app/tests/e2e/welcomeDialog.e2e.spec.ts"
+    ]
+  },
+  "tests-fixtures-01": {
+    "treatment": "tests",
+    "group": "tests-fixtures",
+    "lines": 40,
+    "files": [
+      "app/tests/fixtures/pdf-library/.gitattributes",
+      "app/tests/fixtures/pdf-library/README.md",
+      "app/tests/fixtures/pdf-library/public-wire.pdf"
+    ]
+  },
+  "tests-helpers-01": {
+    "treatment": "tests",
+    "group": "tests-helpers",
+    "lines": 1668,
+    "files": [
+      "app/tests/helpers/cssSelectors.ts",
+      "app/tests/helpers/db.ts",
+      "app/tests/helpers/dialogs.ts",
+      "app/tests/helpers/discussions.ts",
+      "app/tests/helpers/e2e.ts",
+      "app/tests/helpers/editRecovery.ts",
+      "app/tests/helpers/editRecoveryUi.ts",
+      "app/tests/helpers/fakeReq.ts",
+      "app/tests/helpers/fieldTree.ts",
+      "app/tests/helpers/fixtures.ts",
+      "app/tests/helpers/generatorHtml.ts",
+      "app/tests/helpers/httpWire.ts",
+      "app/tests/helpers/login.ts",
+      "app/tests/helpers/manageUi.ts",
+      "app/tests/helpers/nullResourceLinks.ts",
+      "app/tests/helpers/payloadErrors.ts",
+      "app/tests/helpers/renderSql.ts",
+      "app/tests/helpers/rowLocks.ts"
+    ]
+  },
+  "tests-http-01": {
+    "treatment": "tests",
+    "group": "tests-http",
+    "lines": 1821,
+    "files": [
+      "app/tests/http/apiErrorMessages.http.spec.ts",
+      "app/tests/http/authFavorites.http.spec.ts",
+      "app/tests/http/combinePreview.http.spec.ts",
+      "app/tests/http/combineSave.http.spec.ts",
+      "app/tests/http/discussions.http.spec.ts"
+    ]
+  },
+  "tests-http-02": {
+    "treatment": "tests",
+    "group": "tests-http",
+    "lines": 3269,
+    "files": [
+      "app/tests/http/endpoints.http.spec.ts",
+      "app/tests/http/firstUserBootstrap.http.spec.ts",
+      "app/tests/http/jobStatsGlobal.http.spec.ts",
+      "app/tests/http/lessonReleases.http.spec.ts"
+    ]
+  },
+  "tests-http-03": {
+    "treatment": "tests",
+    "group": "tests-http",
+    "lines": 3310,
+    "files": [
+      "app/tests/http/lockedDocuments.http.spec.ts",
+      "app/tests/http/loginProtection.http.spec.ts",
+      "app/tests/http/messageReferences.http.spec.ts",
+      "app/tests/http/nativeVersionAuthority.http.spec.ts",
+      "app/tests/http/nullResources.http.spec.ts",
+      "app/tests/http/pendingAuthority.http.spec.ts",
+      "app/tests/http/recovery.http.spec.ts",
+      "app/tests/http/saveAsNewRecovery.http.spec.ts",
+      "app/tests/http/serverTime.http.spec.ts",
+      "app/tests/http/subjectGrades.http.spec.ts",
+      "app/tests/http/systemSettings.http.spec.ts"
+    ]
+  },
+  "tests-http-04": {
+    "treatment": "tests",
+    "group": "tests-http",
+    "lines": 1539,
+    "files": [
+      "app/tests/http/teacherKey.http.spec.ts",
+      "app/tests/http/userAdminActions.http.spec.ts",
+      "app/tests/http/userAssignments.http.spec.ts",
+      "app/tests/http/userSearch.http.spec.ts",
+      "app/tests/http/worldwideIds.http.spec.ts"
+    ]
+  },
+  "tests-int-01": {
+    "treatment": "tests",
+    "group": "tests-int",
+    "lines": 3458,
+    "files": [
+      "app/tests/int/access.int.spec.ts",
+      "app/tests/int/adminResetLinkCarveOut.int.spec.ts",
+      "app/tests/int/api.int.spec.ts",
+      "app/tests/int/assignmentProvenance.int.spec.ts",
+      "app/tests/int/authFavorites.int.spec.ts",
+      "app/tests/int/authRateLimit.int.spec.ts",
+      "app/tests/int/bestEffortEnqueue.int.spec.ts",
+      "app/tests/int/clearCollapsePrefs.int.spec.ts",
+      "app/tests/int/combineDraftMigration.int.spec.ts",
+      "app/tests/int/combineMigration.int.spec.ts",
+      "app/tests/int/discussions.int.spec.ts",
+      "app/tests/int/discussions3b.int.spec.ts",
+      "app/tests/int/discussions4a.int.spec.ts",
+      "app/tests/int/draftCombineSuggestion.int.spec.ts",
+      "app/tests/int/editRecoveryAccess.int.spec.ts"
+    ]
+  },
+  "tests-int-02": {
+    "treatment": "tests",
+    "group": "tests-int",
+    "lines": 3495,
+    "files": [
+      "app/tests/int/editRecoveryCap.int.spec.ts",
+      "app/tests/int/editRecoveryCapture.int.spec.ts",
+      "app/tests/int/editRecoveryExpiry.int.spec.ts",
+      "app/tests/int/editRecoveryMetadata.int.spec.ts",
+      "app/tests/int/editRecoveryRetire.int.spec.ts",
+      "app/tests/int/editRecoveryStart.int.spec.ts",
+      "app/tests/int/editRecoveryUnsavedWork.int.spec.ts",
+      "app/tests/int/editorGroupsAccess.int.spec.ts",
+      "app/tests/int/favorites.int.spec.ts",
+      "app/tests/int/importLessons.int.spec.ts",
+      "app/tests/int/jobStatsScheduling.int.spec.ts",
+      "app/tests/int/lockRows.int.spec.ts",
+      "app/tests/int/messageReferenceMigration.int.spec.ts",
+      "app/tests/int/messages.int.spec.ts",
+      "app/tests/int/nullResources.int.spec.ts",
+      "app/tests/int/officialPointerLock.int.spec.ts"
+    ]
+  },
+  "tests-int-03": {
+    "treatment": "tests",
+    "group": "tests-int",
+    "lines": 3234,
+    "files": [
+      "app/tests/int/personalVersions.int.spec.ts",
+      "app/tests/int/planIdentityImmutable.int.spec.ts",
+      "app/tests/int/publicPublication.int.spec.ts",
+      "app/tests/int/rateLimit.int.spec.ts",
+      "app/tests/int/reingest.int.spec.ts",
+      "app/tests/int/schoolName.int.spec.ts",
+      "app/tests/int/subjectAdminHandover.int.spec.ts",
+      "app/tests/int/systemSettings.int.spec.ts",
+      "app/tests/int/taxonomyDelete.int.spec.ts",
+      "app/tests/int/uploadTaxonomy.int.spec.ts",
+      "app/tests/int/userSecurity.int.spec.ts",
+      "app/tests/int/verifyBackfill.int.spec.ts"
+    ]
+  },
+  "tests-int-04": {
+    "treatment": "tests",
+    "group": "tests-int",
+    "lines": 281,
+    "files": [
+      "app/tests/int/worldwideIds.int.spec.ts"
+    ]
+  },
+  "tests-style-snapshot-01": {
+    "treatment": "tests",
+    "group": "tests-style-snapshot",
+    "lines": 539,
+    "files": [
+      "app/tests/style-snapshot/README.md",
+      "app/tests/style-snapshot/dialogs.spec.ts",
+      "app/tests/style-snapshot/diff.mjs",
+      "app/tests/style-snapshot/kit.ts",
+      "app/tests/style-snapshot/menu-states.spec.ts",
+      "app/tests/style-snapshot/pages.spec.ts"
+    ]
+  },
+  "tests-unit-01": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 3489,
+    "files": [
+      "app/tests/unit/accessScopes.spec.ts",
+      "app/tests/unit/accordionPanelCount.spec.tsx",
+      "app/tests/unit/accountDisabledContract.spec.ts",
+      "app/tests/unit/accountDisabledWiring.spec.ts",
+      "app/tests/unit/adminResetLinkAllowance.spec.ts",
+      "app/tests/unit/advancedTools.spec.ts",
+      "app/tests/unit/appVersion.spec.ts",
+      "app/tests/unit/aresAddress.spec.ts",
+      "app/tests/unit/aresReleasePresentation.spec.ts",
+      "app/tests/unit/artifactCacheBestEffort.spec.ts",
+      "app/tests/unit/artifactCacheCleanup.spec.ts",
+      "app/tests/unit/authFavoritesWiring.spec.ts",
+      "app/tests/unit/authFormMessages.spec.ts",
+      "app/tests/unit/backupStatus.spec.ts",
+      "app/tests/unit/backupStatusPanel.spec.tsx",
+      "app/tests/unit/backupStatusPathParity.spec.ts",
+      "app/tests/unit/browserFindings.spec.tsx",
+      "app/tests/unit/buttonSystem.spec.ts",
+      "app/tests/unit/canDeleteVersionDoc.spec.ts",
+      "app/tests/unit/candidateListActions.spec.tsx",
+      "app/tests/unit/canonicalJson.spec.ts",
+      "app/tests/unit/captureDiffAgreement.spec.ts",
+      "app/tests/unit/classNameStyles.spec.ts",
+      "app/tests/unit/clockCheck.spec.tsx"
+    ]
+  },
+  "tests-unit-02": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 3477,
+    "files": [
+      "app/tests/unit/clockSkew.spec.ts",
+      "app/tests/unit/collapseOnEntry.spec.tsx",
+      "app/tests/unit/collapsedPanelEntryRule.spec.ts",
+      "app/tests/unit/combineDraft.spec.ts",
+      "app/tests/unit/combineEngine.spec.ts",
+      "app/tests/unit/combineFields.spec.ts",
+      "app/tests/unit/combineLineage.spec.ts",
+      "app/tests/unit/combineOutcome.spec.ts",
+      "app/tests/unit/combineRetry.spec.tsx",
+      "app/tests/unit/combineUnavailable.spec.ts",
+      "app/tests/unit/combineVersionChoices.spec.tsx",
+      "app/tests/unit/compareDiffGroups.spec.ts",
+      "app/tests/unit/compareFilterDefault.spec.tsx",
+      "app/tests/unit/compareGroups.spec.ts",
+      "app/tests/unit/corpusCheck.spec.ts",
+      "app/tests/unit/currentSection.spec.ts",
+      "app/tests/unit/deliverables.spec.ts",
+      "app/tests/unit/discussionComposer.spec.ts",
+      "app/tests/unit/discussionModerationControls.spec.tsx",
+      "app/tests/unit/discussionModerationPages.spec.tsx",
+      "app/tests/unit/discussionPages.spec.ts",
+      "app/tests/unit/discussionPaging.spec.ts",
+      "app/tests/unit/discussionReferenceSelection.spec.tsx",
+      "app/tests/unit/discussionText.spec.ts",
+      "app/tests/unit/discussionThreadDelete.spec.ts"
+    ]
+  },
+  "tests-unit-03": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 3360,
+    "files": [
+      "app/tests/unit/discussions.spec.ts",
+      "app/tests/unit/displayNameForm.spec.tsx",
+      "app/tests/unit/displayTitle.spec.ts",
+      "app/tests/unit/draftCombineSuggestion.spec.ts",
+      "app/tests/unit/editJumpNav.spec.tsx",
+      "app/tests/unit/editRecoveryIndicator.spec.tsx",
+      "app/tests/unit/editRecoveryMigrationOrder.spec.ts",
+      "app/tests/unit/editRecoveryProjection.spec.ts",
+      "app/tests/unit/editRecoveryProtocol.spec.ts",
+      "app/tests/unit/editRecoveryTtlProvenance.spec.ts",
+      "app/tests/unit/editingViewport.spec.ts",
+      "app/tests/unit/editorPlainLanguage.spec.ts",
+      "app/tests/unit/editorValidation.spec.ts",
+      "app/tests/unit/emailAddress.spec.ts",
+      "app/tests/unit/emailFormat.spec.tsx",
+      "app/tests/unit/emptyArraySerialization.spec.ts",
+      "app/tests/unit/enforceAssignmentScope.spec.ts",
+      "app/tests/unit/enqueueDetached.spec.ts",
+      "app/tests/unit/entryPhase.spec.ts",
+      "app/tests/unit/envTemplateParity.spec.ts",
+      "app/tests/unit/errorTracking.spec.ts",
+      "app/tests/unit/expireEditRecoveryTask.spec.ts",
+      "app/tests/unit/exportArtifacts.spec.ts"
+    ]
+  },
+  "tests-unit-04": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 3382,
+    "files": [
+      "app/tests/unit/exportClient.spec.ts",
+      "app/tests/unit/exportJobDedupe.spec.ts",
+      "app/tests/unit/exportKind.spec.ts",
+      "app/tests/unit/extract.spec.ts",
+      "app/tests/unit/favoriteToggle.spec.tsx",
+      "app/tests/unit/fieldSplitContainers.spec.ts",
+      "app/tests/unit/filterRows.spec.ts",
+      "app/tests/unit/firstUserBootstrap.spec.ts",
+      "app/tests/unit/firstUserRoleLock.spec.ts",
+      "app/tests/unit/firstUserVerificationEmail.spec.ts",
+      "app/tests/unit/forgotPasswordFailure.spec.tsx",
+      "app/tests/unit/generatedSurfaces.spec.ts",
+      "app/tests/unit/generatorGrade.spec.ts",
+      "app/tests/unit/generatorUpgrade.spec.ts",
+      "app/tests/unit/guideAccess.spec.tsx",
+      "app/tests/unit/guideCompareVisual.spec.tsx",
+      "app/tests/unit/guidePanelState.spec.ts",
+      "app/tests/unit/guideParity.spec.ts",
+      "app/tests/unit/htmlDiffCacheWiring.spec.ts",
+      "app/tests/unit/htmlDiffContract.spec.ts"
+    ]
+  },
+  "tests-unit-05": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 3398,
+    "files": [
+      "app/tests/unit/htmlSectionsCache.spec.ts",
+      "app/tests/unit/idleLogoutScreenClear.spec.tsx",
+      "app/tests/unit/importLessons.spec.ts",
+      "app/tests/unit/ingestContract.spec.ts",
+      "app/tests/unit/ingestSubjectGradeLock.spec.ts",
+      "app/tests/unit/ingestTaxonomy.spec.ts",
+      "app/tests/unit/initialEditorCollapse.spec.ts",
+      "app/tests/unit/initials.spec.ts",
+      "app/tests/unit/insertLink.spec.ts",
+      "app/tests/unit/jsonBodyCeiling.spec.ts",
+      "app/tests/unit/keepForLater.spec.tsx",
+      "app/tests/unit/lessonAnchors.spec.ts",
+      "app/tests/unit/lessonControlsDrafts.spec.tsx",
+      "app/tests/unit/lessonControlsMountGuard.spec.tsx",
+      "app/tests/unit/lessonControlsSave.spec.tsx",
+      "app/tests/unit/lessonControlsSsr.spec.tsx",
+      "app/tests/unit/lessonControlsVersionIdentity.spec.tsx",
+      "app/tests/unit/lessonDetails.spec.ts",
+      "app/tests/unit/lessonImportVersion.spec.ts",
+      "app/tests/unit/lessonReference.spec.tsx",
+      "app/tests/unit/lessonReleases.spec.ts",
+      "app/tests/unit/libraryFilters.spec.tsx"
+    ]
+  },
+  "tests-unit-06": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 3355,
+    "files": [
+      "app/tests/unit/linkedTextareaLibrary.spec.tsx",
+      "app/tests/unit/localDbGuard.spec.ts",
+      "app/tests/unit/lockOrder.spec.ts",
+      "app/tests/unit/loginClient.spec.ts",
+      "app/tests/unit/loginPasswordWork.spec.ts",
+      "app/tests/unit/loginProtection.spec.ts",
+      "app/tests/unit/markReadBody.spec.ts",
+      "app/tests/unit/messageContextLink.spec.ts",
+      "app/tests/unit/metaIdentitySplit.spec.ts",
+      "app/tests/unit/modalChrome.spec.tsx",
+      "app/tests/unit/moreMenu.spec.tsx",
+      "app/tests/unit/mutationAuthority.spec.ts",
+      "app/tests/unit/navigationFreshness.spec.tsx",
+      "app/tests/unit/officialPointerPartialUpdate.spec.ts",
+      "app/tests/unit/officialPreviewList.spec.tsx",
+      "app/tests/unit/officialUpdateNotice.spec.tsx",
+      "app/tests/unit/offlineAdminRecovery.spec.ts",
+      "app/tests/unit/pageBackLink.spec.tsx",
+      "app/tests/unit/panelState.spec.ts",
+      "app/tests/unit/parsePreviewCandidate.spec.ts",
+      "app/tests/unit/payloadUiPatchBehaviour.spec.tsx",
+      "app/tests/unit/payloadUiPatchScript.spec.ts",
+      "app/tests/unit/personalFavorites.spec.ts",
+      "app/tests/unit/personalVersions.spec.ts",
+      "app/tests/unit/phaseSelectField.spec.tsx",
+      "app/tests/unit/planDetailsPanel.spec.ts",
+      "app/tests/unit/planSelection.spec.ts",
+      "app/tests/unit/planSubjectGradeImmutable.spec.ts"
+    ]
+  },
+  "tests-unit-07": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 3475,
+    "files": [
+      "app/tests/unit/proseLinks.spec.ts",
+      "app/tests/unit/proseWhitelistDrift.spec.ts",
+      "app/tests/unit/publicLibrary.spec.ts",
+      "app/tests/unit/publicPosture.spec.ts",
+      "app/tests/unit/publicSlug.spec.ts",
+      "app/tests/unit/readBundleVisibility.spec.ts",
+      "app/tests/unit/readFeaturesSettings.spec.ts",
+      "app/tests/unit/recoveryCombineBoundary.spec.ts",
+      "app/tests/unit/recoveryParse.spec.ts",
+      "app/tests/unit/refreshCaller.spec.ts",
+      "app/tests/unit/relId.spec.ts",
+      "app/tests/unit/releaseAncestry.spec.ts",
+      "app/tests/unit/releaseFingerprint.spec.ts",
+      "app/tests/unit/releaseFingerprintContext.spec.ts",
+      "app/tests/unit/releaseMessages.spec.ts",
+      "app/tests/unit/requestedVersion.spec.ts",
+      "app/tests/unit/resetLinkNotLogged.spec.ts",
+      "app/tests/unit/resourceLibrary.spec.ts",
+      "app/tests/unit/resourceLinks.spec.ts",
+      "app/tests/unit/resourceRowDrift.spec.ts",
+      "app/tests/unit/restoreDiff.spec.ts",
+      "app/tests/unit/restorePromptGroups.spec.ts",
+      "app/tests/unit/restorePromptRender.spec.tsx",
+      "app/tests/unit/retargetFavoritesTxn.spec.ts",
+      "app/tests/unit/rolesAccessPanel.spec.tsx",
+      "app/tests/unit/rowLabel.spec.ts",
+      "app/tests/unit/rowLabelLive.spec.tsx"
+    ]
+  },
+  "tests-unit-08": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 2847,
+    "files": [
+      "app/tests/unit/sanitizeHtml.spec.ts",
+      "app/tests/unit/schoolName.spec.tsx",
+      "app/tests/unit/sectionKeyForFocus.spec.ts",
+      "app/tests/unit/semverConflict.spec.ts",
+      "app/tests/unit/serverActionBodyLimit.spec.ts",
+      "app/tests/unit/shareMenuAdvanced.spec.tsx",
+      "app/tests/unit/signupForm.spec.tsx",
+      "app/tests/unit/signupTrustClassifier.spec.ts",
+      "app/tests/unit/stripCollapsed.spec.ts",
+      "app/tests/unit/structuralControlsCss.spec.ts",
+      "app/tests/unit/subjectAdminDemoteLock.spec.ts",
+      "app/tests/unit/subjectGradeDelete.spec.ts",
+      "app/tests/unit/subjectSelectOptions.spec.ts",
+      "app/tests/unit/substrand.spec.ts",
+      "app/tests/unit/systemFacts.spec.ts",
+      "app/tests/unit/systemFeaturesPanel.spec.tsx",
+      "app/tests/unit/systemFeaturesState.spec.ts",
+      "app/tests/unit/systemFlags.spec.ts",
+      "app/tests/unit/systemSettingsFlags.spec.ts",
+      "app/tests/unit/systemSettingsSave.spec.ts",
+      "app/tests/unit/testSignupLimitConfig.spec.ts",
+      "app/tests/unit/unsavedWarning.spec.ts",
+      "app/tests/unit/uploadBundles.spec.tsx",
+      "app/tests/unit/uploadFiles.spec.ts"
+    ]
+  },
+  "tests-unit-09": {
+    "treatment": "tests",
+    "group": "tests-unit",
+    "lines": 2231,
+    "files": [
+      "app/tests/unit/useEditRecovery.spec.tsx",
+      "app/tests/unit/useOpenPanels.spec.tsx",
+      "app/tests/unit/userSearchWiring.spec.ts",
+      "app/tests/unit/userTypeLabel.spec.ts",
+      "app/tests/unit/usersPanelPaging.spec.tsx",
+      "app/tests/unit/vendorProvenance.spec.ts",
+      "app/tests/unit/verifiedFieldWiring.spec.ts",
+      "app/tests/unit/versionCounts.spec.ts",
+      "app/tests/unit/versionImmutabilityWiring.spec.ts",
+      "app/tests/unit/versionTimestampsTz.spec.tsx",
+      "app/tests/unit/versionsOrder.spec.ts"
+    ]
+  },
+  "P01": {
+    "treatment": "source",
+    "group": "pilot",
+    "lines": 1362,
+    "files": [
+      "app/src/ingest/index.ts",
+      "app/src/ingest/lessonManifest.ts",
+      "app/src/ingest/releaseDecision.ts",
+      "app/src/lib/appVersion.ts",
+      "app/src/lib/semver.ts"
+    ]
+  },
+  "P02": {
+    "treatment": "source",
+    "group": "pilot",
+    "lines": 1069,
+    "files": [
+      "app/src/lib/backupStatus.ts",
+      "scripts/lib/backup-common.sh",
+      "scripts/lib/backup-destinations.sh"
+    ]
+  }
+}
