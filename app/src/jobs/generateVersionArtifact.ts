@@ -27,7 +27,7 @@ import {
 import { generateFromVersionSnapshot } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
 import { captureException } from '../lib/errorTracking'
-import { rowsOf } from '../lib/txDb'
+import { poolDb, rowsOf } from '../lib/txDb'
 import type { LessonBundleVersion, PayloadJob } from '../payload-types'
 
 export interface GenerateVersionArtifactInput {
@@ -128,10 +128,7 @@ export async function findPendingExportJob(
   payload: Payload,
   input: GenerateVersionArtifactInput,
 ): Promise<PayloadJob | null> {
-  const adapter = payload.db as unknown as {
-    drizzle: { execute: (query: unknown) => Promise<unknown> }
-  }
-  const result = await adapter.drizzle.execute(sql`
+  const result = await poolDb(payload).execute(sql`
     SELECT "id"
     FROM "payload_jobs"
     WHERE "task_slug" = ${GENERATE_VERSION_ARTIFACT_SLUG}

@@ -1,7 +1,7 @@
 import { sql } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
-import { rowsOf } from './txDb'
+import { poolDb, rowsOf } from './txDb'
 
 /**
  * Count versions per lesson plan in PostgreSQL instead of transferring one relationship stub per
@@ -9,10 +9,7 @@ import { rowsOf } from './txDb'
  * `lessonBundleVersionRead`, whose complete policy is `Boolean(user)`.
  */
 export async function versionCountsByPlan(payload: Payload): Promise<Map<number, number>> {
-  const adapter = payload.db as unknown as {
-    drizzle: { execute: (query: unknown) => Promise<unknown> }
-  }
-  const result = await adapter.drizzle.execute(sql`
+  const result = await poolDb(payload).execute(sql`
     SELECT "lesson_plan_id" AS "planId", COUNT(*)::integer AS "versionCount"
     FROM "lesson_bundle_versions"
     WHERE "lesson_plan_id" IS NOT NULL

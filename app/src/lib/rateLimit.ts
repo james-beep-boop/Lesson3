@@ -25,6 +25,7 @@ import type { PayloadRequest } from 'payload'
 
 import type { User } from '../payload-types'
 import { positiveIntEnv } from './env'
+import { poolDb } from './txDb'
 
 interface Limit {
   /** Max requests allowed within the window. */
@@ -232,7 +233,8 @@ export async function consumeRateLimit(
   bucket: Bucket,
   key: string,
 ): Promise<{ ok: boolean; retryAfterSec: number }> {
-  const db = (req.payload.db as unknown as { drizzle: DrizzleExec }).drizzle
+  // Budgets commit independently of the caller: deliberately use the pool, not txDb(req).
+  const db = poolDb(req.payload) as DrizzleExec
   return take(db, `${bucket}:${key}`, LIMITS[bucket], Date.now())
 }
 
