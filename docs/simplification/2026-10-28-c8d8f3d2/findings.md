@@ -33,7 +33,7 @@ Source SHA is fixed in README; implementation is revalidated against current mai
 - Reuse/altitude: `versionCounts`, `generateVersionArtifact.findPendingExportJob`, and rate limiting
   each repeat the Payload pool-handle lookup already owned by `txDb.poolDb`. Use that accessor,
   retaining SQL/result handling and independent budget commits. Main comparison: e304387b.
-- Prepared commit b0c81f53. All 1,976 unit and nine relevant integration tests pass, plus types,
+- PR [#476](https://github.com/james-beep-boop/Lesson3/pull/476), commit b0c81f53. All 1,976 unit and nine relevant integration tests pass, plus types,
   lint and formatting. Open PR review is required before any merge.
 
 ## S-LIB-002 — client-safe prose contract below enforcement hook
@@ -41,7 +41,9 @@ Source SHA is fixed in README; implementation is revalidated against current mai
 - Altitude, source-confirmed: pure field keys and labels in `hooks/fieldSplit` are imported by
   browser recovery projection/labels and pure Combine. Move unchanged vocabulary to a pure leaf
   module; keep identity-repair policy and access/structural enforcement in the hook.
-- Status: candidate; core altitude review is verifying all field/hook consumers before implementation.
+- Status: PR [#478](https://github.com/james-beep-boop/Lesson3/pull/478), commit c124f976.
+  Constants and labels moved unchanged, hook enforcement remains in place, and all 1,976 unit tests,
+  typecheck, lint and formatting pass. Held for Claude’s review.
 
 ## Guidance consistency — PR #475
 
@@ -58,3 +60,36 @@ Seven files corrected surgically, 105 Guide tests/lint/format pass. Held for Cla
   No measured slow corpus; defer indexing until a bounded comparison proves a worthwhile benefit.
 - Manage duplicate global reads, full-table version aggregate and draft-suggestion history volume:
   unmeasured leads; retain separate access/failure behavior and do not add speculative caches.
+
+## S-SERVICE-001 — reuse the prepared Save as new comparison
+
+- Efficiency: `versionEdit.saveAsNewEndpoint` canonicalizes the same immutable merged request
+  content before and after acquiring locks, including retries. Compute that side once; keep
+  recomputing the fresh permission-filtered side after every wait.
+- Status: PR [#479](https://github.com/james-beep-boop/Lesson3/pull/479), commit a04a8a55.
+  All 1,976 unit tests, typecheck, changed-file lint and formatting pass. Existing endpoint and
+  pending-authority wire checks must pass CI. Held for Claude’s review.
+
+## Leads requiring coordinator judgment
+
+- `refreshCaller` currently lives beside endpoint response helpers but serves access enforcement in
+  hooks too. A pure ownership move to access may help; preserve identity, session checks and all
+  post-lock refresh timings. Source-confirmed candidate, not a behavior defect.
+- Client forms consume pure disabled-account wire vocabulary from a module also constructing server
+  Payload errors. A narrow move into the existing wire-error helper is an optional layering change;
+  no deployed bundle-size problem has been measured.
+- Script `positive_int` appears in both backup-common and pruning. A shared shell owner is possible;
+  caller-specific failure behavior and standalone sourcing must survive.
+- Test review found a duplicate database-result normalization in its recovery helper. Check its
+  array/object fallback against `rowsOf` before replacing it.
+
+## Keep or defer
+
+- Keep typed object predicates and database `Where` policy representations distinct. A generic
+  policy DSL would add more machinery than it removes.
+- Keep task-specific error/retry boundaries, independent fixture assertions and error messages.
+  Similar shapes alone do not justify extraction.
+- Do not drop the pending-export job’s Payload hydration merely to save a query: deletion between
+  the SQL lookup and hydration currently has observable failure behavior.
+- Do not change generator per-group work, Combine path indexing or search keystroke behavior without
+  a representative measurement. These are performance leads, not verified slow paths.

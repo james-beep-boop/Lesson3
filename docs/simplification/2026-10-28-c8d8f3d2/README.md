@@ -50,10 +50,22 @@ Fix-specific verification will be recorded with each PR and its exact comparison
 
 ## Current work and resume point
 
-Pilot ancestry batching is open as PR #474. Guidance corrections are open as PR #475.
-Shared adapter access is also prepared as a separate PR; all remain on hold for Claude. Shared lib packets have completed reuse/simplicity/efficiency review; altitude is finishing.
-Core collections, fields, hooks and access modules are being read. Documentation consistency
-review completed its assigned file list. All other packets remain pending. See `findings.md` and `progress/`.
+All four perspectives have completed the shared libraries, core collections/fields/hooks/access,
+and service packets. UI reviews have completed reuse, simplicity and efficiency; altitude is finishing.
+The operations/development packets have completed reuse. Test packets are now being read separately
+for reuse and simplicity. Documentation consistency completed its assigned list. Per-file status stays
+partial until every required perspective is recorded.
+
+Cleanup PRs are open and **held for Claude’s review**:
+
+- [#474](https://github.com/james-beep-boop/Lesson3/pull/474): batch ancestry reads under import locks.
+- [#475](https://github.com/james-beep-boop/Lesson3/pull/475): align teacher and technician guidance.
+- [#476](https://github.com/james-beep-boop/Lesson3/pull/476): reuse the shared database adapter accessor.
+- [#478](https://github.com/james-beep-boop/Lesson3/pull/478): put pure prose vocabulary below enforcement hooks.
+- [#479](https://github.com/james-beep-boop/Lesson3/pull/479): reuse prepared content comparison during Save as new.
+
+This draft PR is the execution journal. No cleanup PR has been merged. See `findings.md`, `coverage.json`
+and `progress/` for evidence and the remaining work.
 
 ## Changes after the reviewed tag
 
