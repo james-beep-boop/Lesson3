@@ -1,259 +1,241 @@
 # Whole-codebase simplification review
 
 **Status: proposed, for Claude and James to review.** This PR designs the process. It does not
-launch a review, add a command, change application code, or approve subsequent cleanup work.
+launch a review, add a command, change application code, or approve later cleanup work.
 
 ## What this should achieve
 
-Find places where ARES Lesson Plans can be easier to understand and maintain without changing
-what teachers and technicians can do. Review the complete tracked repository at a recorded commit,
-including older code that a last-PR review would miss.
+Do for the whole repository what `/simplify` does for one diff: find places where ARES Lesson
+Plans can be easier to understand and maintain without changing what teachers and technicians can
+do, and **turn the confirmed ones into small fixes**. This includes older code that a last-PR review
+would never revisit. Finding nothing worth changing in a packet is a successful result too.
 
-Use four focused reviewers, inspired by `/simplify`, working through bounded groups of files.
-Each reviewer reads source and follows callers; tests are supporting evidence and later verification,
-not the main discovery method. The coordinator checks the findings and proposes small cleanup PRs.
-Finding nothing worth changing is a successful result too.
+**Scope: reuse, simplicity, efficiency and altitude.** This is a code-quality review. Security
+testing, vulnerability hunting and the broader correctness audit are outside it. Existing
+[audit work](audit/audit_plan.md) stays separate, with its own progress and operating rules. The
+older [sequential review plan](CODE-REVIEW-PLAN.md) is background only.
 
-**Scope: reuse, simplicity, efficiency and project conventions.** This is a code-quality review.
-Security testing, vulnerability hunting, penetration testing and the broader correctness audit are
-outside its scope. Existing [audit work](audit/audit_plan.md) stays separate, with its own progress
-and operating rules. This proposal uses bounded parallel reviewers for maintainability; it does
-not launch that audit. The older [sequential review plan](CODE-REVIEW-PLAN.md) is background only.
+## Roles and models
+
+| Role | Who | Does | Does not |
+|---|---|---|---|
+| **Organizer** | GPT **Saul 6.1**, one long-lived session | Builds the first pass and packets, writes reviewer briefs, verifies every candidate against source, keeps the coverage list, writes the fix PRs, and records cost per packet. | Fan out more reviewers than the plan allows, or merge anything. |
+| **Reviewer** | GPT **Luna**, one fresh session per perspective per packet | Reads the assigned files closely for one perspective and returns findings. | Edit any file, read another reviewer's report first, or decide what gets fixed. |
+| **Challenger** | Claude, when available | Reviews each fix PR before it leaves draft. | Re-review findings that were rejected. |
+| **Approver** | James | Approves policy questions and merges fix PRs. | — |
+
+The split puts the expensive model where judgment matters: choosing packets, rejecting false
+positives, and choosing the smallest safe fix. The cheaper model does the volume reading. The
+pilot (§3) tests the split. If Luna's findings mostly fail verification, or it misses what Saul
+finds when spot-checking, move review to Saul for the affected file types and record why. These
+are James's chosen models; the process itself is model-neutral. Do not buy credits or assume a
+subscription allowance on the strength of this plan.
 
 ## Four review perspectives
 
+These are `/simplify`'s four. Project rules are not a separate perspective: every reviewer gets
+them through **Boundaries** and must check its own proposals against them.
+
 | Reviewer | Questions to answer | Evidence to look for |
 |---|---|---|
-| Reuse | Does another implementation or shared helper already do this? Have copies drifted? | Cite each implementation and its callers. Explain which semantics match and which differ. |
-| Simplicity | Can the same behavior be expressed with less state, branching or indirection? Is code actually unused? | Trace data and callers. Show the unnecessary step, state or abstraction and the behavior it currently preserves. |
-| Efficiency | Is work repeated, unbounded, or done for readers who do not need it? | Count queries, scans, serial calls, repeated calculations or transferred fields for a concrete path. State the input size and distinguish measured counts from estimates. |
-| Project conventions | Does the code follow the repository's rules and established patterns? Do names, field definitions, shared components, settings and documentation agree? | Cite the exact rule in AGENTS, CLAUDE, SPEC or current decisions and the code that departs from it. Distinguish a written rule from personal preference. |
+| Reuse | Does another implementation or shared helper already do this? Have copies drifted? | Cite each implementation and its callers. State which semantics match and which differ. |
+| Simplicity | Can the same behavior be expressed with less state, branching or indirection? Is code actually unused? Is a pattern stringly-typed, over-parameterised, or a near-copy with one variation? | Trace data and callers. Show the unnecessary step, state or abstraction and the behavior it currently preserves. |
+| Efficiency | Is work repeated, unbounded, serial when it could be batched, or done for readers who do not need it? | For a concrete request or job path: count queries, scans, serial awaits or transferred fields. State input size. Distinguish measured from estimated. |
+| Altitude | Is the logic at the right layer? A special case patched in a caller that belongs in the shared helper; a policy decided in a component that belongs in `lib/` or an access function; a check repeated at three layers; a wrapper that only forwards; a low-level detail leaking into a high-level module. | Name both layers, every caller affected, and where the logic would live instead. Show the move does not cross a browser/server, access or transaction boundary. |
 
-All four read relevant tests, settings and documentation. For example, a default in `.env.example`
-can override an apparently correct default in application code. Similar-looking code is not enough
-to justify a shared helper: the reviewer must check permissions, transactions, error behavior,
-ordering, null handling and browser/server boundaries.
+Altitude matters most at whole-repository scale. Layer drift is exactly what builds up after many
+diff-sized PRs that each looked fine alone.
+
+Similar-looking code is not enough to justify a shared helper. Before proposing a merge, check
+permissions, transactions, error behavior, ordering, null handling and browser/server boundaries.
 
 ## Boundaries
 
-- Review product code without editing it. Reports are the only tracked changes during discovery.
-- Follow `AGENTS.md`, `CLAUDE.md`, current `SPEC.md`, relevant decisions and approved designs at the
-  reviewed commit. Read installed framework source when framework behavior matters.
+- Review product code without editing it. Only the organizer edits, and only in fix PRs (§5).
+- Follow `AGENTS.md`, `CLAUDE.md`, current `SPEC.md`, relevant decisions and approved designs. Read
+  installed framework source when framework behavior matters.
 - Preserve native Payload fields, access checks, immutable versions, transaction and lock behavior,
-  parse-never-execute ingestion, and the pristine vendored generator. Do not “simplify” safeguards
-  because their purpose is absent from the current file.
+  parse-never-execute ingestion, and the pristine vendored generator. Do not "simplify" safeguards
+  because their purpose is absent from the current file. Search `docs/DECISIONS.md` before calling
+  something unnecessary.
 - Preserve public routes, stored values, school/offline behavior and compatibility. Do not rename
-  internal editing-access identifiers or describe a teacher with editing access as an “Editor”.
-- Review wording for Kenyan high school teachers. A shorter instruction must still match the
-  actual screen or script. The public product name is **ARES Lesson Plans**.
+  internal editing-access identifiers or describe a teacher with editing access as an "Editor".
+- Review wording for Kenyan high school teachers. A shorter instruction must still match the actual
+  screen or script. The public product name is **ARES Lesson Plans**.
 - Do not edit historical records, applied migrations or generated output as cosmetic cleanup.
-  Inspect custom migration logic and fresh-install dependencies; any actual migration defect needs
-  its own carefully verified fix.
-- No broad dependency upgrade, formatting sweep, new architecture, new feature, or automatic
-  extraction of every repeated fragment. Prefer the smallest change with a clear maintenance gain.
+- No broad dependency upgrade, formatting sweep, new architecture or new feature. Do not extract
+  every repeated fragment. Prefer the smallest change with a clear maintenance gain.
 - No fixture writes, load tests, deployment or configuration changes on the Rock or another live
-  installation. Any runtime verification uses the documented disposable environment.
-- If an unrelated bug is noticed incidentally, record a short follow-up separately. Do not expand
-  this review into bug hunting or mix behavior changes into a simplification. Keep private details
-  out of public reports.
+  installation. Runtime measurement uses the documented disposable environment.
+- If an unrelated bug turns up, record a one-line follow-up and move on. Do not mix behavior
+  changes into a simplification. Keep private details out of public reports.
 
-## 1. Establish the review commit and coverage map
+## 1. Mechanical first pass
 
-The coordinator starts a dedicated review branch from current `main` and records its full source
-SHA. Reports refer to that SHA even after report commits are added. Read the relevant existing
-audit findings and accepted tradeoffs so they can be linked rather than rediscovered as new work.
+Per-packet reading is weakest at seeing copies **across** packets: a reviewer of packet A finds a
+copy in packet K only if it happens to search for one. Tools do this cheaply and exhaustively, so
+the organizer runs them once at the review commit, in a disposable checkout, and saves the output
+in the report folder:
 
-Enumerate **every tracked file** with `git ls-files` at that SHA. Group by responsibility, not just
-directory; associate tests with the behavior they exercise. Each file gets one primary group and
-one explicit treatment:
-
-| Treatment | Required review |
+| Tool (run with `npx`, not added to `package.json`) | Gives reviewers |
 |---|---|
-| Source, tests, scripts, configuration and current documentation | Read the file, its role and relevant callers; evaluate all four perspectives. |
-| Generated files | Review source inputs, generation wiring and whether output is current. Do not claim a line-by-line read. Custom code inside migrations is source, not an automatic exclusion. |
-| Vendored files and third-party assets | Review provenance, fidelity checks, callers and integration boundary. Do not propose editing the pristine generator or EFF word list. |
-| Historical records | Use as context when relevant; check links used by current instructions. Do not rewrite history to make terminology uniform. |
-| Binary or reference fixtures | Review ownership, consumers and checks that make them meaningful; no invented textual inspection. |
+| `knip` | Unused files, exports and dependencies. Better than a model at proving code is dead; each hit still needs a caller check (dynamic imports, Payload config references, scripts). |
+| `jscpd` over `app/src`, `app/scripts`, `scripts/` | Copy-paste clusters across the whole repository. |
+| `tsc --noEmit --noUnusedLocals --noUnusedParameters` | One-off unused-symbol report. Do not change `tsconfig`. |
+| A helper inventory | One line per exported function in `app/src/lib/`, `access/`, `hooks/` and `fields/`: name, path, purpose. The organizer writes it from source. |
+| Known hot paths | Seed efficiency with measured slow paths, starting with the Manage "versions" lookup (340–470 ms, 2026-10-24). |
 
-No blanket “other files” exclusion. New paths must receive an owner before completion is claimed.
-Use explicit file lists, including dotfiles, so directory globs cannot silently miss settings or CI.
+Tool output is navigation, not findings. Every packet brief includes the relevant clusters, hits
+and the full helper inventory.
 
-Suggested starting groups, to be remeasured at execution:
+## 2. Coverage and packets
 
-| Group | Main responsibilities and related files |
+The organizer starts a review branch from current `main` and records the full source SHA. Reports
+refer to that SHA. Read existing audit findings and accepted tradeoffs, so they are linked rather
+than rediscovered.
+
+**Coverage by file type.** Not every perspective fits every file:
+
+| Files | Perspectives |
 |---|---|
-| Identity and permissions | Accounts, sessions, rate limiting, access functions, role assignments, auth endpoints and tests. |
-| Lesson data and release imports | Collections/fields/hooks, manifest and ZIP readers, CLI import, release decisions, versioning and migrations. |
-| Editing, drafts and combination | Editor components, recovery storage, comparison, merge logic, saving and their API paths. |
-| Reading and discovery | Library/search/favorites, public routes, lesson pages, sharing and visibility decisions. |
-| Documents and background work | Generator adapter/cache, DOCX/PDF boundary, queues, email jobs and job endpoints. |
-| Messages, discussions and administration | Communication, moderation, Manage panels and account/system displays. |
-| Shared presentation and guidance | Common components, CSS, accessibility, desktop/phone behavior, branding, Guide and manual parity. |
-| Installation and recovery | Backup/setup/restore scripts, destination records, updater, installer, Compose, recovery documentation and shell tests. |
-| Build, release and development | Docker builds, CI, tag/bundle publisher, environment templates, dependencies, code generation, test harnesses and development tools. |
+| Handwritten source: `app/src` (excluding generated types and import maps), `app/scripts`, `scripts/`, SCSS | All four. |
+| Tests | Reuse and simplicity only (shared fixtures, copy-pasted setup, dead helpers). |
+| Custom logic inside migrations | Reuse and simplicity; never edit an applied migration as cleanup. |
+| Current docs, config, CI, Compose, `.env.example` | One consistency check: does it agree with the code? A default in `.env.example` can override an apparently correct default in code. |
+| Generated, vendored, historical, binary | Not reviewed. List them as excluded, with the reason. |
 
-These are starting assignments, not proof that a directory has been covered. Shared files get one
-primary owner and links from dependent groups. The coordinator separately records interactions
-that require the final cross-group review.
+Enumerate tracked files with `git ls-files` at the SHA and give each one a packet or an exclusion
+reason. Coverage is one list: path, packet (or exclusion reason), status `pending | read | partial`.
+No per-perspective states.
 
-## 2. Pilot, then review one bounded group at a time
+**Packet size.** About 1,000–2,000 lines of handwritten source per packet, grouped by
+responsibility rather than directory, with the tests for that behavior attached. At the time of
+writing, `app/src` handwritten TS/TSX is about 45k lines, tests about 58k, shell about 5.7k and
+SCSS about 3.5k. That is roughly 30–45 source packets: about 120–180 reviewer runs for source
+alone. State the remeasured estimate in the README before the pilot, so the pilot has something
+to be compared against.
 
-Start with **two small groups of files**: one application flow and one installation/backup flow.
-They exercise different languages and review needs. Target roughly 1,000–2,000 lines of handwritten
-implementation per packet, plus relevant tests and immediate dependencies. Split a packet if a
-reviewer cannot read it closely; do not truncate its input and mark it done.
+Suggested groups, to be remeasured:
 
-Before each packet, the coordinator supplies:
+| Group | Main responsibilities |
+|---|---|
+| Identity and permissions | Accounts, sessions, rate limiting, access functions, role assignments, auth endpoints. |
+| Lesson data and release imports | Collections, fields, hooks, manifest and ZIP readers, CLI import, versioning. |
+| Editing, drafts and combination | Editor components, recovery storage, comparison, merge logic, saving. |
+| Reading and discovery | Library, search, favorites, public routes, lesson pages, sharing. |
+| Documents and background work | Generator adapter and cache, DOCX/PDF boundary, queues, email jobs. |
+| Messages, discussions and administration | Communication, moderation, Manage panels. |
+| Shared presentation and guidance | Common components, CSS, Guide and manual parity. |
+| Installation and recovery | Backup, setup, restore, updater, installer scripts and their shell tests. |
+| Build, release and development | Docker builds, CI, release bundle publisher, environment templates. |
 
-1. The source SHA and exact assigned files/ranges, plus their owning coverage group.
-2. A short description of the behavior and its relevant SPEC/decision links.
-3. Entry points, likely shared helpers and associated tests, as navigation aids, not conclusions.
-4. The four reviewer prompts below. Reviewers form their own initial findings before reading one
-   another's reports; this reduces copying of the first reviewer's assumptions.
+## 3. Pilot
 
-Run four logical assignments per packet. Respect the executor's actual concurrency limit: if only
-three worker slots exist, run three and queue the fourth. A single sequential worker can also use
-four fresh sessions. Do not multiply four reviewers by every group at once or spawn nested teams.
-One packet is active at a time during the pilot; expand only if measured cost and review quality
-justify it. Do not prescribe a paid model, buy credits, or assume a subscription's allowance.
+Run **two packets** first: one application flow and one installation/backup flow. They exercise
+different languages. Each packet runs to the end of §5, **including its fix PR**, so the pilot
+measures real output and not only reports.
 
-After each pilot packet, record source size, elapsed time, available usage information, candidate
-count and how many findings survived verification. Adjust packet size and depth accordingly.
-Stop scaling if review reports cost more effort than the useful changes they identify.
+After each pilot packet, record: source lines, reviewer runs, elapsed time, available usage
+information, candidates, how many survived verification, and lines changed in the fix PR. Then
+decide: keep going, change packet size, change which model reviews which file type, or stop.
+**Stop scaling if packets cost more than the fixes they produce are worth.** The decision and the
+numbers go in the README.
 
-Each reviewer may read beyond the assigned files to follow a caller or find an existing helper.
-Record that dependency read; do not silently claim the other owner's full review complete. Checkpoint
-after a file or logical section, with exact remaining work. On a quota/context stop, persist and
-resume; do not silently downgrade to a grep-only review.
+One packet is active at a time. Respect the executor's concurrency limit: if only three slots
+exist, queue the fourth reviewer. No nested teams.
 
-## 3. Give each reviewer a concrete assignment
+## 4. Reviewer brief
 
-Use this common prompt, followed by exactly one perspective from the table:
+Each reviewer gets: the source SHA; exact files; a short description of the behavior with links
+to SPEC and decisions; entry points and associated tests; the relevant first-pass output; the
+helper inventory; the Boundaries section; and this prompt with exactly one perspective:
 
 > Review the supplied files at the recorded source SHA for **[perspective]**. Read the actual code,
-> relevant tests, immediate callers and existing helpers. Respect the supplied project rules.
-> Do not edit product code. Do not manufacture a finding quota. For each candidate, cite exact paths,
-> line ranges and symbols; explain the present behavior, the concrete maintenance cost or repeated
-> work, the smallest proposed improvement, and the behaviors that must survive. Search for existing
-> implementations before proposing a new helper. Distinguish confirmed source evidence from a lead
-> or an unmeasured performance claim. Record useful deliberate duplication that should remain.
-> Return findings, files actually read, dependencies consulted, and exact unfinished work.
+> relevant tests, immediate callers and the existing helpers in the inventory. Respect the supplied
+> project rules. Do not edit any file. Do not manufacture findings: an empty list is a good answer.
+> For each candidate give: paths, line ranges and symbols; the present behavior; the concrete
+> maintenance cost or repeated work; the smallest change; and the behaviors that must survive.
+> Mark each as `confirmed in source`, `measured` or `lead`. Note any deliberate duplication that
+> should stay. Return findings, files actually read, and anything you could not finish.
 
-Each worker writes only its own report. The coordinator alone edits the shared coverage map and
-summary. If the runtime shares a checkout, workers remain read-only and return reports for the
-coordinator to save. Tests or experiments that mutate files belong in a separate disposable copy.
+Reviewers form findings before seeing each other's reports. Reviewers may read beyond their files
+to follow a caller; they say so and do not claim that file is covered. On a quota or context stop,
+return what is done and exactly what remains. Do not fall back to a grep-only review.
 
-## 4. Verify and consolidate the findings
+## 5. Verify, then fix
 
-The coordinator reads each candidate against the original source, checks all cited callers and
-consults relevant decisions. Review by four agents is four perspectives, not four independent
-confirmations of the same claim.
+The organizer checks every candidate against the source, all cited callers and relevant decisions,
+then gives it one disposition: **fix now**, **later**, **rejected** or **needs James**. Four
+reviewers are four perspectives, not four confirmations of the same claim.
 
-Keep each surviving finding compact:
+Record each finding in one block:
 
 ```text
-ID: S-<group>-<number>
-Source SHA; paths/line ranges/symbols:
-Perspective; related findings or prior audit IDs:
-Current behavior and concrete cost:
-Evidence: source-confirmed | measured | lead; include commands/results if used
-Smallest proposed change; why an existing helper does or does not fit:
-Behavior and safeguards to preserve; specific verification needed:
-Priority: worthwhile now | later | optional
-Status: candidate | confirmed | rejected | duplicate | needs a decision
-Reviewer objection and resolution:
+S-<group>-<n> · <perspective> · <disposition> · <paths:lines, symbols>
+What it costs now:
+Smallest change:
+Must not change:
+Verification:
 ```
 
-Do not label a style preference a defect. Rank by concrete benefit, reach across callers and risk,
-not line-count reduction. Record rejected candidates and deliberate duplication briefly, with the
-reason; this prevents the next session proposing the same harmful extraction.
+Record rejected candidates and deliberate duplication in one line each, with the reason. This
+stops the next session proposing the same harmful extraction.
 
-Before a finding becomes an implementation task, a fresh reviewer challenges it: has the proposal
-changed semantics, missed a caller, moved work into the wrong layer, or added complexity? Prefer
-Claude reviewing Codex-origin proposals and Codex reviewing Claude-origin proposals when both are
-available. If no independent reviewer is available, mark that step pending. Disagreement stays
-visible; the coordinator does not average votes into a conclusion. Policy changes go to James.
+**Each packet ends with at most one draft fix PR** containing its "fix now" findings, grouped by
+shared behavior. No repository-wide cleanup PR. The PR body lists each finding's invariant,
+affected callers and checks. The usual rules apply:
 
-## 5. Review interactions across groups
+- Changed endpoints or auth-affecting hooks need the project's wire-level permission tests.
+- Generator changes need the existing fidelity checks. Generated database changes use project tools.
+- UI changes need a real browser check at desktop and phone widths. Wording changes update SPEC and
+  both Guides in the same PR.
+- Backup, install and update changes need the relevant shell and restore-stack checks.
+- Run type, lint and format checks and required CI. Passing tests do not prove a cleanup preserved
+  untested behavior, so the "Must not change" line is checked by reading, not only by CI.
+- A merged helper that replaces two copies must show, in the PR body, how their null, permission,
+  error and transaction handling compared. This is the main way a simplification changes behavior.
 
-Once the groups are read, run a bounded synthesis pass using their summaries and a map of shared
-helpers. Reopen source for concrete questions instead of putting the entire repository into one
-context. Track each of these flows explicitly:
+Claude challenges each fix PR before it leaves draft: changed semantics, a missed caller, work
+moved to the wrong layer, or added complexity. If no challenger is available, the PR says so.
+"Needs James" findings go in the README for James. Opening a fix PR does not authorize merging,
+tagging or deploying.
 
-- Browser upload and CLI import → shared manifest rules → release preview → confirmation → locked write.
-- Edit/draft/combine → field permissions → immutable version → Official pointer → what readers see.
-- Authenticated/public reading → visibility → preview/export/cache/email artifacts.
-- Install/update → environment defaults and overrides → backup destinations → status display → restore.
-- Source/tag → image version → checksummed release bundle → installer/manual instructions.
-- Shared frontend/admin components → desktop/phone behavior → Guide and manual claims.
+## 6. One cross-group pass at the end
 
-Look specifically for helper copies across groups, repeated policy decisions, unnecessary queries,
-and configuration defaults that disagree with code or instructions. Record which symbols and flows
-were traced. Per-file coverage alone does not complete this step.
+After all packets, the organizer runs one bounded pass over the packet summaries, the helper
+inventory and the first-pass clusters. It looks for copies and repeated policy decisions that
+crossed groups, and for configuration defaults that disagree with code or instructions. Reopen
+source for specific questions; do not load the whole repository at once. Useful flows to trace:
 
-## 6. Persist progress and handle changes to main
+- Browser upload and CLI import → shared manifest rules → release preview → locked write.
+- Edit/draft/combine → field permissions → immutable version → Official pointer.
+- Install/update → environment defaults → backup destinations → status display → restore.
 
-Proposed report location: `docs/simplification/<date>-<source-short-sha>/`. Create it only when the
-review starts. Keep the artifacts small:
+This pass produces findings and at most a few fix PRs. It is not a completion gate.
 
-- `README.md`: source SHA, rules, progress, cross-group flow checklist, commands/evidence and resume point.
-- `coverage.json`: every tracked path, primary group, treatment/reason, and four per-perspective
-  states (`pending`, `partial`, `reviewed`, or `boundary-checked` for non-source treatments), with report links.
-- `reports/<packet>-<perspective>.md`: evidence and actual read coverage; one writer per file.
-- `findings.md`: consolidated IDs, dispositions, independent-review results and proposed fix order.
+## 7. Persist progress
 
-At checkpoints, compare the coverage map with `git ls-tree -r --name-only <source-sha>`: every tracked
-path must occur exactly once and every required perspective must have its appropriate evidence.
-Missing or partial files remain visible. “No finding” is not shorthand for “not read”.
+Report location: `docs/simplification/<date>-<source-short-sha>/`, created when the review starts:
 
-Keep the source snapshot fixed while writing reports. Before proposing fixes, compare it with
-current `main`: recheck changed files and callers affected by changed shared interfaces. New files
-need assignment and review. Record the new comparison SHA and what was revalidated. If development
-continues, report coverage of the fixed snapshot and a separate list of newer unreviewed changes;
-never describe stale coverage as a review of current `main`.
+- `README.md`: source SHA, cost estimate, pilot numbers, progress, decisions for James, resume point.
+- `first-pass/`: tool output and the helper inventory.
+- `coverage.md`: the one coverage list from §2.
+- `findings.md`: one block per finding and one line per rejection, with links to fix PRs.
 
-Use one findings branch/PR with checkpoints. Keep secrets, raw mail, private environment details and
-sensitive repro material out of Git. Respect account limits and leave an exact resume point rather
-than launching unattended retry loops.
+Reviewer reports are working material and do not need to be committed; the organizer copies the
+surviving findings into `findings.md`. Keep secrets, raw mail, private environment details and
+sensitive repro material out of Git.
 
-## 7. Turn accepted findings into small PRs
+Keep the source SHA fixed while reviewing. Before each fix PR, rebase onto current `main` and
+recheck the files it touches. If `main` moved substantially, list the newer unreviewed changes in
+the README. Never describe coverage of an old SHA as coverage of current `main`.
 
-After the findings are reviewed and James authorizes implementation, group fixes by one shared
-behavior or helper. Avoid a repository-wide cleanup PR. Resolve policy choices before coding.
+## What "finished" means
 
-For each fix, state its invariant, affected callers and appropriate checks before editing:
+The review is finished when every in-scope file is `read` or explicitly excluded, every candidate
+has a disposition, the cross-group pass has run, and every "fix now" finding has a PR, or the
+pilot decision says to stop. The README then gives actual coverage, the fix PRs, deferred and
+"needs James" items, and checks not performed.
 
-- Reuse existing baseline CI evidence at its exact SHA; do not rerun every suite per review packet.
-  Passing tests do not prove a proposed cleanup preserves untested behavior.
-- Changed endpoints or auth-affecting hooks need the project's wire permission-before-write tests.
-- A bug fix must demonstrate its regression test failing before the fix and passing afterward.
-- Generator changes need the existing fidelity checks. Generated database changes/types use project tools.
-- UI changes need a real browser check at desktop and phone widths. Behavior or wording changes
-  update SPEC and both Guides where applicable in the same PR.
-- Backup/install/update changes need the relevant shell and restore-stack checks. Keep passwords
-  out of arguments, environment variables, logs and committed evidence.
-- Run appropriate type, lint and formatting checks, and required CI. Do not add tests that merely
-  restate a reversible cosmetic edit. Record what ran, passed, failed or could not run.
-
-Open fix PRs for review. Findings approval does not authorize merging, tagging, deploying, changing
-production settings, or touching unrelated branches. Follow James's explicit instructions for those.
-
-## What “finished” means
-
-The evaluation is finished when every tracked file at the stated source SHA has its assigned
-treatment and four-perspective evidence, all six cross-group flows are traced, and every candidate
-has a recorded disposition. The final summary gives actual coverage, exclusions and pending newer
-changes, the few highest-value proposals, deferred decisions, and checks not performed. Unresolved
-independent review or missing source coverage means the evaluation is partial.
-
-Completion does not require changing code or accepting every proposed simplification. It means James
-can choose useful cleanup work from a defensible, resumable evaluation of reuse, simplicity,
-efficiency and project conventions.
-
-## Questions for Claude's review of this proposal
-
-1. Will the packet and coverage rules catch old code and cross-module copies without excessive paperwork?
-2. Are the four perspectives distinct enough, and do the two pilot packets provide a useful cost check?
-3. Can any step accidentally change behavior, erase a safeguard, or turn an unverified claim into a fix?
-4. Are the existing audit plans and historical records kept separate without losing useful prior findings?
-5. What can be removed from this process while preserving credible whole-repository coverage?
+Completion does not require accepting every proposal. It means James has a set of small,
+reviewed cleanup PRs and a record of what was looked at, what was left alone, and why.
