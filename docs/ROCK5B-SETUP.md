@@ -42,24 +42,16 @@ the Dockerfile that `create-payload-app` generated. Nothing to scaffold.
 
 ## Step 2 — Configure env (`.env` is gitignored — create it fresh on each host)
 
-The secret and the Postgres password must match between `POSTGRES_PASSWORD` and
-`DATABASE_URI`. This block generates both and writes them consistently:
+Create the configuration from the current template. The script makes matching random secrets and
+refuses to overwrite an existing `.env`:
 
 ```bash
 cd /srv/lesson3
-SECRET=$(openssl rand -hex 32)
-PGPASS=$(openssl rand -hex 16)
-cat > .env <<EOF
-PAYLOAD_SECRET=${SECRET}
-POSTGRES_PASSWORD=${PGPASS}
-DATABASE_URI=postgres://lesson3:${PGPASS}@postgres:5432/lesson3
-NODE_ENV=production
-PORT=3000
-EOF
-chmod 600 .env
+scripts/create-env.sh
 ```
 
-`DATABASE_URI` host is `postgres` (the compose service name), not `localhost`.
+`DATABASE_URI` uses `postgres` (the compose service name), not `localhost`. Review `.env` and
+configure backups as described in `docs/OPS.md` before deploying changes to a populated database.
 
 ## Step 3 — Bring it up
 
@@ -80,32 +72,30 @@ base image from `node:24-alpine` to a Debian-based `node:24-slim` and rebuild.
 
 ## Step 4 — First login
 
-Over Tailscale, open: `http://rock5b.tail49b05.ts.net:3001/admin`
-Create the first admin user. You now have an empty Payload admin panel — the scaffold
-is done; feature work (sub-strand collection, ingest, embedded generator) comes next.
+Over Tailscale, open `http://rock5b.tail49b05.ts.net:3001/login`. On an empty database, use
+**Create the first Site administrator** to create the account. If the sign-in form appears instead,
+use an existing account.
 
 ## Day-to-day
 
+For the developer-managed Rock checkout, use `scripts/deploy.sh` to pull and deploy. It takes an
+encrypted backup before applying migrations. Follow the **Deploy** section of `docs/OPS.md` for the
+full procedure and recovery steps. After changing `.env`, recreate the app container so it reads the
+new settings; a restart alone does not update its environment.
+
 ```bash
-docker compose logs -f app      # logs
-docker compose restart app      # restart after env change (rebuild if deps/code changed: --build)
-git pull && docker compose up -d --build   # deploy latest committed code
-docker compose down             # stop (Postgres data persists in the lesson3_pgdata volume)
-docker stats --no-stream        # confirm footprint vs nanoclaw
+cd /srv/lesson3
+scripts/deploy.sh              # pull, back up, build, migrate and check readiness
+docker compose logs -f app     # logs (Ctrl-C stops watching)
+docker compose down            # stop; Postgres data stays in its named volume
+docker stats --no-stream       # confirm footprint vs nanoclaw
 ```
 
 ## Backups (per SPEC §11)
 
-Back up via `pg_dump` to a folder you control — the correct, restorable artifact
-(copying a running Postgres data dir is corruption-prone):
-
-```bash
-mkdir -p /srv/lesson3/backups
-docker compose exec -T postgres pg_dump -U lesson3 lesson3 \
-  | gzip > /srv/lesson3/backups/lesson3-$(date +%F).sql.gz
-```
-
-Automate (cron) and move off-box + encrypt before real users.
+Follow **Backups** in `docs/OPS.md` to configure encrypted backups, the schedule and a restore drill.
+Run `scripts/backup-db.sh` from `/srv/lesson3` to make a backup now. A successful copy does not prove
+it can be restored; use the restore drill in that manual to check it.
 
 ## Notes
 

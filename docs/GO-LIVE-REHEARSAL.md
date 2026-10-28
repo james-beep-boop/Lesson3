@@ -73,7 +73,10 @@ written. Do not improvise; if the instructions are wrong or unclear, that is a f
 - [ ] **Insert link** in a framework column: paste an ARES address (`http://ares.local/...`), with a
       label. Export the document: the link is clickable.
 - [ ] As the administrator: make the teacher's version **Official**.
-- [ ] Two versions from the same starting version (two saves), then **Combine versions**: choices, save.
+- [ ] As the Site administrator: open **Manage → System → Features**, switch on **Advanced tools**,
+      choose **Save**, and confirm with your password.
+- [ ] Two versions from the same starting version (two saves), then **More → Combine versions**:
+      review the choices and save.
 
 ## 6. Backups — before anyone relies on the machine
 

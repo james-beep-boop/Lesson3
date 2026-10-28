@@ -69,8 +69,9 @@ _Compare_ button.
 - **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to anyone
   with an ARES Lesson Plans account — a lesson page's _Share → Message a colleague_ item attaches that lesson
   to your note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
-  messages show as a small count on your avatar, and you get a short email telling you a message is
-  waiting (never its content). Opening Messages marks everything shown as read.
+  messages show as a small count on your avatar. If the site can send email, you may also get a short
+  email saying a message is waiting, without its content. Emails are limited, so check Messages for
+  unread notes. Opening Messages marks everything shown as read.
 
 ### Discussions
 
@@ -172,7 +173,7 @@ structure, and choose which version is Official for their subjects and grades.
   first and takes you to the first field needing attention. The message identifies its lesson
   and phase number; your edits stay on screen while you correct it.
 - **Change lesson settings:** update Document settings, the Sub-strand overview, lesson duration,
-  ARES keywords, lesson phases, assessment examples, and rubric rows.
+  lesson phases, assessment examples, and rubric rows.
 - **Make Official:** on a lesson page, promote a saved version to the Official one Teachers see —
   optionally deleting the version it replaces.
 - **Review saved versions:** *Manage → Lesson plans → Delete individual versions* lists saved versions that
