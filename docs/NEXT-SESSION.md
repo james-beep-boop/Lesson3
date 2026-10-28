@@ -18,6 +18,11 @@ Teacher *with editing access* is not a fourth type (SPEC §8). A **draft** is pr
 History before 2026-10-18 lives in `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md` — a record,
 not instructions. Older references to "see NEXT-SESSION" for a dated item mean that file.
 
+**Proposed review process:** [Whole-codebase simplification review](PLAN-whole-codebase-simplification-2026-10-27.md)
+is ready for Claude and James to review. It covers reuse, simplicity, efficiency and responsibility
+across the repository. Design only: the review has not started and no cleanup implementation is approved.
+It is separate from the broader security/correctness audit.
+
 ---
 
 # Release v1.10 — 2026-10-27
