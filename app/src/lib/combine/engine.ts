@@ -36,7 +36,7 @@ import {
   SLO_PROSE,
   SUMMARY_LESSON_PROSE,
   SUMMARY_PROMPT_PROSE,
-} from '../../hooks/fieldSplit'
+} from '../proseFields'
 import { canonicalJson } from '../canonicalJson'
 import {
   asDoc,

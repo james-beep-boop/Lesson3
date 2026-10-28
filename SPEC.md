@@ -377,8 +377,9 @@ observable contract, and a failed or backed-off capture must say so rather than 
   optional, sparseness would be lost, and a capture written against an **older field shape** could
   not be stored at all, which would make the schema-drift rule below impossible.
 - **The projection is derived from the existing prose whitelist**, not from top-level keys: the
-  `*_PROSE` constants in `hooks/fieldSplit.ts`, which `tests/unit/proseWhitelistDrift.spec.ts`
-  already pins mechanically to the `canEditProse` field factories. So system and admin-only data —
+  `*_PROSE` constants in `lib/proseFields.ts` used by `hooks/fieldSplit.ts`, which
+  `tests/unit/proseWhitelistDrift.spec.ts` already pins mechanically to the `canEditProse` field
+  factories. So system and admin-only data —
   `resourceLinks`, `framework[].phase`, `duration`, `number`, answer keys — cannot enter a capture as
   **content** by construction, and a future admin field is excluded automatically. A capture must never
   become a second, weaker channel for data the field-split protects; on restore it supplies prose only,

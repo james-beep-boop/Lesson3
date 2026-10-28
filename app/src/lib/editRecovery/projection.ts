@@ -53,7 +53,7 @@ import {
   SLO_PROSE,
   SUMMARY_LESSON_PROSE,
   SUMMARY_PROMPT_PROSE,
-} from '../../hooks/fieldSplit'
+} from '../proseFields'
 
 type Doc = Record<string, unknown>
 type Row = Doc & { id?: unknown }

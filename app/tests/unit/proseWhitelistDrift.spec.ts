@@ -1,9 +1,9 @@
 /**
  * Whitelist ↔ field-schema drift guard (audit 2026-07-04, Phase 2 invariant tripwires).
  *
- * The editing-access/Admin boundary is enforced by the WHITELIST in `hooks/fieldSplit.ts` (the `*_PROSE`
- * constants), NOT by Payload field access. That whitelist is hand-kept in sync with the `prose()`
- * fields in `fields/lessonContent.ts` via a "keep in sync" comment — exactly the kind of coupling
+ * The editing-access/Admin boundary is enforced by `hooks/fieldSplit.ts`, using the shared `*_PROSE`
+ * constants in `lib/proseFields.ts`, NOT by Payload field access. That whitelist is kept in sync with
+ * the `prose()` fields in `fields/lessonContent.ts` via a "keep in sync" comment — exactly the kind of coupling
  * that silently rots. This test makes the sync mechanical: `prose()` is the ONLY field factory that
  * attaches `access.update === canEditProse` (verified: `proseAdmin`/`structureText` attach none),
  * so "fields the schema intends as editing-access-editable" is computable by walking the field tree and
@@ -26,7 +26,7 @@ import {
   SLO_PROSE,
   SUMMARY_LESSON_PROSE,
   SUMMARY_PROMPT_PROSE,
-} from '../../src/hooks/fieldSplit'
+} from '../../src/lib/proseFields'
 
 /** A field whose `access.update` is the shared `canEditProse` guard — i.e. built by `prose()`. */
 const isProseField = (f: Field): boolean =>
