@@ -33,7 +33,56 @@ At quota, persist exact resume state and pause that account; eligible independen
 Keep one model session per account, no subagent fan-out, and reserve allowance for review/responses.
 [OpenAI pricing](https://learn.chatgpt.com/docs/pricing) lists Plus at $20/month; actual limits vary.
 
+## Model allocation — cheap execution, strong judgment
+
+Use **Haiku or Luna by default for bounded testing work**, after a pilot establishes that the
+chosen model handles that task reliably. Use **Sol 6.1 or a stronger Claude model** for coordination,
+test design, difficult investigation and consequential review. These are allocation defaults,
+not claims that the models are interchangeable or guaranteed cheapest on every account. Verify
+availability and allowance at the start of the run; record exact model/version and reasoning setting.
+This allocation supersedes the older sequential plan's Sonnet/Opus defaults for this workflow.
+
+| Work | Default allocation |
+|---|---|
+| Execute established suites; collect exit status, logs and artifacts | Deterministic scripts first. Haiku/Luna for bounded execution and summaries when needed. |
+| Inventory files/endpoints; check documentation against a named implementation | Haiku/Luna with source citations and explicit scope. |
+| Implement straightforward tests from an approved scenario and expected result; reproduce a specified defect | Haiku/Luna, within the audit's allowed test paths and disposable target. |
+| Decide expected behaviour, missing scenarios, assertions and coverage priorities | Sol 6.1 or stronger Claude model, using the specification and source. |
+| Investigate authorization, transaction races, data loss, recovery and cross-module failures | Strong model leads; Haiku/Luna may execute precisely specified checks. |
+| Reconcile findings, assess impact and independently review important claims | Strong model, with the opposite-family review tiers below. |
+
+Do not spend model calls repeatedly running deterministic commands or rereading unchanged logs.
+A worker brief names the source SHA, relevant rules/files, fixture/target, allowed operations,
+scenario, expected result, required assertions, evidence to retain and stopping conditions.
+For example, an unauthorized-write test must assert both the denial response and unchanged data;
+checking only the response does not establish that authorization preceded the write.
+
+Workers escalate ambiguous requirements, unexpected writes/results, framework uncertainty and
+failures crossing module boundaries. They preserve the evidence rather than weaken assertions,
+change expected behaviour, reset a target or broaden their assignment to obtain a pass.
+The strong coordinator resolves the question before dependent testing continues.
+
+Pilot representative easy and difficult assignments before scaling up. Compare cheap-model work
+with independent strong-model checks against the same baseline, including known defects and cases
+expected to be clean. Check test validity, missed conditions, reproducibility and review/rework effort.
+Retain the cheaper allocation only where it meets the required quality; escalate task classes that
+do not. Do not promise a saving or set an arbitrary cheap-model percentage before measuring.
+
+During the run, independently sample work reported **clean**, not just reported findings. Record
+the selection rule, sampled scope and results. A missed material issue triggers wider checking of
+that task class. Existing review tiers still apply to findings; this sampling additionally checks
+for omissions. Count worker, coordination, review and rework costs together, or label cost unknown
+when counters are unavailable. Cheaper execution does not establish adequate test design or coverage.
+
+This split can run sequentially within the account/session limits above. It does not authorize
+parallel subagents, additional paid capacity, new target access or product-code edits.
+
 ## Execution boundaries and runtime
+
+**Audit only: do not implement fixes or open fix PRs.** Deliver findings, evidence, independent
+reviews and the final report. Recommendations may describe remedies; implementation is a separate
+phase requiring separate operator authorization. Writing isolated audit/reproduction tests is
+evidence gathering, not permission to alter the implementation or existing tests.
 
 No product-code, tracked dependency/configuration, existing-test or vendor edits. Planned outputs:
 `docs/audit/**` and isolated `app/tests/audit/**`; tool installation/setup needs its authorized scope.
@@ -149,6 +198,11 @@ record that in the progress table) before any comparison; later edits go in a se
 
 ## Completion and handoff
 
+Continue through the entire agreed scope, including independent review and the final report.
+At unavoidable quota or prerequisite limits, save the exact resume point, continue other eligible
+work and resume the blocked work when possible. Do not stop merely because an initial pass or
+the existing test suites finished. Do not declare the audit complete while required work remains.
+
 Stop when required coverage, existing-suite outcomes, review/response and report criteria are met,
 or the user stops work. Required coverage is per chunk: before starting, the executor writes a short
 chunk contract at the top of its report (mandatory checks, evidence artifacts, allowed exclusions with
@@ -187,5 +241,6 @@ false positives/misses on those examples, not the overall audit accuracy.
     Read audit_plan.md and your assigned catalog section, pinned source rules and relevant known issues.
     Assignment <ID>; role <role>; source SHA <sha>; approved scope <scope>; private config supplied separately.
     Verify before recording candidates. Persist component/coverage notes and sanitized evidence per file/test.
+    Audit only: no implementation fixes or fix PRs. New isolated audit/reproduction tests stay within scope.
     Return owned artifacts, review status, exact resume point and blockers. Follow the assigned review tier.
     Continue eligible assigned work within allowance/scope; checkpoint at limits and stop at completion.
