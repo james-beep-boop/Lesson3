@@ -25,6 +25,10 @@ The superseded planning PRs #472 and #473 were closed without merging. #481 (bou
 requests) also merged after all four CI checks passed. New cleanup PRs still need Claude's review.
 No release or deployment is included. The broader security audit remains separate.
 
+**Future reviews:** [Two reusable audit workflows](AUDIT-WORKFLOWS.md) preserves the correctness
+and testing method and the whole-codebase simplification method, including altitude. Use it to
+start a fresh run; previous approvals and completion counts do not carry over.
+
 ---
 
 # Release v1.10 — 2026-10-27
