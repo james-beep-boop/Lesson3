@@ -8,6 +8,17 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+- Worldwide identity, part 2 (PR #488). Nothing changes on screen or in exports. Messages, forum
+  topics and forum replies now get a worldwide id, as people, lesson plans and versions already did.
+  People, saved versions, messages and forum posts record which installation made them. A saved
+  version records its whole ancestry by worldwide key (an ARES release's fingerprint, otherwise the
+  ancestor's id), so the ancestry survives when a parent is deleted. The copy reset
+  (`scripts/reset-installation-id.ts`) now gives a copied database new ids for everything, not only a
+  new Installation ID, and refuses while the app is running. One migration
+  (`20261029_102600_worldwide_ids_part2`) fills in the new fields on existing data.
+
 ## v1.11 (2026-10-29)
 
 - The line under the name on the sign-in page (and the site description) is now "Find, edit and print
