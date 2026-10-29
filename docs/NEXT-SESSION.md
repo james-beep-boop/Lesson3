@@ -24,9 +24,10 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 ---
 
-# Release v1.11 — 2026-10-28
+# Release v1.11 — 2026-10-29
 
-Everything merged since v1.10 (main at `6e75a17` plus the docs-only #483 and this release note).
+Everything merged since v1.10, including the correctness fixes (#487), maintenance updates (#486),
+and this release note. Product changes were reviewed together at main `bdc313cd`.
 No migration and no new setting.
 
 - **Sign-in line** (#471): "Find, edit and print lesson plans."
@@ -46,10 +47,25 @@ No migration and no new setting.
   closed without merging.
 - **NOTICE** (#482) lists all four vendored generator files and defers pins to `PROVENANCE.md`.
 
+- **Correctness fixes** (#487): teacher saves keep administrator-owned content; padded sub-strand
+  IDs match their existing plans; blank passwords and malformed saves are refused; concurrent
+  exports coalesce; converter timeouts, link insertion, reset-link copying and recovery diffs are
+  corrected. Hidden ARES fields remain unchanged for all roles.
+- **Maintenance updates** (#486): Payload 3.92.1, Sentry 10.78.0, nodemailer 10.2.1, PostCSS 8.5.32
+  and Gotenberg 8.39.0. Both PR heads passed CI. The combined tree passed 2,004 unit tests,
+  typecheck, lint, formatting and the dependency gate locally. The actual updated Arial converter
+  produced identical page images for all 220 pages of the 12-document comparison.
+
+**Accepted limits:** text can still be lost if both capture and sign-in renewal fail at native
+session expiry (SPEC §5); deleting the human who promoted an Official can leave a notice saying
+“system update”. These cases were left unchanged by operator decision. The partial audit remains
+reference-only in draft [PR #485](https://github.com/james-beep-boop/Lesson3/pull/485); its
+reproductions include deliberately failing tests, and it is not part of this release.
+
 [CHANGELOG.md](CHANGELOG.md) records the changes. The annotated `v1.11` tag triggers the release
 publisher; check
 [the publication workflow](https://github.com/james-beep-boop/Lesson3/actions/workflows/publish-containers.yml)
-before installing. **Not deployed by this session.** Use v1.11 for new school installations.
+before installing. **Not deployed by this session.** Use v1.11 for new school installations once publication succeeds.
 
 ---
 

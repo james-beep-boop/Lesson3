@@ -25,9 +25,11 @@ a security audit. Passing tests alone does not prove a system correct.
    Save progress after each file or test group so interrupted work can resume.
 6. Keep confirmed findings separate from leads, known tradeoffs and deferred work. Cite source,
    concrete conditions, expected/actual behaviour and the evidence supporting each claim.
-7. Put fixes in small separate PRs against current main. Recheck affected source since the baseline.
-   Follow current regression-test rules; prove a bug-fix test fails before fixing the bug.
-8. Obtain independent review before merging fixes, following the operator's current instructions.
+7. Keep findings separate from fixes. Workflow A is audit-only; implementation requires separate
+   authorization after the audit. For authorized fixes under Workflow B or a later implementation
+   phase, use small separate PRs against current main and follow current regression-test rules.
+8. Obtain independent review of findings under the chosen workflow. Any separately authorized
+   fixes also need independent review before merging, following current operator instructions.
    A prior run's merge permission or machine access is not a standing grant for another run.
 
 Keep the main-tree summary short. Store bulky sanitized evidence on a named evidence branch and
@@ -35,6 +37,11 @@ link to its full commit SHA. Keep credentials, private operational details and r
 outside the repository. Record pass, fail, not run and blocked honestly; do not equate them.
 
 ## Workflow A — correctness and testing
+
+**Audit only. Do not implement fixes or open fix PRs.** Produce findings, evidence, independent
+reviews and a final report. New isolated audit/reproduction tests are allowed within the handbook's
+boundaries; product code, existing tests, dependencies, configuration and vendored files stay unchanged.
+Recommendations may describe a remedy, but implementing it is a separately authorized phase.
 
 Use the [audit handbook](audit/audit_plan.md) and [chunk catalog](audit/catalog.md) as the detailed
 method. Their dated status, account allocation and prior-run approvals are historical context;
@@ -70,6 +77,10 @@ authorizing new parallel sessions, spending or operations.
 
 Completion means every assigned chunk has evidence or an explicit gap, findings have dispositions,
 and remaining runtime/hardware checks are stated. It does not mean every finding has been fixed.
+Continue through the entire agreed scope, including independent review and the final report.
+Checkpoint at unavoidable quota or prerequisite limits, continue other eligible work and resume
+from the checkpoint when possible. A final report with required checks still outstanding is partial;
+do not declare the audit complete while required work remains. Stop if the operator stops the audit.
 
 ## Workflow B — whole-codebase simplification
 
@@ -117,12 +128,15 @@ Copy one of these requests and fill in the baseline and scope:
 > Run the correctness-and-testing workflow in docs/AUDIT-WORKFLOWS.md against [tag/full SHA].
 > Scope: [whole codebase or named areas]. Start with a baseline and coverage plan. State the
 > disposable runtime environment and unresolved prerequisites. Follow the audit handbook and
-> catalog; retain findings and evidence separately from fixes. Leave fix PRs for independent review.
+> catalog. Audit only: do not implement fixes or open fix PRs. Produce findings, evidence, independent
+> reviews and the final report. Continue through the agreed scope; checkpoint at unavoidable limits
+> and resume from that point. Do not declare completion while required work remains.
 
 > Run the whole-codebase simplification workflow in docs/AUDIT-WORKFLOWS.md against [tag/full SHA].
 > Review reuse, simplicity, efficiency and altitude, with project conventions throughout. Configure
 > and prove the mechanical scans, then pilot bounded packets before scaling up. State coverage and
 > limitations. Propose small behaviour-preserving fixes and leave PRs for independent review.
 
-For either run, record whether fixing is authorized, who reviews, whether merging is authorized and
-what operations are allowed. Do not infer release or deployment permission from review permission.
+For either run, record who reviews and what operations are allowed. Workflow A remains audit-only;
+fixes require a separately authorized implementation phase. For Workflow B, record whether fixing
+and merging are authorized. Do not infer release or deployment permission from review permission.

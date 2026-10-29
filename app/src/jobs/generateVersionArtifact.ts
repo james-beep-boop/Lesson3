@@ -152,8 +152,20 @@ export async function findPendingExportJob(
 export const PENDING_EXPORT_JOB_UNIQUE_INDEX =
   'payload_jobs_generate_version_artifact_pending_unique'
 
-/** True only for the migration-backed pending-export uniqueness conflict. */
+/**
+ * True for the migration-backed pending-export uniqueness conflict, in either shape it reaches us.
+ *
+ * ⚑ The installed Drizzle adapter (`upsertRow/handleUpsertError.js`) does NOT rethrow the driver's
+ * 23505: it replaces it with a fresh Payload `ValidationError` that keeps neither `code`,
+ * `constraint` nor `cause` — only `data.errors[].tableName`. Recognising only the raw driver shape
+ * meant a concurrent cold export never coalesced and answered 400 "The following field is
+ * invalid" (audit F-C42-001). The converted shape names the table, not the index, so it can
+ * over-match another unique violation on `payload_jobs`. That is safe: the export endpoint re-reads
+ * the pending job and rethrows the original error when there is none, and prewarm's enqueue is
+ * best-effort.
+ */
 export function isPendingExportJobConflict(error: unknown): boolean {
+  if (isJobsTableUniqueValidationError(error)) return true
   let current: unknown = error
   const seen = new Set<unknown>()
   while (current && typeof current === 'object' && !seen.has(current)) {
@@ -165,4 +177,16 @@ export function isPendingExportJobConflict(error: unknown): boolean {
     current = record.cause
   }
   return false
+}
+
+/** The adapter-converted form of a `payload_jobs` unique violation (see above). */
+function isJobsTableUniqueValidationError(error: unknown): boolean {
+  // By name, not `instanceof`: the server bundle can hold more than one copy of Payload's classes.
+  const record = error as { name?: unknown; data?: { errors?: unknown } } | null
+  if (record?.name !== 'ValidationError') return false
+  const errors = record.data?.errors
+  return (
+    Array.isArray(errors) &&
+    errors.some((e) => (e as { tableName?: unknown } | null)?.tableName === 'payload_jobs')
+  )
 }

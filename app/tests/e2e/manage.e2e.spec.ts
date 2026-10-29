@@ -1433,6 +1433,15 @@ test.describe('Manage page', () => {
 
       await row.getByRole('button', { name: 'Reveal reset link', exact: true }).click()
       await expect(row.getByLabel(/Password reset link/)).toHaveValue(/\/reset-password\?token=/)
+      // A plain-HTTP school origin has no Clipboard API: the copy must fall back to instructions,
+      // not throw before its error handling is attached (audit F-C63-006).
+      await page.evaluate(() =>
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined }),
+      )
+      await row.getByRole('button', { name: 'Copy link', exact: true }).click()
+      await expect(
+        row.getByText('Could not copy automatically — select and copy the link below.'),
+      ).toBeVisible()
 
       const grantPrompt = await acceptConfirmation(page, () =>
         row.getByRole('button', { name: 'Make Site Administrator', exact: true }).click(),

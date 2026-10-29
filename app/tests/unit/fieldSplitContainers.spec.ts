@@ -166,3 +166,118 @@ describe('group containers still accept legitimate prose edits', () => {
     expect(() => runSplit({ [key]: container })).toThrow(Forbidden)
   })
 })
+
+/**
+ * The OMISSION twin of the container bug above, for keys that are NOT editor containers (audit
+ * F-C31-001, 2026-10-28). The blanket restore used to iterate only the SUBMITTED keys, so omitting
+ * `unit` — administrator-authored, with no rebuild of its own — let save-as-new create a candidate
+ * without it. The restore now walks the original's keys too.
+ */
+describe('administrator-owned top-level keys survive being omitted', () => {
+  const withUnit = () => ({
+    ...original(),
+    meta: { titleDoc: 'admin title', substrand_id: '7.1' },
+    unit: { content: 'admin unit overview' },
+  })
+  const split = (data: Record<string, unknown>) =>
+    applyEditorFieldSplit({
+      data,
+      originalDoc: withUnit() as never,
+      operation: 'update',
+      req: { user: editor } as never,
+      editorTopLevelKeys: VERSION_EDITOR_KEYS,
+    }) as Record<string, unknown>
+
+  it.each(['unit', 'meta'])('restores an omitted %s from the original', (key) => {
+    const out = split({ lessons: original().lessons })
+    expect(out[key]).toEqual((withUnit() as Record<string, unknown>)[key])
+  })
+
+  it('still replaces a submitted unit with the original', () => {
+    const out = split({ lessons: original().lessons, unit: { content: 'HOSTILE' } })
+    expect(out.unit).toEqual({ content: 'admin unit overview' })
+  })
+})
+
+/**
+ * Non-object members of a submitted row array (audit F-C31-002): `idsOf` read `.id` from each, so
+ * `[null]` threw a TypeError and surfaced as a 500 instead of the guard's controlled refusal.
+ */
+describe('row arrays with non-object members are refused, not crashed on', () => {
+  it.each([
+    ['lessons', { lessons: [null] }],
+    ['framework', { lessons: [{ id: 'L1', framework: [null] }] }],
+    ['finalExplanation.sections', { finalExplanation: { sections: [null] } }],
+    ['finalExplanation.rubric', { finalExplanation: { rubric: [null] } }],
+    ['summaryTable.lessons', { summaryTable: { lessons: [null] } }],
+  ])('%s: [null] → Forbidden', (_path, data) => {
+    expect(() => runSplit(data)).toThrow(Forbidden)
+  })
+
+  it('does not throw a TypeError for an administrator either', () => {
+    const siteAdmin = { id: 1, roles: ['siteAdmin'], assignments: [] }
+    expect(() =>
+      applyEditorFieldSplit({
+        data: { lessons: [null] },
+        originalDoc: original() as never,
+        operation: 'update',
+        req: { user: siteAdmin } as never,
+        editorTopLevelKeys: VERSION_EDITOR_KEYS,
+      }),
+    ).not.toThrow()
+  })
+})
+
+/**
+ * SPEC §5 "stored faithfully, but never editable by anyone" (audit F-C71-002; operator decision
+ * 2026-10-29). Administrators pass through the teacher whitelist, so these are restored from the
+ * source for every role.
+ */
+describe('ARES contract fields nobody may edit', () => {
+  const source = () => ({
+    subjectGrade: 7,
+    meta: { titleDoc: 'title', outputDir: 'out/7.1' },
+    lessons: [{ id: 'L1', title: 'one', substrand: '7.1 Cells', aresKeywords: 'cell, membrane' }],
+  })
+  const subjectAdmin = {
+    id: 5,
+    roles: [],
+    assignments: [{ subjectGrade: 7, role: 'subjectAdmin' }],
+  }
+  const siteAdmin = { id: 1, roles: ['siteAdmin'], assignments: [] }
+  const splitAs = (user: unknown, data: Record<string, unknown>) =>
+    applyEditorFieldSplit({
+      data,
+      originalDoc: source() as never,
+      operation: 'update',
+      req: { user } as never,
+      editorTopLevelKeys: VERSION_EDITOR_KEYS,
+    }) as { meta: Record<string, unknown>; lessons: Record<string, unknown>[] }
+
+  it.each([
+    ['a Subject Admin', subjectAdmin],
+    ['a Site Admin', siteAdmin],
+  ])('%s cannot change them, but still edits the rest', (_who, user) => {
+    const out = splitAs(user, {
+      meta: { titleDoc: 'new title', outputDir: 'HOSTILE' },
+      lessons: [{ id: 'L1', title: 'new', substrand: 'HOSTILE', aresKeywords: 'HOSTILE' }],
+    })
+    expect(out.meta).toMatchObject({ titleDoc: 'new title', outputDir: 'out/7.1' })
+    expect(out.lessons[0]).toMatchObject({
+      title: 'new',
+      substrand: '7.1 Cells',
+      aresKeywords: 'cell, membrane',
+    })
+  })
+
+  it('a duplicated lesson keeps a value the source already holds, and drops an invented one', () => {
+    const out = splitAs(subjectAdmin, {
+      lessons: [
+        source().lessons[0],
+        { title: 'copy', substrand: '7.1 Cells', aresKeywords: 'INVENTED' },
+      ],
+    })
+    expect(out.lessons[1].substrand).toBe('7.1 Cells')
+    expect(out.lessons[1]).not.toHaveProperty('aresKeywords')
+  })
+})

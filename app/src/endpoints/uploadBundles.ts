@@ -26,7 +26,7 @@ import { enforceUserRateLimit } from '../lib/rateLimit'
 import { sendReleaseMessages } from '../ingest/releaseMessages'
 import { ingestUploadItems } from '../ingest'
 import { IngestError } from '../ingest/errors'
-import type { TaxonomyKey } from '../ingest/taxonomy'
+import { MAX_SUBJECT_NAME_LENGTH, type TaxonomyKey } from '../ingest/taxonomy'
 import { MAX_BODY_BYTES, MAX_FILES, prepareUploadFiles } from '../ingest/uploadFiles'
 import type { User } from '../payload-types'
 import { assertDeclaredBodyWithin } from './respond'
@@ -169,7 +169,12 @@ function parseApprovals(field: FormDataEntryValue | null): TaxonomyKey[] | undef
   if (!Array.isArray(parsed) || parsed.length > MAX_APPROVALS) throw bad()
   return parsed.map((item) => {
     const { subject, grade } = (item ?? {}) as { subject?: unknown; grade?: unknown }
-    if (typeof subject !== 'string' || !subject.trim() || subject.length > 200) throw bad()
+    if (
+      typeof subject !== 'string' ||
+      !subject.trim() ||
+      subject.trim().length > MAX_SUBJECT_NAME_LENGTH
+    )
+      throw bad()
     if (typeof grade !== 'number' || !Number.isInteger(grade)) throw bad()
     return { subject: subject.trim(), grade }
   })

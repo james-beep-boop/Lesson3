@@ -116,6 +116,17 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
         // boolean would clear the screen over work that was never stored. `allSafe` is synchronous
         // and each editor answers for the content on screen at this instant.
         const clearScreen = allSafe()
+        // ⚑ …and INVALIDATED by any input while `logOut()` is pending. Payload clears its user the
+        // moment logout starts, so recovery goes inactive and unregisters — asking `allSafe()` again
+        // afterwards would see an empty registry and say true — yet the textarea still accepts
+        // typing until the request settles. Text typed in that gap was never captured, so the
+        // unsafe-work policy applies to it: keep the screen (audit F-C63-003). `input` fires for
+        // typing, paste, drop and cut alike; capture phase, so no field can stop it reaching us.
+        let typedSinceVerdict = false
+        const onInput = () => {
+          typedSinceVerdict = true
+        }
+        document.addEventListener('input', onInput, true)
         // ⚑ Runs on REJECTION as well as success. `logOut()` can fail — the network is exactly what
         // an expiring session tends to have trouble with — and a bare `.then()` would leave an
         // unhandled rejection AND skip the clear entirely, with `loggingOut` already latched so no
@@ -128,7 +139,8 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
           // React tree — including the form state we are trying to remove — alive in memory. This is
           // also why it runs after `logOut()` resolves: navigating first would abandon the logout
           // request and leave a live session cookie behind.
-          if (clearScreen) {
+          document.removeEventListener('input', onInput, true)
+          if (clearScreen && !typedSinceVerdict) {
             // ⚑ `?redirect=` only for a path INSIDE the admin, matching Payload's own
             // `redirectToInactivityRoute`. Appending it unconditionally — as this did while the route
             // was hardcoded — hands the login form a return path it may have no business honouring.

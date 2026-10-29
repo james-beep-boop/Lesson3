@@ -124,6 +124,21 @@ describe('upload-approved taxonomy', () => {
     expect(plans).toEqual([grades.docs[0]!.id, grades.docs[0]!.id])
   })
 
+  it('refuses, rather than offers, a new subject name the approval parser would refuse', async () => {
+    // Audit F-C40-002: preview offered a 201-character subject that confirmation then refused.
+    const subject = `${MARK}${'L'.repeat(201 - MARK.length)}`
+    expect(subject).toHaveLength(201)
+    const report = await ingestUploadItems(payload, [
+      item('long.json', rawBundle('96.9', subject, 9)),
+    ])
+    expect(report.missing, 'never offered for approval').toEqual([])
+    expect(report.needsConfirmation).toBe(false)
+    expect(report.rejected).toEqual([
+      { file: 'long.json', error: expect.stringMatching(/longer than 200 characters/) },
+    ])
+    expect((await subjectsNamed(subject)).totalDocs).toBe(0)
+  })
+
   it('refuses an approval the files do not need, even when nothing is missing', async () => {
     const subject = `${MARK}Existing`
     const created = await payload.create({

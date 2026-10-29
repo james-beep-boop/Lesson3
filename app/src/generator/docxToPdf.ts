@@ -76,5 +76,13 @@ export async function docxToPdf(docx: Buffer, filename = 'document.docx'): Promi
     )
   }
 
-  return Buffer.from(await res.arrayBuffer())
+  // The timeout signal also covers reading the BODY, so a sidecar that sends success headers and
+  // then stalls rejects here — still a converter failure, not a generator one (audit F-C42-002).
+  try {
+    return Buffer.from(await res.arrayBuffer())
+  } catch (err) {
+    throw new PdfConversionError(
+      `PDF converter response failed or timed out at ${base}: ${(err as Error).message}`,
+    )
+  }
 }

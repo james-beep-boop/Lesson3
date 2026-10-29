@@ -21,7 +21,7 @@
  *     revision of this patch) → exit non-zero;
  *   - both patches must end up applied; one applied and one not is an error.
  *
- * ⚑ The strings are tied to the pinned `@payloadcms/ui` (3.92.0; unchanged from 3.91.0). On every
+ * ⚑ The strings are tied to the pinned `@payloadcms/ui` (3.92.1; unchanged from 3.91.0). On every
  * deliberate Payload upgrade, re-derive them from the new bundle. If Payload fixes either problem
  * upstream, delete the patch on that upgrade. Rollback: remove the `postinstall` line and rebuild.
  *

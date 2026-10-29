@@ -1070,6 +1070,100 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     })
   })
 
+  it('A teacher with editing access who OMITS unit still gets the source UNIT (audit F-C31-001)', async () => {
+    const unit = { content: `${MARK}admin unit overview`, drivingQuestion: `${MARK}admin question` }
+    const src = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '7.3.0',
+        title: `${MARK}omit-unit`,
+        ...minimalBundleContent(),
+        unit,
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const srcDoc = await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: src.id,
+      depth: 0,
+    })
+    const { unit: _omitted, ...withoutUnit } = withProseEdit(srcDoc) as Record<string, unknown>
+    const res = await fetch(url(`/api/lesson-bundle-versions/${src.id}/save-as-new`), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm(withoutUnit),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number }
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as unknown as { unit?: Record<string, unknown> }
+    expect(created.unit).toMatchObject(unit)
+    for (const id of [out.id, src.id])
+      await fx.payload.delete({ collection: 'lesson-bundle-versions', id, overrideAccess: true })
+  })
+
+  it('a Subject Admin cannot rewrite the never-editable ARES fields (audit F-C71-002)', async () => {
+    const base = minimalBundleContent() as { meta: object; lessons: object[] }
+    const src = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '7.4.0',
+        title: `${MARK}ares-fields`,
+        ...base,
+        meta: { ...base.meta, outputDir: 'out/original' },
+        lessons: base.lessons.map((l) => ({ ...l, substrand: 'Original', aresKeywords: 'kw' })),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const srcDoc = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: src.id,
+      depth: 0,
+    })) as unknown as { meta: object; lessons: object[] }
+    const res = await fetch(url(`/api/lesson-bundle-versions/${src.id}/save-as-new`), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+      body: dataForm({
+        ...withProseEdit(srcDoc),
+        meta: { ...srcDoc.meta, outputDir: 'HOSTILE' },
+        lessons: (withProseEdit(srcDoc) as { lessons: object[] }).lessons.map((l) => ({
+          ...l,
+          substrand: 'HOSTILE',
+          aresKeywords: 'HOSTILE',
+        })),
+      }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number }
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as unknown as { meta: Record<string, unknown>; lessons: Record<string, unknown>[] }
+    expect(created.meta.outputDir).toBe('out/original')
+    expect(created.lessons[0]).toMatchObject({ substrand: 'Original', aresKeywords: 'kw' })
+    for (const id of [out.id, src.id])
+      await fx.payload.delete({ collection: 'lesson-bundle-versions', id, overrideAccess: true })
+  })
+
+  it('a null row is a controlled 403, not a 500, and writes nothing (audit F-C31-002)', async () => {
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as unknown as HttpVersion), lessons: [null] }),
+    })
+    expect(res.status).toBe(403)
+    expect(await fx.payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
+  })
+
   it('Teacher cannot save-as-new → 4xx', async () => {
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
@@ -1892,6 +1986,19 @@ describe('open self-registration (2026-07-09) — POST /api/users', () => {
     expect(docs[0].roles ?? []).toEqual([])
     expect(docs[0].assignments ?? []).toEqual([])
     expect(docs[0]._verified ?? false).toBe(false) // the smuggled flag stripped
+  })
+
+  it('an all-space password is refused at signup (sign-in could never accept it) → 400', async () => {
+    // Audit F-C23-001: Payload stores it, but its login refuses a blank password before comparing.
+    const email = signupEmail('blank')
+    const res = await post({ name: signupName('blank'), email, password: '        ' })
+    expect(res.status).toBe(400)
+    const { totalDocs } = await fx.payload.find({
+      collection: 'users',
+      where: { email: { equals: email } },
+      overrideAccess: true,
+    })
+    expect(totalDocs).toBe(0)
   })
 
   it('login before verification → 403 (UnverifiedEmail)', async () => {

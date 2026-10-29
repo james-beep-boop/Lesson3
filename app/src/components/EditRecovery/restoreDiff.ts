@@ -134,6 +134,9 @@ const undrawable = (was: string, now: string): FieldRender => {
   return sameShape(was, now) ? { kind: 'spacing' } : { kind: 'paragraphs' }
 }
 
+/** An HtmlDiff annotation, as an attribute inside a real tag — see `renderOf`. */
+const ANNOTATION_TAG = /<[a-z]+\s[^>]*\bdata-match-type=/i
+
 export const renderOf = (was: string, now: string, readOnly: boolean): FieldRender => {
   // ⚑ Read-only shows PLAIN text, never a diff: that path exists so stale prose can be COPIED out,
   // and unified output interleaves the removed words into the new. But when there is no visible text
@@ -146,5 +149,9 @@ export const renderOf = (was: string, now: string, readOnly: boolean): FieldRend
   const html = unifiedDiff(was, now)
   // Prefer the DIFF wherever the engine can draw one: a cleared paragraph shows its lost text struck
   // through, which says more than the word "Emptied" ever could.
-  return html.includes('data-match-type') ? { kind: 'diff', html } : undrawable(was, now)
+  //
+  // ⚑ Match the annotation as a TAG ATTRIBUTE, not a substring: prose that literally contains
+  // `data-match-type` used to count as a drawn change (audit F-C63-002). Both inputs are escaped
+  // before diffing, so a `<` in the output can only open one of the engine's own tags.
+  return ANNOTATION_TAG.test(html) ? { kind: 'diff', html } : undrawable(was, now)
 }

@@ -8,10 +8,37 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## v1.11 (2026-10-28)
+## v1.11 (2026-10-29)
 
 - The line under the name on the sign-in page (and the site description) is now "Find, edit and print
   lesson plans.", naming editing, which the v1.10 line left out.
+- `graphql-scalars` is pinned to 2.0.1 through an `overrides` entry, clearing the new high advisory
+  GHSA-x8rm-f576-gq67 that failed `audit:prod`. It comes in through `@payloadcms/graphql`; GraphQL is
+  disabled in this app, so the advisory was not reachable, but the gate is fail-closed.
+- Fixes from the 2026-10-28 correctness audit (PR #485):
+  - A teacher's save that leaves out the sub-strand overview (or any other administrator-owned part)
+    now keeps the source's copy instead of creating a version without it. Malformed rows in a save
+    are refused with 403 instead of failing with 500.
+  - Re-importing a plan whose sub-strand id has spaces around it now adds a version to the same plan
+    instead of creating a duplicate plan. Existing padded plans are matched too.
+  - A password made only of spaces is refused at sign-up, reset and change; sign-in never accepted it.
+  - An upload naming a new subject longer than 200 characters is refused up front, instead of being
+    offered for approval and then refused.
+  - Two people exporting the same version at once now share one export job instead of one getting a
+    400 error.
+  - A PDF converter that stalls partway through its reply is reported as a converter failure (502).
+  - Text typed while an expired session is signing out stays on screen, as unsaved work should.
+  - A second link inserted straight after the first lands where the cursor is.
+  - **Copy link** for a reset link explains how to copy by hand on a plain-HTTP school address.
+  - The edit-recovery panel is no longer confused by text containing `data-match-type`.
+  - The hidden ARES fields (`outputDir`, a lesson's `substrand` and `aresKeywords`) can no longer be
+    changed by anyone, administrators included, as SPEC §5 already said.
+
+- Known limit: if both draft saving and sign-in renewal fail when the sign-in expires, text that
+  has not been saved can still be lost. This remaining case is recorded in SPEC §5.
+- Maintenance updates: Payload 3.92.1, Sentry 10.78.0, nodemailer 10.2.1, PostCSS 8.5.32 and
+  Gotenberg 8.39.0. The updated PDF converter produced the same page images as the previous one
+  for all 220 pages in the 12-document comparison.
 - The Guide no longer promises an email for every message. You get one only when it is your only
   unread message, and only up to a daily limit, so check **Messages** for unread notes.
 - The Guide no longer lists ARES keywords among the lesson settings an administrator can change; they
