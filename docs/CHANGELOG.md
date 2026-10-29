@@ -12,6 +12,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 - The line under the name on the sign-in page (and the site description) is now "Find, edit and print
   lesson plans.", naming editing, which the v1.10 line left out.
+- `graphql-scalars` is pinned to 2.0.1 through an `overrides` entry, clearing the new high advisory
+  GHSA-x8rm-f576-gq67 that failed `audit:prod`. It comes in through `@payloadcms/graphql`; GraphQL is
+  disabled in this app, so the advisory was not reachable, but the gate is fail-closed.
 - Fixes from the 2026-10-28 correctness audit (PR #485):
   - A teacher's save that leaves out the sub-strand overview (or any other administrator-owned part)
     now keeps the source's copy instead of creating a version without it. Malformed rows in a save
