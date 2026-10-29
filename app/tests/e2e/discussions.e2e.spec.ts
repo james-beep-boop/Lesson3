@@ -346,8 +346,12 @@ test.describe('Discussions', () => {
 
   test('title search', async ({ page }) => {
     await loginAs(page, fx, 'teacher')
-    await page.goto(`${BASE}/discuss?q=${encodeURIComponent(`${MARK}Dot`)}`)
-    await expect(page.getByRole('link', { name: `${MARK}Dot` })).toBeVisible()
+    // Its OWN topic: searching for one an earlier test created made this fail when run alone, or
+    // after a worker restart (audit F-C72-001).
+    await page.goto(`${BASE}/discuss/new`)
+    await startDiscussion(page, `${MARK}Searchable`, 'Find me by title.')
+    await page.goto(`${BASE}/discuss?q=${encodeURIComponent(`${MARK}Searchable`)}`)
+    await expect(page.getByRole('link', { name: `${MARK}Searchable` })).toBeVisible()
     await page.goto(`${BASE}/discuss?q=nothing-matches-this-${Date.now()}`)
     await expect(page.getByText(/No discussion titles match/)).toBeVisible()
   })

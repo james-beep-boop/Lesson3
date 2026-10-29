@@ -102,6 +102,10 @@ export default function LinkedTextarea(
       const input = textarea()
       input?.focus()
       input?.setSelectionRange(result.cursor, result.cursor)
+      // Remember the caret we just PLACED: `focus()` re-ran `rememberAsTarget` with the browser's
+      // pre-selection caret, and a programmatic `setSelectionRange` raises no event it listens to,
+      // so an immediate second insertion used a stale position (audit F-C63-005).
+      cursorRef.current = result.cursor
     }, 0)
   }
 

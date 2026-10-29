@@ -473,6 +473,26 @@ describe('re-ingest (SPEC §7)', () => {
     expect(totalDocs).toBe(0)
   })
 
+  it('a PADDED sub-strand id still matches its own re-upload (audit F-C40-001)', async () => {
+    // The lookup key is trimmed while META is stored losslessly, so an exact-equality query never
+    // found the padded record and every re-upload made a duplicate plan.
+    const first = (await ingestItems(payload, [item('p1.json', rawBundle(' 97.11 ', 'Pad V1'))]))[0]
+    const [again] = await ingestItems(payload, [item('p2.json', rawBundle(' 97.11 ', 'Pad V2'))])
+    expect(again.action).toBe('revised')
+    expect(again.id).toBe(first.id)
+    expect(again.semver).toBe('2.0.0')
+    // …and the trimmed spelling is the same identity.
+    const [plain] = await ingestItems(payload, [item('p3.json', rawBundle('97.11', 'Pad V3'))])
+    expect(plain.id).toBe(first.id)
+  })
+
+  it('a sub-strand id that merely CONTAINS another is a different plan', async () => {
+    const short = (await ingestItems(payload, [item('c1.json', rawBundle('97.12', 'Short'))]))[0]
+    const long = (await ingestItems(payload, [item('c2.json', rawBundle('97.123', 'Long'))]))[0]
+    expect(long.action).toBe('created')
+    expect(long.id).not.toBe(short.id)
+  })
+
   it('empty substrand_id always creates a new plan (cannot dedupe)', async () => {
     const a = (await ingestItems(payload, [item('e1.json', rawBundle('', 'No id one'))]))[0]
     const b = (await ingestItems(payload, [item('e2.json', rawBundle('', 'No id two'))]))[0]

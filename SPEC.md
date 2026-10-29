@@ -304,7 +304,7 @@ generic validation heading (operator correction 2026-10-23).
 - **Subject Admin only:** `META.*` (except the identity fields below and the no-op fields in *System*), `framework[].phase`, `duration`, structural changes (add/remove/reorder lessons & phases), and **assessment answer keys** — `sections[].exemplar`, `rubric[*]`.
 - **Site Admin only (amended 2026-07-05):** `META.subject`, `META.grade`, `META.substrand_id` — corruption-repair fields, not curation. Subject/grade only label the printed document (the plan's `subjectGrade` relationship is the categorization truth, fixed at ingest), and `substrand_id` is the re-ingest matching key (§7) — a wrong edit silently redirects future re-uploads. A Subject Admin's submitted values are preserved from the source (`hooks/fieldSplit.ts`); the fields render read-only for them.
 - **System (never editable):** `LESSONS[].resourceLinks`; `LESSONS[].number` (set by order); `SUMMARY_TABLE.lessons[].number`.
-- **Stored faithfully, but never editable by anyone (amended 2026-08-23):** `META.outputDir`, `LESSONS[].substrand`, `LESSONS[].aresKeywords`. These are ARES contract data the generator receives verbatim, so they are stored losslessly — but *editing* them cannot change anything observable, which made them controls the system does not honour. `outputDir` is described by the contract itself as "not consumed downstream" (its only upstream reader is the CLI's file-writing path, which Lesson3 does not use). `substrand`/`aresKeywords` are arguments to `getAllPhaseResources()`, and Lesson3's bridge is positional — it takes each lesson's already-resolved `resourceLinks` in order and ignores the arguments. ⚑ Hidden and read-only, **not** protected by field-level `access`: these are optional subfields inside open arrays, where Payload field access nulls the value instead of retaining it (DECISIONS 2026-07-04). The whitelist in `hooks/fieldSplit.ts` is the write-time authority, and it is secure by default.
+- **Stored faithfully, but never editable by anyone (amended 2026-08-23):** `META.outputDir`, `LESSONS[].substrand`, `LESSONS[].aresKeywords`. These are ARES contract data the generator receives verbatim, so they are stored losslessly — but *editing* them cannot change anything observable, which made them controls the system does not honour. `outputDir` is described by the contract itself as "not consumed downstream" (its only upstream reader is the CLI's file-writing path, which Lesson3 does not use). `substrand`/`aresKeywords` are arguments to `getAllPhaseResources()`, and Lesson3's bridge is positional — it takes each lesson's already-resolved `resourceLinks` in order and ignores the arguments. ⚑ Hidden and read-only, **not** protected by field-level `access`: these are optional subfields inside open arrays, where Payload field access nulls the value instead of retaining it (DECISIONS 2026-07-04). The whitelist in `hooks/fieldSplit.ts` is the write-time authority, and it is secure by default. Administrators pass through that whitelist, so `preserveStoredAresFields` in the same file restores these three from the source for every role (operator decision 2026-10-29).
 - **`SUMMARY_TABLE.lessons[].title` is Subject-Admin-only (amended 2026-08-23):** it was rendered as teacher prose and listed in `SUMMARY_LESSON_PROSE`, so the implementation was wider than the teacher grant above, which names only `{observed, learned, explained}`. Mirroring it from the lesson title would be tidier still, but that changes generator input and is a separate decision.
 
 > **Vocabulary note.** Editing is a *capability*, not a user type. It is presented as **"editing
@@ -321,7 +321,10 @@ screen-clearing policy below. Both historical expiry paths (Payload's navigating
 IdleLogout's non-navigating logout) are addressed by this integration. The guarantee remains the
 last confirmed capture, not every keystroke: debounce, network failure and offline work have the
 limits specified below. If the final flush is unconfirmed, the explicit unsafe-work screen policy
-below takes precedence over automatic clearing. Full design and dated implementation history:
+below takes precedence over automatic clearing. Known limit (audit F-C63-004, accepted by the
+operator 2026-10-29): when capture AND token refresh both fail at a foreground expiry, Payload's own
+expiry timer still navigates away and the uncaptured text is lost; closing it would mean overriding
+Payload's Auth provider. Full design and dated implementation history:
 `docs/DESIGN-working-drafts.md`.
 
 Saving holds Payload's processing lock across recovery preparation, submission and navigation;
@@ -814,7 +817,8 @@ version remains a later phase, alongside stable row identity and support for str
   A new id is a new release even if its content restores an earlier release. A date earlier than
   the plan's newest dated ARES release is not imported; equal dates are allowed. Without a manifest,
   compare only with the latest ARES release's fingerprint. Teacher saves never suppress a release.
-  Content equal to an older ARES release is flagged in the confirmation preview. Versions are never
+  Without a manifest, content equal to an older ARES release is flagged in the confirmation preview
+  (with one, a new release id may deliberately restore older content). Versions are never
   overwritten. The existing `(subjectGrade, META.substrand_id)` identity selects the plan; ambiguous
   existing plans and duplicate files in a batch are rejected. An empty sub-strand id creates a new plan.
 - **Official on import.** A new plan starts at 1.0.0 Official. A new release of an existing plan uses

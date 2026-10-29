@@ -78,7 +78,9 @@ const storedRows = (value: unknown): Row[] => (Array.isArray(value) ? value : []
  * still read as no rows. Narrowing THAT is a separate behavioural change, not part of this fix.
  */
 const submittedRows = (value: unknown, reject: () => never): Row[] => {
-  if (Array.isArray(value)) return value
+  // Every member must be a row object: `idsOf` reads `.id` from each, so a `[null]` used to throw a
+  // TypeError and surface as a 500 instead of this guard's controlled refusal (audit F-C31-002).
+  if (Array.isArray(value)) return value.every(isObject) ? value : reject()
   if (value === 0 || value == null) return []
   return reject()
 }
@@ -189,6 +191,9 @@ export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void =
     }
   }
   data.lessons = data.lessons.map((lesson: Doc) => {
+    // A non-object row is malformed input: leave it for the editing-access guard (or Payload's own
+    // validation, for admins) to refuse rather than throwing a TypeError here (audit F-C31-002).
+    if (!isObject(lesson)) return lesson
     const out = { ...lesson }
     const original = originals.get(lesson.id)
     if (original) out.resourceLinks = original.resourceLinks
@@ -197,6 +202,49 @@ export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void =
       if (stored) out.resourceLinks = stored
       else delete out.resourceLinks
     } else delete out.resourceLinks
+    return out
+  })
+}
+
+/**
+ * The ARES contract fields SPEC §5 calls "stored faithfully, but never editable by anyone":
+ * `META.outputDir`, `LESSONS[].substrand`, `LESSONS[].aresKeywords`. The form hides them
+ * (`storedNotEdited` in fields/lessonContent.ts), which only stops honest clients, and the teacher
+ * whitelist already restores them — but administrators pass through it, so a hand-made save-as-new
+ * could rewrite them (audit F-C71-002; operator decision 2026-10-29: enforce, keep the SPEC wording).
+ *
+ * Restored from the source for every authenticated role, beside `preserveLessonResourceLinks` and for
+ * the same reason (save-as-new creates through overrideAccess). A NEW lesson row — a Subject Admin's
+ * duplicate — may keep a value only if it equals one already stored on a source lesson; anything else
+ * is dropped rather than stored as invented ARES data.
+ */
+const LESSON_ARES_KEYS = ['substrand', 'aresKeywords'] as const
+
+export const preserveStoredAresFields = (data: Doc, originalDoc: Doc): void => {
+  const origMeta = (originalDoc.meta ?? {}) as Doc
+  if (isObject(data.meta)) {
+    const meta: Doc = { ...data.meta }
+    if ('outputDir' in origMeta) meta.outputDir = origMeta.outputDir
+    else delete meta.outputDir
+    data.meta = meta
+  }
+  if (!Array.isArray(data.lessons)) return
+  const originalLessons = storedRows(originalDoc.lessons) as Doc[]
+  const originals = new Map(originalLessons.map((lesson) => [lesson.id, lesson] as const))
+  data.lessons = data.lessons.map((lesson: unknown) => {
+    if (!isObject(lesson)) return lesson
+    const out: Doc = { ...lesson }
+    const original = originals.get(out.id)
+    for (const key of LESSON_ARES_KEYS) {
+      if (original) {
+        if (key in original) out[key] = original[key]
+        else delete out[key]
+      } else if (
+        key in out &&
+        !originalLessons.some((o) => canonicalJson(o[key]) === canonicalJson(out[key]))
+      )
+        delete out[key]
+    }
     return out
   })
 }
@@ -222,7 +270,10 @@ export const applyEditorFieldSplit = ({
   if (operation !== 'update' || !originalDoc || !data) return data
   // Shape first, for EVERY role — see the function's own note for why it cannot live below the fork.
   normalizeEmptyArrayContainers(data)
-  if (req.user) preserveLessonResourceLinks(data, originalDoc)
+  if (req.user) {
+    preserveLessonResourceLinks(data, originalDoc)
+    preserveStoredAresFields(data, originalDoc)
+  }
   // AUTHORITY from the STORED doc first (hardened 2026-07-04): the actor's role is judged against
   // the subject-grade the document actually belongs to, never one the submission claims — a caller
   // who is Subject Admin elsewhere must not be able to name THAT grade and bypass the whitelist.
@@ -305,7 +356,11 @@ export const applyEditorFieldSplit = ({
   // Restore EVERY top-level key from the original except the ones a teacher with editing access legitimately influences
   // (the content containers overlaid below + collection-specific version fields). So a NEW top-level
   // field nobody wired up is reset to the original automatically.
-  for (const key of Object.keys(d)) {
+  //
+  // ⚑ The ORIGINAL's keys as well as the submission's: iterating only the submitted keys let a
+  // teacher OMIT `unit` (or any other admin-owned key) and have save-as-new create a candidate
+  // without it — the omission twin of the group-container bug below (audit F-C31-001).
+  for (const key of new Set([...Object.keys(d), ...Object.keys(orig)])) {
     if (editorTopLevelKeys.has(key)) continue
     d[key] = orig[key]
   }

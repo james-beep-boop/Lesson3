@@ -113,6 +113,12 @@ describe('a change the diff engine cannot draw is NAMED, not left blank', () => 
     expect(renderOf('a b', 'a  b', false).kind).not.toBe('paragraphs')
   })
 
+  it('is not fooled by prose that literally contains the annotation name', () => {
+    // Audit F-C63-002: the substring test matched the TEXT `data-match-type`, so an invisible
+    // paragraph-break change in such a field lost its "Paragraph breaks changed" note.
+    expect(renderOf('data-match-type', 'data-match-type\n', false)).toEqual({ kind: 'paragraphs' })
+  })
+
   it('still shows a real word change as a diff', () => {
     const r = renderOf('the mitochondria', 'the chloroplast', false)
     expect(r.kind).toBe('diff')

@@ -70,20 +70,21 @@ as a coordinated upstream product change and re-run the full contract/fidelity p
 
 Pin the upstream generator to a known commit/version. Because fidelity depends on it, treat generator upgrades as deliberate, tested changes — never automatic.
 
-**Current Lesson3 pin (2026-09-19):** upstream `main` commit
-`a546ee368b04c24f9a619d49142bf08e6869b890`. This pin retains the five-column Section C widths,
-inline-resource rendering, and page-break behavior used by the replacement JSON/DOCX outputs, and
-corrects Final Explanation and Summary Table labels to use required `META.grade`. The separate
-upstream license source is the later commit `15283e42` documented above.
+**Current Lesson3 pin:** see `app/src/generator/vendor/PROVENANCE.md`, which is authoritative and
+whose hashes `tests/unit/vendorProvenance.spec.ts` recomputes. As of 2026-10-22 that is library commit
+`f83db61931566df6bde9252db552bd353ed43d7a` (2026-10-08) for the four `lib/` files, plus attribution
+configuration from `d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e` (2026-10-21). The separate upstream
+license source is the later commit `15283e42` documented above.
 
-## Vendored into Lesson3 (re-pinned 2026-09-19)
+## Vendored into Lesson3
 
-The three Node generator libraries are **vendored byte-verbatim** (not a submodule/npm dependency).
-See `app/src/generator/vendor/PROVENANCE.md` for checksums and the re-sync procedure.
+The four Node generator library files are **vendored byte-verbatim** (not a submodule/npm
+dependency), together with upstream's `config/attribution.yaml`. See
+`app/src/generator/vendor/PROVENANCE.md` for the checksums and the re-sync procedure, and follow
+it over this summary if the two ever disagree.
 
-- **Branch / pinned commit:** `main` @ `a546ee368b04c24f9a619d49142bf08e6869b890`
-- **Mirror tag:** none created as part of this local Lesson3 change.
-- **Vendored files** (`app/src/generator/vendor/lib/`): `build_docs.js`, `sections.js`, `docx_kit.js`
+- **Vendored files** (`app/src/generator/vendor/lib/`): `build_docs.js`, `sections.js`,
+  `docx_kit.js`, `attribution.js`; and `vendor/config/attribution.upstream.yaml`
 - **NOT vendored:** upstream `aresResources.js`, because it invokes Python. Lesson3's pure-Node bridge
   supplies the stored JSON map through `AsyncLocalStorage` and filters hyperlinks to HTTP(S).
 - **`docx` and `mammoth` are pinned production dependencies** in `app/package.json`.

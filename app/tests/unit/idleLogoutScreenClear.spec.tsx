@@ -255,3 +255,41 @@ describe('the screen clears only when the work is provably stored', () => {
     expect(replace).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * Audit F-C63-003 (2026-10-28). The verdict is taken BEFORE `logOut()` is awaited, and Payload
+ * clears its user the moment logout starts — so recovery goes inactive while the request is still
+ * in flight, but the textarea keeps accepting input. Text typed in that gap was never captured, and
+ * the stale "safe" verdict used to clear it off the screen.
+ */
+describe('input while logout is pending', () => {
+  it('keeps the screen when something is typed before logout settles', async () => {
+    let settleLogout: () => void = () => {}
+    mocks.logOut.mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => (settleLogout = () => resolve(true))),
+    )
+    await runToDeadline(<FakeEditor />)
+    expect(mocks.logOut).toHaveBeenCalledTimes(1)
+
+    const field = document.createElement('textarea')
+    document.body.append(field)
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+    await act(async () => settleLogout())
+    await settle()
+    field.remove()
+
+    expect(replace, 'uncaptured text typed during logout must stay legible').not.toHaveBeenCalled()
+  })
+
+  it('still clears when nothing is typed while logout is pending', async () => {
+    let settleLogout: () => void = () => {}
+    mocks.logOut.mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => (settleLogout = () => resolve(true))),
+    )
+    await runToDeadline(<FakeEditor />)
+    await act(async () => settleLogout())
+    await settle()
+
+    expect(replace).toHaveBeenCalledTimes(1)
+  })
+})

@@ -52,6 +52,7 @@ import { latestRelease, type ReleaseRow } from './releaseAncestry'
 import { withReleaseFingerprint } from './releaseFingerprintContext'
 import {
   classifyMissingTaxonomy,
+  MAX_SUBJECT_NAME_LENGTH,
   normalizeSubjectName,
   taxonomyKey,
   type MissingTaxonomy,
@@ -133,17 +134,26 @@ async function findExistingPlan(
     where: {
       and: [
         { subjectGrade: { equals: subjectGrade } },
-        { 'meta.substrand_id': { equals: substrandId } },
+        // ⚑ NOT `equals`: the lookup key is TRIMMED, but the stored META keeps the file's value
+        // losslessly, so a padded ` 77.2 ` never equalled its own re-import and every upload made a
+        // new plan (audit F-C40-001). `contains` narrows the candidates (it can only over-match);
+        // the trim-equality filter below is the actual identity test, and also matches records
+        // already stored padded.
+        { 'meta.substrand_id': { contains: substrandId } },
       ],
     },
     depth: 0,
     pagination: false,
-    select: { lessonPlan: true },
+    select: { lessonPlan: true, meta: { substrand_id: true } },
     req,
   })
   const planIds = [
     ...new Set(
       docs
+        .filter((d) => {
+          const stored = (d as { meta?: { substrand_id?: unknown } }).meta?.substrand_id
+          return typeof stored === 'string' && stored.trim() === substrandId
+        })
         .map((d) => relId((d as { lessonPlan?: unknown }).lessonPlan))
         .filter((id): id is number => id != null),
     ),
@@ -183,7 +193,16 @@ async function resolveTaxonomy(
     req,
   })
   const subject = subjects.docs[0]
-  if (!subject) return { subject: subjectName, grade, subjectId: null, subjectGradeId: null }
+  if (!subject) {
+    // A NEW subject is offered to the Site Administrator for creation, so it must be a name the
+    // approval parser will accept back — else preview offers what confirmation refuses (F-C40-002).
+    if (subjectName.length > MAX_SUBJECT_NAME_LENGTH) {
+      throw new IngestError(
+        `META.subject is longer than ${MAX_SUBJECT_NAME_LENGTH} characters, so it cannot be created as a new subject.`,
+      )
+    }
+    return { subject: subjectName, grade, subjectId: null, subjectGradeId: null }
+  }
 
   const sgs = await payload.find({
     collection: 'subject-grades',
