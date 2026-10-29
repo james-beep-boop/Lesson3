@@ -28,6 +28,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
   - A second link inserted straight after the first lands where the cursor is.
   - **Copy link** for a reset link explains how to copy by hand on a plain-HTTP school address.
   - The edit-recovery panel is no longer confused by text containing `data-match-type`.
+  - The hidden ARES fields (`outputDir`, a lesson's `substrand` and `aresKeywords`) can no longer be
+    changed by anyone, administrators included, as SPEC §5 already said.
 
 ## v1.10 (2026-10-27)
 

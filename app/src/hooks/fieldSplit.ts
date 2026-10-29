@@ -207,6 +207,49 @@ export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void =
 }
 
 /**
+ * The ARES contract fields SPEC §5 calls "stored faithfully, but never editable by anyone":
+ * `META.outputDir`, `LESSONS[].substrand`, `LESSONS[].aresKeywords`. The form hides them
+ * (`storedNotEdited` in fields/lessonContent.ts), which only stops honest clients, and the teacher
+ * whitelist already restores them — but administrators pass through it, so a hand-made save-as-new
+ * could rewrite them (audit F-C71-002; operator decision 2026-10-29: enforce, keep the SPEC wording).
+ *
+ * Restored from the source for every authenticated role, beside `preserveLessonResourceLinks` and for
+ * the same reason (save-as-new creates through overrideAccess). A NEW lesson row — a Subject Admin's
+ * duplicate — may keep a value only if it equals one already stored on a source lesson; anything else
+ * is dropped rather than stored as invented ARES data.
+ */
+const LESSON_ARES_KEYS = ['substrand', 'aresKeywords'] as const
+
+export const preserveStoredAresFields = (data: Doc, originalDoc: Doc): void => {
+  const origMeta = (originalDoc.meta ?? {}) as Doc
+  if (isObject(data.meta)) {
+    const meta: Doc = { ...data.meta }
+    if ('outputDir' in origMeta) meta.outputDir = origMeta.outputDir
+    else delete meta.outputDir
+    data.meta = meta
+  }
+  if (!Array.isArray(data.lessons)) return
+  const originalLessons = storedRows(originalDoc.lessons) as Doc[]
+  const originals = new Map(originalLessons.map((lesson) => [lesson.id, lesson] as const))
+  data.lessons = data.lessons.map((lesson: unknown) => {
+    if (!isObject(lesson)) return lesson
+    const out: Doc = { ...lesson }
+    const original = originals.get(out.id)
+    for (const key of LESSON_ARES_KEYS) {
+      if (original) {
+        if (key in original) out[key] = original[key]
+        else delete out[key]
+      } else if (
+        key in out &&
+        !originalLessons.some((o) => canonicalJson(o[key]) === canonicalJson(out[key]))
+      )
+        delete out[key]
+    }
+    return out
+  })
+}
+
+/**
  * Apply the teacher with editing access whitelist to `data` (an UPDATE candidate), parameterised by the top-level keys an
  * editing access may influence on this collection. Mutates and returns `data`. Caller is responsible for any
  * numbering/versioning that should run for ALL users (kept out of here).
@@ -227,7 +270,10 @@ export const applyEditorFieldSplit = ({
   if (operation !== 'update' || !originalDoc || !data) return data
   // Shape first, for EVERY role — see the function's own note for why it cannot live below the fork.
   normalizeEmptyArrayContainers(data)
-  if (req.user) preserveLessonResourceLinks(data, originalDoc)
+  if (req.user) {
+    preserveLessonResourceLinks(data, originalDoc)
+    preserveStoredAresFields(data, originalDoc)
+  }
   // AUTHORITY from the STORED doc first (hardened 2026-07-04): the actor's role is judged against
   // the subject-grade the document actually belongs to, never one the submission claims — a caller
   // who is Subject Admin elsewhere must not be able to name THAT grade and bypass the whitelist.

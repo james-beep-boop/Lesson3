@@ -1107,6 +1107,52 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       await fx.payload.delete({ collection: 'lesson-bundle-versions', id, overrideAccess: true })
   })
 
+  it('a Subject Admin cannot rewrite the never-editable ARES fields (audit F-C71-002)', async () => {
+    const base = minimalBundleContent() as { meta: object; lessons: object[] }
+    const src = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '7.4.0',
+        title: `${MARK}ares-fields`,
+        ...base,
+        meta: { ...base.meta, outputDir: 'out/original' },
+        lessons: base.lessons.map((l) => ({ ...l, substrand: 'Original', aresKeywords: 'kw' })),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const srcDoc = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: src.id,
+      depth: 0,
+    })) as unknown as { meta: object; lessons: object[] }
+    const res = await fetch(url(`/api/lesson-bundle-versions/${src.id}/save-as-new`), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+      body: dataForm({
+        ...withProseEdit(srcDoc),
+        meta: { ...srcDoc.meta, outputDir: 'HOSTILE' },
+        lessons: (withProseEdit(srcDoc) as { lessons: object[] }).lessons.map((l) => ({
+          ...l,
+          substrand: 'HOSTILE',
+          aresKeywords: 'HOSTILE',
+        })),
+      }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number }
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as unknown as { meta: Record<string, unknown>; lessons: Record<string, unknown>[] }
+    expect(created.meta.outputDir).toBe('out/original')
+    expect(created.lessons[0]).toMatchObject({ substrand: 'Original', aresKeywords: 'kw' })
+    for (const id of [out.id, src.id])
+      await fx.payload.delete({ collection: 'lesson-bundle-versions', id, overrideAccess: true })
+  })
+
   it('a null row is a controlled 403, not a 500, and writes nothing (audit F-C31-002)', async () => {
     const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
     const res = await fetch(url(saveUrl()), {

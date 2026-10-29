@@ -227,3 +227,57 @@ describe('row arrays with non-object members are refused, not crashed on', () =>
     ).not.toThrow()
   })
 })
+
+/**
+ * SPEC §5 "stored faithfully, but never editable by anyone" (audit F-C71-002; operator decision
+ * 2026-10-29). Administrators pass through the teacher whitelist, so these are restored from the
+ * source for every role.
+ */
+describe('ARES contract fields nobody may edit', () => {
+  const source = () => ({
+    subjectGrade: 7,
+    meta: { titleDoc: 'title', outputDir: 'out/7.1' },
+    lessons: [{ id: 'L1', title: 'one', substrand: '7.1 Cells', aresKeywords: 'cell, membrane' }],
+  })
+  const subjectAdmin = {
+    id: 5,
+    roles: [],
+    assignments: [{ subjectGrade: 7, role: 'subjectAdmin' }],
+  }
+  const siteAdmin = { id: 1, roles: ['siteAdmin'], assignments: [] }
+  const splitAs = (user: unknown, data: Record<string, unknown>) =>
+    applyEditorFieldSplit({
+      data,
+      originalDoc: source() as never,
+      operation: 'update',
+      req: { user } as never,
+      editorTopLevelKeys: VERSION_EDITOR_KEYS,
+    }) as { meta: Record<string, unknown>; lessons: Record<string, unknown>[] }
+
+  it.each([
+    ['a Subject Admin', subjectAdmin],
+    ['a Site Admin', siteAdmin],
+  ])('%s cannot change them, but still edits the rest', (_who, user) => {
+    const out = splitAs(user, {
+      meta: { titleDoc: 'new title', outputDir: 'HOSTILE' },
+      lessons: [{ id: 'L1', title: 'new', substrand: 'HOSTILE', aresKeywords: 'HOSTILE' }],
+    })
+    expect(out.meta).toMatchObject({ titleDoc: 'new title', outputDir: 'out/7.1' })
+    expect(out.lessons[0]).toMatchObject({
+      title: 'new',
+      substrand: '7.1 Cells',
+      aresKeywords: 'cell, membrane',
+    })
+  })
+
+  it('a duplicated lesson keeps a value the source already holds, and drops an invented one', () => {
+    const out = splitAs(subjectAdmin, {
+      lessons: [
+        source().lessons[0],
+        { title: 'copy', substrand: '7.1 Cells', aresKeywords: 'INVENTED' },
+      ],
+    })
+    expect(out.lessons[1].substrand).toBe('7.1 Cells')
+    expect(out.lessons[1]).not.toHaveProperty('aresKeywords')
+  })
+})
