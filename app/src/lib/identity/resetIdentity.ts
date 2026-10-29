@@ -18,33 +18,37 @@
  *
  * Never after restoring a school's own backup: that must keep its identity (docs/OPS.md).
  */
+import { randomUUID } from 'node:crypto'
+
 import { sql } from '@payloadcms/db-postgres'
-import type { Payload } from 'payload'
+import {
+  commitTransaction,
+  createLocalReq,
+  initTransaction,
+  killTransaction,
+  type Payload,
+} from 'payload'
 
 import { readInstallationId } from './installationId'
-import { rowsOf, txDb } from '../txDb'
+import { poolDb, rowsOf, txDb, type DrizzleHandle as Handle } from '../txDb'
 
 export const RESET_APPLICATION_NAME = 'lesson3-identity-reset'
 
 const UUID_KEY = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 
-const UID_TABLES = [
+/** Tables whose rows carry a `uid`, apart from versions (whose uids are mapped with their ancestry). */
+const PLAIN_UID_TABLES = [
   'users',
   'lesson_plans',
-  'lesson_bundle_versions',
   'messages',
   'discussion_topics',
   'discussion_replies',
 ] as const
+/** Tables whose rows carry an `originInstallation`: every uid table but lesson plans. */
 const ORIGIN_TABLES = [
-  'users',
   'lesson_bundle_versions',
-  'messages',
-  'discussion_topics',
-  'discussion_replies',
+  ...PLAIN_UID_TABLES.filter((table) => table !== 'lesson_plans'),
 ] as const
-
-type Handle = { execute: (q: unknown) => Promise<unknown> }
 
 export interface IdentityResetReport {
   previous: string | null
@@ -69,7 +73,7 @@ async function countOtherClients(db: Handle): Promise<number> {
 
 async function countChanges(db: Handle): Promise<Record<string, number>> {
   const counts: Record<string, number> = {}
-  for (const table of UID_TABLES) {
+  for (const table of ['lesson_bundle_versions', ...PLAIN_UID_TABLES]) {
     counts[table] = await count(db, sql`SELECT count(*) AS n FROM ${sql.identifier(table)}`)
   }
   counts.ancestryKeys = await count(
@@ -85,13 +89,12 @@ async function countChanges(db: Handle): Promise<Record<string, number>> {
 
 async function rewrite(db: Handle, current: string): Promise<void> {
   // node-postgres sends a parameterised query as ONE statement, so each runs on its own.
-  const run = (query: ReturnType<typeof sql>) => db.execute(query)
   // One mapping per distinct UUID: every version uid, and every UUID key still referenced by ancestry
   // (including ancestors whose rows are gone).
-  await run(
+  await db.execute(
     sql`CREATE TEMP TABLE identity_reset_map (old text PRIMARY KEY, new text NOT NULL) ON COMMIT DROP`,
   )
-  await run(sql`
+  await db.execute(sql`
     INSERT INTO identity_reset_map (old, new)
     SELECT k, gen_random_uuid()::text FROM (
       SELECT uid AS k FROM lesson_bundle_versions
@@ -99,49 +102,42 @@ async function rewrite(db: Handle, current: string): Promise<void> {
       UNION SELECT merged_from_key FROM lesson_bundle_versions
       UNION SELECT text FROM lesson_bundle_versions_texts WHERE path = 'lineageKeys'
     ) keys WHERE k ~ ${UUID_KEY}`)
-  await run(
+  await db.execute(
     sql`UPDATE lesson_bundle_versions v SET uid = m.new FROM identity_reset_map m WHERE m.old = v.uid`,
   )
   for (const column of ['source_version_key', 'merged_from_key']) {
     const col = sql.identifier(column)
-    await run(sql`UPDATE lesson_bundle_versions v SET ${col} = m.new
+    await db.execute(sql`UPDATE lesson_bundle_versions v SET ${col} = m.new
                   FROM identity_reset_map m WHERE m.old = v.${col}`)
-    await run(sql`UPDATE lesson_bundle_versions
+    await db.execute(sql`UPDATE lesson_bundle_versions
                   SET ${col} = regexp_replace(${col}, '^local:[^:]+:', ${`local:${current}:`})
                   WHERE ${col} LIKE 'local:%'`)
   }
-  await run(sql`UPDATE lesson_bundle_versions_texts t SET text = m.new
+  await db.execute(sql`UPDATE lesson_bundle_versions_texts t SET text = m.new
                 FROM identity_reset_map m WHERE t.path = 'lineageKeys' AND m.old = t.text`)
-  await run(sql`UPDATE lesson_bundle_versions_texts
+  await db.execute(sql`UPDATE lesson_bundle_versions_texts
                 SET text = regexp_replace(text, '^local:[^:]+:', ${`local:${current}:`})
                 WHERE path = 'lineageKeys' AND text LIKE 'local:%'`)
-  for (const table of UID_TABLES) {
-    if (table === 'lesson_bundle_versions') continue // mapped above, consistently with ancestry
-    await run(sql`UPDATE ${sql.identifier(table)} SET uid = gen_random_uuid()::text`)
+  for (const table of PLAIN_UID_TABLES) {
+    await db.execute(sql`UPDATE ${sql.identifier(table)} SET uid = gen_random_uuid()::text`)
   }
   for (const table of ORIGIN_TABLES) {
-    await run(sql`UPDATE ${sql.identifier(table)} SET origin_installation = ${current}`)
+    await db.execute(sql`UPDATE ${sql.identifier(table)} SET origin_installation = ${current}`)
   }
-  await run(sql`UPDATE system_settings SET installation_id = ${current}`)
+  await db.execute(sql`UPDATE system_settings SET installation_id = ${current}`)
 }
 
 /**
  * Report what a reset would change and, with `apply`, do it. `requireSoleClient: false` exists for
  * the integration tests, whose own connection pool is the "other client"; the script never passes it.
- * `beforeCommit` is a test seam for proving that a failure rolls everything back.
  */
 export async function resetInstallationIdentity(
   payload: Payload,
-  options: {
-    apply: boolean
-    requireSoleClient?: boolean
-    beforeCommit?: (db: Handle) => Promise<void>
-  },
+  options: { apply: boolean; requireSoleClient?: boolean },
 ): Promise<IdentityResetReport> {
   const previous = await readInstallationId(payload)
-  const pool = (payload.db as unknown as { drizzle: Handle }).drizzle
-  const otherClients = await countOtherClients(pool)
-  const counts = await countChanges(pool)
+  const otherClients = await countOtherClients(poolDb(payload))
+  const counts = await countChanges(poolDb(payload))
   if (!options.apply) return { previous, current: previous, otherClients, counts }
   if (options.requireSoleClient !== false && otherClients > 0) {
     throw new Error(
@@ -149,19 +145,15 @@ export async function resetInstallationIdentity(
         '(docker compose stop app), wait for any backup to finish, and run this again.',
     )
   }
-  const transactionID = await payload.db.beginTransaction()
-  if (transactionID == null) throw new Error('Could not start a database transaction.')
+  const current = randomUUID()
+  const req = await createLocalReq({}, payload)
+  const shouldCommit = await initTransaction(req)
   try {
-    const db = await txDb({ payload, transactionID }, { requireTransaction: true })
-    const current = String(
-      rowsOf(await db.execute(sql`SELECT gen_random_uuid()::text AS id`))[0].id,
-    )
-    await rewrite(db, current)
-    await options.beforeCommit?.(db)
-    await payload.db.commitTransaction(transactionID)
+    await rewrite(await txDb(req, { requireTransaction: true }), current)
+    if (shouldCommit) await commitTransaction(req)
     return { previous, current, otherClients, counts }
   } catch (error) {
-    await payload.db.rollbackTransaction(transactionID)
+    await killTransaction(req)
     throw error
   }
 }

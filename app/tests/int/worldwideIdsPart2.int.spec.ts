@@ -317,15 +317,22 @@ describe('the copy reset', () => {
     const { planId, release } = await ingestRelease('97.4')
     await child(planId, release.id)
     const before = await snapshot()
-    await expect(
-      resetInstallationIdentity(payload, {
-        apply: true,
-        requireSoleClient: false,
-        beforeCommit: async () => {
-          throw new Error('injected')
-        },
-      }),
-    ).rejects.toThrow('injected')
+    // The settings row is rewritten LAST, so failing it proves every earlier statement rolls back.
+    await db().execute(sql`
+      CREATE FUNCTION identity_reset_fail() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'injected'; END $$ LANGUAGE plpgsql`)
+    await db().execute(sql`
+      CREATE TRIGGER identity_reset_fail BEFORE UPDATE ON system_settings
+      FOR EACH ROW EXECUTE FUNCTION identity_reset_fail()`)
+    try {
+      // drizzle wraps the database error; the trigger's message is its cause.
+      await expect(
+        resetInstallationIdentity(payload, { apply: true, requireSoleClient: false }),
+      ).rejects.toMatchObject({ cause: { message: 'injected' } })
+    } finally {
+      await db().execute(sql`DROP TRIGGER identity_reset_fail ON system_settings`)
+      await db().execute(sql`DROP FUNCTION identity_reset_fail()`)
+    }
     expect(await snapshot()).toEqual(before)
   })
 

@@ -72,23 +72,19 @@ const keepOnUpdate: FieldHook = ({ operation, previousValue, value }) =>
  * keys: deleting a parent leaves them intact, which is the point. `lineageKeys` is aligned
  * index-for-index with the numeric `lineage`.
  */
-export const ancestryKeyFields: TextField[] = [
-  ...(['sourceVersionKey', 'mergedFromKey'] as const).map((name): TextField => ({
+const ancestryKey = (name: string) =>
+  ({
     name,
     type: 'text',
     access: { create: systemOnly, update: systemOnly },
     admin: { hidden: true, readOnly: true },
     hooks: { beforeChange: [keepOnUpdate] },
-  })),
-  {
-    name: 'lineageKeys',
-    type: 'text',
-    hasMany: true,
-    maxRows: MAX_LINEAGE,
-    access: { create: systemOnly, update: systemOnly },
-    admin: { hidden: true, readOnly: true },
-    hooks: { beforeChange: [keepOnUpdate] },
-  },
+  }) satisfies TextField
+
+export const ancestryKeyFields: TextField[] = [
+  ancestryKey('sourceVersionKey'),
+  ancestryKey('mergedFromKey'),
+  { ...ancestryKey('lineageKeys'), hasMany: true, maxRows: MAX_LINEAGE },
 ]
 
 /** `req.context` key through which ingest — and only ingest — hands a new version its fingerprint. */

@@ -27,12 +27,12 @@ export interface KeyedParent {
  * keys follow it; a deleted ancestor keeps its key because it travels in the parents' arrays. Keys are
  * never deduplicated on their own — two local release rows may share one fingerprint — only the
  * serials are. A parent whose arrays are not aligned contributes no keys; a serial no parent can name
- * gets `localKey(serial)`.
+ * is left `undefined` for the caller to give a local key.
  */
-export function unionLineageKeys(
-  parents: KeyedParent[],
-  localKey: (serial: number) => string,
-): { lineage: number[]; lineageKeys: string[] } {
+export function unionLineageKeys(parents: KeyedParent[]): {
+  lineage: number[]
+  lineageKeys: (string | undefined)[]
+} {
   const keyOf = new Map<number, string>()
   for (const parent of parents) {
     if (!keyOf.has(parent.id)) keyOf.set(parent.id, parent.key)
@@ -44,7 +44,7 @@ export function unionLineageKeys(
     })
   }
   const lineage = unionLineage(parents)
-  return { lineage, lineageKeys: lineage.map((serial) => keyOf.get(serial) ?? localKey(serial)) }
+  return { lineage, lineageKeys: lineage.map((serial) => keyOf.get(serial)) }
 }
 
 /** All creation paths, including trusted ingest and Local API, stamp rather than copy ancestry —
@@ -76,15 +76,14 @@ export const stampVersionLineage: CollectionBeforeChangeHook = async ({ data, op
       return { ...parent, id, key: ancestorKey(parent) }
     }),
   )
-  // The installation id is read only when some ancestor has no key to inherit (never in practice
-  // after the backfill), so an ordinary save costs no extra query.
-  const needsLocal = unionLineageKeys(parents, () => '').lineageKeys.includes('')
-  const installationId = needsLocal ? await requireInstallationId(req) : ''
-  const keyed = unionLineageKeys(parents, (serial) => localAncestorKey(installationId, serial))
+  const { lineage, lineageKeys } = unionLineageKeys(parents)
+  // Only an ancestor no parent can name (never in practice after the backfill) needs the id.
+  const installationId = lineageKeys.includes(undefined) ? await requireInstallationId(req) : ''
   const keyFor = (id: number | null) => parents.find((p) => p.id === id)?.key ?? null
   return {
     ...data,
-    ...keyed,
+    lineage,
+    lineageKeys: lineageKeys.map((key, i) => key ?? localAncestorKey(installationId, lineage[i])),
     sourceVersionKey: keyFor(sourceId),
     mergedFromKey: keyFor(secondId),
   }

@@ -29,7 +29,17 @@ export async function readInstallationId(payload: Payload): Promise<string | nul
  * `readInstallationId` it reads inside the caller's request — so inside its transaction — and THROWS
  * when the id cannot be read: a record must never be created with a guessed or missing origin.
  */
-export async function requireInstallationId(req: PayloadRequest): Promise<string> {
+export function requireInstallationId(req: PayloadRequest): Promise<string> {
+  // One read per request, shared by every record it creates (an ingest creates many). The memo holds
+  // the PROMISE, so a failed read fails every caller in the request — the `systemFlagsFor` pattern.
+  const context = req.context as Record<string, unknown>
+  context[MEMO_KEY] ??= readRequired(req)
+  return context[MEMO_KEY] as Promise<string>
+}
+
+const MEMO_KEY = 'lesson3:installationId'
+
+async function readRequired(req: PayloadRequest): Promise<string> {
   const doc = (await req.payload.findGlobal({
     slug: 'system-settings',
     depth: 0,
@@ -48,7 +58,11 @@ export async function requireInstallationId(req: PayloadRequest): Promise<string
  * Boot is single-threaded, so this cannot race a second boot's create.
  */
 export async function ensureInstallationIdForPush(payload: Payload): Promise<void> {
-  if (process.env.NODE_ENV === 'production') return
+  // The adapter's own push condition (`@payloadcms/db-postgres` connect), so a migrated database booted
+  // without NODE_ENV=production still never gets a new identity here. (`payload migrate` skips onInit.)
+  const pushed =
+    process.env.NODE_ENV !== 'production' && (payload.db as { push?: boolean }).push !== false
+  if (!pushed) return
   if (await readInstallationId(payload)) return
   await payload.updateGlobal({ slug: 'system-settings', data: {}, overrideAccess: true })
 }

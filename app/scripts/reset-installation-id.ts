@@ -14,17 +14,17 @@
  *
  * The first `run` is read-only and prints what would change. `APPLY=1` changes it.
  */
-import { RESET_APPLICATION_NAME } from '../src/lib/identity/resetIdentity'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 
-// Name this script's own connections so the sole-client check does not count them. Set before the
-// config is loaded, because the config reads DATABASE_URI when it is imported.
-const uri = new URL(process.env.DATABASE_URI ?? '')
-uri.searchParams.set('application_name', RESET_APPLICATION_NAME)
-process.env.DATABASE_URI = uri.toString()
+import {
+  RESET_APPLICATION_NAME,
+  resetInstallationIdentity,
+} from '../src/lib/identity/resetIdentity'
 
-const { getPayload } = await import('payload')
-const { default: config } = await import('@payload-config')
-const { resetInstallationIdentity } = await import('../src/lib/identity/resetIdentity')
+// Name this script's own connections so the sole-client check does not count them. node-postgres
+// reads PGAPPNAME whenever it opens a connection, and the pool opens none before getPayload.
+process.env.PGAPPNAME = RESET_APPLICATION_NAME
 
 const payload = await getPayload({ config })
 const apply = process.env.APPLY === '1'
