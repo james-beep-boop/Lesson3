@@ -43,7 +43,7 @@ GitHub identifies the repository license as SPDX `MIT`.
 The upstream license is copied verbatim into this directory as `LICENSE`; retain it with these
 vendored files. Lesson3's root `LICENSE` covers Lesson3-authored code under the same license but a
 different copyright notice. Matching license terms close the prior redistribution and compatibility
-gap without changing the authorship or provenance of the three byte-pristine files.
+gap without changing the authorship or provenance of the four byte-pristine library files.
 
 ## Pristine files
 

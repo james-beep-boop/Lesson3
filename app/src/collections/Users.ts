@@ -26,6 +26,7 @@ import {
   refuseDisabledLogin,
 } from '../hooks/userRoles'
 import { protectedLoginEndpoint } from '../endpoints/login'
+import { refuseBlankPassword } from '../hooks/blankPassword'
 import { equalizeLoginPasswordWork } from '../hooks/loginPasswordWork'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
@@ -143,6 +144,7 @@ export const Users: CollectionConfig = {
       suppressFirstUserVerificationEmail,
       rateLimitAuthOperations,
       equalizeLoginPasswordWork,
+      refuseBlankPassword,
       refreshMutationAuthority,
     ],
     // ⚑ `beforeLogin` runs in BOTH `login` and `resetPassword` (the latter inline, before it signs

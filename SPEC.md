@@ -814,7 +814,8 @@ version remains a later phase, alongside stable row identity and support for str
   A new id is a new release even if its content restores an earlier release. A date earlier than
   the plan's newest dated ARES release is not imported; equal dates are allowed. Without a manifest,
   compare only with the latest ARES release's fingerprint. Teacher saves never suppress a release.
-  Content equal to an older ARES release is flagged in the confirmation preview. Versions are never
+  Without a manifest, content equal to an older ARES release is flagged in the confirmation preview
+  (with one, a new release id may deliberately restore older content). Versions are never
   overwritten. The existing `(subjectGrade, META.substrand_id)` identity selects the plan; ambiguous
   existing plans and duplicate files in a batch are rejected. An empty sub-strand id creates a new plan.
 - **Official on import.** A new plan starts at 1.0.0 Official. A new release of an existing plan uses

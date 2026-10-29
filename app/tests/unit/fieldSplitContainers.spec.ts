@@ -166,3 +166,64 @@ describe('group containers still accept legitimate prose edits', () => {
     expect(() => runSplit({ [key]: container })).toThrow(Forbidden)
   })
 })
+
+/**
+ * The OMISSION twin of the container bug above, for keys that are NOT editor containers (audit
+ * F-C31-001, 2026-10-28). The blanket restore used to iterate only the SUBMITTED keys, so omitting
+ * `unit` — administrator-authored, with no rebuild of its own — let save-as-new create a candidate
+ * without it. The restore now walks the original's keys too.
+ */
+describe('administrator-owned top-level keys survive being omitted', () => {
+  const withUnit = () => ({
+    ...original(),
+    meta: { titleDoc: 'admin title', substrand_id: '7.1' },
+    unit: { content: 'admin unit overview' },
+  })
+  const split = (data: Record<string, unknown>) =>
+    applyEditorFieldSplit({
+      data,
+      originalDoc: withUnit() as never,
+      operation: 'update',
+      req: { user: editor } as never,
+      editorTopLevelKeys: VERSION_EDITOR_KEYS,
+    }) as Record<string, unknown>
+
+  it.each(['unit', 'meta'])('restores an omitted %s from the original', (key) => {
+    const out = split({ lessons: original().lessons })
+    expect(out[key]).toEqual((withUnit() as Record<string, unknown>)[key])
+  })
+
+  it('still replaces a submitted unit with the original', () => {
+    const out = split({ lessons: original().lessons, unit: { content: 'HOSTILE' } })
+    expect(out.unit).toEqual({ content: 'admin unit overview' })
+  })
+})
+
+/**
+ * Non-object members of a submitted row array (audit F-C31-002): `idsOf` read `.id` from each, so
+ * `[null]` threw a TypeError and surfaced as a 500 instead of the guard's controlled refusal.
+ */
+describe('row arrays with non-object members are refused, not crashed on', () => {
+  it.each([
+    ['lessons', { lessons: [null] }],
+    ['framework', { lessons: [{ id: 'L1', framework: [null] }] }],
+    ['finalExplanation.sections', { finalExplanation: { sections: [null] } }],
+    ['finalExplanation.rubric', { finalExplanation: { rubric: [null] } }],
+    ['summaryTable.lessons', { summaryTable: { lessons: [null] } }],
+  ])('%s: [null] → Forbidden', (_path, data) => {
+    expect(() => runSplit(data)).toThrow(Forbidden)
+  })
+
+  it('does not throw a TypeError for an administrator either', () => {
+    const siteAdmin = { id: 1, roles: ['siteAdmin'], assignments: [] }
+    expect(() =>
+      applyEditorFieldSplit({
+        data: { lessons: [null] },
+        originalDoc: original() as never,
+        operation: 'update',
+        req: { user: siteAdmin } as never,
+        editorTopLevelKeys: VERSION_EDITOR_KEYS,
+      }),
+    ).not.toThrow()
+  })
+})

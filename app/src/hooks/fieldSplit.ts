@@ -78,7 +78,9 @@ const storedRows = (value: unknown): Row[] => (Array.isArray(value) ? value : []
  * still read as no rows. Narrowing THAT is a separate behavioural change, not part of this fix.
  */
 const submittedRows = (value: unknown, reject: () => never): Row[] => {
-  if (Array.isArray(value)) return value
+  // Every member must be a row object: `idsOf` reads `.id` from each, so a `[null]` used to throw a
+  // TypeError and surface as a 500 instead of this guard's controlled refusal (audit F-C31-002).
+  if (Array.isArray(value)) return value.every(isObject) ? value : reject()
   if (value === 0 || value == null) return []
   return reject()
 }
@@ -189,6 +191,9 @@ export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void =
     }
   }
   data.lessons = data.lessons.map((lesson: Doc) => {
+    // A non-object row is malformed input: leave it for the editing-access guard (or Payload's own
+    // validation, for admins) to refuse rather than throwing a TypeError here (audit F-C31-002).
+    if (!isObject(lesson)) return lesson
     const out = { ...lesson }
     const original = originals.get(lesson.id)
     if (original) out.resourceLinks = original.resourceLinks
@@ -305,7 +310,11 @@ export const applyEditorFieldSplit = ({
   // Restore EVERY top-level key from the original except the ones a teacher with editing access legitimately influences
   // (the content containers overlaid below + collection-specific version fields). So a NEW top-level
   // field nobody wired up is reset to the original automatically.
-  for (const key of Object.keys(d)) {
+  //
+  // ⚑ The ORIGINAL's keys as well as the submission's: iterating only the submitted keys let a
+  // teacher OMIT `unit` (or any other admin-owned key) and have save-as-new create a candidate
+  // without it — the omission twin of the group-container bug below (audit F-C31-001).
+  for (const key of new Set([...Object.keys(d), ...Object.keys(orig)])) {
     if (editorTopLevelKeys.has(key)) continue
     d[key] = orig[key]
   }

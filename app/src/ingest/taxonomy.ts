@@ -18,6 +18,10 @@ import { MAX_GRADE, MIN_GRADE, isGradeLevel } from '../lib/gradeLevels'
 
 export type TaxonomyKey = { subject: string; grade: number }
 
+/** The longest Subject name an upload may create — shared by pre-flight (which must never offer a
+ *  name) and the approval parser (which would then refuse it), audit F-C40-002. */
+export const MAX_SUBJECT_NAME_LENGTH = 200
+
 /** One offered item: a `(subject, grade)` the upload needs and the Site Administrator may create. */
 export type MissingTaxonomy = TaxonomyKey & {
   /** True when the Subject itself is new (not only this grade of an existing subject). */

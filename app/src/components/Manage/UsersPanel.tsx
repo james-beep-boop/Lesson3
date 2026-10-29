@@ -203,12 +203,14 @@ function UserRow({
 
   const copyResetLink = () => {
     if (!reset) return
+    const manual = () => setError('Could not copy automatically — select and copy the link below.')
+    // `navigator.clipboard` does not exist on a plain-HTTP school origin (not a secure context), so
+    // reading `.writeText` off it threw before any `.catch` was attached (audit F-C63-006).
+    if (!navigator.clipboard) return manual()
     void navigator.clipboard
       .writeText(reset.link)
       .then(() => toast.success('Reset link copied.'))
-      .catch(() => {
-        setError('Could not copy automatically — select and copy the link below.')
-      })
+      .catch(manual)
   }
 
   return (
