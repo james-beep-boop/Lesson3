@@ -188,12 +188,16 @@ export interface LessonBundleVersion {
   id: number;
   uid?: string | null;
   releaseFingerprint?: string | null;
+  originInstallation?: string | null;
   aresReleaseId?: string | null;
   aresReleaseDate?: string | null;
   lessonPlan: number | LessonPlan;
   sourceVersion?: (number | null) | LessonBundleVersion;
   mergedFrom?: (number | null) | LessonBundleVersion;
   lineage?: number[] | null;
+  sourceVersionKey?: string | null;
+  mergedFromKey?: string | null;
+  lineageKeys?: string[] | null;
   author?: (number | null) | User;
   semver: string;
   subjectGrade: number | SubjectGrade;
@@ -356,6 +360,7 @@ export interface User {
   loginAttempts?: number | null;
   lockUntil?: string | null;
   uid?: string | null;
+  originInstallation?: string | null;
   /**
    * Shown next to versions you save.
    */
@@ -445,6 +450,8 @@ export interface Favorite {
  */
 export interface Message {
   id: number;
+  uid?: string | null;
+  originInstallation?: string | null;
   sender: number | User;
   recipient: number | User;
   body: string;
@@ -497,6 +504,8 @@ export interface EditRecovery {
  */
 export interface DiscussionTopic {
   id: number;
+  uid?: string | null;
+  originInstallation?: string | null;
   title?: string | null;
   body?: string | null;
   author?: (number | null) | User;
@@ -520,6 +529,8 @@ export interface DiscussionTopic {
  */
 export interface DiscussionReply {
   id: number;
+  uid?: string | null;
+  originInstallation?: string | null;
   topic: number | DiscussionTopic;
   seq: number;
   body?: string | null;
@@ -768,12 +779,16 @@ export interface LessonPlansSelect<T extends boolean = true> {
 export interface LessonBundleVersionsSelect<T extends boolean = true> {
   uid?: T;
   releaseFingerprint?: T;
+  originInstallation?: T;
   aresReleaseId?: T;
   aresReleaseDate?: T;
   lessonPlan?: T;
   sourceVersion?: T;
   mergedFrom?: T;
   lineage?: T;
+  sourceVersionKey?: T;
+  mergedFromKey?: T;
+  lineageKeys?: T;
   author?: T;
   semver?: T;
   subjectGrade?: T;
@@ -956,6 +971,7 @@ export interface UsersSelect<T extends boolean = true> {
   loginAttempts?: T;
   lockUntil?: T;
   uid?: T;
+  originInstallation?: T;
   name?: T;
   signInDisabled?: T;
   roles?: T;
@@ -1001,6 +1017,8 @@ export interface FavoritesSelect<T extends boolean = true> {
  * via the `definition` "messages_select".
  */
 export interface MessagesSelect<T extends boolean = true> {
+  uid?: T;
+  originInstallation?: T;
   sender?: T;
   recipient?: T;
   body?: T;
@@ -1035,6 +1053,8 @@ export interface EditRecoverySelect<T extends boolean = true> {
  * via the `definition` "discussion-topics_select".
  */
 export interface DiscussionTopicsSelect<T extends boolean = true> {
+  uid?: T;
+  originInstallation?: T;
   title?: T;
   body?: T;
   author?: T;
@@ -1057,6 +1077,8 @@ export interface DiscussionTopicsSelect<T extends boolean = true> {
  * via the `definition` "discussion-replies_select".
  */
 export interface DiscussionRepliesSelect<T extends boolean = true> {
+  uid?: T;
+  originInstallation?: T;
   topic?: T;
   seq?: T;
   body?: T;

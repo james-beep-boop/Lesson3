@@ -11,6 +11,34 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-29 — Worldwide identity, part 2: messages, forum, origin, ancestry by key, a complete copy reset
+
+Operator, 2026-10-29: a nationwide school network (sharing lesson plans, forums and messages) is the
+long-term goal, so identity must be finished **before wide deployment**. Plan
+`docs/PLAN-worldwide-ids-part2-2026-10-29.md`, approved by the operator and, after one revision, by
+Codex (PR #488).
+
+- **uid on messages, discussion topics and replies** (same field as 2026-10-19).
+- **`originInstallation`** on users, versions, messages, topics, replies: stamped on create through
+  `requireInstallationId(req)`, which reads inside the request's transaction and throws. The Manage
+  helper `readInstallationId` (null on error) is never used for stamping. Push-built dev/test
+  databases get their settings row at boot (`ensureInstallationIdForPush`, a no-op in production).
+- **Ancestry by worldwide key**, stamped by `stampVersionLineage`. The decisive point from review: a
+  release must be named by its **fingerprint**, not one school's uid for it, or deleting the release
+  row would erase the only uid → fingerprint link. Keys carry no order, so `lineageKeys` is **aligned
+  with `lineage`** and borrows its order and cap; serials are deduplicated, keys never (two local rows
+  can share a fingerprint).
+- **Backfill reads each version's whole recorded closure**: with A → B → C and B deleted, C still names
+  A for real and B by a local key. Only already-deleted ancestors are lost, and the loss stops today.
+- **Copy reset**: one transaction, one mapping per distinct key (row-less ancestors included); refuses
+  while any other database client is connected, since a transaction cannot stop a create that already
+  read the old id. The script names its own connections (`application_name`).
+
+Lesson: "random UUIDs need no coordination" is true for *naming* a row and false for *recognising the
+same thing at two places*. Wherever two installations can independently create the same real-world
+thing (an ARES release), the shared identity must be derived from the thing, and it must be what
+descendants record.
+
 ## 2026-10-28 — Patch bumps: Payload 3.92.1, Gotenberg 8.39.0, Sentry 10.78.0, nodemailer 10.2.1, postcss 8.5.32
 
 Operator-approved maintenance. Payload 3.92.1's published `dist` differs from 3.92.0 only in

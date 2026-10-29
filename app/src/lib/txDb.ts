@@ -13,7 +13,7 @@
 import { sql } from '@payloadcms/db-postgres'
 import { APIError, type CollectionSlug, type PayloadRequest } from 'payload'
 
-type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
+export type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
 
 /**
  * The minimum needed to find a transaction-bound connection.

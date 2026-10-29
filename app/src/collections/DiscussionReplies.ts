@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { originInstallationField, worldwideIdField } from '../fields/identity'
 
 import { redactReplyEndpoint } from '../endpoints/discussionActions'
 import {
@@ -48,6 +49,10 @@ export const DiscussionReplies: CollectionConfig = {
     { fields: ['author', 'submissionKey'], unique: true },
   ],
   fields: [
+    // Worldwide identity (2026-10-29, `fields/identity.ts`): what a future cross-school sync names
+    // this row by, and the installation that wrote it. Readable with the row; no caller sets either.
+    worldwideIdField(),
+    originInstallationField(),
     {
       // Required, and NOT NULL in the database — which is why thread deletion removes replies first.
       name: 'topic',

@@ -8,6 +8,8 @@ import type {
 } from 'payload'
 import { APIError } from 'payload'
 
+import { originInstallationField, worldwideIdField } from '../fields/identity'
+
 import { consumeRateLimit } from '../lib/rateLimit'
 import { enqueueDetached } from '../lib/enqueue'
 import { validateContextLink } from '../hooks/messageReference'
@@ -158,6 +160,10 @@ export const Messages: CollectionConfig = {
     markMessagesReadEndpoint,
   ],
   fields: [
+    // Worldwide identity (2026-10-29, `fields/identity.ts`): what a future cross-school sync names
+    // this row by, and the installation that wrote it. Readable with the row; no caller sets either.
+    worldwideIdField(),
+    originInstallationField(),
     {
       name: 'sender',
       type: 'relationship',

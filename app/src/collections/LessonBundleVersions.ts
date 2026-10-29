@@ -36,7 +36,13 @@ import { recoveryEndpoints } from '../endpoints/recovery'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 import { MAX_LINEAGE, stampVersionLineage } from '../lib/combine/lineage'
 import { combinePreviewEndpoint } from '../endpoints/combinePreview'
-import { aresReleaseField, releaseFingerprintField, worldwideIdField } from '../fields/identity'
+import {
+  ancestryKeyFields,
+  aresReleaseField,
+  originInstallationField,
+  releaseFingerprintField,
+  worldwideIdField,
+} from '../fields/identity'
 import {
   collapseOnEntry,
   lessonEditableContentFields,
@@ -145,6 +151,7 @@ export const LessonBundleVersions: CollectionConfig = {
     // from copies and comparisons, so a teacher's save gets a fresh uid and no release fingerprint.
     worldwideIdField(),
     releaseFingerprintField,
+    originInstallationField(),
     aresReleaseField('aresReleaseId'),
     aresReleaseField('aresReleaseDate'),
     {
@@ -201,6 +208,8 @@ export const LessonBundleVersions: CollectionConfig = {
       access: { create: systemOnly, update: systemOnly },
       admin: { hidden: true },
     },
+    // The same ancestry by worldwide key (2026-10-29), stamped with `lineage` by stampVersionLineage.
+    ...ancestryKeyFields,
     {
       // Who saved this candidate — stamped by save-as-new from the authenticated caller; empty for
       // uploaded 1.0.0 / system-created versions. Drives the teacher with editing access delete scope (IA redesign
