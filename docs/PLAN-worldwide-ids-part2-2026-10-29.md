@@ -1,6 +1,6 @@
 # Worldwide identity, part 2 — before schools hold data nobody can reach (implementation plan)
 
-**Status: PROPOSED, 2026-10-29. Awaiting operator approval. Nothing is built.**
+**Status: APPROVED as one PR by the operator, 2026-10-29. Awaiting Codex's review of the plan before building.**
 
 Follows `docs/DECISIONS.md` 2026-10-19 ("Worldwide identity: foundations…") and
 `docs/DESIGN-modes-connectivity-network-2026-10-19.md` §5 and §9 step 1. Operator, 2026-10-29: this
@@ -116,8 +116,8 @@ Same pattern as `20261019_211325_worldwide_ids`: add nullable, fill `WHERE … I
   they belong with the sync design.
 - Switching Combine's ancestor lookup from local ids to uids.
 
-## Open questions for the operator
+## Operator answers (2026-10-29)
 
-1. Approve A–D as one PR? (Recommended: yes. They share one migration and one set of tests.)
-2. Any school machines deployed with real data besides the Rock? The migration handles them either
-   way; this only decides whether the deploy note needs a "run on these machines" list.
+1. Build A–D as **one PR**.
+2. **No real data anywhere**, the Rock included. The migration still backfills (it must work on any
+   database), but the deploy note needs no list of machines.
