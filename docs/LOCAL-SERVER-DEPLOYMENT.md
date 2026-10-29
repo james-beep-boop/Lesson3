@@ -392,7 +392,7 @@ surface, and leaves `SERVER_URL` empty. Public service requires HTTPS, a reverse
 - `ghcr.io/james-beep-boop/lesson3-app:<release>` — the minimal production application.
 - `ghcr.io/james-beep-boop/lesson3-migrate:<release>` — the matching one-shot migration image.
 - PostgreSQL 16.15, pinned by multi-architecture digest.
-- Gotenberg 8.38.0’s LibreOffice-only image, pinned by multi-architecture digest.
+- Gotenberg 8.39.0’s LibreOffice-only image, pinned by multi-architecture digest.
 
 The installer generates a 256-bit Payload secret and a separate 256-bit Postgres password, and writes
 them to `.env` with mode `0600`. Its health check probes `127.0.0.1`, which is why a separate computer
