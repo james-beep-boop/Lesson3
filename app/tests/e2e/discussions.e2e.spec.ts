@@ -248,8 +248,11 @@ test.describe('Discussions', () => {
     const topicId = Number(page.url().split('/').pop())
     const db = drizzleOf(fx.payload)
     await db.execute(sql`
-      INSERT INTO discussion_replies (topic_id, seq, body, author_id, submission_key)
-      SELECT ${topicId}, g, 'Earlier reply ' || g, ${fx.users.editor.id}, ${`e2e-${topicId}-`} || g
+      INSERT INTO discussion_replies
+        (topic_id, seq, body, author_id, submission_key, uid, origin_installation)
+      SELECT ${topicId}, g, 'Earlier reply ' || g, ${fx.users.editor.id}, ${`e2e-${topicId}-`} || g,
+        gen_random_uuid()::text,
+        (SELECT installation_id FROM system_settings ORDER BY id LIMIT 1)
         FROM generate_series(1, 50) g`)
     await db.execute(sql`UPDATE discussion_topics SET last_seq = 50 WHERE id = ${topicId}`)
 

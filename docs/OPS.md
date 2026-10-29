@@ -269,21 +269,31 @@ database.
 - **Putting a school's own backup onto a replacement machine:** this keeps the school's ID, which is
   correct. Do nothing.
 - **Copying a prepared database to set up a different school** (for example, one with the lesson plans
-  already uploaded): the new school would have the same ID as the first. On the new machine, after
-  copying, first look at the current ID (this changes nothing):
+  already uploaded): the new school would have the same ID as the first, and the same people, saved
+  versions, messages and forum posts. The reset gives all of them new IDs, so everything on the copy
+  becomes this school's own. On the new machine, after copying, stop the program first (the reset
+  refuses while it is running):
+
+  ```bash
+  cd /srv/lesson3 && docker compose stop app
+  ```
+
+  Look at what would change (this changes nothing):
 
   ```bash
   cd /srv/lesson3 && docker compose run --rm migrate npx payload run scripts/reset-installation-id.ts
   ```
 
-  then give it a new one:
+  then make the change and start the program again:
 
   ```bash
   cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run scripts/reset-installation-id.ts
+  cd /srv/lesson3 && docker compose up -d
   ```
 
-  Check that **Manage → System** shows the new ID. **Never do this after restoring a school's own
-  backup.**
+  If it says other connections are open, a nightly backup may be running: wait a few minutes and run
+  it again. Check that **Manage → System** shows the new ID. **Never do this after restoring a
+  school's own backup.**
 
 ---
 

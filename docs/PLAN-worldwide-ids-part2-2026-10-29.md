@@ -1,7 +1,11 @@
 # Worldwide identity, part 2 — before schools hold data nobody can reach (implementation plan)
 
-**Status: APPROVED as one PR by the operator, 2026-10-29. Revised the same day for Codex's plan review
-(PR #488, findings 1–4 and two implementation details; see "Review changes"). Not yet built.**
+**Status: APPROVED (operator; Codex at `7f6a82d`), 2026-10-29. Built on PR #488.** Built as planned,
+with three small additions: push-built dev/test databases get their settings row at boot
+(`ensureInstallationIdForPush`, a no-op in production); two raw test INSERTs into
+`discussion_replies` now supply the new NOT NULL columns; and there is no separate jobs worker to stop
+(jobs run inside `app`), so the reset's stop step is `docker compose stop app`. A down-then-up
+migration test was not added: running `down` would break the shared test schema for later suites.
 
 Follows `docs/DECISIONS.md` 2026-10-19 ("Worldwide identity: foundations…") and
 `docs/DESIGN-modes-connectivity-network-2026-10-19.md` §5 and §9 step 1. Operator, 2026-10-29: this

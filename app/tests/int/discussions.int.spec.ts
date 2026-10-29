@@ -55,8 +55,9 @@ const inFlightReply = (topicId: number) =>
   sql`WITH bumped AS (
         UPDATE discussion_topics SET last_seq = 1 WHERE id = ${topicId} RETURNING id
       )
-      INSERT INTO discussion_replies (topic_id, seq, body, updated_at, created_at)
-      SELECT id, 1, 'In-flight reply', now(), now() FROM bumped`
+      INSERT INTO discussion_replies (topic_id, seq, body, updated_at, created_at, uid, origin_installation)
+      SELECT id, 1, 'In-flight reply', now(), now(), gen_random_uuid()::text,
+        (SELECT installation_id FROM system_settings ORDER BY id LIMIT 1) FROM bumped`
 
 async function createTopic(
   user: User,

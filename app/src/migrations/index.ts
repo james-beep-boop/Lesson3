@@ -37,6 +37,7 @@ import * as migration_20261020_092934_advanced_tools from './20261020_092934_adv
 import * as migration_20261024_094011_native_lock_scope from './20261024_094011_native_lock_scope'
 import * as migration_20261026_103510_lesson_releases_1a from './20261026_103510_lesson_releases_1a'
 import * as migration_20261026_195602_school_name from './20261026_195602_school_name'
+import * as migration_20261029_102600_worldwide_ids_part2 from './20261029_102600_worldwide_ids_part2'
 
 export const migrations = [
   {
@@ -233,5 +234,10 @@ export const migrations = [
     up: migration_20261026_195602_school_name.up,
     down: migration_20261026_195602_school_name.down,
     name: '20261026_195602_school_name',
+  },
+  {
+    up: migration_20261029_102600_worldwide_ids_part2.up,
+    down: migration_20261029_102600_worldwide_ids_part2.down,
+    name: '20261029_102600_worldwide_ids_part2',
   },
 ]

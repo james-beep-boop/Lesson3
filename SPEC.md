@@ -119,9 +119,11 @@ JSON.
   fields. Any supported development extraction path must still produce and validate the complete JSON
   contract; uploaded code is never executed.
 - **`summaryTablePrompt` (in `LESSONS`) and `SUMMARY_TABLE.lessons` are distinct content** serving different documents — not duplicates. Both are edited; label each by the document it feeds.
-- **Worldwide identity (added 2026-10-19; foundations only).** Local serial ids mean nothing on another
-  machine, so every lesson plan, version and user also carries a UUID `uid`, every version created from
-  an ARES upload a release fingerprint, and each installation an id (`fields/identity.ts`).
+- **Worldwide identity (added 2026-10-19, extended 2026-10-29; foundations only).** Local serial ids mean
+  nothing on another machine, so every lesson plan, version, user, message, discussion topic and reply
+  also carries a UUID `uid`, every version created from an ARES upload a release fingerprint, and each
+  installation an id (`fields/identity.ts`). Nothing reads them yet; they exist so a later school
+  network does not need repairs on machines nobody can reach.
   - `uid` is generated on create by a field hook — never accepted from a caller, trusted writers
     included — and never changes; the database enforces NOT NULL and UNIQUE. A person's `uid` is read
     like their email (themselves and Site Administrators); a plan's or version's by anyone who can read it.
@@ -129,12 +131,23 @@ JSON.
     (`lib/identity/releaseFingerprint.ts`, pinned by test vectors), so two schools uploading the same
     release agree it is the same version. Only ingest sets it (through the request context); a
     teacher's save copies release content but never the fingerprint. A rule change is a new format.
-  - Both are identity, not content: `DROP_KEYS` keeps them out of copies and "no changes" comparisons.
+  - All of these are identity, not content: `DROP_KEYS` keeps them out of copies and "no changes"
+    comparisons.
   - The installation id lives with the site settings, shows on Manage → System, survives a restore of
     the school's own backup, and must be replaced (`scripts/reset-installation-id.ts`) when a prepared
     database is copied to set up another school (OPS).
-  - ⚑ **Ancestry still uses local ids** (`sourceVersion`, `mergedFrom`, `lineage`). Cross-school
-    Combine is not possible yet; converting ancestry to these ids is later work.
+  - **Origin (2026-10-29):** every user, version, message, topic and reply records the installation
+    that created it (`originInstallation`), stamped on create and never changed. A create fails if the
+    installation id cannot be read. A person's origin is read like their uid.
+  - **Ancestry by worldwide key (2026-10-29):** alongside the local `sourceVersion`, `mergedFrom` and
+    `lineage`, a version records `sourceVersionKey`, `mergedFromKey` and `lineageKeys`, aligned
+    index-for-index with `lineage` (same order, same cap). A key is the ancestor's release fingerprint
+    if it has one, else its uid; `local:<installation>:<serial>` names an ancestor deleted before keys
+    existed. Keys are plain text, so they survive the ancestor's deletion. Combine still finds its base
+    by local ids; switching it to keys is later work (`lib/identity/ancestorKey.ts`).
+  - **The copy reset replaces every identity at once** (`lib/identity/resetIdentity.ts`): installation
+    id, origins, every uid, and every ancestry key, each distinct old key mapped once; fingerprints stay.
+    It refuses while any other client is connected to the database.
 
 ### ARES resource links (mandatory lesson data; resolved upstream)
 

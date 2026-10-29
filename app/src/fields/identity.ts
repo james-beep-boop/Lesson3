@@ -15,9 +15,11 @@
  */
 import { randomUUID } from 'node:crypto'
 
-import type { FieldAccess, TextField } from 'payload'
+import type { FieldAccess, FieldHook, TextField } from 'payload'
 
 import { systemOnly } from '../access/bundle'
+import { MAX_LINEAGE } from '../lib/combine/lineage'
+import { requireInstallationId } from '../lib/identity/installationId'
 
 /**
  * UNIQUE here and NOT NULL in the database (the migration). Deliberately not `required` in Payload:
@@ -40,6 +42,54 @@ export const worldwideIdField = (read?: FieldAccess): TextField => ({
     ],
   },
 })
+
+/**
+ * The installation that CREATED this record (2026-10-29), stamped on create from this machine's id
+ * and kept by every update. A record synced in from another school will carry that school's value —
+ * written by the future sync code, not here. Only `scripts/reset-installation-id.ts` rewrites it, in
+ * SQL, when a copied database becomes another school.
+ */
+export const originInstallationField = (read?: FieldAccess): TextField => ({
+  name: 'originInstallation',
+  type: 'text',
+  index: true,
+  access: { create: systemOnly, update: systemOnly, ...(read ? { read } : {}) },
+  admin: { hidden: true, readOnly: true },
+  hooks: {
+    beforeChange: [
+      async ({ operation, previousValue, req }) =>
+        operation === 'create' ? requireInstallationId(req) : previousValue,
+    ],
+  },
+})
+
+/** Ancestry keys are stamped on create by `stampVersionLineage`; no update, trusted or not, moves them. */
+const keepOnUpdate: FieldHook = ({ operation, previousValue, value }) =>
+  operation === 'create' ? value : previousValue
+
+/**
+ * Worldwide ancestry of a version (2026-10-29; `lib/identity/ancestorKey.ts`). Plain text, NOT foreign
+ * keys: deleting a parent leaves them intact, which is the point. `lineageKeys` is aligned
+ * index-for-index with the numeric `lineage`.
+ */
+export const ancestryKeyFields: TextField[] = [
+  ...(['sourceVersionKey', 'mergedFromKey'] as const).map((name): TextField => ({
+    name,
+    type: 'text',
+    access: { create: systemOnly, update: systemOnly },
+    admin: { hidden: true, readOnly: true },
+    hooks: { beforeChange: [keepOnUpdate] },
+  })),
+  {
+    name: 'lineageKeys',
+    type: 'text',
+    hasMany: true,
+    maxRows: MAX_LINEAGE,
+    access: { create: systemOnly, update: systemOnly },
+    admin: { hidden: true, readOnly: true },
+    hooks: { beforeChange: [keepOnUpdate] },
+  },
+]
 
 /** `req.context` key through which ingest — and only ingest — hands a new version its fingerprint. */
 export const RELEASE_FINGERPRINT_CONTEXT = 'aresReleaseFingerprint'
@@ -66,9 +116,6 @@ export const releaseFingerprintField: TextField = {
   },
 }
 
-/** `req.context` key that lets `scripts/reset-installation-id.ts` mint a new installation id. */
-export const RESET_INSTALLATION_ID_CONTEXT = 'resetInstallationId'
-
 /**
  * This installation's worldwide id, on the `system-settings` singleton. Created by the migration;
  * kept by every save; replaced only by the reset script — run when a prepared database is copied to
@@ -81,12 +128,9 @@ export const installationIdField: TextField = {
   admin: { hidden: true, readOnly: true },
   hooks: {
     beforeChange: [
-      ({ previousValue, req }) =>
-        req.context?.[RESET_INSTALLATION_ID_CONTEXT] === true ||
-        typeof previousValue !== 'string' ||
-        !previousValue
-          ? randomUUID()
-          : previousValue,
+      // The copy reset (`lib/identity/resetIdentity.ts`) replaces it in SQL, with every other identity.
+      ({ previousValue }) =>
+        typeof previousValue !== 'string' || !previousValue ? randomUUID() : previousValue,
     ],
   },
 }

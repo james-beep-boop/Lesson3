@@ -16,7 +16,8 @@ import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
 import { releaseFingerprint } from '../../src/lib/identity/releaseFingerprint.js'
 import { stripIds } from '../../src/lib/stripIds.js'
 import { withReleaseFingerprint } from '../../src/ingest/releaseFingerprintContext.js'
-import { readInstallationId, resetInstallationId } from '../../src/lib/identity/installationId.js'
+import { readInstallationId } from '../../src/lib/identity/installationId.js'
+import { resetInstallationIdentity } from '../../src/lib/identity/resetIdentity.js'
 import { up } from '../../src/migrations/20261019_211325_worldwide_ids.js'
 import {
   MARK,
@@ -197,16 +198,19 @@ describe('creation', () => {
 
 describe('installation id', () => {
   it('is stable across reads, unchanged by a dry run, and replaced only by a deliberate reset', async () => {
-    // A push-built test database may have no settings row yet; a reset creates it with an id.
-    const initial =
-      (await readInstallationId(payload)) ?? (await resetInstallationId(payload, true)).current
+    // Boot gives a push-built test database its id (`ensureInstallationIdForPush`).
+    const initial = await readInstallationId(payload)
     expect(initial).toMatch(UUID)
     expect(await readInstallationId(payload)).toBe(initial)
-    expect(await resetInstallationId(payload, false)).toEqual({
-      previous: initial,
-      current: initial,
+    const dry = await resetInstallationIdentity(payload, { apply: false })
+    expect(dry.previous).toBe(initial)
+    expect(dry.current).toBe(initial)
+    expect(await readInstallationId(payload)).toBe(initial)
+    // This suite's own connection pool is the "other client"; the sole-client rule has its own test.
+    const { previous, current } = await resetInstallationIdentity(payload, {
+      apply: true,
+      requireSoleClient: false,
     })
-    const { previous, current } = await resetInstallationId(payload, true)
     expect(previous).toBe(initial)
     expect(current).toMatch(UUID)
     expect(current).not.toBe(initial)

@@ -28,6 +28,7 @@ import { isSiteAdmin } from './access'
 import { applyGeneratedSurfacePolicy } from './access/generatedSurfaces'
 import { isPublicLibraryEnabled, publicLibraryBootRefusal } from './lib/publicLibrary'
 import { firstUserBootRefusal, isUndefinedTableError } from './lib/publicPosture'
+import { ensureInstallationIdForPush } from './lib/identity/installationId'
 import { positiveIntEnv } from './lib/env'
 import {
   resourceLibraryFileEndpoint,
@@ -265,6 +266,9 @@ export default buildConfig({
       allowBootstrap: process.env.ALLOW_FIRST_USER_BOOTSTRAP === '1',
     })
     if (refusal) throw new Error(refusal)
+    // Every new record is stamped with this installation's id (`fields/identity.ts`). A push-built
+    // dev/test database has no settings row until something writes one; production never needs this.
+    await ensureInstallationIdForPush(payload)
   },
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),

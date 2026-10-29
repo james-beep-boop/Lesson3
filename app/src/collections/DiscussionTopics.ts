@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { originInstallationField, worldwideIdField } from '../fields/identity'
 
 import { markReadEndpoint, pinEndpoint, redactTopicEndpoint } from '../endpoints/discussionActions'
 import { navStateEndpoint } from '../endpoints/discussionNavState'
@@ -63,6 +64,10 @@ export const DiscussionTopics: CollectionConfig = {
   // One post per composer submission (contract item 1). NULL authors (deleted accounts) never collide.
   indexes: [{ fields: ['author', 'submissionKey'], unique: true }],
   fields: [
+    // Worldwide identity (2026-10-29, `fields/identity.ts`): what a future cross-school sync names
+    // this row by, and the installation that wrote it. Readable with the row; no caller sets either.
+    worldwideIdField(),
+    originInstallationField(),
     { name: 'title', type: 'text', validate: createdText('A title', MAX_TITLE_LENGTH) },
     {
       // Plain text: `\n` separates paragraphs; rendered as text, never as HTML.

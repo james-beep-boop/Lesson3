@@ -17,6 +17,11 @@ export const DROP_KEYS = new Set([
   // version gets its own uid, and only ingest gives one a release fingerprint.
   'uid',
   'releaseFingerprint',
+  // Worldwide ancestry and origin (2026-10-29): stamped on every create, never inherited.
+  'originInstallation',
+  'sourceVersionKey',
+  'mergedFromKey',
+  'lineageKeys',
   'aresReleaseId',
   'aresReleaseDate',
   'semver',
