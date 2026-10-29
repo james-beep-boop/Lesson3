@@ -18,16 +18,54 @@ Teacher *with editing access* is not a fourth type (SPEC §8). A **draft** is pr
 History before 2026-10-18 lives in `docs/archive/NEXT-SESSION-HISTORY-2026-06-TO-10.md` — a record,
 not instructions. Older references to "see NEXT-SESSION" for a dated item mean that file.
 
-**v1.10 simplification: #474–#480 merged after Claude's review, green CI and James's approval.** The review used the fixed `v1.10` tag.
-[Execution record](simplification/2026-10-28-c8d8f3d2/README.md) summarizes coverage, findings and
-cleanup PRs; detailed evidence stays on its linked branch. The configured dead-code follow-up is #480. Reuse, simplicity, efficiency and altitude; project conventions constrain all four.
-The superseded planning PRs #472 and #473 were closed without merging. #481 (bounded readiness
-requests) also merged after all four CI checks passed. New cleanup PRs still need Claude's review.
-No release or deployment is included. The broader security audit remains separate.
-
 **Future reviews:** [Two reusable audit workflows](AUDIT-WORKFLOWS.md) preserves the correctness
 and testing method and the whole-codebase simplification method, including altitude. Use it to
 start a fresh run; previous approvals and completion counts do not carry over.
+
+---
+
+# Release v1.11 — 2026-10-29
+
+Everything merged since v1.10, including the correctness fixes (#487), maintenance updates (#486),
+and this release note. Product changes were reviewed together at main `bdc313cd`.
+No migration and no new setting.
+
+- **Sign-in line** (#471): "Find, edit and print lesson plans."
+- **Guide and manual corrections** (#475): message emails are described as they actually work (only
+  when the message is the recipient's only unread one, within a daily limit); ARES keywords are no
+  longer listed as something administrators can change; the Rock setup, local-server and go-live
+  rehearsal steps match the current scripts.
+- **Installer readiness bound** (#481): `deploy/online/install.sh` and the CI health wait stop after
+  five minutes, and each check times out after five seconds, the same as `scripts/deploy.sh`.
+  `scripts/test-readiness.sh` covers both in CI.
+- **Whole-codebase simplification of v1.10** (#474, #476, #478–#480, record in #477): batched
+  ancestry reads for multi-plan imports, shared prose field names moved out of the enforcement hook
+  so browser code no longer imports it, a configured dead-code scan (`app/knip.json`) and three
+  unused declarations removed. No behaviour change. The
+  [execution record](simplification/2026-10-28-c8d8f3d2/README.md) lists coverage, findings and the
+  optional backlog; detailed evidence stays on its linked branch. Planning PRs #472 and #473 were
+  closed without merging.
+- **NOTICE** (#482) lists all four vendored generator files and defers pins to `PROVENANCE.md`.
+
+- **Correctness fixes** (#487): teacher saves keep administrator-owned content; padded sub-strand
+  IDs match their existing plans; blank passwords and malformed saves are refused; concurrent
+  exports coalesce; converter timeouts, link insertion, reset-link copying and recovery diffs are
+  corrected. Hidden ARES fields remain unchanged for all roles.
+- **Maintenance updates** (#486): Payload 3.92.1, Sentry 10.78.0, nodemailer 10.2.1, PostCSS 8.5.32
+  and Gotenberg 8.39.0. Both PR heads passed CI. The combined tree passed 2,004 unit tests,
+  typecheck, lint, formatting and the dependency gate locally. The actual updated Arial converter
+  produced identical page images for all 220 pages of the 12-document comparison.
+
+**Accepted limits:** text can still be lost if both capture and sign-in renewal fail at native
+session expiry (SPEC §5); deleting the human who promoted an Official can leave a notice saying
+“system update”. These cases were left unchanged by operator decision. The partial audit remains
+reference-only in draft [PR #485](https://github.com/james-beep-boop/Lesson3/pull/485); its
+reproductions include deliberately failing tests, and it is not part of this release.
+
+[CHANGELOG.md](CHANGELOG.md) records the changes. The annotated `v1.11` tag triggers the release
+publisher; check
+[the publication workflow](https://github.com/james-beep-boop/Lesson3/actions/workflows/publish-containers.yml)
+before installing. **Not deployed by this session.** Use v1.11 for new school installations once publication succeeds.
 
 ---
 
