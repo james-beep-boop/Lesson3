@@ -1063,6 +1063,27 @@ body {
   flex-wrap: wrap;
 }
 
+// The reset link's QR code (ResetLinkQr.tsx) sits on its own line under the link and Copy button.
+.lp-users .lp-users__qr,
+.lp-users .lp-users__qr-note {
+  // `width`, not `flex-basis`: below the narrow breakpoint this row turns into a column, where a
+  // basis would size the height instead.
+  width: 100%;
+  margin: 0;
+}
+
+.lp-users .lp-users__qr {
+  display: grid;
+  gap: var(--app-space-1);
+  justify-items: start;
+  color: var(--theme-elevation-700);
+
+  > svg {
+    width: min(14rem, 100%);
+    height: auto;
+  }
+}
+
 @mixin manage-field-layout {
   display: grid;
   gap: var(--app-space-1);

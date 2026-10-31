@@ -29,7 +29,8 @@ _Compare_ button.
   If your school's ARES Lesson Plans site cannot send email — most school servers run with no internet — the
   sign-up page says so: sign up as usual, then ask your school's Site administrator to approve your
   account, and sign in once they have. They can also create a reset link and give it to you
-  directly. For security your session ends after a while and signs you out automatically — just
+  directly. It appears on their screen as a QR code you can scan with your phone on the school
+  Wi-Fi. For security your session ends after a while and signs you out automatically — just
   sign in again to continue.
 - **Browse lesson plans:** the home page groups lessons by subject and grade, then by strand and sub-strand in
   curriculum order.
@@ -268,7 +269,9 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   but cannot remove another administrator.
 - **Reset a password when email is unavailable:** If email is not available, create a
   password-reset link and give it to the person. They use the link to choose a new password. You
-  will not see their password.
+  will not see their password. In Manage → Users → Accounts, open the person and choose _Reveal reset
+  link_. The link also appears as a QR code: the person scans it with their phone on the school
+  Wi-Fi. The link works once.
 - **Check site and backup status:** Manage → System → Installation status shows the site address, whether email and public
   sharing are available, whether PDFs are working, where backups are sent, when the last backup
   succeeded, and whether new backups are encrypted for a recovery key held by the school. A

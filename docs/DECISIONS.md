@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-31 — Password reset without email: QR code, and no request-to-admin
+
+Operator, 2026-10-31, for the first offline school installs (ten Seavuria schools, intermittent
+internet, cloned images). Chosen from: ask-your-admin page only, page plus QR code, leave as is.
+
+- **The administrator's reset link is also a QR code** (`components/Manage/ResetLinkQr.tsx`). The
+  admin and the person must be together anyway, since the link is hand-delivered; the code saves
+  retyping a ~90-character one-time address. Drawn client-side from the link already on screen with
+  `uqr` (pinned 0.1.3, MIT, zero dependencies) as one SVG path, black on white in both themes. No new
+  endpoint, no online QR service (none offline, and it would leak a live credential). Error
+  correction M, four-module quiet zone; a decode of a real-length link was checked with `jsqr`.
+- **A `localhost` link gets an explanation, not a code.** The link base is `ADMIN_URL`, which the
+  installer writes from `LESSON3_URL` or defaults to `http://localhost:3001`; on a phone that is the
+  phone. Cloned machines share the master's `ADMIN_URL`, so links can name the wrong host; that
+  belongs to the on-hold "Set up this school" plan, not here.
+- **No-email _Forgot password?_ page shows no form.** The endpoint already answered uniformly without
+  minting a token when SMTP is absent; an address box that does nothing read as broken. The endpoint
+  is unchanged, so direct API callers see the same uniform 200.
+- **Rejected: an unauthenticated "ask my administrator" request.** Anyone on the school network could
+  send them, for any name. New accounts still need no QR: offline sign-ups wait in "Awaiting
+  approval" and the admin approves them remotely.
+
 ## 2026-10-29 — Worldwide identity, part 2: messages, forum, origin, ancestry by key, a complete copy reset
 
 Operator, 2026-10-29: a nationwide school network (sharing lesson plans, forums and messages) is the

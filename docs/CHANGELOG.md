@@ -8,6 +8,16 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+- Password reset at schools with no email: the reset link a Site administrator makes in Manage →
+  Users → Accounts is also shown as a QR code, so the person scans it with their phone on the school
+  Wi-Fi instead of retyping it. The code is drawn in the browser (`uqr` 0.1.3, MIT, no dependencies);
+  the link never leaves the page. A link that names `localhost` shows an explanation instead, since a
+  phone cannot open it.
+- Without email, _Forgot password?_ now opens a page that only says to ask the Site administrator.
+  The email box, which did nothing there, is gone.
+
 ## v1.11 (2026-10-29)
 
 - The line under the name on the sign-in page (and the site description) is now "Find, edit and print

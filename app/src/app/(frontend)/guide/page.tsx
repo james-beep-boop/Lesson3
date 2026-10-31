@@ -68,7 +68,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     If this ARES Lesson Plans site cannot send email (most school servers have no
                     internet), the sign-up page says so. Sign up as usual, ask your school’s Site
                     administrator to approve your account, then sign in. They can also create a
-                    reset link and give it to you directly.
+                    reset link and give it to you directly. It appears on their screen as a QR code
+                    you can scan with your phone on the school Wi-Fi.
                   </li>
                 </ol>
                 <p>
@@ -708,7 +709,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               >
                 <p>
                   If email is not available, create a password-reset link and give it to the person.
-                  They use the link to choose a new password. You will not see their password.
+                  They use the link to choose a new password. You will not see their password. In{' '}
+                  <em>Manage → Users → Accounts</em>, open the person and choose{' '}
+                  <em>Reveal reset link</em>. The link also appears as a QR code: the person scans
+                  it with their phone on the school Wi-Fi. The link works once.
                 </p>
               </GuideAccordionPanel>
             )}

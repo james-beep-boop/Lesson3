@@ -24,6 +24,7 @@ import { wireErrorMessage } from '../../lib/wireError'
 import { usePanelJump, usePanelOpen } from './Accordion'
 import { subjectGradeAnchor } from './panelState'
 import { PersonIdentity } from './PersonIdentity'
+import { ResetLinkQr } from './ResetLinkQr'
 
 /**
  * How an unverified account is named, per site (2026-10-19). With email, the person confirms their
@@ -342,6 +343,7 @@ function UserRow({
             <Button className="lp-btn" buttonStyle="secondary" size="small" onClick={copyResetLink}>
               Copy link
             </Button>
+            <ResetLinkQr link={reset.link} name={user.name} />
           </div>
         )}
 
