@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
- * The administrator's reset link as a QR code (why: `ResetLinkQr.tsx` header). Pinned here: the code encodes exactly the link on screen (checked against the encoder's own grid,
- * so a drawing bug cannot pass), it is dark on white whatever the theme, and a link a phone cannot
- * open (localhost) shows an explanation instead of a code that would fail on scan.
+ * The administrator's reset link as a QR code (why: `ResetLinkQr.tsx` header). Pinned here: the
+ * code encodes exactly the link on screen (checked against the encoder's own grid, so a drawing bug
+ * cannot pass), it is dark on white whatever the theme, and a link a phone cannot open (localhost)
+ * shows an explanation instead of a code that would fail on scan.
  */
 import React from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
