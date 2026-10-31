@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The administrator's reset link as a QR code (operator decision 2026-10-31). At a school with no
- * email the person scans it with their phone instead of retyping a long one-time address.
- *
- * Pinned here: the code encodes exactly the link on screen (checked against the encoder's own grid,
+ * The administrator's reset link as a QR code (why: `ResetLinkQr.tsx` header). Pinned here: the code encodes exactly the link on screen (checked against the encoder's own grid,
  * so a drawing bug cannot pass), it is dark on white whatever the theme, and a link a phone cannot
  * open (localhost) shows an explanation instead of a code that would fail on scan.
  */
@@ -12,7 +9,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { encode } from 'uqr'
 
-import { linkOnlyWorksOnThisComputer, ResetLinkQr } from '@/components/Manage/ResetLinkQr'
+import { QR_OPTIONS, ResetLinkQr } from '@/components/Manage/ResetLinkQr'
+import { linkIsLoopback } from '@/lib/emailLinkBase'
 
 afterEach(cleanup)
 
@@ -28,7 +26,7 @@ describe('ResetLinkQr', () => {
   it('draws exactly the modules of the link it is given, on a white square', () => {
     const { container } = render(<ResetLinkQr link={LAN_LINK} name="Amina" />)
     const svg = screen.getByRole('img', { name: 'QR code of the password reset link for Amina' })
-    const grid = encode(LAN_LINK, { ecc: 'M', border: 4 }).data
+    const grid = encode(LAN_LINK, QR_OPTIONS).data
     expect(svg.getAttribute('viewBox')).toBe(`0 0 ${grid.length} ${grid.length}`)
 
     const expected = new Set<string>()
@@ -38,11 +36,8 @@ describe('ResetLinkQr', () => {
     expect(drawnModules(path?.getAttribute('d') ?? '')).toEqual(expected)
     expect(container.querySelector('rect')?.getAttribute('fill')).toBe('#fff')
 
-    // The four-module quiet zone the specification asks for: the outer ring is all white.
-    for (const key of expected) {
-      const [x, y] = key.split(',').map(Number)
-      expect(x >= 4 && y >= 4 && x < grid.length - 4 && y < grid.length - 4).toBe(true)
-    }
+    // The quiet zone the specification asks for really is there.
+    expect(grid.length).toBe(encode(LAN_LINK, { ...QR_OPTIONS, border: 0 }).data.length + 8)
   })
 
   it('explains, instead of drawing a code, when the link points to this computer only', () => {
@@ -54,7 +49,7 @@ describe('ResetLinkQr', () => {
   })
 })
 
-describe('linkOnlyWorksOnThisComputer', () => {
+describe('linkIsLoopback', () => {
   it.each([
     'http://localhost:3001/reset-password?token=a',
     'http://LOCALHOST/reset-password?token=a',
@@ -64,7 +59,7 @@ describe('linkOnlyWorksOnThisComputer', () => {
     'http://0.0.0.0:3001/reset-password?token=a',
     '/reset-password?token=a',
   ])('treats %s as unreachable from a phone', (link) => {
-    expect(linkOnlyWorksOnThisComputer(link)).toBe(true)
+    expect(linkIsLoopback(link)).toBe(true)
   })
 
   it.each([
@@ -72,6 +67,6 @@ describe('linkOnlyWorksOnThisComputer', () => {
     'http://lessons.school.local:3001/reset-password?token=a',
     'https://test.kenyalessons.org/reset-password?token=a',
   ])('treats %s as reachable', (link) => {
-    expect(linkOnlyWorksOnThisComputer(link)).toBe(false)
+    expect(linkIsLoopback(link)).toBe(false)
   })
 })

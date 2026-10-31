@@ -17,43 +17,27 @@
 import React, { useMemo } from 'react'
 import { encode } from 'uqr'
 
-/** Four modules of white margin: the quiet zone the QR specification asks for. */
-const QUIET_ZONE = 4
+import { linkIsLoopback } from '../../lib/emailLinkBase'
 
 /**
- * True when the link names this computer only (`localhost`, a loopback address), which a phone
- * cannot reach: on the phone, "localhost" is the phone. Happens when the installer was given no
- * `LESSON3_URL` (docs/LOCAL-SERVER-DEPLOYMENT.md). An unparseable link counts as unreachable too.
+ * Error correction M: a little headroom for a smudged screen or glare, still coarse enough for a
+ * ~100-character link to scan easily. Border 4 is the quiet zone the QR specification asks for.
  */
-export function linkOnlyWorksOnThisComputer(link: string): boolean {
-  let host: string
-  try {
-    host = new URL(link).hostname.toLowerCase()
-  } catch {
-    return true
-  }
-  return (
-    host === 'localhost' ||
-    host.endsWith('.localhost') ||
-    host === '[::1]' ||
-    host === '0.0.0.0' ||
-    /^127\./.test(host)
-  )
-}
+export const QR_OPTIONS = { ecc: 'M', border: 4 } as const
 
 export function ResetLinkQr({ link, name }: { link: string; name: string }) {
-  // Error correction M: a little headroom for a smudged screen or glare, still small enough for a
-  // ~100-character link to stay coarse and easy to scan.
-  const { size, path } = useMemo(() => {
-    const grid = encode(link, { ecc: 'M', border: QUIET_ZONE }).data
-    // One path of unit squares rather than ~2,000 elements.
+  const loopback = linkIsLoopback(link)
+  const drawing = useMemo(() => {
+    if (loopback) return null
+    const grid = encode(link, QR_OPTIONS).data
+    // One path of unit squares rather than ~1,000 elements.
     const squares = grid.flatMap((row, y) =>
       row.flatMap((dark, x) => (dark ? [`M${x} ${y}h1v1h-1z`] : [])),
     )
     return { size: grid.length, path: squares.join('') }
-  }, [link])
+  }, [link, loopback])
 
-  if (linkOnlyWorksOnThisComputer(link)) {
+  if (!drawing) {
     return (
       <p className="lp-users__qr-note" role="note">
         No QR code: this link points to this computer only, so a phone cannot open it. Ask whoever
@@ -62,6 +46,7 @@ export function ResetLinkQr({ link, name }: { link: string; name: string }) {
     )
   }
 
+  const { size, path } = drawing
   return (
     <figure className="lp-users__qr">
       <svg
