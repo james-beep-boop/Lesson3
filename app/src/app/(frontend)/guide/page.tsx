@@ -863,10 +863,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('site-admins.system') && (
               <GuideAccordionPanel id="site-admins.system" title="Check site and backup status">
                 <p>
-                  <em>Manage → System → Installation status</em> shows the site address, whether
-                  email and public sharing are available, whether PDFs are working, where backups
-                  are sent, when the last backup succeeded, and whether new backups are encrypted
-                  for a recovery key held by the school.
+                  <em>Manage → System → Installation status</em> shows the site address, the address
+                  used in reset links (marked in red if phones cannot open it), whether email and
+                  public sharing are available, whether PDFs are working, where backups are sent,
+                  when the last backup succeeded, and whether new backups are encrypted for a
+                  recovery key held by the school.
                 </p>
                 <p>
                   A successful backup means an encrypted copy was sent. It does not prove the backup

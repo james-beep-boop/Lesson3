@@ -7,6 +7,7 @@ import {
   isArtifactCacheEntry,
 } from '../generator/artifactCache'
 import { gotenbergUrl } from '../generator/docxToPdf'
+import { emailLinkBase, linkIsLoopback } from './emailLinkBase'
 import { errorTrackingEnabled } from './errorTracking'
 import { isPublicLibraryEnabled } from './publicLibrary'
 
@@ -32,8 +33,9 @@ import { isPublicLibraryEnabled } from './publicLibrary'
 /**
  * `ok` — configured and, where probed, reachable. `off` — deliberately not configured, which is a
  * legitimate state for an offline school, not an error. `unknown` — we asked and could not tell.
+ * `attention` — configured in a way we can tell is wrong (same word as the Backups panel's state).
  */
-export type FactStatus = 'ok' | 'off' | 'unknown'
+export type FactStatus = 'ok' | 'off' | 'unknown' | 'attention'
 
 export interface SystemFact {
   key: string
@@ -217,6 +219,7 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
   const [pdfEngine, artifactCache] = await Promise.all([probePdfEngine(), probeArtifactCache()])
 
   const serverUrl = process.env.SERVER_URL?.trim()
+  const linkBase = emailLinkBase()
   const publicLibrary = isPublicLibraryEnabled()
   const smtpHost = process.env.SMTP_HOST
   const errorTracking = errorTrackingEnabled()
@@ -240,6 +243,28 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       value: serverUrl || 'Not set — suitable for a local installation',
       status: serverUrl ? 'ok' : 'off',
       envVar: 'SERVER_URL',
+    },
+    {
+      key: 'linkAddress',
+      label: 'Address in links',
+      /**
+       * Added 2026-10-31 with the reset-link QR code. Nothing warned when this was `localhost` — the
+       * installer's default when no `LESSON3_URL` is given — and every link built from it then works
+       * only on the server itself: reset links, their QR codes, and every emailed link. Unlike the
+       * row above, unset is NOT a legitimate state: a link with no address cannot be opened anywhere.
+       */
+      description:
+        'The address put into password-reset links, their QR codes, and links in emails. Phones ' +
+        'and other computers on the school network must be able to open it.',
+      value: linkBase || 'Not set',
+      status: linkBase && !linkIsLoopback(linkBase) ? 'ok' : 'attention',
+      envVar: 'ADMIN_URL',
+      detail: !linkBase
+        ? 'Reset links have no address, so nobody can open them.'
+        : linkIsLoopback(linkBase)
+          ? 'Only this server can open these links; phones and other computers cannot. Set it to ' +
+            'the address people use on the school network.'
+          : undefined,
     },
     {
       key: 'publicLibrary',

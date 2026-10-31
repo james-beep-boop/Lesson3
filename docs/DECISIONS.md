@@ -26,6 +26,9 @@ internet, cloned images). Chosen from: ask-your-admin page only, page plus QR co
   installer writes from `LESSON3_URL` or defaults to `http://localhost:3001`; on a phone that is the
   phone. Cloned machines share the master's `ADMIN_URL`, so links can name the wrong host; that
   belongs to the on-hold "Set up this school" plan, not here.
+- **Installation status gains "Address in links"** (operator, same day), `status: 'attention'` when
+  `emailLinkBase()` is empty or loopback (`linkIsLoopback`, now in `lib/emailLinkBase.ts` beside the
+  policy it judges). `FactStatus` gains `attention`, the Backups panel's word for the same idea.
 - **No-email _Forgot password?_ page shows no form.** The endpoint already answered uniformly without
   minting a token when SMTP is absent; an address box that does nothing read as broken. The endpoint
   is unchanged, so direct API callers see the same uniform 200.

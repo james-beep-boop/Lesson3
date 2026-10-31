@@ -40,8 +40,8 @@ export function ResetLinkQr({ link, name }: { link: string; name: string }) {
   if (!drawing) {
     return (
       <p className="lp-users__qr-note" role="note">
-        No QR code: this link points to this computer only, so a phone cannot open it. Ask whoever
-        installed the server to set the school&rsquo;s address (<code>LESSON3_URL</code>).
+        No QR code: this link points to this computer only, so a phone cannot open it. See{' '}
+        <strong>Address in links</strong> under Manage &rarr; System &rarr; Installation status.
       </p>
     )
   }

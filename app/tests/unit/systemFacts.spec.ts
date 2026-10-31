@@ -35,6 +35,7 @@ const ENV_KEYS = [
   'SMTP_HOST',
   'SENTRY_DSN',
   'GOTENBERG_URL',
+  'ADMIN_URL',
 ] as const
 
 let saved: Record<string, string | undefined>
@@ -77,8 +78,9 @@ describe('collectSystemFacts', () => {
     expect(byKey(facts, 'artifactCache').status).toBe('unknown')
     // ⚑ A COUNT, deliberately: it is what noticed the eighth row arriving, which is the point of
     // pinning it rather than only checking the rows this case names. Six since the three backup rows
-    // moved to Manage → System → Backups (`backupStatus.spec.ts`, design A5).
-    expect(facts).toHaveLength(6)
+    // moved to Manage → System → Backups (`backupStatus.spec.ts`, design A5); seven with the
+    // link-address row (2026-10-31).
+    expect(facts).toHaveLength(7)
   })
 
   it('reports PDF output working when the sidecar answers', async () => {
@@ -139,6 +141,23 @@ describe('collectSystemFacts', () => {
       `${email.description} ${email.detail}`,
       'the row must not claim password recovery is impossible — a Site Administrator can hand over a link',
     ).not.toMatch(/nobody can/i)
+  })
+
+  /**
+   * The address in reset links (and their QR codes) is the one unset value that is NOT a legitimate
+   * offline state: `localhost` — the installer's default — works only on the server itself, so a
+   * phone scanning the code reaches nothing. Added 2026-10-31; nothing warned before.
+   */
+  it.each([
+    ['unset', undefined, 'attention', 'nobody can open them'],
+    ['localhost', 'http://localhost:3001', 'attention', 'phones and other computers cannot'],
+    ['a school network address', 'http://192.168.1.50:3001', 'ok', undefined],
+  ])('reports the address in links when it is %s', async (_, url, status, detail) => {
+    if (url) process.env.ADMIN_URL = url
+    const fact = byKey(await collectSystemFacts(), 'linkAddress')
+    expect(fact.status).toBe(status)
+    if (detail) expect(fact.detail).toContain(detail)
+    else expect(fact.detail).toBeUndefined()
   })
 
   it('flips those to OK when the environment provides them', async () => {

@@ -15,6 +15,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
   Wi-Fi instead of retyping it. The code is drawn in the browser (`uqr` 0.1.3, MIT, no dependencies);
   the link never leaves the page. A link that names `localhost` shows an explanation instead, since a
   phone cannot open it.
+- Manage → System → Installation status has a new row, **Address in links** (`ADMIN_URL`), marked
+  for attention when it is unset or `localhost`. Until now nothing warned that reset links, their QR
+  codes and emailed links would work only on the server itself.
 - Without email, _Forgot password?_ now opens a page that only says to ask the Site administrator.
   The email box, which did nothing there, is gone.
 
