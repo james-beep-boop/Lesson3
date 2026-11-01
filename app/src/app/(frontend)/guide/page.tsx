@@ -68,7 +68,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     If this ARES Lesson Plans site cannot send email (most school servers have no
                     internet), the sign-up page says so. Sign up as usual, ask your school’s Site
                     administrator to approve your account, then sign in. They can also create a
-                    reset link and give it to you directly.
+                    reset link and give it to you directly. It appears on their screen as a QR code
+                    you can scan with your phone on the school Wi-Fi. On a laptop, ask them for the
+                    short reset code instead, then open <em>Forgot password?</em> and enter your
+                    email and the code.
                   </li>
                 </ol>
                 <p>
@@ -708,7 +711,15 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               >
                 <p>
                   If email is not available, create a password-reset link and give it to the person.
-                  They use the link to choose a new password. You will not see their password.
+                  They use the link to choose a new password. You will not see their password. In{' '}
+                  <em>Manage → Users → Accounts</em>, open the person and choose{' '}
+                  <em>Reveal reset link</em>. The link also appears as a QR code: the person scans
+                  it with their phone on the school Wi-Fi. The link works once. Open Manage at the
+                  school address (for example ares.local), not as localhost on the server itself, so
+                  the phone can reach the link. For someone at a laptop with no phone, read them the
+                  short reset code shown with the link: they open <em>Forgot password?</em>, enter
+                  their email and the code within 15 minutes, and choose a new password. The code
+                  works once and stops working after 5 wrong tries.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -859,10 +870,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('site-admins.system') && (
               <GuideAccordionPanel id="site-admins.system" title="Check site and backup status">
                 <p>
-                  <em>Manage → System → Installation status</em> shows the site address, whether
-                  email and public sharing are available, whether PDFs are working, where backups
-                  are sent, when the last backup succeeded, and whether new backups are encrypted
-                  for a recovery key held by the school.
+                  <em>Manage → System → Installation status</em> shows the site address, the address
+                  used in emailed links (marked in red if email is set up and people cannot open
+                  them), whether email and public sharing are available, whether PDFs are working,
+                  where backups are sent, when the last backup succeeded, and whether new backups
+                  are encrypted for a recovery key held by the school.
                 </p>
                 <p>
                   A successful backup means an encrypted copy was sent. It does not prove the backup

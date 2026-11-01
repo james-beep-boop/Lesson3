@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
+import { atOrigin } from '../../lib/emailLinkBase'
 // ⚑ `personLabel`, not a local `${name} (${email})`. Its docblock states the rule this panel had
 // quietly broken: who a person is must not be decided in four places — and the destructive
 // confirmations below are the same class of decision as the Editing-access widget's, which sits on
@@ -24,6 +25,7 @@ import { wireErrorMessage } from '../../lib/wireError'
 import { usePanelJump, usePanelOpen } from './Accordion'
 import { subjectGradeAnchor } from './panelState'
 import { PersonIdentity } from './PersonIdentity'
+import { ResetLinkQr } from './ResetLinkQr'
 
 /**
  * How an unverified account is named, per site (2026-10-19). With email, the person confirms their
@@ -65,7 +67,12 @@ function UserRow({
   const [error, setError] = useState<string | null>(null)
   // One piece of state: the link and its lifetime are minted together and cleared together, and were
   // never independently settable.
-  const [reset, setReset] = useState<{ link: string; expiresInMinutes: number | null } | null>(null)
+  const [reset, setReset] = useState<{
+    link: string
+    expiresInMinutes: number | null
+    code: string | null
+    codeExpiresInMinutes: number | null
+  } | null>(null)
   const [observedUpdatedAt, setObservedUpdatedAt] = useState(user.updatedAt)
   const detailId = `manage-user-${user.id}`
   const disabled = busy !== null
@@ -144,8 +151,13 @@ function UserRow({
       const link = typeof body.link === 'string' ? body.link : null
       if (!link) throw new Error('The server returned no reset link.')
       setReset({
-        link,
+        // Handed over in person, so it uses the address this browser reached the server at, not the
+        // configured email base (see `atOrigin`).
+        link: atOrigin(link, window.location.origin),
         expiresInMinutes: typeof body.expiresInMinutes === 'number' ? body.expiresInMinutes : null,
+        code: typeof body.code === 'string' ? body.code : null,
+        codeExpiresInMinutes:
+          typeof body.codeExpiresInMinutes === 'number' ? body.codeExpiresInMinutes : null,
       })
       toast.success(`Created a password reset link for ${user.name}.`)
       await onChanged()
@@ -342,6 +354,24 @@ function UserRow({
             <Button className="lp-btn" buttonStyle="secondary" size="small" onClick={copyResetLink}>
               Copy link
             </Button>
+            <ResetLinkQr link={reset.link} name={user.name} />
+            {reset.code && (
+              // For someone at a laptop with no phone (2026-11-01): they type their email and this
+              // code on Forgot password. Read it out or write it down; it is shown only here.
+              <p className="lp-users__reset-code">
+                <span>
+                  On a laptop instead: {user.name} opens <em>Forgot password?</em> on the sign-in
+                  page and enters their email and this code
+                  {reset.codeExpiresInMinutes != null
+                    ? ` within ${reset.codeExpiresInMinutes} minutes`
+                    : ''}
+                  :
+                </span>
+                <strong className="lp-users__reset-code-value" aria-label="Reset code">
+                  {reset.code}
+                </strong>
+              </p>
+            )}
           </div>
         )}
 

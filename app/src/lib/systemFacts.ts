@@ -7,6 +7,7 @@ import {
   isArtifactCacheEntry,
 } from '../generator/artifactCache'
 import { gotenbergUrl } from '../generator/docxToPdf'
+import { emailLinkBase, linkIsLoopback } from './emailLinkBase'
 import { errorTrackingEnabled } from './errorTracking'
 import { isPublicLibraryEnabled } from './publicLibrary'
 
@@ -32,8 +33,9 @@ import { isPublicLibraryEnabled } from './publicLibrary'
 /**
  * `ok` — configured and, where probed, reachable. `off` — deliberately not configured, which is a
  * legitimate state for an offline school, not an error. `unknown` — we asked and could not tell.
+ * `attention` — configured in a way we can tell is wrong (same word as the Backups panel's state).
  */
-export type FactStatus = 'ok' | 'off' | 'unknown'
+export type FactStatus = 'ok' | 'off' | 'unknown' | 'attention'
 
 export interface SystemFact {
   key: string
@@ -217,6 +219,7 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
   const [pdfEngine, artifactCache] = await Promise.all([probePdfEngine(), probeArtifactCache()])
 
   const serverUrl = process.env.SERVER_URL?.trim()
+  const linkBase = emailLinkBase()
   const publicLibrary = isPublicLibraryEnabled()
   const smtpHost = process.env.SMTP_HOST
   const errorTracking = errorTrackingEnabled()
@@ -240,6 +243,31 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       value: serverUrl || 'Not set — suitable for a local installation',
       status: serverUrl ? 'ok' : 'off',
       envVar: 'SERVER_URL',
+    },
+    {
+      key: 'linkAddress',
+      label: 'Address in emailed links',
+      /**
+       * Added 2026-10-31; narrowed 2026-11-01. Reset links handed over in Manage (and their QR codes)
+       * use the address in the administrator's browser, so this setting matters only for links sent
+       * by email. Without email it is harmless whatever it says — school servers have no fixed address
+       * and clones share the master's value — so it reads `off`, never a fault. With email, a missing
+       * or `localhost` value means every emailed link fails on the recipient's device.
+       */
+      description:
+        'The address put into links in emails, such as password resets. People must be able to ' +
+        'open it from their own phone or computer.',
+      value: linkBase || 'Not set',
+      status: !smtpHost ? 'off' : linkBase && !linkIsLoopback(linkBase) ? 'ok' : 'attention',
+      envVar: 'ADMIN_URL',
+      detail: !smtpHost
+        ? 'Not used: this site does not send email. Reset links made in Manage use the address ' +
+          'in your browser.'
+        : !linkBase
+          ? 'Emailed links have no address, so nobody can open them.'
+          : linkIsLoopback(linkBase)
+            ? 'Only this server can open emailed links; phones and other computers cannot.'
+            : undefined,
     },
     {
       key: 'publicLibrary',

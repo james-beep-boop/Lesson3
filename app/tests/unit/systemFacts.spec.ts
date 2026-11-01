@@ -35,6 +35,7 @@ const ENV_KEYS = [
   'SMTP_HOST',
   'SENTRY_DSN',
   'GOTENBERG_URL',
+  'ADMIN_URL',
 ] as const
 
 let saved: Record<string, string | undefined>
@@ -77,8 +78,9 @@ describe('collectSystemFacts', () => {
     expect(byKey(facts, 'artifactCache').status).toBe('unknown')
     // ⚑ A COUNT, deliberately: it is what noticed the eighth row arriving, which is the point of
     // pinning it rather than only checking the rows this case names. Six since the three backup rows
-    // moved to Manage → System → Backups (`backupStatus.spec.ts`, design A5).
-    expect(facts).toHaveLength(6)
+    // moved to Manage → System → Backups (`backupStatus.spec.ts`, design A5); seven with the
+    // emailed-link address row (2026-10-31).
+    expect(facts).toHaveLength(7)
   })
 
   it('reports PDF output working when the sidecar answers', async () => {
@@ -139,6 +141,26 @@ describe('collectSystemFacts', () => {
       `${email.description} ${email.detail}`,
       'the row must not claim password recovery is impossible — a Site Administrator can hand over a link',
     ).not.toMatch(/nobody can/i)
+  })
+
+  /**
+   * The address in emailed links. Reset links handed over in Manage use the browser's address
+   * (2026-11-01), so without email this setting is unused and never a fault; with email, unset or
+   * `localhost` means every emailed link fails on the recipient's device.
+   */
+  it.each([
+    ['no email, unset', undefined, undefined, 'off', 'does not send email'],
+    ['no email, localhost', undefined, 'http://localhost:3001', 'off', 'does not send email'],
+    ['email, unset', 'smtp.example.org', undefined, 'attention', 'nobody can open them'],
+    ['email, localhost', 'smtp.example.org', 'http://localhost:3001', 'attention', 'cannot'],
+    ['email, a real address', 'smtp.example.org', 'https://lessons.example.org', 'ok', undefined],
+  ])('reports the address in emailed links: %s', async (_, smtp, url, status, detail) => {
+    if (smtp) process.env.SMTP_HOST = smtp
+    if (url) process.env.ADMIN_URL = url
+    const fact = byKey(await collectSystemFacts(), 'linkAddress')
+    expect(fact.status).toBe(status)
+    if (detail) expect(fact.detail).toContain(detail)
+    else expect(fact.detail).toBeUndefined()
   })
 
   it('flips those to OK when the environment provides them', async () => {

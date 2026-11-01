@@ -48,6 +48,7 @@ import {
 import { userSearchEndpoint } from '../endpoints/userSearch'
 import { verifyEmailThrottledEndpoint } from '../endpoints/verifyEmail'
 import { forgotPasswordQueuedEndpoint } from '../endpoints/forgotPassword'
+import { redeemResetCodeEndpoint } from '../endpoints/resetCode'
 import { cascadeDeleteUserFavorites } from './Favorites'
 import { cascadeDeleteUserRecovery } from './EditRecovery'
 import { cascadeDeleteUserMessages } from './Messages'
@@ -206,6 +207,8 @@ export const Users: CollectionConfig = {
     // Site-Admin account actions (D5/D13a). Each authorizes the caller, then writes with
     // `overrideAccess: true` because the fields involved are system-set — see endpoints/userAdminActions.
     revealResetLinkEndpoint,
+    // Public: trades an administrator-issued short code + email for that reset token (2026-11-01).
+    redeemResetCodeEndpoint,
     setSiteAdminEndpoint,
     setSignInDisabledEndpoint,
   ],
@@ -221,6 +224,28 @@ export const Users: CollectionConfig = {
     {
       name: 'lockUntil',
       type: 'date',
+      hidden: true,
+      access: { create: () => false, update: () => false },
+    },
+    // Short one-time reset code, minted beside the reset link (2026-11-01) for a teacher on a laptop
+    // with no phone: they type their email and the code on Forgot password. Only a hash is stored;
+    // system-written by `reveal-reset-link` and `redeem-reset-code` only. See endpoints/resetCode.
+    {
+      name: 'resetCodeHash',
+      type: 'text',
+      hidden: true,
+      access: { create: () => false, update: () => false },
+    },
+    {
+      name: 'resetCodeExpiresAt',
+      type: 'date',
+      hidden: true,
+      access: { create: () => false, update: () => false },
+    },
+    {
+      name: 'resetCodeAttempts',
+      type: 'number',
+      defaultValue: 0,
       hidden: true,
       access: { create: () => false, update: () => false },
     },

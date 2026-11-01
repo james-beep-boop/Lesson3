@@ -11,6 +11,71 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-01 — Short reset code for people at a laptop
+
+Operator, 2026-11-01: most people resetting a password are at a laptop and may have no phone, so the
+QR code does not reach them and the link is too long to type. Chosen over a temporary password (the
+administrator would know it, and it needs a must-change flag) and over signing the administrator in
+on the teacher's laptop.
+
+- **The code unlocks the existing token; it sets nothing.** `reveal-reset-link` mints the Payload
+  reset token as before and, in the same transaction, a code (`lib/resetCode.ts`: 8 characters from
+  a 30-character alphabet with no 0/O/1/I/L/U, ~39 bits). `POST /api/users/redeem-reset-code`
+  returns that token for a correct email + code, and the person continues on `/reset-password`, so
+  the one password-setting path stays the one that runs `beforeLogin` and the password rules.
+- **Strength is the per-code attempt cap, not the alphabet.** 5 wrong tries or 15 minutes and the
+  code is dead, wherever the guesses come from. The attempt is charged in one atomic `UPDATE` that
+  also refuses an exhausted or expired code, before the comparison; the success write is conditional
+  on the hash read, so a code cannot be redeemed twice by racing requests. Per-client rate limit
+  (`resetCodeClient`, 30/hour) is a load bound only.
+- **No account oracle.** Unknown address, no code, wrong, expired, exhausted, disabled account, used
+  token: one 400 body and the same 400 ms floor as forgot-password. Missing fields (400) and 429
+  describe the request, not the account, and are not padded.
+- **Stored as HMAC-SHA256(PAYLOAD_SECRET, `userId:token:code`)** in hidden, system-only columns
+  (`reset_code_hash`, `reset_code_expires_at`, `reset_code_attempts`). Like the token, the plain code
+  is returned once and never logged.
+- ⚑ **The hash is bound to the reset token it was issued with** (Codex review of #490, 2026-11-01).
+  The first version hashed `userId:code` only, and redeem returns whatever token the account holds
+  now: after the person reset through the QR code, a later emailed forgot-password minted a new token
+  and the old code (still within its 15 minutes) unlocked it. Only possible with email set up, and
+  only to someone holding the old code, but a code must never outlive its link. Binding the token in
+  makes the code stop matching once that token is used (Payload clears it) or replaced.
+- Wire tests: `tests/http/resetCode.http.spec.ts` (run locally against a dev server: 10/10, including
+  the used-then-replaced-token case; `userAdminActions.http.spec.ts` 36/36).
+
+## 2026-10-31 — Password reset without email: QR code, and no request-to-admin
+
+Operator, 2026-10-31, for the first offline school installs (ten Seavuria schools, intermittent
+internet, cloned images). Chosen from: ask-your-admin page only, page plus QR code, leave as is.
+
+- **The administrator's reset link is also a QR code** (`components/Manage/ResetLinkQr.tsx`). The
+  admin and the person must be together anyway, since the link is hand-delivered; the code saves
+  retyping a ~90-character one-time address. Drawn client-side from the link already on screen with
+  `uqr` (pinned 0.1.3, MIT, zero dependencies) as one SVG path, black on white in both themes. No new
+  endpoint, no online QR service (none offline, and it would leak a live credential). Error
+  correction M, four-module quiet zone; a decode of a real-length link was checked with `jsqr`.
+- **A `localhost` link gets an explanation, not a code.** The link base is `ADMIN_URL`, which the
+  installer writes from `LESSON3_URL` or defaults to `http://localhost:3001`; on a phone that is the
+  phone. Cloned machines share the master's `ADMIN_URL`, so links can name the wrong host; that
+  belongs to the on-hold "Set up this school" plan, not here.
+- **Installation status gains "Address in emailed links"** (`FactStatus` gains `attention`, the
+  Backups panel's word): `attention` only when SMTP is set and `emailLinkBase()` is empty or loopback
+  (`linkIsLoopback`, in `lib/emailLinkBase.ts` beside the policy it judges); `off` without email.
+- **2026-11-01, after Mark (ARES): hand-delivered links use the browser's origin** (`atOrigin`, applied
+  in `UsersPanel` to the reveal-reset-link response). Schools have no static IP; ARES answers as
+  `ares.local` (mDNS, the plan for all schools), `ares.edu` (dnsmasq) or `10.42.0.1` where it is the
+  router, and clones share `ADMIN_URL`. The address the administrator opened Manage at is known to
+  work on that network, so the QR code needs no setting. The endpoint still returns the
+  `ADMIN_URL`-based link; only the client rebases it. A `localhost` origin still gets the note, now
+  telling the administrator to open Manage at the school address. This supersedes the earlier remark
+  that the wrong-address problem belongs to the "Set up this school" plan.
+- **No-email _Forgot password?_ page shows no form.** The endpoint already answered uniformly without
+  minting a token when SMTP is absent; an address box that does nothing read as broken. The endpoint
+  is unchanged, so direct API callers see the same uniform 200.
+- **Rejected: an unauthenticated "ask my administrator" request.** Anyone on the school network could
+  send them, for any name. New accounts still need no QR: offline sign-ups wait in "Awaiting
+  approval" and the admin approves them remotely.
+
 ## 2026-10-29 — Worldwide identity, part 2: messages, forum, origin, ancestry by key, a complete copy reset
 
 Operator, 2026-10-29: a nationwide school network (sharing lesson plans, forums and messages) is the
