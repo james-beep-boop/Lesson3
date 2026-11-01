@@ -11,7 +11,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { encode } from 'uqr'
 
 import { QR_OPTIONS, ResetLinkQr } from '@/components/Manage/ResetLinkQr'
-import { linkIsLoopback } from '@/lib/emailLinkBase'
+import { atOrigin, linkIsLoopback } from '@/lib/emailLinkBase'
 
 afterEach(cleanup)
 
@@ -46,7 +46,7 @@ describe('ResetLinkQr', () => {
       <ResetLinkQr link="http://localhost:3001/reset-password?token=abc" name="Amina" />,
     )
     expect(container.querySelector('svg')).toBeNull()
-    expect(screen.getByRole('note').textContent).toContain('a phone cannot open it')
+    expect(screen.getByRole('note').textContent).toContain('Open Manage at the school address')
   })
 })
 
@@ -69,5 +69,17 @@ describe('linkIsLoopback', () => {
     'https://test.kenyalessons.org/reset-password?token=a',
   ])('treats %s as reachable', (link) => {
     expect(linkIsLoopback(link)).toBe(false)
+  })
+})
+
+describe('atOrigin', () => {
+  const TOKEN_PATH = '/reset-password?token=0123456789abcdef'
+
+  it.each([
+    ['the configured address', `http://localhost:3001${TOKEN_PATH}`],
+    ["another school's address (a cloned server)", `http://10.42.0.1:3001${TOKEN_PATH}`],
+    ['no address at all', TOKEN_PATH],
+  ])('moves a link from %s to the address this browser uses', (_, link) => {
+    expect(atOrigin(link, 'http://ares.local:3001')).toBe(`http://ares.local:3001${TOKEN_PATH}`)
   })
 })

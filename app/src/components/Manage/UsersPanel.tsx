@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
+import { atOrigin } from '../../lib/emailLinkBase'
 // ⚑ `personLabel`, not a local `${name} (${email})`. Its docblock states the rule this panel had
 // quietly broken: who a person is must not be decided in four places — and the destructive
 // confirmations below are the same class of decision as the Editing-access widget's, which sits on
@@ -145,7 +146,9 @@ function UserRow({
       const link = typeof body.link === 'string' ? body.link : null
       if (!link) throw new Error('The server returned no reset link.')
       setReset({
-        link,
+        // Handed over in person, so it uses the address this browser reached the server at, not the
+        // configured email base (see `atOrigin`).
+        link: atOrigin(link, window.location.origin),
         expiresInMinutes: typeof body.expiresInMinutes === 'number' ? body.expiresInMinutes : null,
       })
       toast.success(`Created a password reset link for ${user.name}.`)

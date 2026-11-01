@@ -271,8 +271,9 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   password-reset link and give it to the person. They use the link to choose a new password. You
   will not see their password. In Manage → Users → Accounts, open the person and choose _Reveal reset
   link_. The link also appears as a QR code: the person scans it with their phone on the school
-  Wi-Fi. The link works once.
-- **Check site and backup status:** Manage → System → Installation status shows the site address, the address used in reset links (marked in red if phones cannot open it), whether email and public
+  Wi-Fi. The link works once. Open Manage at the school address (for example ares.local), not as
+  localhost on the server itself, so the phone can reach the link.
+- **Check site and backup status:** Manage → System → Installation status shows the site address, the address used in emailed links (marked in red if email is set up and people cannot open them), whether email and public
   sharing are available, whether PDFs are working, where backups are sent, when the last backup
   succeeded, and whether new backups are encrypted for a recovery key held by the school. A
   successful backup means an encrypted copy was sent; it does not prove the backup can be restored.

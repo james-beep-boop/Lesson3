@@ -15,9 +15,12 @@ Concise record of delivered product changes, newest first. Detailed implementati
   Wi-Fi instead of retyping it. The code is drawn in the browser (`uqr` 0.1.3, MIT, no dependencies);
   the link never leaves the page. A link that names `localhost` shows an explanation instead, since a
   phone cannot open it.
-- Manage → System → Installation status has a new row, **Address in links** (`ADMIN_URL`), marked
-  for attention when it is unset or `localhost`. Until now nothing warned that reset links, their QR
-  codes and emailed links would work only on the server itself.
+- Reset links made in Manage, and their QR codes, use the address the administrator's browser is
+  using (for example `ares.local`), not the configured `ADMIN_URL`. School servers have no fixed
+  address and cloned servers share the master's setting, so the browser's address is the one known
+  to work on that network.
+- Manage → System → Installation status has a new row, **Address in emailed links** (`ADMIN_URL`).
+  It is marked for attention only when the site sends email and the address is unset or `localhost`.
 - Without email, _Forgot password?_ now opens a page that only says to ask the Site administrator.
   The email box, which did nothing there, is gone.
 

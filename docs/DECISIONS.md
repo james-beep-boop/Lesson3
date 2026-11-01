@@ -26,9 +26,17 @@ internet, cloned images). Chosen from: ask-your-admin page only, page plus QR co
   installer writes from `LESSON3_URL` or defaults to `http://localhost:3001`; on a phone that is the
   phone. Cloned machines share the master's `ADMIN_URL`, so links can name the wrong host; that
   belongs to the on-hold "Set up this school" plan, not here.
-- **Installation status gains "Address in links"** (operator, same day), `status: 'attention'` when
-  `emailLinkBase()` is empty or loopback (`linkIsLoopback`, now in `lib/emailLinkBase.ts` beside the
-  policy it judges). `FactStatus` gains `attention`, the Backups panel's word for the same idea.
+- **Installation status gains "Address in emailed links"** (`FactStatus` gains `attention`, the
+  Backups panel's word): `attention` only when SMTP is set and `emailLinkBase()` is empty or loopback
+  (`linkIsLoopback`, in `lib/emailLinkBase.ts` beside the policy it judges); `off` without email.
+- **2026-11-01, after Mark (ARES): hand-delivered links use the browser's origin** (`atOrigin`, applied
+  in `UsersPanel` to the reveal-reset-link response). Schools have no static IP; ARES answers as
+  `ares.local` (mDNS, the plan for all schools), `ares.edu` (dnsmasq) or `10.42.0.1` where it is the
+  router, and clones share `ADMIN_URL`. The address the administrator opened Manage at is known to
+  work on that network, so the QR code needs no setting. The endpoint still returns the
+  `ADMIN_URL`-based link; only the client rebases it. A `localhost` origin still gets the note, now
+  telling the administrator to open Manage at the school address. This supersedes the earlier remark
+  that the wrong-address problem belongs to the "Set up this school" plan.
 - **No-email _Forgot password?_ page shows no form.** The endpoint already answered uniformly without
   minting a token when SMTP is absent; an address box that does nothing read as broken. The endpoint
   is unchanged, so direct API callers see the same uniform 200.

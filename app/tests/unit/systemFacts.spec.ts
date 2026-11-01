@@ -79,7 +79,7 @@ describe('collectSystemFacts', () => {
     // ⚑ A COUNT, deliberately: it is what noticed the eighth row arriving, which is the point of
     // pinning it rather than only checking the rows this case names. Six since the three backup rows
     // moved to Manage → System → Backups (`backupStatus.spec.ts`, design A5); seven with the
-    // link-address row (2026-10-31).
+    // emailed-link address row (2026-10-31).
     expect(facts).toHaveLength(7)
   })
 
@@ -144,15 +144,18 @@ describe('collectSystemFacts', () => {
   })
 
   /**
-   * The address in reset links (and their QR codes) is the one unset value that is NOT a legitimate
-   * offline state: `localhost` — the installer's default — works only on the server itself, so a
-   * phone scanning the code reaches nothing. Added 2026-10-31; nothing warned before.
+   * The address in emailed links. Reset links handed over in Manage use the browser's address
+   * (2026-11-01), so without email this setting is unused and never a fault; with email, unset or
+   * `localhost` means every emailed link fails on the recipient's device.
    */
   it.each([
-    ['unset', undefined, 'attention', 'nobody can open them'],
-    ['localhost', 'http://localhost:3001', 'attention', 'phones and other computers cannot'],
-    ['a school network address', 'http://192.168.1.50:3001', 'ok', undefined],
-  ])('reports the address in links when it is %s', async (_, url, status, detail) => {
+    ['no email, unset', undefined, undefined, 'off', 'does not send email'],
+    ['no email, localhost', undefined, 'http://localhost:3001', 'off', 'does not send email'],
+    ['email, unset', 'smtp.example.org', undefined, 'attention', 'nobody can open them'],
+    ['email, localhost', 'smtp.example.org', 'http://localhost:3001', 'attention', 'cannot'],
+    ['email, a real address', 'smtp.example.org', 'https://lessons.example.org', 'ok', undefined],
+  ])('reports the address in emailed links: %s', async (_, smtp, url, status, detail) => {
+    if (smtp) process.env.SMTP_HOST = smtp
     if (url) process.env.ADMIN_URL = url
     const fact = byKey(await collectSystemFacts(), 'linkAddress')
     expect(fact.status).toBe(status)
