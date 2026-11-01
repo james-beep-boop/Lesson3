@@ -48,6 +48,12 @@ import {
 } from 'payload'
 
 import { withAdminResetLinkAllowance } from '../hooks/authRateLimit'
+import {
+  hashResetCode,
+  newResetCode,
+  normalizeResetCode,
+  RESET_CODE_TTL_MINUTES,
+} from '../lib/resetCode'
 import { takeAdminCountLock } from '../hooks/userRoles'
 import { emailLinkBase } from '../lib/emailLinkBase'
 import { consumeRateLimit } from '../lib/rateLimit'
@@ -188,6 +194,24 @@ const revealResetLinkEndpoint: Endpoint = {
         throw new APIError('Could not generate a reset link for this account.', 500)
       }
 
+      // The short code beside the link (2026-11-01, `lib/resetCode.ts`): for a person at a laptop with
+      // no phone, who types it with their email on Forgot password. Only its HMAC is stored; the
+      // plain code goes back once, in this response, like the link. Written in the same transaction
+      // as the token, so a code never exists without the token it unlocks.
+      const code = newResetCode()
+      await req.payload.update({
+        collection: 'users',
+        id: targetId,
+        data: {
+          resetCodeHash: hashResetCode(req.payload.secret, targetId, normalizeResetCode(code)!),
+          resetCodeExpiresAt: new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60_000).toISOString(),
+          resetCodeAttempts: 0,
+        },
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+
       // ⚑ MINTING MOVED `updatedAt`, so the caller's freshness token is now stale.
       // `forgotPasswordOperation` writes `resetPasswordToken`/`resetPasswordExpiration` through
       // `payload.update` (verified in installed source), which bumps the row. A caller that reveals a
@@ -219,6 +243,8 @@ const revealResetLinkEndpoint: Endpoint = {
           // Stated so the panel can tell the administrator, rather than hard-coding an hour in the
           // UI: Payload's default is one hour and `Users.auth` sets no override (D5a-iv).
           expiresInMinutes: 60,
+          code,
+          codeExpiresInMinutes: RESET_CODE_TTL_MINUTES,
         },
         200,
         NO_STORE,

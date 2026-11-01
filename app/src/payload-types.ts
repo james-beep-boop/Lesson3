@@ -359,6 +359,9 @@ export interface User {
   id: number;
   loginAttempts?: number | null;
   lockUntil?: string | null;
+  resetCodeHash?: string | null;
+  resetCodeExpiresAt?: string | null;
+  resetCodeAttempts?: number | null;
   uid?: string | null;
   originInstallation?: string | null;
   /**
@@ -970,6 +973,9 @@ export interface SubjectGradesSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   loginAttempts?: T;
   lockUntil?: T;
+  resetCodeHash?: T;
+  resetCodeExpiresAt?: T;
+  resetCodeAttempts?: T;
   uid?: T;
   originInstallation?: T;
   name?: T;

@@ -69,7 +69,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     internet), the sign-up page says so. Sign up as usual, ask your school’s Site
                     administrator to approve your account, then sign in. They can also create a
                     reset link and give it to you directly. It appears on their screen as a QR code
-                    you can scan with your phone on the school Wi-Fi.
+                    you can scan with your phone on the school Wi-Fi. On a laptop, ask them for the
+                    short reset code instead, then open <em>Forgot password?</em> and enter your
+                    email and the code.
                   </li>
                 </ol>
                 <p>
@@ -714,7 +716,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <em>Reveal reset link</em>. The link also appears as a QR code: the person scans
                   it with their phone on the school Wi-Fi. The link works once. Open Manage at the
                   school address (for example ares.local), not as localhost on the server itself, so
-                  the phone can reach the link.
+                  the phone can reach the link. For someone at a laptop with no phone, read them the
+                  short reset code shown with the link: they open <em>Forgot password?</em>, enter
+                  their email and the code within 15 minutes, and choose a new password. The code
+                  works once and stops working after 5 wrong tries.
                 </p>
               </GuideAccordionPanel>
             )}

@@ -897,7 +897,12 @@ version remains a later phase, alongside stable row identity and support for str
   page's Sign up link (standard Payload create); new accounts are plain **Teachers** — the
   privileged fields (`roles`, `assignments`, `_verified`) are create-gated, and signups are
   rate-capped per address + site-globally. Password reset is Payload's native forgot/reset flow,
-  emailed to the frontend `/reset-password` page. **Email verification (added 2026-07-09,
+  emailed to the frontend `/reset-password` page. **Without email (amended 2026-11-01)** a Site
+  Administrator's `reveal-reset-link` hands over the same token in person: as a link and QR code
+  (built on the administrator's browser address, not `ADMIN_URL`), and as a short one-time code
+  (8 characters, 15 minutes, 5 tries, only an HMAC stored) that the person trades with their email
+  on Forgot password (`redeem-reset-code`) for that token. No path other than `/reset-password`
+  sets a password. **Email verification (added 2026-07-09,
   Payload `auth.verify`):** a new account cannot sign in until the emailed link (frontend
   `/verify-email` page) is used; manual verify/unverify is a Site-Admin repair action. **On a site
   without email (no SMTP — an offline school server; amended 2026-10-19) that manual verify is the

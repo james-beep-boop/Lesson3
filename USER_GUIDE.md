@@ -30,7 +30,8 @@ _Compare_ button.
   sign-up page says so: sign up as usual, then ask your school's Site administrator to approve your
   account, and sign in once they have. They can also create a reset link and give it to you
   directly. It appears on their screen as a QR code you can scan with your phone on the school
-  Wi-Fi. For security your session ends after a while and signs you out automatically — just
+  Wi-Fi. On a laptop, ask them for the short reset code instead, then open _Forgot password?_ and
+  enter your email and the code. For security your session ends after a while and signs you out automatically — just
   sign in again to continue.
 - **Browse lesson plans:** the home page groups lessons by subject and grade, then by strand and sub-strand in
   curriculum order.
@@ -272,7 +273,10 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   will not see their password. In Manage → Users → Accounts, open the person and choose _Reveal reset
   link_. The link also appears as a QR code: the person scans it with their phone on the school
   Wi-Fi. The link works once. Open Manage at the school address (for example ares.local), not as
-  localhost on the server itself, so the phone can reach the link.
+  localhost on the server itself, so the phone can reach the link. For someone at a laptop with no
+  phone, read them the short reset code shown with the link: they open _Forgot password?_, enter
+  their email and the code within 15 minutes, and choose a new password. The code works once and
+  stops working after 5 wrong tries.
 - **Check site and backup status:** Manage → System → Installation status shows the site address, the address used in emailed links (marked in red if email is set up and people cannot open them), whether email and public
   sharing are available, whether PDFs are working, where backups are sent, when the last backup
   succeeded, and whether new backups are encrypted for a recovery key held by the school. A

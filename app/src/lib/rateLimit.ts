@@ -179,6 +179,14 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_ADMIN_RESET_LINK_MAX', 30),
     windowMs: positiveIntEnv('RATE_LIMIT_ADMIN_RESET_LINK_WINDOW_MS', 3_600_000),
   },
+  // Redeeming an administrator's short reset code (2026-11-01, `endpoints/resetCode.ts`), keyed by
+  // client address. A LOAD bound only: each code already dies after 5 wrong tries, which is what
+  // stops guessing. Generous enough that a school sharing one address (NAT) is never blocked by a
+  // handful of mistyped codes.
+  resetCodeClient: {
+    max: positiveIntEnv('RATE_LIMIT_RESET_CODE_CLIENT_MAX', 30),
+    windowMs: positiveIntEnv('RATE_LIMIT_RESET_CODE_CLIENT_WINDOW_MS', 3_600_000),
+  },
   // Email-verification attempts (Codex 2026-07-10): the verify endpoint is public and token-only,
   // so there is no per-target identifier to key on (an attacker varies the token) and no reliable
   // IP without the Phase-5 edge proxy — a site-global daily ceiling is the honest app-level bound.

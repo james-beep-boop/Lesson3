@@ -190,6 +190,10 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'the person scans it with their phone on the school Wi-Fi',
   },
   {
+    what: 'someone at a laptop with no phone can reset with the short code (2026-11-01)',
+    claim: 'enter their email and the code within 15 minutes',
+  },
+  {
     what: 'a fresh installation has no factory account or password',
     claim: 'There is no default username or password',
   },

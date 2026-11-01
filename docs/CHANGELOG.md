@@ -21,8 +21,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
   to work on that network.
 - Manage → System → Installation status has a new row, **Address in emailed links** (`ADMIN_URL`).
   It is marked for attention only when the site sends email and the address is unset or `localhost`.
-- Without email, _Forgot password?_ now opens a page that only says to ask the Site administrator.
-  The email box, which did nothing there, is gone.
+- Without email, _Forgot password?_ no longer shows an email box that did nothing there.
+- **Short reset code** for people at a laptop with no phone: _Reveal reset link_ also shows a code
+  like `K7QM-3XPA`. The person enters their email and the code on _Forgot password?_ and continues to
+  the usual "choose a new password" page. The code lasts 15 minutes, works once and stops after 5
+  wrong tries; only a keyed hash is stored. New public endpoint `POST /api/users/redeem-reset-code`
+  (uniform failures, 400 ms floor, per-client limit `RATE_LIMIT_RESET_CODE_CLIENT_*`) and migration
+  `20261101_002353_reset_code` (three hidden columns on `users`).
 
 ## v1.11 (2026-10-29)
 

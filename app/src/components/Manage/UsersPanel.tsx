@@ -67,7 +67,12 @@ function UserRow({
   const [error, setError] = useState<string | null>(null)
   // One piece of state: the link and its lifetime are minted together and cleared together, and were
   // never independently settable.
-  const [reset, setReset] = useState<{ link: string; expiresInMinutes: number | null } | null>(null)
+  const [reset, setReset] = useState<{
+    link: string
+    expiresInMinutes: number | null
+    code: string | null
+    codeExpiresInMinutes: number | null
+  } | null>(null)
   const [observedUpdatedAt, setObservedUpdatedAt] = useState(user.updatedAt)
   const detailId = `manage-user-${user.id}`
   const disabled = busy !== null
@@ -150,6 +155,9 @@ function UserRow({
         // configured email base (see `atOrigin`).
         link: atOrigin(link, window.location.origin),
         expiresInMinutes: typeof body.expiresInMinutes === 'number' ? body.expiresInMinutes : null,
+        code: typeof body.code === 'string' ? body.code : null,
+        codeExpiresInMinutes:
+          typeof body.codeExpiresInMinutes === 'number' ? body.codeExpiresInMinutes : null,
       })
       toast.success(`Created a password reset link for ${user.name}.`)
       await onChanged()
@@ -347,6 +355,23 @@ function UserRow({
               Copy link
             </Button>
             <ResetLinkQr link={reset.link} name={user.name} />
+            {reset.code && (
+              // For someone at a laptop with no phone (2026-11-01): they type their email and this
+              // code on Forgot password. Read it out or write it down; it is shown only here.
+              <p className="lp-users__reset-code">
+                <span>
+                  On a laptop instead: {user.name} opens <em>Forgot password?</em> on the sign-in
+                  page and enters their email and this code
+                  {reset.codeExpiresInMinutes != null
+                    ? ` within ${reset.codeExpiresInMinutes} minutes`
+                    : ''}
+                  :
+                </span>
+                <strong className="lp-users__reset-code-value" aria-label="Reset code">
+                  {reset.code}
+                </strong>
+              </p>
+            )}
           </div>
         )}
 

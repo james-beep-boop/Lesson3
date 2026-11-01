@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-01 — Short reset code for people at a laptop
+
+Operator, 2026-11-01: most people resetting a password are at a laptop and may have no phone, so the
+QR code does not reach them and the link is too long to type. Chosen over a temporary password (the
+administrator would know it, and it needs a must-change flag) and over signing the administrator in
+on the teacher's laptop.
+
+- **The code unlocks the existing token; it sets nothing.** `reveal-reset-link` mints the Payload
+  reset token as before and, in the same transaction, a code (`lib/resetCode.ts`: 8 characters from
+  a 30-character alphabet with no 0/O/1/I/L/U, ~39 bits). `POST /api/users/redeem-reset-code`
+  returns that token for a correct email + code, and the person continues on `/reset-password`, so
+  the one password-setting path stays the one that runs `beforeLogin` and the password rules.
+- **Strength is the per-code attempt cap, not the alphabet.** 5 wrong tries or 15 minutes and the
+  code is dead, wherever the guesses come from. The attempt is charged in one atomic `UPDATE` that
+  also refuses an exhausted or expired code, before the comparison; the success write is conditional
+  on the hash read, so a code cannot be redeemed twice by racing requests. Per-client rate limit
+  (`resetCodeClient`, 30/hour) is a load bound only.
+- **No account oracle.** Unknown address, no code, wrong, expired, exhausted, disabled account, used
+  token: one 400 body and the same 400 ms floor as forgot-password. Missing fields (400) and 429
+  describe the request, not the account, and are not padded.
+- **Stored as HMAC-SHA256(PAYLOAD_SECRET, `userId:code`)** in hidden, system-only columns
+  (`reset_code_hash`, `reset_code_expires_at`, `reset_code_attempts`). Like the token, the plain code
+  is returned once and never logged.
+- Wire tests: `tests/http/resetCode.http.spec.ts` (run locally against a dev server: 9/9;
+  `userAdminActions.http.spec.ts` 36/36).
+
 ## 2026-10-31 — Password reset without email: QR code, and no request-to-admin
 
 Operator, 2026-10-31, for the first offline school installs (ten Seavuria schools, intermittent

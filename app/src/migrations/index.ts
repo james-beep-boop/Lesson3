@@ -38,6 +38,7 @@ import * as migration_20261024_094011_native_lock_scope from './20261024_094011_
 import * as migration_20261026_103510_lesson_releases_1a from './20261026_103510_lesson_releases_1a'
 import * as migration_20261026_195602_school_name from './20261026_195602_school_name'
 import * as migration_20261029_102600_worldwide_ids_part2 from './20261029_102600_worldwide_ids_part2'
+import * as migration_20261101_002353_reset_code from './20261101_002353_reset_code'
 
 export const migrations = [
   {
@@ -239,5 +240,10 @@ export const migrations = [
     up: migration_20261029_102600_worldwide_ids_part2.up,
     down: migration_20261029_102600_worldwide_ids_part2.down,
     name: '20261029_102600_worldwide_ids_part2',
+  },
+  {
+    up: migration_20261101_002353_reset_code.up,
+    down: migration_20261101_002353_reset_code.down,
+    name: '20261101_002353_reset_code',
   },
 ]

@@ -1064,9 +1064,11 @@ body {
   flex-wrap: wrap;
 }
 
-// The reset link's QR code (ResetLinkQr.tsx) sits on its own line under the link and Copy button.
+// The reset link's QR code (ResetLinkQr.tsx) and the short code sit on their own lines under the
+// link and Copy button.
 .lp-users .lp-users__qr,
-.lp-users .lp-users__qr-note {
+.lp-users .lp-users__qr-note,
+.lp-users .lp-users__reset-code {
   // `width`, not `flex-basis`: below the narrow breakpoint this row turns into a column, where a
   // basis would size the height instead.
   width: 100%;
@@ -1083,6 +1085,19 @@ body {
     width: min(14rem, 100%);
     height: auto;
   }
+}
+
+.lp-users .lp-users__reset-code {
+  display: grid;
+  gap: var(--app-space-1);
+  justify-items: start;
+}
+
+// Large and monospaced: it is read aloud or copied by hand, where 8 and B must not blur together.
+.lp-users .lp-users__reset-code-value {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 1.5rem;
+  letter-spacing: 0.1em;
 }
 
 @mixin manage-field-layout {
