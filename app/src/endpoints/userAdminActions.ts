@@ -203,7 +203,12 @@ const revealResetLinkEndpoint: Endpoint = {
         collection: 'users',
         id: targetId,
         data: {
-          resetCodeHash: hashResetCode(req.payload.secret, targetId, normalizeResetCode(code)!),
+          resetCodeHash: hashResetCode(
+            req.payload.secret,
+            targetId,
+            token,
+            normalizeResetCode(code)!,
+          ),
           resetCodeExpiresAt: new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60_000).toISOString(),
           resetCodeAttempts: 0,
         },

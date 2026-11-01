@@ -102,13 +102,16 @@ async function redeem(
   const normalized = normalizeResetCode(typed)
   const id = Number(row.id)
   const stored = String(row.reset_code_hash)
-  if (!normalized || !resetCodeMatches(req.payload.secret, id, normalized, stored)) return null
+  // The hash binds the code to the token it was issued with (`lib/resetCode.ts`), so a code whose
+  // link was already used, or replaced by a later reset, matches nothing.
+  const tokenValue = typeof row.reset_password_token === 'string' ? row.reset_password_token : ''
+  if (!normalized || !tokenValue) return null
+  if (!resetCodeMatches(req.payload.secret, id, tokenValue, normalized, stored)) return null
 
   // A correct code still opens nothing the reset page would refuse: the token must be live, and a
   // disabled account cannot complete a reset (its `beforeLogin` runs inside resetPassword).
-  const tokenValue = typeof row.reset_password_token === 'string' ? row.reset_password_token : ''
   const tokenExpiry = Date.parse(String(row.reset_password_expiration))
-  if (!tokenValue || !(tokenExpiry > Date.now()) || row.sign_in_disabled === true) return null
+  if (!(tokenExpiry > Date.now()) || row.sign_in_disabled === true) return null
 
   // Single use: clear the code, conditional on the hash we judged, so a racing second redemption of
   // the same code finds nothing to clear and fails.

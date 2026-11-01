@@ -27,7 +27,7 @@ let adminToken = ''
 let targetId = 0
 const TARGET_EMAIL = `${MARK}reset-code-target@lesson3.local`.toLowerCase()
 
-async function reveal(): Promise<{ code: string; codeExpiresInMinutes: unknown }> {
+async function reveal(): Promise<{ code: string; codeExpiresInMinutes: unknown; link: string }> {
   const fresh = await fetch(url(`/api/users/${targetId}?depth=0`), {
     headers: { Authorization: `JWT ${adminToken}` },
   })
@@ -38,7 +38,7 @@ async function reveal(): Promise<{ code: string; codeExpiresInMinutes: unknown }
     body: JSON.stringify({ expectedUpdatedAt: updatedAt }),
   })
   expect(res.status).toBe(200)
-  return (await res.json()) as { code: string; codeExpiresInMinutes: unknown }
+  return (await res.json()) as { code: string; codeExpiresInMinutes: unknown; link: string }
 }
 
 async function redeem(
@@ -150,6 +150,36 @@ describe('POST /api/users/redeem-reset-code', () => {
     const second = await reveal()
     expect((await redeem(TARGET_EMAIL, first.code)).status).toBe(400)
     expect((await redeem(TARGET_EMAIL, second.code)).status).toBe(200)
+  })
+
+  it('a code dies with its link: used, or replaced by a later reset (Codex review of #490)', async () => {
+    const { code, link } = await reveal()
+    // The person resets through the link (the QR code), never touching the code.
+    const linkToken = new URL(link, 'http://x').searchParams.get('token')
+    const reset = await fetch(url('/api/users/reset-password'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: linkToken, password: fx.password }),
+    })
+    expect(reset.status).toBe(200)
+    expect((await redeem(TARGET_EMAIL, code)).body).toEqual(failureBody)
+
+    // A later reset mints a new token (as an emailed forgot-password would): the old code must not
+    // unlock it.
+    await drizzleOf(fx.payload).execute(
+      sql`UPDATE "users" SET "reset_password_token" = 'a-later-emailed-token',
+            "reset_password_expiration" = now() + interval '1 hour' WHERE "id" = ${targetId};`,
+    )
+    try {
+      const later = await redeem(TARGET_EMAIL, code)
+      expect(later.status).toBe(400)
+      expect(later.body).toEqual(failureBody)
+    } finally {
+      await drizzleOf(fx.payload).execute(
+        sql`UPDATE "users" SET "reset_password_token" = NULL, "reset_password_expiration" = NULL
+             WHERE "id" = ${targetId};`,
+      )
+    }
   })
 
   it('an expired code is refused', async () => {

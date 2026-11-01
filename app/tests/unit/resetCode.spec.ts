@@ -39,16 +39,20 @@ describe('normalizeResetCode', () => {
 })
 
 describe('resetCodeMatches', () => {
-  const stored = hashResetCode('secret', 7, 'K7QM3XPA')
+  const stored = hashResetCode('secret', 7, 'tok', 'K7QM3XPA')
 
   it('matches the same code for the same account', () => {
-    expect(resetCodeMatches('secret', 7, 'K7QM3XPA', stored)).toBe(true)
+    expect(resetCodeMatches('secret', 7, 'tok', 'K7QM3XPA', stored)).toBe(true)
+  })
+
+  it('does not match once the reset token it was issued with is replaced', () => {
+    expect(resetCodeMatches('secret', 7, 'a-later-token', 'K7QM3XPA', stored)).toBe(false)
   })
 
   it('does not match another account, another secret, or another code', () => {
-    expect(resetCodeMatches('secret', 8, 'K7QM3XPA', stored)).toBe(false)
-    expect(resetCodeMatches('other', 7, 'K7QM3XPA', stored)).toBe(false)
-    expect(resetCodeMatches('secret', 7, 'K7QM3XPB', stored)).toBe(false)
+    expect(resetCodeMatches('secret', 8, 'tok', 'K7QM3XPA', stored)).toBe(false)
+    expect(resetCodeMatches('other', 7, 'tok', 'K7QM3XPA', stored)).toBe(false)
+    expect(resetCodeMatches('secret', 7, 'tok', 'K7QM3XPB', stored)).toBe(false)
   })
 
   it('stores no trace of the code itself', () => {

@@ -13,6 +13,12 @@
  *
  * Only an HMAC of the code (keyed by the Payload secret and bound to the user id) is stored, so a
  * database read does not hand out live codes.
+ *
+ * ⚑ THE HASH IS ALSO BOUND TO THE RESET TOKEN IT WAS ISSUED WITH. Redeeming hands back whatever
+ * token the account holds NOW, so an unbound code would outlive its link: after the person resets
+ * through the QR code, a later emailed reset mints a new token, and the old code would unlock it
+ * (Codex review of #490, 2026-11-01). Bound to the token, the code stops matching the moment that
+ * token is used (Payload clears it) or replaced.
  */
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto'
 
@@ -39,17 +45,23 @@ export function normalizeResetCode(typed: string): string | null {
   return s.length === LENGTH && [...s].every((c) => ALPHABET.includes(c)) ? s : null
 }
 
-export function hashResetCode(secret: string, userId: number, normalized: string): string {
-  return createHmac('sha256', secret).update(`${userId}:${normalized}`).digest('hex')
+export function hashResetCode(
+  secret: string,
+  userId: number,
+  token: string,
+  normalized: string,
+): string {
+  return createHmac('sha256', secret).update(`${userId}:${token}:${normalized}`).digest('hex')
 }
 
 export function resetCodeMatches(
   secret: string,
   userId: number,
+  token: string,
   normalized: string,
   stored: string,
 ) {
-  const a = Buffer.from(hashResetCode(secret, userId, normalized), 'hex')
+  const a = Buffer.from(hashResetCode(secret, userId, token, normalized), 'hex')
   const b = Buffer.from(stored, 'hex')
   return a.length === b.length && timingSafeEqual(a, b)
 }

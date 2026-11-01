@@ -31,11 +31,17 @@ on the teacher's laptop.
 - **No account oracle.** Unknown address, no code, wrong, expired, exhausted, disabled account, used
   token: one 400 body and the same 400 ms floor as forgot-password. Missing fields (400) and 429
   describe the request, not the account, and are not padded.
-- **Stored as HMAC-SHA256(PAYLOAD_SECRET, `userId:code`)** in hidden, system-only columns
+- **Stored as HMAC-SHA256(PAYLOAD_SECRET, `userId:token:code`)** in hidden, system-only columns
   (`reset_code_hash`, `reset_code_expires_at`, `reset_code_attempts`). Like the token, the plain code
   is returned once and never logged.
-- Wire tests: `tests/http/resetCode.http.spec.ts` (run locally against a dev server: 9/9;
-  `userAdminActions.http.spec.ts` 36/36).
+- ⚑ **The hash is bound to the reset token it was issued with** (Codex review of #490, 2026-11-01).
+  The first version hashed `userId:code` only, and redeem returns whatever token the account holds
+  now: after the person reset through the QR code, a later emailed forgot-password minted a new token
+  and the old code (still within its 15 minutes) unlocked it. Only possible with email set up, and
+  only to someone holding the old code, but a code must never outlive its link. Binding the token in
+  makes the code stop matching once that token is used (Payload clears it) or replaced.
+- Wire tests: `tests/http/resetCode.http.spec.ts` (run locally against a dev server: 10/10, including
+  the used-then-replaced-token case; `userAdminActions.http.spec.ts` 36/36).
 
 ## 2026-10-31 — Password reset without email: QR code, and no request-to-admin
 
