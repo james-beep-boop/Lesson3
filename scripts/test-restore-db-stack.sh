@@ -204,17 +204,11 @@ variant() { # file-name sql
 OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 # One migration behind = the NEWEST migration undone. ⚑ Update this when a newer migration lands, or the
 # backup has a gap instead of a missing tail and the restore (rightly) refuses it as "not a prefix".
-LATEST_MIGRATION='20261029_102600_worldwide_ids_part2'
-# Its down(): remove the worldwide-identity columns and the ancestry-key table it added.
-ONE_MIGRATION_BEHIND="DROP TABLE lesson_bundle_versions_texts CASCADE; \
-ALTER TABLE lesson_bundle_versions DROP COLUMN origin_installation, DROP COLUMN source_version_key, DROP COLUMN merged_from_key; \
-ALTER TABLE users DROP COLUMN origin_installation; \
-ALTER TABLE messages DROP COLUMN uid, DROP COLUMN origin_installation; \
-ALTER TABLE discussion_topics DROP COLUMN uid, DROP COLUMN origin_installation; \
-ALTER TABLE discussion_replies DROP COLUMN uid, DROP COLUMN origin_installation; \
+LATEST_MIGRATION='20261101_002353_reset_code'
+# Its down(): remove the three reset-code columns it added to users.
+ONE_MIGRATION_BEHIND="ALTER TABLE users DROP COLUMN reset_code_hash, DROP COLUMN reset_code_expires_at, DROP COLUMN reset_code_attempts; \
 DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
-# Counts the newest migration's schema change: 1 once applied (the incoming copy), 0 before (live).
-SCHEMA_PROBE="SELECT count(*) FROM information_schema.columns WHERE table_name = 'messages' AND column_name = 'uid';"
+SCHEMA_PROBE="SELECT count(*) FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'reset_code_hash';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
 variant "$NEW" "INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"
