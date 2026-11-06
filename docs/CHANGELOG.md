@@ -29,6 +29,14 @@ Concise record of delivered product changes, newest first. Detailed implementati
   reset replaces it, the code is dead); only a keyed hash is stored. New public endpoint `POST /api/users/redeem-reset-code`
   (uniform failures, 400 ms floor, per-client limit `RATE_LIMIT_RESET_CODE_CLIENT_*`) and migration
   `20261101_002353_reset_code` (three hidden columns on `users`).
+- Worldwide identity, part 2 (PR #488). Nothing changes on screen or in exports. Messages, forum
+  topics and forum replies now get a worldwide id, as people, lesson plans and versions already did.
+  People, saved versions, messages and forum posts record which installation made them. A saved
+  version records its whole ancestry by worldwide key (an ARES release's fingerprint, otherwise the
+  ancestor's id), so the ancestry survives when a parent is deleted. The copy reset
+  (`scripts/reset-installation-id.ts`) now gives a copied database new ids for everything, not only a
+  new Installation ID, and refuses while the app is running. One migration
+  (`20261029_102600_worldwide_ids_part2`) fills in the new fields on existing data.
 
 ## v1.11 (2026-10-29)
 

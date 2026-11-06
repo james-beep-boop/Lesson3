@@ -113,8 +113,11 @@ re-run with a newer build if one is available.
 
 Only if schools will be set up from a prepared copy rather than each installed fresh:
 
-- [ ] On the copy, run `scripts/reset-installation-id.ts` (dry run, then `APPLY=1`) as `docs/OPS.md`
-      describes. **Manage → System** shows a different Installation ID from the original.
+- [ ] On the copy, stop the app (`docker compose stop app`), then run
+      `scripts/reset-installation-id.ts` (dry run, then `APPLY=1`) as `docs/OPS.md` describes, and
+      start it again. The reset refuses while the app or a backup is connected.
+- [ ] **Manage → System** shows a different Installation ID from the original. The dry run had listed
+      the people, versions, messages and forum posts that would get new ids.
 
 ---
 
