@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-06 — Next.js 16.4.5, Gotenberg 8.40.0, Node 24.22.2 and small bumps
+
+Operator-approved maintenance, split from the Payload 3.93.0 upgrade (separate PR, because it needs
+the typing-speed patch re-derived). Next.js 16.4.5 is the November 3 security release. Of its
+published advisories only self-hosted cache poisoning plausibly applies: Lesson3 has no `use cache`
+or `unstable_cache`, no Edge routes and no `cookies.set`. Gotenberg 8.40.0 is the last 8.x release.
+It fixes QPDF password option injection and widens the private-IP deny list, and brings LibreOffice
+26.8.2 with a fix for LibreOffice not answering after a restart. Node 24.22.2 is a V8 and streams
+patch, not a security release; `engines`/`devEngines` keep their `>=24.22.1` floor. Also: nodemailer
+override 10.3.1, `@playwright/test` 1.65.0, graphql 16.15.0, eslint-config-next 16.4.5. Every image is
+pinned by multi-architecture index digest, checked against the registry. The PDF pixel comparison is
+not repeated in the cloud session (no Docker daemon); CI's PDF wire tests run on the rebuilt Arial image.
+
+---
+
 ## 2026-11-01 — Short reset code for people at a laptop
 
 Operator, 2026-11-01: most people resetting a password are at a laptop and may have no phone, so the
