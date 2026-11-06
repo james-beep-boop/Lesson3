@@ -299,8 +299,10 @@ override comes out, is in DECISIONS 2026-10-24.
 **Done: Payload 3.92.0** (#448, released in v1.06). On the next Payload upgrade, follow the same checklist:
 move `payload` and all five `@payloadcms/*` packages together; confirm or re-derive the #436 patch
 strings (the install fails loudly if they no longer match) and re-run the Rock typing benchmark; review
-each override; full gate plus the browser tests on the version edit page. ⚑ Check the `rowlabel` patch
-in the served chunk by its code (`Ge()`, not `bf()`): Turbopack strips its marker comment.
+each override; full gate plus the browser tests on the version edit page. ⚑ Turbopack strips the patch
+marker comments and renames `Ge`, so the served chunk cannot confirm the patches by name: grep a
+name-independent fragment such as `"v"in u&&!("p"in u)`, and rely on the benchmark (DECISIONS
+2026-11-06, Payload 3.93.0).
 
 **Application audit in progress** on branch `audit/2026-10-24-review` (PR #437, never meant to
 merge). Two authorization candidates are confirmed at runtime and await Codex's author response:

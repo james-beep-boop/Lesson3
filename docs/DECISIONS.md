@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-06 — Payload 3.93.0
+
+Operator-approved minor upgrade, kept apart from the Next.js/Gotenberg bumps. All six Payload packages
+move together. Compared with 3.92.1, the published `dist` changes password hashing (the iteration
+count is now configurable as 100,000 or 600,000, with its own stored prefix; the default stays 600,000),
+query validation (field read access is now checked on join and nested hasMany paths), field hooks,
+uploads, Drizzle's block/field transforms and Lexical converters. Users still has no password-field
+override and Lesson3 never sets `auth.passwordHashIterations`, so `equalizeLoginPasswordWork` still
+mirrors the two formats Payload verifies. Its unit test now pins the new source shape, the 600,000
+default, and that the config does not override it.
+
+The #436 typing-speed patch failed its name checks on 3.93.0, as designed. The `@payloadcms/ui`
+bundle changed, but the inlined `use-context-selector` function and `RowLabelProvider` are
+byte-identical once the minifier's renames are mapped (`Ub`→`Xb` useRef, `e2`→`t2`, `Xb`→`Yb`,
+`uf`→`df`, `Qb`→`Kb`, `bf`→`vf`; `Ge` is still useForm). The strings were re-derived by that
+mapping alone. The behaviour spec, which lifts the patched library out of the installed bundle,
+passes. Generated types and the import map are unchanged.
+
+**Rock confirmation run (2026-11-06, operator-approved).** Throwaway `lesson3-perf-*` stacks on the
+Rock, 12-lesson *Animal Transport* plan, `bench-typing.mjs` at 1×, 3 alternating rounds per build,
+load 0.2–1.0. All 222 keys were delivered and reported. #492 (`e97387e6`): median 40 ms, p90 48 ms,
+max 80 ms, long tasks 0.32–0.35 s, 37 keys in 5.93–5.96 s. `main` (`c14e9a2`): median 40 ms, p90
+40–48 ms, max 80–104 ms. Both match the patched 2026-10-24 figures; unpatched was 176–184 ms. The
+served-bundle code check could not identify the patches by name: Turbopack strips the marker
+comment, and the production minifier renames `Ge`, so "check by `Ge()`" no longer works (both builds
+read `…=nE()`). Behaviour is the proof. A future code check should grep a name-independent fragment
+of the ucs replacement, such as `"v"in u&&!("p"in u)`. The live containers were not touched, and
+every perf container, volume, image tag and checkout was removed afterwards.
+
+---
+
 ## 2026-11-06 — Next.js 16.4.5, Gotenberg 8.40.0, Node 24.22.2 and small bumps
 
 Operator-approved maintenance, split from the Payload 3.93.0 upgrade (separate PR, because it needs

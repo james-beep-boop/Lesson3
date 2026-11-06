@@ -50,7 +50,7 @@ const patchedSpan = bundle.slice(spanStart, spanEnd)
 
 /** The prototype measured in §3.2: the listener filter without the commit-time catch-up check. */
 const PROTOTYPE_TO =
-  'let R=Ub(null);e2(()=>{R.current={e,s:l[1]}});return Object.is(l[1],i)||a(),e2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}'
+  'let R=Xb(null);t2(()=>{R.current={e,s:l[1]}});return Object.is(l[1],i)||a(),t2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}'
 
 const scheduler = createRequire(import.meta.url)('scheduler')
 

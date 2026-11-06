@@ -4,7 +4,8 @@ import type { CollectionBeforeOperationHook } from 'payload'
 
 const derive = promisify(pbkdf2)
 // Dummy work only: the real credential comparison remains entirely inside Payload's verifier.
-// Both supported Payload 3.92.0 formats are performed for every well-formed login; tests pin these
+// Both formats Payload 3.93.0 verifies at its default 600,000 iterations (Lesson3 does not set
+// `auth.passwordHashIterations`) are performed for every well-formed login; tests pin these
 // parameters against installed source so an upstream change cannot silently reopen the timing gap.
 const dummyCurrent = (password: string) =>
   derive(password, 'lesson3-dummy-salt', 600_000, 32, 'sha256')
