@@ -24,6 +24,26 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 ---
 
+# Release v1.13 — 2026-11-06
+
+Tagged on main `53528bd`. Contains everything merged since v1.12:
+
+- **Offline password reset** (#490): QR code beside the reset link, links built from the
+  administrator's browser address, the short reset code (`POST /api/users/redeem-reset-code`), and
+  the *Address in emailed links* status row. Migration `20261101_002353_reset_code`.
+- **Docs follow-up to worldwide ids** (#489).
+- **Maintenance** (#491): Next.js 16.4.5 security release, Gotenberg 8.40.0, Node 24.22.2 and small
+  bumps.
+- **Payload 3.93.0** (#492), with the typing-speed patch re-derived and confirmed on the Rock.
+
+v1.12 (2026-10-29) was tagged at `f2420d8` with only worldwide identity part 2 (#488, below); its
+CHANGELOG heading was added with this release. The annotated `v1.13` tag triggers
+[the publication workflow](https://github.com/james-beep-boop/Lesson3/actions/workflows/publish-containers.yml).
+**Not deployed** (operator asked for a tag only). On the next deploy: two migrations run (#488's
+backfill and the reset code), sign in once, and try a real phone scan of a reset QR code.
+
+---
+
 # After v1.11 — worldwide identity, part 2 (PR #488, 2026-10-29)
 
 Merged into `main` 2026-10-29; not tagged or deployed. One migration (`20261029_102600_worldwide_ids_part2`), no new setting, nothing visible.

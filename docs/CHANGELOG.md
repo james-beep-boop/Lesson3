@@ -8,8 +8,18 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased
+## v1.13 (2026-11-06)
 
+- Next.js 16.4.5, the November 3 security release (of its advisories only self-hosted cache
+  poisoning plausibly applied to Lesson3). Next now drops `Content-Length` on route-handler
+  responses such as PDF downloads; the file itself is unchanged.
+- Gotenberg 8.40.0 (the last 8.x release): fixes QPDF password option injection, widens the
+  private-address deny list, and brings LibreOffice 26.8.2 with a fix for the converter not answering
+  after a restart.
+- Node 24.22.2, nodemailer 10.3.1, `@playwright/test` 1.65.0, graphql 16.15.0. Every image stays
+  pinned by digest.
+- Payload 3.93.0. Passwords still hash at 600,000 iterations. The typing-speed patch was re-derived
+  for the new bundle and measured on the Rock: 40 ms median per key, the same as before.
 - Password reset at schools with no email: the reset link a Site administrator makes in Manage →
   Users → Accounts is also shown as a QR code, so the person scans it with their phone on the school
   Wi-Fi instead of retyping it. The code is drawn in the browser (`uqr` 0.1.3, MIT, no dependencies);
@@ -29,6 +39,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
   reset replaces it, the code is dead); only a keyed hash is stored. New public endpoint `POST /api/users/redeem-reset-code`
   (uniform failures, 400 ms floor, per-client limit `RATE_LIMIT_RESET_CODE_CLIENT_*`) and migration
   `20261101_002353_reset_code` (three hidden columns on `users`).
+## v1.12 (2026-10-29)
+
 - Worldwide identity, part 2 (PR #488). Nothing changes on screen or in exports. Messages, forum
   topics and forum replies now get a worldwide id, as people, lesson plans and versions already did.
   People, saved versions, messages and forum posts record which installation made them. A saved
