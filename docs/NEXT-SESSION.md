@@ -26,7 +26,7 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 # After v1.11 — worldwide identity, part 2 (PR #488, 2026-10-29)
 
-Not released. One migration (`20261029_102600_worldwide_ids_part2`), no new setting, nothing visible.
+Merged into `main` 2026-10-29; not tagged or deployed. One migration (`20261029_102600_worldwide_ids_part2`), no new setting, nothing visible.
 Messages, discussion topics and replies get worldwide ids; every new record carries its installation;
 versions record their ancestry by worldwide key; the copy reset (`scripts/reset-installation-id.ts`)
 now replaces every identity and refuses while the app is running (OPS "Prepare a machine for another

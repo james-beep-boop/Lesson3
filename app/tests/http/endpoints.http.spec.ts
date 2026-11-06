@@ -234,7 +234,9 @@ describe('read-only PDF resource library', () => {
     const fixture = await readFile(
       new URL('../fixtures/pdf-library/public-wire.pdf', import.meta.url),
     )
-    expect(response.headers.get('content-length')).toBe(String(fixture.length))
+    // No Content-Length check: since 16.4.5 Next.js drops content-length, content-encoding and
+    // transfer-encoding from a route handler's Response (its response-framing security fix), so the
+    // file arrives chunked. The byte comparison below is what proves the file is served intact.
     expect(Buffer.from(await response.arrayBuffer())).toEqual(fixture)
     expect((await fetch(url('/api/resource-library'))).status).toBe(401)
   })
