@@ -71,12 +71,19 @@ describe('login password workload', () => {
       'utf8',
     )
     for (const text of [
-      'currentPasswordHashIterations = 600000',
-      'currentPasswordHashKeyLength = 32',
+      "600000: 'pbkdf2-sha256-v1:'",
+      'passwordHashKeyLength = 32',
       'legacyPasswordHashIterations = 25000',
       'legacyPasswordHashKeyLength = 512',
     ])
       expect(source).toContain(text)
+    // Payload 3.93 made the iteration count configurable. The dummy work assumes the default, so pin
+    // the default and that Lesson3 does not override it.
+    expect(readFileSync(join(root, 'config/defaults.js'), 'utf8')).toContain(
+      'passwordHashIterations: config.auth?.passwordHashIterations ?? 600000',
+    )
+    const config = readFileSync(new URL('../../src/payload.config.ts', import.meta.url), 'utf8')
+    expect(config).not.toContain('passwordHashIterations')
   })
   it('keeps protection wired into Users before native authentication', () => {
     const source = readFileSync(new URL('../../src/collections/Users.ts', import.meta.url), 'utf8')

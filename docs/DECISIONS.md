@@ -11,6 +11,27 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-06 — Payload 3.93.0
+
+Operator-approved minor upgrade, kept apart from the Next.js/Gotenberg bumps. All six Payload packages
+move together. Compared with 3.92.1, the published `dist` changes password hashing (the iteration
+count is now configurable as 100,000 or 600,000, with its own stored prefix; the default stays 600,000),
+query validation (field read access is now checked on join and nested hasMany paths), field hooks,
+uploads, Drizzle's block/field transforms and Lexical converters. Users still has no password-field
+override and Lesson3 never sets `auth.passwordHashIterations`, so `equalizeLoginPasswordWork` still
+mirrors the two formats Payload verifies. Its unit test now pins the new source shape, the 600,000
+default, and that the config does not override it.
+
+The #436 typing-speed patch failed its name checks on 3.93.0, as designed. The `@payloadcms/ui`
+bundle changed, but the inlined `use-context-selector` function and `RowLabelProvider` are
+byte-identical once the minifier's renames are mapped (`Ub`→`Xb` useRef, `e2`→`t2`, `Xb`→`Yb`,
+`uf`→`df`, `Qb`→`Kb`, `bf`→`vf`; `Ge` is still useForm). The strings were re-derived by that
+mapping alone. The behaviour spec, which lifts the patched library out of the installed bundle,
+passes. Because the code itself did not change, the Rock typing benchmark is a confirmation run,
+not a re-measurement of a new implementation. Generated types and the import map are unchanged.
+
+---
+
 ## 2026-11-01 — Short reset code for people at a laptop
 
 Operator, 2026-11-01: most people resetting a password are at a laptop and may have no phone, so the
