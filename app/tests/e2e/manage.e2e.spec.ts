@@ -1678,7 +1678,7 @@ test.describe('Manage page', () => {
         })),
       )
       expect(rows.length, 'the panel rendered no facts at all').toBeGreaterThan(0)
-      for (const row of rows) expect(['ok', 'off', 'unknown']).toContain(row.status)
+      for (const row of rows) expect(['ok', 'off', 'unknown', 'attention']).toContain(row.status)
 
       /**
        * ⚑ THE PROPERTY IS "DISTINCT STATUSES RENDER DISTINCTLY", not a specific rgb() — pinning the
@@ -1688,8 +1688,12 @@ test.describe('Manage page', () => {
        * undefined custom property INHERITS rather than erroring, so a wrong token makes `unknown`
        * indistinguishable from `off` — the one row worth noticing looking like nothing.
        */
-      const colourByStatus = new Map(rows.map((r) => [r.status, r.color]))
-      expect(new Set(colourByStatus.values()).size).toBe(colourByStatus.size)
+      // `unknown` and `attention` (2026-10-31, the link-address row) are both "look at this", and
+      // share the error colour on purpose; they are one tone here, distinct from `ok` and `off`.
+      const tone = (status: string) => (status === 'attention' ? 'unknown' : status)
+      const colourByTone = new Map(rows.map((r) => [tone(r.status), r.color]))
+      expect(new Set(colourByTone.values()).size).toBe(colourByTone.size)
+      for (const r of rows) expect(r.color, r.status).toBe(colourByTone.get(tone(r.status)))
 
       /**
        * The explanation line claims a full row rather than relying on wrapping (see custom.scss).

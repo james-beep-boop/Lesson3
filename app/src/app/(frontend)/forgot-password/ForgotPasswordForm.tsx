@@ -29,7 +29,8 @@
  */
 import React, { useState } from 'react'
 
-export function ForgotPasswordForm({ smtpEnabled = true }: { smtpEnabled?: boolean }) {
+/** Only rendered when this installation can send email; the no-email page is in `page.tsx`. */
+export function ForgotPasswordForm() {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
@@ -62,25 +63,14 @@ export function ForgotPasswordForm({ smtpEnabled = true }: { smtpEnabled?: boole
   }
 
   if (sent) {
-    return smtpEnabled ? (
+    return (
       <p className="login-note" role="status">
         If an account exists for that address, a reset link is on its way. Check your inbox.
-      </p>
-    ) : (
-      <p className="login-note" role="status">
-        Contact your Site Administrator. They can generate a sign-in link for you from{' '}
-        <strong>Manage &rarr; Users &rarr; Accounts</strong> — no email needed.
       </p>
     )
   }
   return (
     <form className="login-form" onSubmit={onSubmit}>
-      {!smtpEnabled && (
-        <p className="login-note">
-          This site is not set up to send emails. Contact your Site Administrator — they can
-          generate a sign-in link for you from <strong>Manage &rarr; Users &rarr; Accounts</strong>.
-        </p>
-      )}
       <label>
         Email
         <input
@@ -98,7 +88,7 @@ export function ForgotPasswordForm({ smtpEnabled = true }: { smtpEnabled?: boole
         </p>
       )}
       <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy}>
-        {busy ? 'Sending…' : smtpEnabled ? 'Email me a reset link' : 'Send request'}
+        {busy ? 'Sending…' : 'Email me a reset link'}
       </button>
     </form>
   )

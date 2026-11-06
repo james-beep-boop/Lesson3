@@ -620,7 +620,8 @@ body {
       color: var(--theme-success-500);
     }
 
-    &[data-status='unknown'] {
+    &[data-status='unknown'],
+    &[data-status='attention'] {
       // ⚑ `--theme-error-500`, NOT `--theme-warning-500`: verified against the installed
       // `@payloadcms/ui` CSS, which defines elevation/error/success at this step and NO warning
       // family. An undefined custom property does not fail loudly — it inherits, so `unknown` would
@@ -1061,6 +1062,42 @@ body {
   align-items: end;
   gap: var(--app-space-2);
   flex-wrap: wrap;
+}
+
+// The reset link's QR code (ResetLinkQr.tsx) and the short code sit on their own lines under the
+// link and Copy button.
+.lp-users .lp-users__qr,
+.lp-users .lp-users__qr-note,
+.lp-users .lp-users__reset-code {
+  // `width`, not `flex-basis`: below the narrow breakpoint this row turns into a column, where a
+  // basis would size the height instead.
+  width: 100%;
+  margin: 0;
+}
+
+.lp-users .lp-users__qr {
+  display: grid;
+  gap: var(--app-space-1);
+  justify-items: start;
+  color: var(--theme-elevation-700);
+
+  > svg {
+    width: min(14rem, 100%);
+    height: auto;
+  }
+}
+
+.lp-users .lp-users__reset-code {
+  display: grid;
+  gap: var(--app-space-1);
+  justify-items: start;
+}
+
+// Large and monospaced: it is read aloud or copied by hand, where 8 and B must not blur together.
+.lp-users .lp-users__reset-code-value {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 1.5rem;
+  letter-spacing: 0.1em;
 }
 
 @mixin manage-field-layout {

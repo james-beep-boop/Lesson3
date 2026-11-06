@@ -10,6 +10,25 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Password reset at schools with no email: the reset link a Site administrator makes in Manage →
+  Users → Accounts is also shown as a QR code, so the person scans it with their phone on the school
+  Wi-Fi instead of retyping it. The code is drawn in the browser (`uqr` 0.1.3, MIT, no dependencies);
+  the link never leaves the page. A link that names `localhost` shows an explanation instead, since a
+  phone cannot open it.
+- Reset links made in Manage, and their QR codes, use the address the administrator's browser is
+  using (for example `ares.local`), not the configured `ADMIN_URL`. School servers have no fixed
+  address and cloned servers share the master's setting, so the browser's address is the one known
+  to work on that network.
+- Manage → System → Installation status has a new row, **Address in emailed links** (`ADMIN_URL`).
+  It is marked for attention only when the site sends email and the address is unset or `localhost`.
+- Without email, _Forgot password?_ no longer shows an email box that did nothing there.
+- **Short reset code** for people at a laptop with no phone: _Reveal reset link_ also shows a code
+  like `K7QM-3XPA`. The person enters their email and the code on _Forgot password?_ and continues to
+  the usual "choose a new password" page. The code lasts 15 minutes, works once and stops after 5
+  wrong tries, and only with the link it was issued beside (once that link is used or a newer
+  reset replaces it, the code is dead); only a keyed hash is stored. New public endpoint `POST /api/users/redeem-reset-code`
+  (uniform failures, 400 ms floor, per-client limit `RATE_LIMIT_RESET_CODE_CLIENT_*`) and migration
+  `20261101_002353_reset_code` (three hidden columns on `users`).
 - Worldwide identity, part 2 (PR #488). Nothing changes on screen or in exports. Messages, forum
   topics and forum replies now get a worldwide id, as people, lesson plans and versions already did.
   People, saved versions, messages and forum posts record which installation made them. A saved

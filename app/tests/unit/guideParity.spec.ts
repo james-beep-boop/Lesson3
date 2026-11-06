@@ -186,6 +186,14 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'create a password-reset link and give it to the person',
   },
   {
+    what: 'the reset link is also shown as a QR code, so a teacher can open it without email or typing (2026-10-31)',
+    claim: 'the person scans it with their phone on the school Wi-Fi',
+  },
+  {
+    what: 'someone at a laptop with no phone can reset with the short code (2026-11-01)',
+    claim: 'enter their email and the code within 15 minutes',
+  },
+  {
     what: 'a fresh installation has no factory account or password',
     claim: 'There is no default username or password',
   },
