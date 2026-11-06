@@ -392,7 +392,7 @@ surface, and leaves `SERVER_URL` empty. Public service requires HTTPS, a reverse
 - `ghcr.io/james-beep-boop/lesson3-app:<release>` — the minimal production application.
 - `ghcr.io/james-beep-boop/lesson3-migrate:<release>` — the matching one-shot migration image.
 - PostgreSQL 16.15, pinned by multi-architecture digest.
-- Gotenberg 8.39.0’s LibreOffice-only image, pinned by multi-architecture digest.
+- Gotenberg 8.40.0’s LibreOffice-only image, pinned by multi-architecture digest.
 
 The installer generates a 256-bit Payload secret and a separate 256-bit Postgres password, and writes
 them to `.env` with mode `0600`. Its health check probes `127.0.0.1`, which is why a separate computer
@@ -481,7 +481,7 @@ container, so the paths Compose passes to Docker Desktop stay valid.
 
 ```bash
 docker build -t lesson3-ops-tools - <<'EOF'
-FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+FROM node:24.22.2-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8
 RUN apk add --no-cache bash coreutils docker-cli docker-cli-compose age rclone procps util-linux
 EOF
 ops() {
