@@ -27,8 +27,18 @@ bundle changed, but the inlined `use-context-selector` function and `RowLabelPro
 byte-identical once the minifier's renames are mapped (`Ub`→`Xb` useRef, `e2`→`t2`, `Xb`→`Yb`,
 `uf`→`df`, `Qb`→`Kb`, `bf`→`vf`; `Ge` is still useForm). The strings were re-derived by that
 mapping alone. The behaviour spec, which lifts the patched library out of the installed bundle,
-passes. Because the code itself did not change, the Rock typing benchmark is a confirmation run,
-not a re-measurement of a new implementation. Generated types and the import map are unchanged.
+passes. Generated types and the import map are unchanged.
+
+**Rock confirmation run (2026-11-06, operator-approved).** Throwaway `lesson3-perf-*` stacks on the
+Rock, 12-lesson *Animal Transport* plan, `bench-typing.mjs` at 1×, 3 alternating rounds per build,
+load 0.2–1.0. All 222 keys were delivered and reported. #492 (`e97387e6`): median 40 ms, p90 48 ms,
+max 80 ms, long tasks 0.32–0.35 s, 37 keys in 5.93–5.96 s. `main` (`c14e9a2`): median 40 ms, p90
+40–48 ms, max 80–104 ms. Both match the patched 2026-10-24 figures; unpatched was 176–184 ms. The
+served-bundle code check could not identify the patches by name: Turbopack strips the marker
+comment, and the production minifier renames `Ge`, so "check by `Ge()`" no longer works (both builds
+read `…=nE()`). Behaviour is the proof. A future code check should grep a name-independent fragment
+of the ucs replacement, such as `"v"in u&&!("p"in u)`. The live containers were not touched, and
+every perf container, volume, image tag and checkout was removed afterwards.
 
 ---
 
