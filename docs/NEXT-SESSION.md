@@ -26,7 +26,7 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 # Release v1.13 — 2026-11-06
 
-Tagged on main `53528bd`. Contains everything merged since v1.12:
+Everything merged since v1.12 (main `53528bd`) plus this release note:
 
 - **Offline password reset** (#490): QR code beside the reset link, links built from the
   administrator's browser address, the short reset code (`POST /api/users/redeem-reset-code`), and
