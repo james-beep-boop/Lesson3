@@ -5,7 +5,8 @@ PDF file for you.
 
 Use **Lessons** to find plans, a **lesson page** to read and share one plan, **Manage** to edit
 lessons and manage accounts, and **Messages** to contact other people with ARES Lesson Plans accounts. People
-with editing access also see saved-version and comparison controls.
+with editing access also see saved-version and comparison controls. To see how the roles fit
+together, read [Role Notes](#role-notes).
 
 This is the complete offline reference. The in-app guide at `/guide` shows an overview of each area
 and gives detailed steps only for tasks available to the signed-in user. Keep the facts in both guides
@@ -418,13 +419,31 @@ These rules are also available from *Help* at the top of the editor.
 
 ## Role Notes
 
-- Access is set separately for each subject and grade. For example, access to Biology Grade 10 does
-  not include Biology Grade 11.
+![Example of how the roles fit together. Wafula is the Site administrator. Under Wafula are three
+Subject-grade administrators: Otieno for Biology Grade 10, Achieng for Chemistry Grade 10 and Kamau
+for Chemistry Grade 11. Biology Grade 10 teachers: Otieno, with editing access, and Njeri, with no
+editing access. Chemistry Grade 10 teacher: Wafula, with editing access. Chemistry Grade 11
+teachers: Kamau and Wafula, both with editing access.](docs/guide-images/roles-chart.png)
+
+How the roles fit together, using the people above:
+
+- **Everyone is a Teacher.** Anyone who can sign in can find, read, print and share lesson plans in
+  every subject and grade. Njeri can do exactly that.
+- **Editing access** is given for one subject and grade at a time. Otieno's access to Biology Grade
+  10 does not include Biology Grade 11.
+- **A Subject-grade administrator** looks after one subject and grade. Achieng marks the Official
+  version of Chemistry Grade 10 lessons and can give or remove editing access there. Each subject and
+  grade has at most one administrator.
+- **The Site administrator** can manage the whole site, including choosing who administers each
+  subject and grade.
+- **One person can hold several roles.** Notice that Wafula teaches Chemistry at both Grade 10 and
+  Grade 11, and is also the Site administrator.
+
+Also good to know:
+
 - Every lesson plan has one **Official** version at a time. Teachers see it first. It does not control
   who can open other saved versions; anyone who is signed in can open a saved version if they have
   its link.
-- Teachers with editing access and Subject-grade administrators can work only with the subjects and
-  grades assigned to them. Site administrators can manage the whole site.
 - Only the account owner and Site administrators can see an email address. In *Manage → Users → Roles
   & Access*, Subject-grade administrators can see addresses only for people listed under the subjects
   and grades they manage.

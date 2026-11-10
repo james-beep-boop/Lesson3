@@ -1487,6 +1487,224 @@ a {
 .guide-list li + li {
   margin-top: var(--app-space-1);
 }
+/* Role notes: the heading line for the facts kept below the roles chart's own list. (0-2-0) beats the
+   `.guide p` margin so the gap above it matches a paragraph break. */
+.guide .guide-role-notes__more {
+  margin-top: var(--app-space-3);
+}
+
+/* ---- Role notes chart (components/Guide/RolesChart.tsx) ----
+   A worked example of how the three user types nest. Boxes borrow the button geometry (accent border,
+   --app-btn-radius) so the chart reads as part of the same page as the Donate buttons. Connectors and
+   arrowheads are pseudo-elements, so the chart is static markup with no client JavaScript:
+     - each child <li> draws its share of the horizontal bus on top (::before) and the drop to its box
+       (::after); the first and last child clip the bus at their centre, an only child draws no bus;
+     - a parent box draws the short line down to the bus below it (::after);
+     - a child box draws the arrowhead above itself (::before).
+   Below 55rem of container width (side by side needs ~54.4rem: keep the box widths and the query in
+   step) the three groups stack. It is a container query, so it follows the Guide column rather than
+   the viewport; each group keeps its teachers side by side. */
+.roles-chart {
+  --rc-gap: 1.25rem;
+  --rc-line-width: 1.5px;
+  --rc-line: color-mix(in srgb, var(--accent) 55%, var(--app-surface));
+  --rc-arrow: 6px;
+  container-type: inline-size;
+  margin: 0 0 var(--app-space-4);
+  font-family: var(--app-ui-font);
+}
+.roles-chart__tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.roles-chart__box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--app-btn-radius);
+  background: var(--app-surface);
+  color: var(--accent);
+  font-size: var(--app-secondary-size);
+  line-height: 1.3;
+  text-align: center;
+}
+.roles-chart__box strong {
+  font-weight: 600;
+}
+.roles-chart__box--site {
+  width: 15rem;
+  min-height: 4rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--app-btn-font-size);
+}
+.roles-chart__box--admin {
+  width: 13.5rem;
+}
+.roles-chart__box--teacher {
+  flex: 1;
+  width: 9rem;
+  padding-inline: 2px;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--app-surface));
+  background: var(--app-surface-soft);
+  color: var(--ink);
+}
+.roles-chart__box--read-only {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--muted) 45%, var(--app-surface));
+  background: var(--app-surface);
+  color: var(--muted);
+}
+.roles-chart__subject {
+  color: var(--muted);
+}
+/* Line down from a parent box to the bus. */
+.roles-chart__box--site::after,
+.roles-chart__box--admin::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: calc(50% - var(--rc-line-width) / 2);
+  height: var(--rc-gap);
+  border-left: var(--rc-line-width) solid var(--rc-line);
+}
+/* Arrowhead above a child box. */
+.roles-chart__box--admin::before,
+.roles-chart__box--teacher::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: calc(50% - var(--rc-arrow) + 0.5px);
+  border-top: calc(var(--rc-arrow) * 1.2) solid var(--rc-line);
+  border-inline: var(--rc-arrow) solid transparent;
+}
+.roles-chart__groups,
+.roles-chart__teachers {
+  display: flex;
+  justify-content: center;
+  margin: var(--rc-gap) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.roles-chart__group,
+.roles-chart__teacher {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--rc-gap) 3px 0;
+}
+.roles-chart__group {
+  /* The panel's own top padding sits between the bus and the administrator box. */
+  --rc-drop: calc(var(--rc-gap) + 0.75rem);
+}
+.roles-chart__teacher {
+  --rc-drop: var(--rc-gap);
+}
+/* The bus: each child draws its share, clipped at the centre on the outer two. */
+.roles-chart__group::before,
+.roles-chart__teacher::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-top: var(--rc-line-width) solid var(--rc-line);
+}
+.roles-chart__group:first-child::before,
+.roles-chart__teacher:first-child::before {
+  left: 50%;
+}
+.roles-chart__group:last-child::before,
+.roles-chart__teacher:last-child::before {
+  right: 50%;
+}
+.roles-chart__group:only-child::before,
+.roles-chart__teacher:only-child::before {
+  display: none;
+}
+/* The drop from the bus to the child's arrowhead. */
+.roles-chart__group::after,
+.roles-chart__teacher::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(50% - var(--rc-line-width) / 2);
+  height: calc(var(--rc-drop) - var(--rc-arrow));
+  border-left: var(--rc-line-width) solid var(--rc-line);
+}
+.roles-chart__panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--app-surface));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--app-surface));
+}
+.roles-chart__teachers {
+  flex: 1;
+}
+/* (0-2-0) so it outranks `.guide p` (0-1-1), which would otherwise own the margin. */
+.roles-chart .roles-chart__group-name {
+  margin: var(--app-space-1) 0 0;
+  color: color-mix(in srgb, var(--accent) 75%, var(--ink));
+  font-size: 12px;
+  font-weight: 600;
+}
+.roles-chart__key {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--app-space-1) var(--app-space-3);
+  margin: var(--app-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+.roles-chart__key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.roles-chart__swatch {
+  width: 22px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+}
+.roles-chart__swatch--site {
+  background: var(--accent);
+}
+.roles-chart__swatch--admin {
+  background: var(--app-surface);
+}
+.roles-chart__swatch--teacher {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--app-surface));
+  background: var(--app-surface-soft);
+}
+.roles-chart__swatch--read-only {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--muted) 45%, var(--app-surface));
+  background: var(--app-surface);
+}
+@container (max-width: 55rem) {
+  .roles-chart__groups {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  /* Stacked groups hang in a single column: no bus, just the drop into each group. */
+  .roles-chart__group::before {
+    display: none;
+  }
+}
 .guide code {
   padding: 0.05rem 0.25rem;
   border-radius: 4px;
