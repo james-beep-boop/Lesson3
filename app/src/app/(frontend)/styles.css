@@ -1745,6 +1745,12 @@ a {
 .guide-footer__donate {
   min-width: 13rem;
 }
+/* The version line under the Donate buttons. Its own `.app-version` margin-top never applied here:
+   it is a `<p>`, so `.guide p` (0-1-1) set it to 0 and the line sat against the buttons. (0-2-0)
+   restores a gap of about half a line (operator request 2026-11-10). The sign-in page is unaffected. */
+.guide .app-version {
+  margin-top: var(--app-space-2);
+}
 
 /* ---- Reading-first mobile pass (IA redesign PR ⑤): the library, lesson pages, and Guide must be
    comfortable on a phone. The heavy editing form stays desktop-oriented by decision. ---- */
