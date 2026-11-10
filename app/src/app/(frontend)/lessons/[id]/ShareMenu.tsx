@@ -23,7 +23,7 @@
  * queued-email note surface as a small status line next to the button, since the menu closes on
  * selection.
  */
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 import { downloadExport, downloadVersionJson, type ExportState } from '@/components/exportClient'
@@ -75,6 +75,21 @@ export default function ShareMenu({
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [jsonBusy, setJsonBusy] = useState(false)
+
+  // ⚑ WHICH EDGE THE PANEL HANGS FROM. Share ▾ is the last button on the action row, which sits at
+  // the right (interface refinement 2026-11-10), so the panel opens leftwards from the button's
+  // right edge (`.share-menu` is `right: 0`). A panel hung from the left edge ran off the right of a
+  // phone screen. If the row wraps and Share lands at the START of a line, opening leftwards would
+  // run off the other side instead, so the panel is measured before paint and flipped to open
+  // rightwards. The cleanup resets it, so every opening measures afresh.
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [opensRightward, setOpensRightward] = useState(false)
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current) return
+    if (panelRef.current.getBoundingClientRect().left < 0) setOpensRightward(true)
+    return () => setOpensRightward(false)
+  }, [open])
+  const panelClass = opensRightward ? 'share-menu share-menu--rightward' : 'share-menu'
 
   // Outside click / Escape close the panel (same behaviour as the user menu's disclosure).
   useEffect(() => {
@@ -151,7 +166,7 @@ export default function ShareMenu({
         Share ▾
       </button>
       {open && (
-        <div className="share-menu">
+        <div className={panelClass} ref={panelRef}>
           {/* Hidden at phone width with the per-document Word buttons — see `styles.css`. A .zip of
               .docx files is the least useful thing a phone can be handed. */}
           <button

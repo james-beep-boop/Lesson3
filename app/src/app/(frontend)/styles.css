@@ -505,6 +505,14 @@ summary.strand-head::before,
 .substrand-main .doc-buttons {
   flex-shrink: 0;
 }
+/* The star and the row's PDF/Word, kept together (LibraryBrowser.tsx). On desktop it changes nothing:
+   the same 1rem gap and baseline the title line gives its children. */
+.substrand-actions {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-shrink: 0;
+}
 /* The lesson page's action-bar pair (`variant="toolbar"`, the only user). Full-size `.btn` comes
    from the component; the bar's own 0.6rem gap makes the pair read as part of `.export-bar`. Since
    the interface refinement (2026-11-10) the output group (PDF · Word · Share) sits at the right of
@@ -1255,17 +1263,27 @@ summary.strand-head::before,
      un-set that. The invariant to preserve is "the divider belongs to whatever opens the output
      group" — if Share ▾ ever leads the group again, move the two declarations back. */
 }
+/* Hangs from Share ▾'s RIGHT edge and opens leftwards: Share is the last button on a row that sits
+   at the right, so a left-hung panel ran off a phone screen (2026-11-10). ShareMenu.tsx flips it to
+   `--rightward` when Share wraps to the start of a line. The max-width keeps either direction inside
+   a phone's gutters. */
 .share-menu {
   position: absolute;
   top: calc(100% + 4px);
-  left: 0;
+  right: 0;
   z-index: 30;
   min-width: 14rem;
+  max-width: calc(100vw - 2 * var(--app-content-pad-sm));
+  box-sizing: border-box;
   padding: 0.3rem;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.share-menu.share-menu--rightward {
+  right: auto;
+  left: 0;
 }
 .share-menu button,
 .share-menu a {
@@ -1853,8 +1871,9 @@ summary.strand-head::before,
      - a parent box draws the short line down to the bus below it (::after);
      - a child box draws the arrowhead above itself (::before).
    Below 55rem of container width (side by side needs ~54.4rem: keep the box widths and the query in
-   step) the three groups stack. It is a container query, so it follows the Guide column rather than
-   the viewport; each group keeps its teachers side by side. */
+   step) the three groups stack as an indented tree — see the ⚑ on the container query below. It is a
+   container query, so it follows the Guide column rather than the viewport; each group keeps its
+   teachers side by side. */
 .roles-chart {
   --rc-gap: 1.25rem;
   --rc-line-width: 1.5px;
@@ -2046,13 +2065,74 @@ summary.strand-head::before,
   border-color: color-mix(in srgb, var(--muted) 45%, var(--app-surface));
   background: var(--app-surface);
 }
+/* ⚑ STACKED GROUPS ARE SIBLINGS, AND THE LINES MUST SAY SO. The first narrow layout hung each group
+   from a centred drop below the one before, which read as a chain of command — Chemistry Grade 11's
+   administrator under Chemistry Grade 10's, under Biology's (reported from a phone 2026-11-10). Now it
+   is an indented tree: one spine runs down the left from the Site administrator, and each group
+   branches off it with its own arrow, so all of them visibly hang from the same parent at the same
+   level. The spine stops at the last group's branch.
+   (0-3-1)/(0-4-1) selectors so these beat the wide layout's bus rules — including their
+   :first-child/:last-child/:only-child forms — outright rather than on source order. */
 @container (max-width: 55rem) {
+  /* On the tree, not `.roles-chart`: a container query cannot style its own container. */
+  .roles-chart__tree {
+    --rc-spine: 0.75rem; /* x of the spine, from the chart's left edge */
+    --rc-indent: 1.75rem; /* where each group's panel starts */
+    /* y of a branch: down to the middle of a three-line administrator box inside the panel. */
+    --rc-branch: calc(var(--rc-gap) + 0.75rem + 35px);
+    align-items: stretch;
+  }
+  .roles-chart__box--site {
+    width: auto;
+  }
+  .roles-chart .roles-chart__box--site::after {
+    display: none;
+  }
   .roles-chart__groups {
     flex-direction: column;
     align-items: stretch;
+    margin-top: 0;
   }
-  /* Stacked groups hang in a single column: no bus, just the drop into each group. */
-  .roles-chart__group::before {
+  .roles-chart .roles-chart__groups > .roles-chart__group {
+    padding: var(--rc-gap) 0 0 var(--rc-indent);
+  }
+  /* The spine: each group draws its stretch of it, the whole height of the group. */
+  .roles-chart .roles-chart__groups > .roles-chart__group::before {
+    display: block;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--rc-spine) - var(--rc-line-width) / 2);
+    right: auto;
+    border-top: none;
+    border-left: var(--rc-line-width) solid var(--rc-line);
+  }
+  .roles-chart .roles-chart__groups > .roles-chart__group:last-child::before {
+    bottom: auto;
+    height: var(--rc-branch);
+  }
+  /* The branch from the spine to the group's panel. */
+  .roles-chart .roles-chart__groups > .roles-chart__group::after {
+    top: calc(var(--rc-branch) - var(--rc-line-width) / 2);
+    left: var(--rc-spine);
+    width: calc(var(--rc-indent) - var(--rc-spine) - var(--rc-arrow) * 1.2);
+    height: 0;
+    border-left: none;
+    border-top: var(--rc-line-width) solid var(--rc-line);
+  }
+  /* Its arrowhead points at the panel; the administrator box's own downward arrow has nothing to
+     point from here, so it goes. */
+  .roles-chart__panel {
+    position: relative;
+  }
+  .roles-chart__panel::before {
+    content: '';
+    position: absolute;
+    top: calc(var(--rc-branch) - var(--rc-gap) - var(--rc-arrow) - 1px);
+    right: 100%;
+    border-left: calc(var(--rc-arrow) * 1.2) solid var(--rc-line);
+    border-block: var(--rc-arrow) solid transparent;
+  }
+  .roles-chart .roles-chart__box--admin::before {
     display: none;
   }
 }
@@ -2145,15 +2225,19 @@ summary.strand-head::before,
   /* Wrapping is what makes the row work at this width; the base rule deliberately sets no
      `justify-content`, so wrapped lines flow from the start and a control's position is a function
      of its ORDER — see the ⚑ on `.substrand-main`. */
+  /* ⚑ EVERY WRAPPED LINE STARTS UNDER THE NAME, not only the first. The indent past the number
+     column used to be a margin on `.substrand-count`, so it held for the line the count began and no
+     other: a row with a versions chip wrapped the star onto a third line flush with the card's edge,
+     out of line with everything above it (reported from a phone 2026-11-10). Padding the line box
+     indents every line; the title link alone reaches back over the number column. */
   .substrand-main {
     flex-wrap: wrap;
     row-gap: 0.15rem;
+    padding-left: 2.6rem;
   }
   .substrand-link {
-    flex-basis: 100%;
-  }
-  .substrand-count {
-    margin-left: 2.6rem; /* aligns under the name, past the number column */
+    flex-basis: calc(100% + 2.6rem);
+    margin-left: -2.6rem;
   }
   /* The strip loses its desktop indent and stacks one document per line, buttons right. */
   .doc-strip {
