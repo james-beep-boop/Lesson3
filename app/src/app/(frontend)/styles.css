@@ -2163,6 +2163,7 @@ details[open] > summary.strand-head::before {
      out of this list as they join the button system — the shared `.btn` rule below then covers them
      (Back, then the Messages reply toggle and cancel). */
   .login-links a,
+  .lp-resume a,
   .lesson-reference a {
     display: inline-flex;
     align-items: center;
