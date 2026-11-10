@@ -1125,11 +1125,14 @@ details[open] > summary.strand-head::before {
   display: none;
 }
 .lesson-details summary::before {
+  /* The '/ ""' alt text keeps the marker out of the toggle's accessible name. */
   content: '▸';
+  content: '▸' / '';
   font-size: 0.85em;
 }
 .lesson-details[open] summary::before {
   content: '▾';
+  content: '▾' / '';
 }
 .lesson-details summary:hover {
   text-decoration: underline;
