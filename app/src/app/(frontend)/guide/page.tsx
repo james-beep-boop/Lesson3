@@ -5,6 +5,7 @@ import PageBackLink from '@/components/PageBackLink'
 import PageHeader from '@/components/PageHeader'
 import AppVersion from '@/components/AppVersion'
 import { GuideAccordion, GuideAccordionPanel } from '@/components/Guide/Accordion'
+import RolesChart from '@/components/Guide/RolesChart'
 import { computeGuideAvailablePanels } from '@/components/Guide/availability'
 import { resolveGuidePanelState, type GuidePanelId } from '@/components/Guide/panelState'
 import { requireUser } from '@/lib/session'
@@ -30,7 +31,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
         />
         <p>
           Choose a task below to see the steps. You’ll only see instructions for tasks you can do.
-          Some editing and administrator tasks are limited to particular subjects and grades.
+          Some editing and administrator tasks are limited to particular subjects and grades. To see
+          how the roles fit together, open <a href="/guide?at=role-notes">Role notes</a>.
         </p>
         <p>
           Use <strong>Lessons</strong> to find plans, a <strong>lesson page</strong> to read and
@@ -1110,19 +1112,37 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             title="Role notes"
             subtitle="Important facts about access, Official versions, and email addresses."
           >
+            <RolesChart />
+            <p>How the roles fit together, using the people above:</p>
             <ul className="guide-list">
               <li>
-                Access is set separately for each subject and grade. For example, access to Biology
-                Grade 10 does not include Biology Grade 11.
+                <strong>Everyone is a Teacher.</strong> Anyone who can sign in can find, read, print
+                and share lesson plans in every subject and grade. Njeri can do exactly that.
               </li>
+              <li>
+                <strong>Editing access</strong> is given for one subject and grade at a time.
+                Otieno’s access to Biology Grade 10 does not include Biology Grade 11.
+              </li>
+              <li>
+                <strong>A Subject-grade administrator</strong> looks after one subject and grade.
+                Achieng marks the Official version of Chemistry Grade 10 lessons and can give or
+                remove editing access there. Each subject and grade has at most one administrator.
+              </li>
+              <li>
+                <strong>The Site administrator</strong> can manage the whole site, including
+                choosing who administers each subject and grade.
+              </li>
+              <li>
+                <strong>One person can hold several roles.</strong> Notice that Wafula teaches
+                Chemistry at both Grade 10 and Grade 11, and is also the Site administrator.
+              </li>
+            </ul>
+            <p className="guide-role-notes__more">Also good to know:</p>
+            <ul className="guide-list">
               <li>
                 Every lesson plan has one <em>Official</em> version at a time. Teachers open the
                 Official version first. It does not control who can open other saved versions.
                 Anyone who is signed in can open a saved version if they have its link.
-              </li>
-              <li>
-                Teachers with editing access and Subject-grade administrators can work only with the
-                subjects and grades assigned to them. Site administrators can manage the whole site.
               </li>
               <li>
                 Only the account owner and Site administrators can see an email address. In{' '}

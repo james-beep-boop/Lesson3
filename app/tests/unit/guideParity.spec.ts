@@ -173,6 +173,15 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'the Teacher key carries the answers and must not be given to students',
     claim: 'the Teacher key has the exemplar answers and is not for students',
   },
+  // Role notes chart (2026-11-10): the worked example's rules, stated identically under both charts.
+  {
+    what: 'editing access is per subject-grade, never a whole subject',
+    claim: 'Editing access is given for one subject and grade at a time',
+  },
+  {
+    what: 'one person can hold several roles at once',
+    claim: 'One person can hold several roles',
+  },
   {
     what: 'the SPEC §8 email carve-out — the claim that was outright false until 2026-08-21',
     claim: 'addresses only for people listed',
