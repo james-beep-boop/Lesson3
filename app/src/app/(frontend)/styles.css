@@ -498,6 +498,13 @@ details[open] > summary.strand-head::before {
   padding-left: 0.6rem;
   border-left: 1px solid var(--line);
 }
+/* Interface refinement 2026-11-10: the output group (PDF · Word · Share) sits at the right of the
+   action row, so the space between the groups divides them and the hairline goes. */
+.lesson-toolbar .doc-buttons.doc-buttons--toolbar {
+  margin-left: auto;
+  padding-left: 0;
+  border-left: none;
+}
 
 /* D4's neutral-until-hover download pills are now `.btn--quiet.btn--compact` — the shared button
    system carries both the emphasis (quiet) and the density (compact), so this file no longer states
@@ -784,6 +791,22 @@ details[open] > summary.strand-head::before {
 .fav-toggle__label {
   line-height: 1;
 }
+/* The lesson page's Favorite is a quiet blue link-button (operator decision 2026-11-10, matching the
+   agreed interface-refinement preview): no outline or fill, so it sits beside "Back to lesson plans"
+   without competing with it. It keeps `.btn`'s size and 44px phone target; hover underlines instead
+   of filling. Specificity (0-2-0 / 0-3-0) beats `.btn` and `.btn:hover` regardless of order. */
+.btn.fav-toggle--labeled {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+}
+.btn.fav-toggle--labeled:hover,
+.btn.fav-toggle--labeled:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: underline;
+}
 /* Failed-toggle message (rare — usually an expired session). Small, so a row/card degrades gently
    when it appears next to the star; role="alert" carries it to assistive tech. */
 .fav-toggle__error {
@@ -933,7 +956,8 @@ details[open] > summary.strand-head::before {
   padding: clamp(2.5rem, 9vh, 4.5rem) var(--app-content-pad);
 }
 .login-intro .school-name--heading,
-.login-kicker {
+.login-kicker,
+.lesson-kicker {
   margin: 0;
   color: var(--muted);
   font-size: 0.8rem;
@@ -945,9 +969,13 @@ details[open] > summary.strand-head::before {
 .login-intro .school-name--heading {
   font-size: 0.95rem;
 }
-.login-kicker {
+.login-kicker,
+.lesson-kicker {
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+.lesson-kicker {
+  margin-bottom: 0.4rem;
 }
 .login-headline {
   margin: 0.75rem 0 0;
@@ -1091,22 +1119,54 @@ details[open] > summary.strand-head::before {
   color: var(--muted);
   font-size: 0.95rem;
 }
+/* The lesson title carries the same short blue accent as the catalogue's. */
+.lesson .page-heading h1::after {
+  content: '';
+  display: block;
+  width: 2.6rem;
+  height: 3px;
+  margin: 0.6rem 0 0.75rem;
+  border-radius: 2px;
+  background: var(--accent);
+}
 
+/* "Details" / "Versions & details": a quiet text disclosure under the version line (interface
+   refinement 2026-11-10). Blue because it is clickable; 44px tall for touch. */
 .lesson-details {
-  margin-top: 0.6rem;
+  margin-top: 0.35rem;
 }
 .lesson-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: var(--app-secondary-size);
+  cursor: pointer;
   list-style: none;
 }
 .lesson-details summary::-webkit-details-marker {
   display: none;
 }
-.lesson-details__hide,
-.lesson-details[open] .lesson-details__show {
-  display: none;
+.lesson-details summary::before {
+  /* The '/ ""' alt text keeps the marker out of the toggle's accessible name. */
+  content: '▸';
+  content: '▸' / '';
+  font-size: 0.85em;
 }
-.lesson-details[open] .lesson-details__hide {
-  display: inline;
+.lesson-details[open] summary::before {
+  content: '▾';
+  content: '▾' / '';
+}
+.lesson-details summary:hover {
+  text-decoration: underline;
+}
+.lesson-details__versions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.5rem;
 }
 .lesson-details__fields {
   display: grid;
@@ -1139,7 +1199,8 @@ details[open] > summary.strand-head::before {
   z-index: 20;
   background: var(--bg);
   margin: 0.75rem 0 1.25rem;
-  padding: 0.4rem 0 0.45rem;
+  padding: 0.5rem 0 0.45rem;
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 .lesson-toolbar .export-bar {
@@ -1379,6 +1440,10 @@ details[open] > summary.strand-head::before {
    primary actions, so row-level downloads and the versions chip stay quiet furniture. Hover
    PROMOTES to the accent outline rather than filling — a filled row of six download pills would be
    exactly the visual competition D4 removed. */
+/* A decorative icon inside a button (the lesson toolbar's download arrows). */
+.btn__icon {
+  flex-shrink: 0;
+}
 .btn.btn--quiet {
   border-color: var(--app-btn-quiet-line);
   color: var(--ink);
@@ -2560,4 +2625,15 @@ details[open] > summary.strand-head::before {
   display: flex;
   flex-wrap: wrap;
   gap: var(--app-space-2);
+}
+
+/* Phones in portrait: no "Request editing access" on the lesson page (operator decision 2026-11-10).
+   Asking is a one-off and a phone is too small to edit on, so the row keeps PDF and Share on one line.
+   A teacher can still ask from a phone through Messages or the Welcome dialog's "Send a message", and
+   the button is back in landscape and on every wider screen. (0-2-0) beats `.btn`'s `display`
+   outright, so source order does not matter. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .btn.request-editing-btn {
+    display: none;
+  }
 }

@@ -48,8 +48,12 @@ for (const role of ['teacher', 'editor'] as const) {
       await page.setViewportSize({ width, height: 800 })
       await toggle.focus()
       await toggle.press('Enter')
-      await expect(toggle).toHaveAccessibleName('Hide details')
-      await expect(disclosure.locator('.lesson-details__hide')).toBeVisible()
+      // "Details" for everyone; "Versions & details" only with editing access and more than one
+      // version (the fixture has two), which is the existing version-controls gate.
+      await expect(toggle).toHaveAccessibleName(
+        role === 'teacher' ? 'Details' : 'Versions & details',
+      )
+      await expect(disclosure).toHaveAttribute('open', '')
       await expect(fields).toContainText(fx.users.editor.name)
       await expect(fields).toContainText(fx.version.semver)
       await expect(fields.locator('time')).toHaveCount(2)

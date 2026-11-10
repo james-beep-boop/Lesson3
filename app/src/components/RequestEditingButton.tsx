@@ -37,9 +37,12 @@ export default function RequestEditingButton({ planId }: { planId: number | stri
   }
   return (
     <>
+      {/* `request-editing-btn` exists so phones in portrait can drop this button (operator decision
+          2026-11-10, rule in styles.css): requesting access is a one-off, and a phone is too small
+          to edit on, so PDF and Share get the row. */}
       <button
         type="button"
-        className="btn"
+        className="btn request-editing-btn"
         disabled={state === 'sending'}
         aria-busy={state === 'sending'}
         onClick={onClick}

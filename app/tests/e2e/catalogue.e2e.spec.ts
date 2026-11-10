@@ -14,7 +14,7 @@
  */
 import { test, expect, type Page } from '@playwright/test'
 
-import { loginAs } from '../helpers/e2e'
+import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 import { subjectGradeLabel } from '../../src/lib/substrand'
 
@@ -100,6 +100,29 @@ test.describe('Catalogue (/)', () => {
     )
   })
 
+  // Runs after the pinned-favorite test, which gave the fixture plan a second version: the version
+  // controls now have a real choice, so this is the case where the gate matters.
+  test('lesson page: a plain Teacher sees Details only; a teacher with editing access sees Versions & details', async ({
+    page,
+  }) => {
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    const teacherDetails = page.locator('details.lesson-details')
+    await expect(teacherDetails.locator('summary')).toHaveText('Details')
+    await teacherDetails.locator('summary').click()
+    await expect(teacherDetails.getByText('Saved by')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Compare', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /versions/ })).toHaveCount(0)
+
+    await page.context().clearCookies()
+    await loginAs(page, fx, 'editor')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    const editorDetails = page.locator('details.lesson-details')
+    await expect(editorDetails.locator('summary')).toHaveText('Versions & details')
+    await editorDetails.locator('summary').click()
+    await expect(editorDetails.getByRole('link', { name: 'Compare', exact: true })).toBeVisible()
+  })
+
   test('a long subject name never widens the page on a phone, in either view', async ({ page }) => {
     // The fixture subject is `${MARK}Biology` (50+ characters), longer than any real subject such as
     // "Computer Science and Information Technology". The native select sizes to its longest option,
@@ -120,5 +143,24 @@ test.describe('Catalogue (/)', () => {
         expect(overflow, `${view} at ${width}px`).toBe(0)
       }
     }
+  })
+
+  test('phone portrait: no Request editing access, PDF and Share share one row; landscape keeps it', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    const request = page.getByRole('button', { name: 'Request editing access' })
+    const pdf = page.getByRole('button', { name: 'PDF', exact: true })
+    const share = page.getByRole('button', { name: /^Share/ })
+    await expect(pdf).toBeVisible()
+    await expect(share).toBeVisible()
+    await expect(request).toBeHidden()
+    const [p, s] = [await pdf.boundingBox(), await share.boundingBox()]
+    expect(Math.abs(p!.y - s!.y), 'PDF and Share on one row').toBeLessThan(4)
+
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect(request).toBeVisible()
   })
 })

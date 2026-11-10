@@ -42,14 +42,25 @@ import Link from 'next/link'
 export default function PageBackLink({
   href,
   label,
+  showLabel = false,
 }: {
   href: string
-  /** The full destination phrase, e.g. "Back to lesson plans". Announced, not displayed. */
+  /** The full destination phrase, e.g. "Back to lesson plans". Announced; displayed only with `showLabel`. */
   label: string
+  /**
+   * Display the full phrase instead of "Back". Only the lesson page sets it (operator decision
+   * 2026-11-10, matching the agreed interface-refinement preview: "Back to lesson plans" beside the
+   * title). Other pages keep the one-word label above.
+   */
+  showLabel?: boolean
 }) {
   return (
-    <Link className="btn btn--quiet btn--compact" href={href} aria-label={label}>
-      Back
+    <Link
+      className={showLabel ? 'btn btn--quiet' : 'btn btn--quiet btn--compact'}
+      href={href}
+      aria-label={showLabel ? undefined : label}
+    >
+      {showLabel ? label : 'Back'}
     </Link>
   )
 }
