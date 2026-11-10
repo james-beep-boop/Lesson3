@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Lesson header: grey label, "Details" / "Versions & details", PDF as the filled action
+
+Step 4 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint.
+
+- Subject · grade moves above the title as a grey label, and the title gets the short blue accent.
+  The line under the title keeps "Version 1.0.0 · Official" for everyone.
+- **The disclosure groups; it does not widen the audience.** The version chip and Compare render only
+  under the existing `canEdit && versions.length > 1` gate, and the disclosure is then called
+  "Versions & details". Everyone else, including every plain Teacher, gets "Details" with the
+  metadata only. Direct `?version=` links are unchanged.
+- **The action row:** Edit / Continue editing / Request editing access on the left; PDF · Word · Share
+  on the right. PDF is the one filled button because it is what most teachers came for. The hairline
+  between the groups goes, since space now divides them. Word stays hidden on phones: the
+  `.doc-buttons .btn.doc-buttons__word` rule and the `share-menu__word-zip` class are untouched.
+
 ## 2026-11-10 — Catalogue: offered grades, a favorites switch, open strand groups, one resume row
 
 Step 3 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint.

@@ -486,6 +486,13 @@ details[open] > summary.strand-head::before {
   padding-left: 0.6rem;
   border-left: 1px solid var(--line);
 }
+/* Interface refinement 2026-11-10: the output group (PDF · Word · Share) sits at the right of the
+   action row, so the space between the groups divides them and the hairline goes. */
+.lesson-toolbar .doc-buttons.doc-buttons--toolbar {
+  margin-left: auto;
+  padding-left: 0;
+  border-left: none;
+}
 
 /* D4's neutral-until-hover download pills are now `.btn--quiet.btn--compact` — the shared button
    system carries both the emphasis (quiet) and the density (compact), so this file no longer states
@@ -921,7 +928,8 @@ details[open] > summary.strand-head::before {
   padding: clamp(2.5rem, 9vh, 4.5rem) var(--app-content-pad);
 }
 .login-intro .school-name--heading,
-.login-kicker {
+.login-kicker,
+.lesson-kicker {
   margin: 0;
   color: var(--muted);
   font-size: 0.8rem;
@@ -933,9 +941,13 @@ details[open] > summary.strand-head::before {
 .login-intro .school-name--heading {
   font-size: 0.95rem;
 }
-.login-kicker {
+.login-kicker,
+.lesson-kicker {
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+.lesson-kicker {
+  margin-bottom: 0.4rem;
 }
 .login-headline {
   margin: 0.75rem 0 0;
@@ -1079,22 +1091,51 @@ details[open] > summary.strand-head::before {
   color: var(--muted);
   font-size: 0.95rem;
 }
+/* The lesson title carries the same short blue accent as the catalogue's. */
+.lesson .page-heading h1::after {
+  content: '';
+  display: block;
+  width: 2.6rem;
+  height: 3px;
+  margin: 0.6rem 0 0.75rem;
+  border-radius: 2px;
+  background: var(--accent);
+}
 
+/* "Details" / "Versions & details": a quiet text disclosure under the version line (interface
+   refinement 2026-11-10). Blue because it is clickable; 44px tall for touch. */
 .lesson-details {
-  margin-top: 0.6rem;
+  margin-top: 0.35rem;
 }
 .lesson-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: var(--app-secondary-size);
+  cursor: pointer;
   list-style: none;
 }
 .lesson-details summary::-webkit-details-marker {
   display: none;
 }
-.lesson-details__hide,
-.lesson-details[open] .lesson-details__show {
-  display: none;
+.lesson-details summary::before {
+  content: '▸';
+  font-size: 0.85em;
 }
-.lesson-details[open] .lesson-details__hide {
-  display: inline;
+.lesson-details[open] summary::before {
+  content: '▾';
+}
+.lesson-details summary:hover {
+  text-decoration: underline;
+}
+.lesson-details__versions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.5rem;
 }
 .lesson-details__fields {
   display: grid;
@@ -1127,7 +1168,8 @@ details[open] > summary.strand-head::before {
   z-index: 20;
   background: var(--bg);
   margin: 0.75rem 0 1.25rem;
-  padding: 0.4rem 0 0.45rem;
+  padding: 0.5rem 0 0.45rem;
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 .lesson-toolbar .export-bar {

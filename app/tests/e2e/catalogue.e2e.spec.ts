@@ -14,7 +14,7 @@
  */
 import { test, expect, type Page } from '@playwright/test'
 
-import { loginAs } from '../helpers/e2e'
+import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 import { subjectGradeLabel } from '../../src/lib/substrand'
 
@@ -98,5 +98,28 @@ test.describe('Catalogue (/)', () => {
       'href',
       `/lessons/${fx.plan.id}?version=${pinned.id}`,
     )
+  })
+
+  // Runs after the pinned-favorite test, which gave the fixture plan a second version: the version
+  // controls now have a real choice, so this is the case where the gate matters.
+  test('lesson page: a plain Teacher sees Details only; a teacher with editing access sees Versions & details', async ({
+    page,
+  }) => {
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    const teacherDetails = page.locator('details.lesson-details')
+    await expect(teacherDetails.locator('summary')).toHaveText('Details')
+    await teacherDetails.locator('summary').click()
+    await expect(teacherDetails.getByText('Saved by')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Compare', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /versions/ })).toHaveCount(0)
+
+    await page.context().clearCookies()
+    await loginAs(page, fx, 'editor')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    const editorDetails = page.locator('details.lesson-details')
+    await expect(editorDetails.locator('summary')).toHaveText('Versions & details')
+    await editorDetails.locator('summary').click()
+    await expect(editorDetails.getByRole('link', { name: 'Compare', exact: true })).toBeVisible()
   })
 })

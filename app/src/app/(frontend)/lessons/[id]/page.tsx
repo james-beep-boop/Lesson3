@@ -114,6 +114,8 @@ export default async function LessonView({
     .filter(Boolean)
     .join(' · ')
 
+  const showVersions = canEdit && versions.length > 1
+
   const notice = officialUpdateNotice(plan, official, versions)
   // Shown in Standard and Advanced alike (operator decision 2026-10-26): a new ARES release is when
   // teachers most need Combine, so this is the one Combine starting point Standard keeps.
@@ -169,6 +171,7 @@ export default async function LessonView({
     <article className="lesson">
       <PageHeader
         title={title}
+        kicker={contextLine ? <p className="lesson-kicker">{contextLine}</p> : null}
         actions={
           <>
             <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
@@ -176,29 +179,38 @@ export default async function LessonView({
           </>
         }
       >
-        {/* One merged meta line (declutter L3, 2026-07-15): subject · grade · version · Official,
-            read by everyone — the semver + Official text is a static trust marker. The versions
-            UI stays an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): chip +
-            Compare render only for editors, and only when there is a real choice. */}
+        {/* Subject · grade moved up into the grey label (interface refinement 2026-11-10); this line
+            keeps the version and the Official trust marker, read by everyone. */}
         <p className="lesson-context">
-          {contextLine && `${contextLine} · `}Version {releaseVersionLabel(selected)}
+          Version {releaseVersionLabel(selected)}
           {selectedId === officialId && <strong className="official-tag"> · Official</strong>}
-          {canEdit && versions.length > 1 && (
-            <>
-              {' '}
-              <VersionsChip
-                planId={plan.id}
-                officialVersionId={officialId ?? null}
-                versionCount={versions.length}
-                currentVersionId={selectedId}
-                panelLabel={title}
-              />{' '}
-              <Link className="btn" href={`/lessons/${plan.id}/compare`}>
-                Compare
-              </Link>
-            </>
-          )}
         </p>
+        {/* ⚑ "Versions & details" GROUPS the controls; it does not widen their audience. The version
+            chip and Compare stay behind the same gate as before (teacher-first lock, DECISIONS
+            2026-07-08 §4): someone who can edit, and only when there is a real choice. Everyone else
+            gets "Details" with the metadata. */}
+        {(details || showVersions) && (
+          <LessonDetails
+            key={selectedId}
+            fields={details}
+            versions={
+              showVersions ? (
+                <>
+                  <VersionsChip
+                    planId={plan.id}
+                    officialVersionId={officialId ?? null}
+                    versionCount={versions.length}
+                    currentVersionId={selectedId}
+                    panelLabel={title}
+                  />
+                  <Link className="btn" href={`/lessons/${plan.id}/compare`}>
+                    Compare
+                  </Link>
+                </>
+              ) : null
+            }
+          />
+        )}
       </PageHeader>
 
       {notice && <OfficialUpdateNotice {...notice} />}
@@ -208,7 +220,6 @@ export default async function LessonView({
           {...combineSuggestion}
         />
       )}
-      {details && <LessonDetails key={selectedId} {...details} />}
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
           revising declutter L1) and have NOT come back. What returned on 2026-08-30 is the primary

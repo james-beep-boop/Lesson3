@@ -49,9 +49,10 @@ _Compare_ button.
   ARES Lesson Plans marks it `vX (pinned)`. Favorites are private.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
-- **Show details:** below the version information on a lesson page, choose *Show details* to see
-  who saved it, its source version, and when it was created and last modified. Choose *Hide details*
-  to close the panel. You can inspect details without editing access, including in Standard mode.
+- **Details:** below the version information on a lesson page, open *Details* to see who saved it,
+  its source version, and when it was created and last modified. With editing access, and when the
+  plan has more than one version, it is called *Versions & details* and also holds the versions list
+  and *Compare*. Anyone can inspect details, including in Standard mode.
   Missing provenance says *Not recorded*; a referenced record you cannot read says *Unavailable*.
 - **Student document and Teacher key:** the _Final explanation_ you download has blank answer space
   and no answers, so it is the one to give to students. The _Teacher key — not for students_ has the

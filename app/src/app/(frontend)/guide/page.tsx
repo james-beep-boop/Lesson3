@@ -115,11 +115,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   the ARES release date.
                 </p>
                 <p>
-                  Below the version information, choose <em>Show details</em> to see who saved it,
-                  its source version, and when it was created and last modified. Choose{' '}
-                  <em>Hide details</em> to close the panel. You can inspect details without editing
-                  access, including in Standard mode. Missing provenance says <em>Not recorded</em>;
-                  a referenced record you cannot read says <em>Unavailable</em>.
+                  Below the version information, open <em>Details</em> to see who saved it, its
+                  source version, and when it was created and last modified. With editing access,
+                  and when the plan has more than one version, it is called{' '}
+                  <em>Versions &amp; details</em> and also holds the versions list and{' '}
+                  <em>Compare</em>. Anyone can inspect details, including in Standard mode. Missing
+                  provenance says <em>Not recorded</em>; a referenced record you cannot read says{' '}
+                  <em>Unavailable</em>.
                 </p>
               </GuideAccordionPanel>
             )}

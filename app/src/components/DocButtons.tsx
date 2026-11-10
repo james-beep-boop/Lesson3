@@ -80,13 +80,16 @@ export default function DocButtons({
   // written in the attribute makes it demand a `.toolbar` rule that should not exist.
   const toolbar = variant === 'toolbar'
   const btn = toolbar ? 'btn' : 'btn btn--quiet btn--compact'
+  // On the lesson page's action row PDF is the one filled button (interface refinement 2026-11-10):
+  // it is what most teachers came for. Catalogue rows keep their quiet pair.
+  const pdfBtn = toolbar ? 'btn btn--primary' : btn
   const wrap = toolbar ? 'doc-buttons doc-buttons--toolbar' : 'doc-buttons'
 
   return (
     <span className={wrap}>
       <button
         type="button"
-        className={btn}
+        className={pdfBtn}
         disabled={busy !== null}
         aria-busy={busy === 'pdf'}
         onClick={openPdf}
