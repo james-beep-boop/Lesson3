@@ -99,4 +99,26 @@ test.describe('Catalogue (/)', () => {
       `/lessons/${fx.plan.id}?version=${pinned.id}`,
     )
   })
+
+  test('a long subject name never widens the page on a phone, in either view', async ({ page }) => {
+    // The fixture subject is `${MARK}Biology` (50+ characters), longer than any real subject such as
+    // "Computer Science and Information Technology". The native select sizes to its longest option,
+    // so without a width cap the filter row pushed the page sideways even with All subjects chosen.
+    expect(fx.subject.name.length).toBeGreaterThan(45)
+    await page.setViewportSize({ width: 320, height: 800 })
+    await loginAs(page, fx, 'teacher')
+    const select = page.locator('.filter-group--subject select')
+    await expect(select).toHaveValue('')
+    await expect(select.locator('option', { hasText: fx.subject.name })).toHaveCount(1)
+    for (const width of [320, 390, 430]) {
+      await page.setViewportSize({ width, height: 800 })
+      for (const view of ['All lesson plans', 'My favorites']) {
+        await page.getByRole('button', { name: view, exact: true }).click()
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        )
+        expect(overflow, `${view} at ${width}px`).toBe(0)
+      }
+    }
+  })
 })

@@ -270,6 +270,14 @@ a {
 .lp-controls .lp-search input {
   min-height: 44px;
 }
+/* Let the filters shrink to the row. A native select is as wide as its longest option, and a flex
+   item's automatic minimum width would otherwise let a long subject name push the page sideways on
+   a phone, even with "All subjects" selected. */
+.lp-controls > .filter-bar,
+.filter-group--subject {
+  min-width: 0;
+  max-width: 100%;
+}
 /* "Pick up where you left off" — one quiet line, only when there is unsaved work (plan §4). */
 .lp-resume {
   margin: 0 0 0.75rem;
