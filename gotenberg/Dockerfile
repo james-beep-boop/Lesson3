@@ -16,11 +16,11 @@
 # version, so `docker build` cannot silently pick up a different upstream. Both pins fail LOUDLY
 # when upstream moves (Debian archives drop superseded package versions) — that build error is the
 # deliberate re-pin moment, not a bug. To re-pin:
-#   docker buildx imagetools inspect gotenberg/gotenberg:8   → new index digest ("Digest:" line)
+#   docker buildx imagetools inspect gotenberg/gotenberg:9   → new index digest ("Digest:" line)
 #   apt-cache policy ttf-mscorefonts-installer (in the new base, contrib enabled) → new version
-# Resolved 2026-11-06: digest = Gotenberg 8.40.0 (Debian trixie); installer 3.8.1. The font
+# Resolved 2026-11-10: digest = Gotenberg 9.3.0; installer 3.8.1. The font
 # binaries themselves are Microsoft's frozen cab files — the installer verifies their checksums.
-FROM gotenberg/gotenberg:8.40.0@sha256:53073e798c8ef39ea2187e44cb67bab77894ea2509100b94c4fe3b461f7b2996
+FROM gotenberg/gotenberg:9.3.0@sha256:04eaccf4c512167381c8084dfc35e3cda4dd7e8ea605e5fd9fcf3bd83917566c
 
 USER root
 RUN set -eux; \
