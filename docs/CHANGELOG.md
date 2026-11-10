@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+## v1.15 (2026-11-10)
+
+- The Guide's Role notes, and `USER_GUIDE.md`, open with a chart of what each role can do (PR #494).
 - Interface refinement (plan `docs/PLAN-interface-refinement-2026-11-10-revised.md`, six PRs):
   - the brand mark on both headers, and the app version in the avatar menu;
   - a two-column sign-in page reading "Good lessons. Ready to teach.", with the forum line only
@@ -28,6 +31,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
   - the Welcome dialog mentions My favorites.
 
   No migration, endpoint or export change.
+
+## v1.14 (2026-11-10)
+
 - Gotenberg 9.3.0, replacing 8.40.0 (the last 8.x release) in both PDF converter images: the internet
   server's image with Microsoft fonts and the school servers' LibreOffice-only image. Lesson3's
   conversion request is unchanged. Compared on 12 lesson-plan documents (440 pages per image type),
