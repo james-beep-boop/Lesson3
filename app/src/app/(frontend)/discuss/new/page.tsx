@@ -10,7 +10,7 @@ import { relId } from '@/lib/relId'
 import { requireUser } from '@/lib/session'
 
 /**
- * Start a discussion. `?version=<id>` arrives from **Discuss this version** (lesson page) and **Post about
+ * Start a discussion. `?version=<id>` arrives from **Start a forum discussion…** (lesson page) and **Post about
  * these changes** (after saving) and prefills the lesson reference — when the viewer can read it.
  *
  * ⚑ AN UNAVAILABLE PREFILL IS SAID, NOT SWALLOWED (GPT review 2026-10-10). If the version was deleted, or

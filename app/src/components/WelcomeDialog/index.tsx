@@ -98,7 +98,10 @@ function NavDemo({ items }: { items: NavItem[] }) {
 function TeacherContent() {
   return (
     <>
-      <p className="welcome-body">You can browse, search, and download lesson plans.</p>
+      <p className="welcome-body">
+        You can browse, search, and download lesson plans. Star the ones you use, and they wait for
+        you under <strong>My favorites</strong>.
+      </p>
       <NavDemo
         items={[
           { label: 'Lessons', highlight: true, arrowLabel: 'Browse here' },

@@ -48,7 +48,7 @@ export default function ShareMenu({
   semver?: string | null
   /** This version's documents — drives the per-document download list (empty → section omitted). */
   deliverables?: DeliverableTag[]
-  /** Offer "Discuss this version" — only while the forum is switched on (§16.1 entry points). */
+  /** Offer "Start a forum discussion…" — only while the forum is switched on (§16.1 entry points). */
   canDiscuss?: boolean
   /** Hide email-a-doc when SMTP is not configured — mirrors the server-side gate in emailVersion.ts. */
   smtpEnabled?: boolean
@@ -198,7 +198,7 @@ export default function ShareMenu({
           <Link href={`/messages?plan=${planId}&version=${versionId}`}>Message a colleague</Link>
           {/* Forum handoff (discussions §16.1): opens Start a discussion with this version referenced. */}
           {canDiscuss && (
-            <Link href={`/discuss/new?version=${versionId}`}>Discuss this version</Link>
+            <Link href={`/discuss/new?version=${versionId}`}>Start a forum discussion…</Link>
           )}
           <p className="share-menu__note">
             Everything here acts on this version{semver ? ` (${semver})` : ''}.

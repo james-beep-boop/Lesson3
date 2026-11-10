@@ -17,8 +17,8 @@ The installed app version appears below the sign-in form and at the bottom of th
 ## Teachers
 
 Use Lessons to find and read plans or download their Word and PDF files. Each plan opens at its
-Official version. If you have editing or administrator access, you also see an _N versions_ panel and
-_Compare_ button.
+Official version. If you have editing or administrator access, you also see an _N versions_ panel on
+library rows, and on a lesson page _Versions & details_ holds the versions list and _Compare_.
 
 - **ARES release dates:** an ARES version shows its release date beside the version number,
   for example **2.0.0 · ARES release 14 Nov 2026**. **ARES release: not stated** means the upload did
@@ -94,7 +94,7 @@ entry points then disappear, and existing discussions are kept.
   delete a thread. You can make up to 100 posts per day, including replies.
 - **Add lesson reference** finds a lesson by title. Press **Add reference** for the saved version
   you want to attach.
-  You can remove a prefilled reference before posting. **Share → Discuss this version** on a lesson
+  You can remove a prefilled reference before posting. **Share → Start a forum discussion…** on a lesson
   page opens a discussion with that version already attached. **Compare changes** appears when its
   source version is still available. If the referenced version is deleted, its label remains with no
   link to another version.
@@ -166,7 +166,8 @@ ARES Lesson Plans, not in a Word file.
   Advanced tools is off.
   Deleting the version you were editing deletes its draft too. If that happens while the
   editor is open, copy your text before leaving the page.
-- **Compare two versions:** choose *Compare* in the *N versions* panel. Removals appear in red and
+- **Compare two versions:** choose *Compare* in the *N versions* panel, or under *Versions & details*
+  on a lesson page. Removals appear in red and
   additions in green. ARES Lesson Plans lists the parts that changed; choose one to jump to it. Turn off
   *Changes only* to read both versions in full. If a part says *Spacing or document structure
   changed*, the words are the same but arranged differently.

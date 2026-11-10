@@ -178,7 +178,13 @@ export default async function MessagesPage({
       <section className="msg-section" aria-label="Inbox">
         <h2>Inbox</h2>
         {inbox.length === 0 ? (
-          <p className="muted">No messages yet.</p>
+          // One next step, and only one the reader can take (interface refinement 2026-11-10): New
+          // message is suggested only when there is someone to write to.
+          <p className="muted">
+            {roster.length > 0
+              ? 'No messages yet. Choose New message to write to a colleague.'
+              : 'No messages yet. Messages from colleagues will appear here.'}
+          </p>
         ) : (
           <>
             <ul className="msg-list">
