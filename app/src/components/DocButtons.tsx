@@ -84,6 +84,9 @@ export default function DocButtons({
   // it is what most teachers came for. Catalogue rows keep their quiet pair.
   const pdfBtn = toolbar ? 'btn btn--primary' : btn
   const wrap = toolbar ? 'doc-buttons doc-buttons--toolbar' : 'doc-buttons'
+  // The lesson toolbar's PDF and Word carry the same download arrow (operator request 2026-11-10,
+  // matching the agreed preview); catalogue rows stay text-only to keep their pills compact.
+  const icon = toolbar ? <DownloadIcon /> : null
 
   return (
     <span className={wrap}>
@@ -94,7 +97,7 @@ export default function DocButtons({
         aria-busy={busy === 'pdf'}
         onClick={openPdf}
       >
-        {busy === 'pdf' ? 'Preparing…' : 'PDF'}
+        {busy === 'pdf' ? 'Preparing…' : <>{icon}PDF</>}
       </button>
       {/* ⚑ `doc-buttons__word` EXISTS ONLY SO PHONES CAN DROP THIS ONE BUTTON — see the rule in
           `styles.css`. Both pills are otherwise identically classed, so there was nothing to target. */}
@@ -105,7 +108,7 @@ export default function DocButtons({
         aria-busy={busy === 'docx'}
         onClick={downloadWord}
       >
-        {busy === 'docx' ? 'Preparing…' : 'Word'}
+        {busy === 'docx' ? 'Preparing…' : <>{icon}Word</>}
       </button>
       {error && (
         <span role="alert" className="inline-error">
@@ -113,5 +116,28 @@ export default function DocButtons({
         </span>
       )}
     </span>
+  )
+}
+
+/** Decorative download arrow (tray + arrow), drawn in the button's own text colour. */
+function DownloadIcon() {
+  return (
+    <svg
+      className="btn__icon"
+      aria-hidden="true"
+      focusable="false"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 4v11" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M5 19h14" />
+    </svg>
   )
 }

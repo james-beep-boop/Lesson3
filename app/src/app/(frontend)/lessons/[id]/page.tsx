@@ -175,14 +175,14 @@ export default async function LessonView({
         actions={
           <>
             <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
-            <PageBackLink href="/" label="Back to lesson plans" />
+            <PageBackLink href="/" label="Back to lesson plans" showLabel />
           </>
         }
       >
         {/* Subject · grade moved up into the grey label (interface refinement 2026-11-10); this line
             keeps the version and the Official trust marker, read by everyone. */}
         <p className="lesson-context">
-          Version {releaseVersionLabel(selected)}
+          Lesson version {releaseVersionLabel(selected)}
           {selectedId === officialId && <strong className="official-tag"> · Official</strong>}
         </p>
         {/* ⚑ "Versions & details" GROUPS the controls; it does not widen their audience. The version
