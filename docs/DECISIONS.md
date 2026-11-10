@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Print the exported documents, not the lesson reading page
+
+The user clarified that teachers print downloaded PDF or Word documents, not the HTML reading
+page or its mockup. Preserve existing export fidelity and completeness. Browser-print accordion
+expansion, restoration scripts, print CSS fallbacks and reading-page print-preview checks are
+outside the interface refinement's scope and are not acceptance blockers. This supersedes the
+browser-print requirements in the two interface reviews and the deferred accordion design for
+this work; retain those original documents as historical context.
+
+## 2026-11-10 — Keep interface review handoffs inside the shared project
+
+The user wants Claude to review previews and plans without granting access to Downloads or
+an assistant-private visualization directory. Keep the local interface handoff under
+`docs/interface-refinement-2026-11-10/`, with an entry point linking the self-contained HTML
+previews and the revised plan in `docs/`. Use this shared project location for subsequent
+handoffs. Local files are not on GitHub until explicitly committed and pushed.
+
 ## 2026-11-10 — Gotenberg 9.3.0
 
 Operator-approved ahead of the first school installs: 8.40.0 was the final Gotenberg 8 release, so
