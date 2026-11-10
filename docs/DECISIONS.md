@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Lesson header matches the agreed preview exactly (operator decision)
+
+David compared the step-4 build with the reviewed preview
+(`docs/interface-refinement-2026-11-10/lesson3-reviewed-preview-standalone.html`) and chose to match its
+details exactly, knowingly reversing three earlier choices. This applies to the lesson page only.
+
+- **"Back to lesson plans" is displayed** (`PageBackLink showLabel`), full size rather than compact.
+  This reverses the visible one-word "Back" of 2026-07-30 / 2026-08-29 on this page only; Compare, the
+  Guide, Discuss and forgot-password keep "Back" with the destination in `aria-label`.
+- **Favorite is a quiet blue link-button**: no outline or fill, underline on hover, same size and 44px
+  phone target. The catalogue's icon-only stars are unchanged.
+- **"Lesson version 1.0.0 · Official"** replaces "Version 1.0.0 · Official" in the line under the title.
+- **PDF and Word carry a download arrow** (decorative inline SVG, `aria-hidden`), at David's request.
+  Catalogue download pills stay text-only.
+- Step 5's first section is titled **"Unit overview"** (the jump link still says "Overview"), and the
+  lesson page's jump links read "Final explanation" / "Summary table" in sentence case.
+
 ## 2026-11-10 — Lesson header: grey label, "Details" / "Versions & details", PDF as the filled action
 
 Step 4 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint.

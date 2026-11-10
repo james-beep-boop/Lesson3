@@ -783,6 +783,22 @@ details[open] > summary.strand-head::before {
 .fav-toggle__label {
   line-height: 1;
 }
+/* The lesson page's Favorite is a quiet blue link-button (operator decision 2026-11-10, matching the
+   agreed interface-refinement preview): no outline or fill, so it sits beside "Back to lesson plans"
+   without competing with it. It keeps `.btn`'s size and 44px phone target; hover underlines instead
+   of filling. Specificity (0-2-0 / 0-3-0) beats `.btn` and `.btn:hover` regardless of order. */
+.btn.fav-toggle--labeled {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+}
+.btn.fav-toggle--labeled:hover,
+.btn.fav-toggle--labeled:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: underline;
+}
 /* Failed-toggle message (rare — usually an expired session). Small, so a row/card degrades gently
    when it appears next to the star; role="alert" carries it to assistive tech. */
 .fav-toggle__error {
@@ -1418,6 +1434,10 @@ details[open] > summary.strand-head::before {
    primary actions, so row-level downloads and the versions chip stay quiet furniture. Hover
    PROMOTES to the accent outline rather than filling — a filled row of six download pills would be
    exactly the visual competition D4 removed. */
+/* A decorative icon inside a button (the lesson toolbar's download arrows). */
+.btn__icon {
+  flex-shrink: 0;
+}
 .btn.btn--quiet {
   border-color: var(--app-btn-quiet-line);
   color: var(--ink);
