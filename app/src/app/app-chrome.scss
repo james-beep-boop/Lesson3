@@ -291,7 +291,7 @@ button.user-menu__item {
 .school-name--heading {
   color: var(--app-text);
   font-size: var(--app-page-title-size);
-  /* Only the sign-in page uses it, above its centred product name. */
+  /* Only the sign-in page uses it; its intro column restyles it as the label above the headline. */
   text-align: center;
 }
 .user-menu__dropdown .school-name {

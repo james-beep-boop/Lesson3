@@ -28,7 +28,9 @@ test('an unset name leaves the existing sign-in, tab, menu and headings unchange
 }) => {
   await setSchoolName(fx.payload, '')
   await page.goto(`${BASE}/login`)
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('ARES Lesson Plans')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    /^Good lessons\.\s*Ready to teach\.$/,
+  )
   await expect(page).toHaveTitle('Sign in — ARES Lesson Plans')
   await expect(page.locator('.school-name')).toHaveCount(0)
   await loginAs(page, fx, 'siteAdmin')
@@ -74,7 +76,7 @@ for (const width of [1280, 375]) {
     await page.setViewportSize({ width, height: 850 })
     await page.goto(`${BASE}/login`)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAME)
-    await expect(page.locator('.login-title')).toHaveText('ARES Lesson Plans')
+    await expect(page.locator('.login-brandbar .brand')).toHaveText('ARES Lesson Plans')
     await expect(page).toHaveTitle(`${NAME} — ARES Lesson Plans`)
     await loginAs(page, fx, 'siteAdmin')
     for (const [route, heading] of [

@@ -781,6 +781,148 @@ a {
   justify-content: flex-end;
   margin-bottom: 0.75rem;
 }
+/* ---- Sign-in page (interface refinement 2026-11-10, step 2) ----
+   Two columns on desktop, stacked on phones. Same tokens, type and buttons as every other page: the
+   only blue is the brand mark, the short rule under the headline and the actions. The intro's labels
+   are grey (operator decision 2026-11-10). The other signed-out pages keep the narrow `.login` column. */
+/* The sign-in page draws its own full-width brand strip and footer, so its column drops the shared
+   max-width and padding. Without `:has()` (very old browsers) the strip simply sits inside the
+   column, which still reads correctly. */
+.app-main:has(> .login-page) {
+  max-width: none;
+  padding: 0;
+}
+.login-brandbar__credit {
+  color: var(--muted);
+  font-size: var(--app-secondary-size);
+}
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 4rem;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 9vh, 4.5rem) var(--app-content-pad);
+}
+.login-intro .school-name--heading,
+.login-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-align: left;
+}
+/* The generic label is a short uppercase eyebrow; a school name keeps its own capitals, is a step
+   larger because it is the page's identity (and its h1), and may wrap. */
+.login-intro .school-name--heading {
+  font-size: 0.95rem;
+}
+.login-kicker {
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.login-headline {
+  margin: 0.75rem 0 0;
+  max-width: 22rem;
+  font-size: clamp(1.75rem, 1.2rem + 1.4vw, 2.15rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.login-headline::after {
+  content: '';
+  display: block;
+  width: 2.6rem;
+  height: 3px;
+  margin: 0.9rem 0 1rem;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.login-lead {
+  max-width: 22rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+.login-note-together {
+  max-width: 22rem;
+  margin: 2rem 0 0;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--app-secondary-size);
+}
+.login-note-together strong {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+.login-panel {
+  padding: 1.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.login-panel h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.login-panel__welcome {
+  margin: 0.3rem 0 1.25rem;
+  color: var(--muted);
+  font-size: var(--app-secondary-size);
+}
+.login-panel .login-links {
+  justify-content: space-between;
+}
+.login-panel .login-note {
+  max-width: none;
+  margin: 0.5rem 0 1rem;
+  text-align: left;
+}
+.login-explore {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+}
+.login-footer {
+  padding: 1.25rem var(--app-content-pad) 2rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--app-secondary-size);
+  text-align: center;
+}
+.login-footer p {
+  margin: 0;
+}
+.login-footer .app-version {
+  margin-top: 0.5rem;
+}
+@media (max-width: 760px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.6rem;
+    padding: 1.75rem var(--app-content-pad-sm);
+  }
+  .login-footer {
+    padding-inline: var(--app-content-pad-sm);
+  }
+  .login-note-together {
+    margin-top: 1.2rem;
+    padding-top: 0.9rem;
+  }
+  .login-panel {
+    padding: 1.25rem;
+  }
+}
+/* The credit is repeated, with links, in the footer; on a narrow strip the brand keeps the room. */
+@media (max-width: 520px) {
+  .login-brandbar__credit {
+    display: none;
+  }
+}
+
 /* ---- Lesson view ---- */
 /* `.lesson-heading` / `.lesson-heading__actions` were DELETED here (PageHeader extraction): their
    rule bodies were byte-identical to the `.page-heading` pair below, and the lesson and compare
