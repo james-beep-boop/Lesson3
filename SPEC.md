@@ -1158,7 +1158,7 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
   The trusted `scripts/set-school-name.ts` operator command uses the same validation and lock for
   commissioning. Ordinary global REST writes stay forbidden; reads stay Site-Administrator-only.
   A server-side render-cached projection selects only the name for public display and omits it if the
-  read fails. It appears as the sign-in heading (ARES Lesson Plans underneath), in frontend tab titles,
+  read fails. It appears as the sign-in page's heading (above the headline, with ARES Lesson Plans in the brand strip), in frontend tab titles,
   at the top of the avatar menu, and under Lesson Plans, Discussions and Manage headings. The hub may
   use **Kenya Lessons · all schools**. Never in the top bar, a logo, generated documents, emails or the
   public Explore page. Without a name, existing headings and titles are unchanged.

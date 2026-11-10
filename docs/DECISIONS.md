@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Sign-in page: two columns, approved wording, forum line only when the forum is on
+
+Step 2 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`, as in the reviewed preview. Desktop
+shows a brand strip, an intro column and a bordered Sign in panel; phones stack them, intro first. The
+operator approved the preview's wording ("Good lessons. Ready to teach." and "Find, adapt, and
+download lesson plans for your classroom."), which replaces the 2026-10-27 sign-in line "Find, edit and
+print lesson plans." The site's meta description keeps the old line.
+
+- **School identity is unchanged in substance.** With a school name, the name is still the page's h1
+  (SPEC §11), now shown above the headline; without one, the headline is the h1.
+- **The "Better together" forum invitation renders only when `forumEnabled` is on.** It is read
+  through `systemSettingsForRender`, the same per-render read that already supplied the school name,
+  so no signed-out request is built and no other setting reaches the page.
+- **The brand strip belongs to the login page, not the root layout.** The layout's header depends on
+  the session and is cached across soft navigations (DECISIONS 2026-08-03). A signed-out header there
+  would change the cached shape. The strip reuses `.app-header` and `.brand`, so it matches the
+  signed-in header. The page drops `.app-main`'s width and padding through `:has()`. Without `:has()`,
+  the strip sits inside the column and still reads correctly.
+- **First-run setup keeps its single branch.** The setup screen shows the intro and the setup form,
+  with no sign-in links, explore link or forum line.
+- Signup, Forgot password, Reset and Verify keep the narrow `.login` column for now.
+
 ## 2026-11-10 — Print the exported documents, not the lesson reading page
 
 The user clarified that teachers print downloaded PDF or Word documents, not the HTML reading

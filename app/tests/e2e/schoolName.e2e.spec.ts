@@ -74,7 +74,7 @@ for (const width of [1280, 375]) {
     await page.setViewportSize({ width, height: 850 })
     await page.goto(`${BASE}/login`)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAME)
-    await expect(page.locator('.login-title')).toHaveText('ARES Lesson Plans')
+    await expect(page.locator('.login-brandbar .brand')).toHaveText('ARES Lesson Plans')
     await expect(page).toHaveTitle(`${NAME} — ARES Lesson Plans`)
     await loginAs(page, fx, 'siteAdmin')
     for (const [route, heading] of [
