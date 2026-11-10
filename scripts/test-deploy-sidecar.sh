@@ -18,6 +18,7 @@
 set -uo pipefail
 
 DEPLOY="${DEPLOY_SH:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/deploy.sh}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TREE_MATCH="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 TREE_OTHER="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 pass=0 fail=0
@@ -88,7 +89,39 @@ check() { # name, condition-description, 0/1 result
 built()     { grep -q "compose build gotenberg" <<<"$CALLS"; }
 not_built() { ! built; }
 
+static_check() { # name, condition-description, command...
+  local name="$1" description="$2"; shift 2
+  if "$@"; then printf '  ok   %s\n' "$name"; pass=$((pass+1));
+  else printf '  FAIL %s — %s\n' "$name" "$description"; fail=$((fail+1)); fi
+}
+
 echo "deploy.sh branch decisions:"
+
+# The sidecar is an internal file-conversion service, not a general Gotenberg API. Keep the browser
+# dependency out of the final image and keep every unused request surface disabled in Compose.
+static_check "Arial image uses the LibreOffice-only base" "expected the pinned -libreoffice base" \
+  grep -Fq 'FROM gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042' \
+  "$ROOT/gotenberg/Dockerfile"
+static_check "font download tools stay in the builder" "expected a multi-stage font copy" \
+  grep -Fq 'COPY --from=fonts' "$ROOT/gotenberg/Dockerfile"
+static_check "runtime image asserts wget is absent" "expected a final-image wget postcondition" \
+  grep -Fq "if command -v wget" "$ROOT/gotenberg/Dockerfile"
+static_check "runtime image asserts cabextract is absent" "expected a final-image cabextract postcondition" \
+  grep -Fq "if command -v cabextract" "$ROOT/gotenberg/Dockerfile"
+static_check "runtime image asserts the installer is absent" "expected a final-image package postcondition" \
+  grep -Fq "if dpkg-query -s ttf-mscorefonts-installer" "$ROOT/gotenberg/Dockerfile"
+static_check "runtime image asserts Arial is selected" "expected the final image to select Arial.ttf" \
+  grep -Fq "fc-match Arial | grep -q '^Arial.ttf:'" "$ROOT/gotenberg/Dockerfile"
+for flag in \
+  '--api-disable-download-from=true' \
+  '--webhook-disable=true' \
+  '--pdf-disable-routes=true' \
+  '--pdf-disable-stages=true'; do
+  static_check "sidecar sets $flag" "expected hardened Gotenberg command" \
+    grep -Fq -- "$flag" "$ROOT/docker-compose.yml"
+done
+static_check "sidecar has no Chromium flag" "the LibreOffice-only image must not be configured as Chromium" \
+  sh -c '! grep -Fq -- "--chromium-" "$1"' sh "$ROOT/docker-compose.yml"
 
 # 1. Provenance matches → the whole point: no font build on an unchanged sidecar.
 run_case "$TREE_MATCH" "$TREE_MATCH"

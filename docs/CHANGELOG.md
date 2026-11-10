@@ -8,6 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+- Gotenberg 9.3.0, replacing 8.40.0 (the last 8.x release) in both PDF converter images: the internet
+  server's image with Microsoft fonts and the school servers' LibreOffice-only image. Lesson3's
+  conversion request is unchanged. Compared on 12 lesson-plan documents (440 pages per image type),
+  the PDFs are pixel-identical to 8.40.0; conversion was about 25% faster on a Mac. On the Rock,
+  214 of 215 further pages were identical (one continued table row 2 px taller) and large plans
+  converted 15–20% faster. Before merge, the custom font image was rebased onto the LibreOffice-only
+  variant: Chromium and font-download tools are absent from the runtime, the arm64 image is 43%
+  smaller, and unused download, webhook and PDF routes/stages are disabled in both deployments. A
+  fresh comparison using the current enriched JSON inputs is pixel-identical across 24 document pairs
+  / 462 page pairs; the exact hardened image also built on the Rock and matched its pre-hardening image
+  across all 231 custom-font pages. The live stack was untouched.
+- Next.js 16.4.6, nodemailer 10.4.0, and build-only vite 7.3.8 and nanoid 3.3.20.
+
 ## v1.13 (2026-11-06)
 
 - Next.js 16.4.5, the November 3 security release (of its advisories only self-hosted cache

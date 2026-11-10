@@ -1,0 +1,152 @@
+{
+  "date": "2026-11-10",
+  "scope": "Rebase the custom Arial image from the full Gotenberg 9.3.0 image onto 9.3.0-libreoffice, keep font-install tools out of the runtime stage, and disable unused request features in both deployment variants.",
+  "images": {
+    "custom_before": {
+      "ref": "gotenberg/gotenberg:9.3.0@sha256:04eaccf4c512167381c8084dfc35e3cda4dd7e8ea605e5fd9fcf3bd83917566c plus ttf-mscorefonts-installer=3.8.1",
+      "mac_arm64_size_bytes": 2227610485,
+      "rock_arm64_size_bytes": 2227594202
+    },
+    "custom_hardened": {
+      "ref": "gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042 plus fonts copied from a build-only ttf-mscorefonts-installer=3.8.1 stage",
+      "mac_arm64_size_bytes": 1265524973,
+      "rock_arm64_size_bytes": 1265529096,
+      "runtime_user": "gotenberg (uid 1001)",
+      "fc_match_arial": "Arial.ttf: \"Arial\" \"Regular\"",
+      "absent_runtime_commands": ["wget", "cabextract", "chromium", "chromium-browser"],
+      "absent_runtime_packages": ["ttf-mscorefonts-installer"]
+    },
+    "school_before_and_after": {
+      "ref": "gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042",
+      "change": "Image bytes unchanged; only the Gotenberg command is hardened."
+    }
+  },
+  "command_flags": {
+    "confirmed_by": "gotenberg --help on the built 9.3.0 candidate",
+    "enabled": [
+      "--api-timeout=120s",
+      "--api-disable-download-from=true",
+      "--webhook-disable=true",
+      "--pdf-disable-routes=true",
+      "--pdf-disable-stages=true"
+    ],
+    "removed": ["--chromium-disable-javascript=true"],
+    "health_status": 200,
+    "libreoffice_conversion_status": 200,
+    "disabled_route_status": {
+      "/forms/chromium/convert/html": 404,
+      "/forms/pdf/merge": 404
+    }
+  },
+  "trivy": {
+    "scanner": "aquasec/trivy:latest vulnerability database downloaded 2026-11-10T03:59Z",
+    "severity": ["HIGH", "CRITICAL"],
+    "custom_before": {
+      "reported_findings": 263,
+      "unique_vulnerability_ids": 125,
+      "unique_high": 124,
+      "unique_critical": 1,
+      "unique_fixable": 0
+    },
+    "custom_hardened": {
+      "reported_findings": 84,
+      "unique_vulnerability_ids": 34,
+      "unique_high": 33,
+      "unique_critical": 1,
+      "unique_fixable": 0
+    }
+  },
+  "fixtures": {
+    "renderer_library_commit": "f83db61931566df6bde9252db552bd353ed43d7a",
+    "json_source": "Current enriched Desktop ares-json exports. These JSON bytes include later lesson-content/resource-link updates and are not byte-identical to the earlier 440-page evidence snapshot; their hashes below are the provenance for this run.",
+    "input_json_sha256": {
+      "essential_mathematics__grade_10__ss_1_2__indices.json": "b2fff16f926e32868ea10d438948fe894a2a85f2704e34a6036a55cd784b9b96",
+      "mathematics__grade_10__ss_3_1__trigonometry_i.json": "5a440c2138617a8a6d9a19c09f8f138fdae2741a169074d4082ec794661a6c6f",
+      "physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json": "4ccbd22aa1407de0ecec3f2c8cf2454bf44d9fbdbd96238264d19fe6d9fec121"
+    },
+    "generation": "extractAresJson -> rawToBundle -> withRowIds -> bundleToAresData -> generateBundleDocx",
+    "docx_sha256": {
+      "indices-finalExplanation.docx": "7d6f9792abb35e06c57787755c15cb6c94cb5ebae6e6671d0271c3389060d3d9",
+      "indices-lessonSequence.docx": "604dcf4f634273eeeda655b0ceaeab6facc0820a4332a85d1dfa7d97cb0f358a",
+      "indices-summaryTable.docx": "64c4fe17532498c018d1488b37b80ab3100be591954477e5338e196b7db89df7",
+      "indices-teacherKey.docx": "6e8681a431e34d3ced57243ee4ab1bea08eed061230b339dc67df3fa41515141",
+      "physics-finalExplanation.docx": "ac1abdee046eac879c07b611264c662bace46dac9ca8087db373cdfdea1b88ff",
+      "physics-lessonSequence.docx": "ecdc4b1c2fc31ca41f5cc7b2ea0a71cfb0a142500ad6696ad130c3cab3afa27b",
+      "physics-summaryTable.docx": "ddf665489ac11896c0bf367eb69071da296740007e8cccbbd89432991b769eef",
+      "physics-teacherKey.docx": "092fa134ede600c972f833278c5a9599c255ac16311d833b2c917e593aabb6d0",
+      "trigonometry-finalExplanation.docx": "d8bf7f0f7f8f500657e6e1cebccb6416122d0d668c82b7e3232c8e2183760294",
+      "trigonometry-lessonSequence.docx": "c7f11b866c7b7f4bb5c5cbd617e30deb0d318f314859265940ecda3d08b9d90c",
+      "trigonometry-summaryTable.docx": "437a0c6ae68a187c747b9072fd1e446e10faa5f2f76b55a224ed439c81301703",
+      "trigonometry-teacherKey.docx": "119d14871a5d3d53ab928bd462209d85ea583dc8c9833a2784fa59983691caea"
+    },
+    "pdf_pages": {
+      "indices": {
+        "finalExplanation": 7,
+        "lessonSequence": 56,
+        "summaryTable": 4,
+        "teacherKey": 6
+      },
+      "physics": {
+        "finalExplanation": 8,
+        "lessonSequence": 50,
+        "summaryTable": 5,
+        "teacherKey": 6
+      },
+      "trigonometry": {
+        "finalExplanation": 8,
+        "lessonSequence": 69,
+        "summaryTable": 5,
+        "teacherKey": 7
+      }
+    }
+  },
+  "comparison_method": "Each converter pair received identical DOCX bytes. Compare page count, every page size/MediaBox/CropBox, pdftotext -layout, pdfinfo -url, and per-page RGB output streamed directly by pdftoppm -r 96 -singlefile with no output prefix.",
+  "mac_arm64": {
+    "platform": "Apple silicon, Docker Desktop 29.9.2",
+    "comparisons": [
+      {
+        "pair": "custom_before_vs_custom_hardened",
+        "document_pairs": 12,
+        "page_pairs": 231,
+        "page_counts_equal": true,
+        "geometry_equal": true,
+        "text_equal": true,
+        "annotation_urls_equal": true,
+        "changed_raster_pages": []
+      },
+      {
+        "pair": "school_default_command_vs_school_hardened_command",
+        "document_pairs": 12,
+        "page_pairs": 231,
+        "page_counts_equal": true,
+        "geometry_equal": true,
+        "text_equal": true,
+        "annotation_urls_equal": true,
+        "changed_raster_pages": []
+      }
+    ],
+    "total_document_pairs": 24,
+    "total_page_pairs": 462,
+    "failures": 0
+  },
+  "rock_arm64": {
+    "platform": "Rock 5B, Docker 29.9.3",
+    "live_stack_touched": false,
+    "pair": "custom_before_vs_custom_hardened",
+    "document_pairs": 12,
+    "page_pairs": 231,
+    "page_counts_equal": true,
+    "geometry_equal": true,
+    "text_equal": true,
+    "annotation_urls_equal": true,
+    "changed_raster_pages": [],
+    "timing_seconds": {
+      "file": "trigonometry-lessonSequence.docx (69 pages)",
+      "custom_before": [3.369422, 3.710993, 3.728417],
+      "custom_hardened": [3.670011, 3.693755, 3.670624],
+      "mean_before": 3.602944,
+      "mean_hardened": 3.67813,
+      "interpretation": "Approximately 2% difference in this short three-run sample; treat as effectively flat, not a performance claim."
+    }
+  }
+}

@@ -1,0 +1,338 @@
+{
+  "date": "2026-11-10",
+  "upstream_fixture_commit": "f83db61931566df6bde9252db552bd353ed43d7a",
+  "old_gotenberg": "8.40.0",
+  "new_gotenberg": "9.3.0",
+  "old_libreoffice": "26.8.2.2",
+  "new_libreoffice": "26.8.2.2",
+  "dpi": 96,
+  "method": "Same DOCX bytes converted by both engine versions; compare each image variant separately. PDF page counts, per-page MediaBox/CropBox, pdftotext -layout, pdfinfo -url and RGB raster pixels compared.",
+  "images": {
+    "full_old": {
+      "ref": "gotenberg/Dockerfile from main, FROM gotenberg/gotenberg:8.40.0@sha256:53073e798c8ef39ea2187e44cb67bab77894ea2509100b94c4fe3b461f7b2996",
+      "base_os": "Debian GNU/Linux 13 (trixie)",
+      "fc_match_arial": "Arial.ttf: \"Arial\" \"Regular\"",
+      "ttf_mscorefonts_installer": "3.8.1"
+    },
+    "full_new": {
+      "ref": "gotenberg/Dockerfile from claude/project-thread-3gauhc, FROM gotenberg/gotenberg:9.3.0@sha256:04eaccf4c512167381c8084dfc35e3cda4dd7e8ea605e5fd9fcf3bd83917566c",
+      "build": "succeeded unchanged (contrib enable + ttf-mscorefonts-installer=3.8.1)",
+      "base_os": "Debian GNU/Linux 13 (trixie)",
+      "fc_match_arial": "Arial.ttf: \"Arial\" \"Regular\"",
+      "ttf_mscorefonts_installer": "3.8.1"
+    },
+    "lo_old": {
+      "ref": "gotenberg/gotenberg:8.40.0-libreoffice@sha256:ce2fc1d0a43de0ecc6bbaa2d1ec7b3df06384408dd74f5826c33eedfa4dec7ab",
+      "fc_match_arial": "LiberationSans-Regular.ttf: \"Liberation Sans\" \"Regular\""
+    },
+    "lo_new": {
+      "ref": "gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042",
+      "fc_match_arial": "LiberationSans-Regular.ttf: \"Liberation Sans\" \"Regular\""
+    }
+  },
+  "platform": "linux/arm64 (Apple silicon, Docker Desktop 29.9.2)",
+  "server_flags": {
+    "full": "gotenberg --api-timeout=120s --chromium-disable-javascript=true",
+    "lo": "gotenberg --api-timeout=120s"
+  },
+  "request": "POST /forms/libreoffice/convert with a single 'files' part, as app/src/generator/docxToPdf.ts sends",
+  "health_new": {
+    "full": 200,
+    "lo": 200
+  },
+  "docx_note": "Generated via rawToBundle, withRowIds, bundleToAresData, generateBundleDocx. Hashes differ from the 2026-10-19 evidence only because docProps/core.xml and zip entries carry the generation timestamp; each converter pair received identical bytes.",
+  "docx_sha256": {
+    "physics-lessonSequence.docx": "8bfe7ced2c265c7c46f728defb299e90ee4a64e4e190c0eded51eb2e8c5b9216",
+    "physics-finalExplanation.docx": "bb8c09d539c12bc463a5e9cacb4f6cf9314635f33a781f71c4a846105e869fed",
+    "physics-teacherKey.docx": "545fcd985f58478b21d2ee82dd6c3e2a0623e1f22b00d4020ebe5a2dd9447a04",
+    "physics-summaryTable.docx": "856a24d75b6e13d469e3420a90808955d1f2c9cb5aa4db3ffb829df62c28e41f",
+    "indices-lessonSequence.docx": "413e7764e78f0a2f7dec9cdee5bdb06c0edbc8335d4d64b18b266ea8aa780e2e",
+    "indices-finalExplanation.docx": "1ea1d4583fe3e5d08817963fbfb6503e5a26681fe06cd67b33427efecd36f82a",
+    "indices-teacherKey.docx": "60d85b13a87a9d364acb4b9dbdfaebd95ae89b0e850c12b7b329abbb77a2881d",
+    "indices-summaryTable.docx": "1c215940ae32e70dda93a21b45aeb8de82142aeced8604b3ce9e53ac1427e91c",
+    "trigonometry-lessonSequence.docx": "ee83b1012a8e0013a6dc470377f84a523eb13ca04a3f4eb8486d11ec60cb42c3",
+    "trigonometry-finalExplanation.docx": "8b4338941f09a5c7946f8e603137b363747a839429ecfa6377cb4bd19044fb22",
+    "trigonometry-teacherKey.docx": "f238ff66b12cd5849638a39ae867b7834f8f6e7b63edca175f9befa735c0a454",
+    "trigonometry-summaryTable.docx": "c7af4ebf70f7d968628bcab29d6ca65838b3f78cf18a3f245267bb3aeed70aaf"
+  },
+  "timing_seconds": {
+    "file": "trigonometry-lessonSequence.docx (69 pages)",
+    "note": "Wall time of the HTTP request, three interleaved runs per server after one warm conversion pass; Mac, not the Rock.",
+    "full_old": [1.114, 1.104, 1.114],
+    "full_new": [0.855, 0.843, 0.789],
+    "lo_old": [1.362, 1.022, 0.981],
+    "lo_new": [0.956, 0.863, 0.828],
+    "mean": {
+      "full_old": 1.111,
+      "full_new": 0.829,
+      "lo_old": 1.122,
+      "lo_new": 0.882
+    }
+  },
+  "comparisons": [
+    {
+      "variant": "full",
+      "file": "indices-finalExplanation.pdf",
+      "old_pages": 7,
+      "new_pages": 7,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 7,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "indices-lessonSequence.pdf",
+      "old_pages": 56,
+      "new_pages": 56,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 56,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "indices-summaryTable.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "indices-teacherKey.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "physics-finalExplanation.pdf",
+      "old_pages": 7,
+      "new_pages": 7,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 7,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "physics-lessonSequence.pdf",
+      "old_pages": 50,
+      "new_pages": 50,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 50,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "physics-summaryTable.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "physics-teacherKey.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "trigonometry-finalExplanation.pdf",
+      "old_pages": 7,
+      "new_pages": 7,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 7,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "trigonometry-lessonSequence.pdf",
+      "old_pages": 69,
+      "new_pages": 69,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 69,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "trigonometry-summaryTable.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "full",
+      "file": "trigonometry-teacherKey.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "indices-finalExplanation.pdf",
+      "old_pages": 7,
+      "new_pages": 7,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 7,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "indices-lessonSequence.pdf",
+      "old_pages": 56,
+      "new_pages": 56,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 56,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "indices-summaryTable.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "indices-teacherKey.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "physics-finalExplanation.pdf",
+      "old_pages": 7,
+      "new_pages": 7,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 7,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "physics-lessonSequence.pdf",
+      "old_pages": 50,
+      "new_pages": 50,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 50,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "physics-summaryTable.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "physics-teacherKey.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "trigonometry-finalExplanation.pdf",
+      "old_pages": 7,
+      "new_pages": 7,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 7,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "trigonometry-lessonSequence.pdf",
+      "old_pages": 69,
+      "new_pages": 69,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 69,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "trigonometry-summaryTable.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    },
+    {
+      "variant": "lo",
+      "file": "trigonometry-teacherKey.pdf",
+      "old_pages": 4,
+      "new_pages": 4,
+      "geometry_equal": true,
+      "text_equal": true,
+      "raster_pages_compared": 4,
+      "changed_pages": [],
+      "annotation_urls_equal": true
+    }
+  ]
+}

@@ -108,11 +108,15 @@ services:
         org.lesson3.sidecar-tree: "${GOTENBERG_TREE:-unknown}"
     restart: unless-stopped
     logging: *default-logging
-    # Disable the modules the app never calls, trimming the attack/startup surface.
+    # Expose only the file-upload LibreOffice conversion the app calls. Remote downloads and optional
+    # PDF stages/routes are unnecessary input surfaces; Chromium is absent from the base image.
     command:
       - gotenberg
-      - --chromium-disable-javascript=true
       - --api-timeout=120s
+      - --api-disable-download-from=true
+      - --webhook-disable=true
+      - --pdf-disable-routes=true
+      - --pdf-disable-stages=true
     mem_limit: 1024m
     cpus: 2.0
 

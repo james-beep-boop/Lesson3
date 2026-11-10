@@ -46,12 +46,16 @@ services:
   # smaller than the internet tier's custom full image. DOCX fidelity is unchanged; locally-generated
   # PDFs use LibreOffice's Arial-compatible substitute and can have slightly different row heights.
   gotenberg:
-    image: gotenberg/gotenberg:8.40.0-libreoffice@sha256:ce2fc1d0a43de0ecc6bbaa2d1ec7b3df06384408dd74f5826c33eedfa4dec7ab
+    image: gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042
     restart: unless-stopped
     logging: *default-logging
     command:
       - gotenberg
       - --api-timeout=120s
+      - --api-disable-download-from=true
+      - --webhook-disable=true
+      - --pdf-disable-routes=true
+      - --pdf-disable-stages=true
     mem_limit: 1024m
     cpus: 2.0
 
