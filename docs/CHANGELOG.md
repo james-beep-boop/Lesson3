@@ -18,9 +18,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
   converted 15–20% faster. Before merge, the custom font image was rebased onto the LibreOffice-only
   variant: Chromium and font-download tools are absent from the runtime, the arm64 image is 43%
   smaller, and unused download, webhook and PDF routes/stages are disabled in both deployments. A
-  fresh 24-document-pair / 462-page-pair comparison is pixel-identical; the exact hardened image also
-  built on the Rock and matched its pre-hardening image across all 231 custom-font pages. The live
-  stack was untouched.
+  fresh comparison using the current enriched JSON inputs is pixel-identical across 24 document pairs
+  / 462 page pairs; the exact hardened image also built on the Rock and matched its pre-hardening image
+  across all 231 custom-font pages. The live stack was untouched.
 - Next.js 16.4.6, nodemailer 10.4.0, and build-only vite 7.3.8 and nanoid 3.3.20.
 
 ## v1.13 (2026-11-06)

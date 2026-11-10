@@ -49,12 +49,14 @@ LibreOffice-only base, copies the unmodified font files into a clean runtime and
 failing branches that `wget`, `cabextract` and the installer package are absent; `fc-match Arial`
 still selects `Arial.ttf`. This removes Chromium and shrinks the arm64 image from 2.23 GB to 1.27 GB.
 With the 2026-11-10 Trivy database, unique high/critical IDs fall from 125 to 34 (33 high, one
-critical); none of those 34 has an available fix. The current generator produced 231 pages for the
-same 12 fixtures. On the Mac, both the custom before/after pair and the school command before/after
-pair gave 24 document pairs / 462 page pairs with identical page counts, boxes, layout text, links
-and 96 DPI RGB pixels. On the Rock, the exact custom before/after images built natively and all 231
-page pairs were pixel-identical; three warm 69-page runs were effectively flat (3.60 s vs 3.68 s
-mean). Separate test containers and ports were used and the live stack was untouched. Evidence:
+critical); none of those 34 has an available fix. The same three topics and four deliverable types,
+generated from the current enriched JSON exports rather than the earlier 440-page snapshot, produced
+231 pages per image variant (the evidence records the input hashes). On the Mac, both the custom
+before/after pair and the school command before/after pair gave 24 document pairs / 462 page pairs
+with identical page counts, boxes, layout text, links and 96 DPI RGB pixels. On the Rock, the exact
+custom before/after images built natively and all 231 page pairs were pixel-identical; three warm
+69-page runs were effectively flat (3.60 s vs 3.68 s mean). Separate test containers and ports were
+used and the live stack was untouched. Evidence:
 [`evidence/gotenberg-9.3.0-hardening.json`](evidence/gotenberg-9.3.0-hardening.json).
 
 Same PR, small bumps: Next.js and `eslint-config-next` 16.4.6 (ordinary patch, no advisory),

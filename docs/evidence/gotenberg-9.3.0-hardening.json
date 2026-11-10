@@ -57,7 +57,13 @@
     }
   },
   "fixtures": {
-    "source_commit": "f83db61931566df6bde9252db552bd353ed43d7a",
+    "renderer_library_commit": "f83db61931566df6bde9252db552bd353ed43d7a",
+    "json_source": "Current enriched Desktop ares-json exports. These JSON bytes include later lesson-content/resource-link updates and are not byte-identical to the earlier 440-page evidence snapshot; their hashes below are the provenance for this run.",
+    "input_json_sha256": {
+      "essential_mathematics__grade_10__ss_1_2__indices.json": "b2fff16f926e32868ea10d438948fe894a2a85f2704e34a6036a55cd784b9b96",
+      "mathematics__grade_10__ss_3_1__trigonometry_i.json": "5a440c2138617a8a6d9a19c09f8f138fdae2741a169074d4082ec794661a6c6f",
+      "physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json": "4ccbd22aa1407de0ecec3f2c8cf2454bf44d9fbdbd96238264d19fe6d9fec121"
+    },
     "generation": "extractAresJson -> rawToBundle -> withRowIds -> bundleToAresData -> generateBundleDocx",
     "docx_sha256": {
       "indices-finalExplanation.docx": "7d6f9792abb35e06c57787755c15cb6c94cb5ebae6e6671d0271c3389060d3d9",
