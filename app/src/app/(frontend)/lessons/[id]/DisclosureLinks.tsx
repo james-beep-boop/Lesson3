@@ -10,6 +10,8 @@ import { useEffect } from 'react'
  *    in-page link (the sticky jump nav), including one to the hash already in the address bar, which
  *    fires no hashchange. The block is opened FIRST and then scrolled to, so it lands below the
  *    sticky toolbar (`scroll-margin-top` on `.doc-disclosure`) instead of as a closed heading.
+ *    The offset is the toolbar's MEASURED height (`--lesson-toolbar-h`), because the toolbar wraps
+ *    to one or two rows depending on the reader's role and the screen width.
  * 2. Opening a lesson by its title records `#lesson-n` with `replaceState`: no scroll jump and no new
  *    history entry. `EditActions` reads that hash, so Edit still lands on the lesson being read,
  *    which only the jump nav used to set.
@@ -17,13 +19,29 @@ import { useEffect } from 'react'
 export default function DisclosureLinks() {
   useEffect(() => {
     const openTarget = (hash: string, scroll: boolean) => {
-      const id = decodeURIComponent(hash.replace(/^#/, ''))
+      let id: string
+      try {
+        id = decodeURIComponent(hash.replace(/^#/, ''))
+      } catch {
+        return // a malformed fragment such as `#%` names no block; the lesson stays readable
+      }
       if (!id) return
       const el = document.getElementById(id)
       if (!(el instanceof HTMLDetailsElement) || !el.classList.contains('doc-disclosure')) return
       el.open = true
       if (scroll) el.scrollIntoView({ block: 'start' })
     }
+
+    // The sticky toolbar's real height, for `.doc-disclosure`'s scroll-margin: it wraps to a
+    // different number of rows by role and width, so no fixed offset clears it everywhere.
+    const toolbar = document.querySelector<HTMLElement>('.lesson-toolbar')
+    const root = document.documentElement
+    const measure = () => {
+      if (toolbar) root.style.setProperty('--lesson-toolbar-h', `${toolbar.offsetHeight}px`)
+    }
+    measure()
+    const observer = toolbar && 'ResizeObserver' in window ? new ResizeObserver(measure) : null
+    if (toolbar) observer?.observe(toolbar)
 
     openTarget(window.location.hash, true)
 
@@ -52,6 +70,8 @@ export default function DisclosureLinks() {
       window.removeEventListener('hashchange', onHashChange)
       document.removeEventListener('click', onClick)
       document.removeEventListener('toggle', onToggle, true)
+      observer?.disconnect()
+      root.style.removeProperty('--lesson-toolbar-h')
     }
   }, [])
   return null

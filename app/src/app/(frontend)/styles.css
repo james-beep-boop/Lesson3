@@ -1241,6 +1241,13 @@ details[open] > summary.strand-head::before {
 .doc-disclosure {
   scroll-margin-top: 6.5rem;
 }
+/* On the lesson page, clear the toolbar by its measured height (set by DisclosureLinks.tsx), plus a
+   little air. A plain Teacher's toolbar wraps to two rows on some phones, which a fixed 8rem did not
+   clear. (0-2-0) wins over both fixed rules, including the ≤640px one; they remain the fallback
+   before script runs. */
+.lesson .doc-disclosure {
+  scroll-margin-top: calc(var(--lesson-toolbar-h, 8rem) + 0.75rem);
+}
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
