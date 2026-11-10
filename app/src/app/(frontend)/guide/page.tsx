@@ -283,6 +283,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   separately to each teacher.
                 </p>
                 <p>
+                  On a phone held upright the button is hidden to keep the page uncluttered. Turn
+                  the phone sideways, or use a computer or tablet.
+                </p>
+                <p>
                   <a href="/guide?open=editing" target="_blank" rel="noopener noreferrer">
                     See what editing access lets you do
                   </a>

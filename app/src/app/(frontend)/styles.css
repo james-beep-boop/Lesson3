@@ -2676,3 +2676,14 @@ details[open] > summary.strand-head::before {
   flex-wrap: wrap;
   gap: var(--app-space-2);
 }
+
+/* Phones in portrait: no "Request editing access" on the lesson page (operator decision 2026-11-10).
+   Asking is a one-off and a phone is too small to edit on, so the row keeps PDF and Share on one line.
+   A teacher can still ask from a phone through Messages or the Welcome dialog's "Send a message", and
+   the button is back in landscape and on every wider screen. (0-2-0) beats `.btn`'s `display`
+   outright, so source order does not matter. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .btn.request-editing-btn {
+    display: none;
+  }
+}
