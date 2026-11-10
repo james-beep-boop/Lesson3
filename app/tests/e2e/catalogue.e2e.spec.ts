@@ -87,6 +87,8 @@ test.describe('Catalogue (/)', () => {
     })
 
     await loginAs(page, fx, 'teacher')
+    // Favorites have their own view since the 2026-11-10 interface refinement.
+    await page.getByRole('button', { name: 'My favorites', exact: true }).click()
     const pinnedRow = page.locator('.substrand-row', {
       hasText: `v${PINNED_SEMVER} (pinned)`,
     })

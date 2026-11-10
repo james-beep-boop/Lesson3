@@ -38,9 +38,13 @@ _Compare_ button.
   curriculum order.
 - **Search and filter:** use the search box to find a subject, grade, strand, or sub-strand, and use
   the grade checkboxes and subject dropdown to narrow the list. Select any number of grades, or
-  All for every grade. Search and filters work together.
+  All for every grade. Grades 10, 11 and 12 are always offered, even before a grade has plans.
+  Search and filters work together. Each strand can be folded with its heading.
+- **Pick up where you left off:** if you have unsaved work, the home page shows one link back to
+  it. _Your drafts_ in Manage lists all of it.
 - **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
-  keep that lesson in _My favorites_ at the top of the home page. Teachers see the current Official
+  keep that lesson in _My favorites_. Choose _My favorites_ above the list on the home page to see
+  them; search and filters apply there too. Teachers see the current Official
   version when one is promoted. With editing access, a favorite stays on the exact version you chose;
   ARES Lesson Plans marks it `vX (pinned)`. Favorites are private.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary

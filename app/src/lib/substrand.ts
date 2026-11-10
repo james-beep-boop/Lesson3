@@ -16,6 +16,47 @@ export const subjectGradeLabel = (subjectName: string, grade: number): string =>
   `${subjectName} · Grade ${grade}`
 
 /**
+ * Grades the catalogue always offers, even with no plans yet (operator decision 2026-11-10: Grade 12
+ * is coming soon and no other grades for a long while, so a hard-coded list beats a taxonomy setting).
+ */
+export const OFFERED_GRADES: readonly number[] = [10, 11, 12]
+
+/**
+ * The grade checkboxes: {@link OFFERED_GRADES} plus any grade the corpus actually holds, sorted. Taken
+ * from the WHOLE catalogue, never the filtered rows, so a choice does not vanish as filters change, and
+ * a plan uploaded at another grade can still be filtered to instead of only showing under All.
+ */
+export function gradeChoices(rows: readonly { grade: number | null }[]): number[] {
+  const set = new Set(OFFERED_GRADES)
+  for (const r of rows) if (r.grade != null) set.add(r.grade)
+  return [...set].sort((a, b) => a - b)
+}
+
+/**
+ * `?grade=10,12` → [10, 12], keeping only {@link gradeChoices}. The SAME list the checkboxes show,
+ * so `grade=12` stays selected with zero plans (and says so) instead of silently becoming All.
+ */
+export function parseGradeParam(raw: string, choices: readonly number[]): number[] {
+  return raw
+    .split(',')
+    .filter((g) => g.trim() !== '')
+    .map(Number)
+    .filter((g) => choices.includes(g))
+}
+
+/**
+ * The empty state when the selected grades (and subject) hold no plans at all, as opposed to a search
+ * or favorites view excluding plans that exist: "No Grade 12 Biology lesson plans are available yet."
+ * No date is promised.
+ */
+export function unavailableMessage(grades: readonly number[], subject: string): string {
+  const named = grades.map((g) => `Grade ${g}`)
+  const which =
+    named.length <= 1 ? (named[0] ?? '') : `${named.slice(0, -1).join(', ')} or ${named.at(-1)}`
+  return `No ${[which, subject].filter(Boolean).join(' ')} lesson plans are available yet.`
+}
+
+/**
  * The five fields the grouping/ordering/search functions below actually READ. Stated as its own
  * interface so a caller with a different row shape can reuse that logic instead of reimplementing it
  * — the Manage delete panel groups PLANS by the same curriculum tree the catalogue groups lessons by,
