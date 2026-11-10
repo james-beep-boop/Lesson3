@@ -13,7 +13,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Gotenberg 9.3.0, replacing 8.40.0 (the last 8.x release) in both PDF converter images: the internet
   server's image with Microsoft fonts and the school servers' LibreOffice-only image. Lesson3's
   conversion request is unchanged. Compared on 12 lesson-plan documents (440 pages per image type),
-  the PDFs are pixel-identical to 8.40.0; conversion was about 25% faster on a Mac.
+  the PDFs are pixel-identical to 8.40.0; conversion was about 25% faster on a Mac. On the Rock,
+  214 of 215 further pages were identical (one continued table row 2 px taller) and large plans
+  converted 15–20% faster.
+- Next.js 16.4.6, nodemailer 10.4.0, and build-only vite 7.3.8 and nanoid 3.3.20.
 
 ## v1.13 (2026-11-06)
 

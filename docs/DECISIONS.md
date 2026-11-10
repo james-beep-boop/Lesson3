@@ -30,7 +30,19 @@ all four images run LibreOffice 26.8.2.2. The same DOCX bytes for Physics, Indic
 rasters, comparing like image variants only. The pixel check was shown to detect an Arial vs Liberation
 render. The 69-page Trigonometry lesson sequence converted in 0.83 s vs 1.11 s (Arial image, mean of
 three, Mac). Evidence: [`evidence/gotenberg-9.3.0-comparison.json`](evidence/gotenberg-9.3.0-comparison.json).
-No render-version bump: the measured output is unchanged.
+On the Rock (arm64, production limits 1024m/2 CPUs, separate test containers on spare ports; the
+live stack untouched), main's and the branch's custom images both built (86 s / 92 s) with real Arial and
+LibreOffice 26.8.2.2. Five further documents (three from the Rock's own export folder, two upstream
+oracle lesson sequences) converted with identical page counts; 214 of 215 pages were pixel-identical.
+The exception: on page 20 of one locally exported lesson sequence, a table row continued from the
+previous page is 2 px taller, moving the rest of that page down 1–2 px; text and page breaks are
+unchanged and the result is deterministic across reruns. Large documents converted 15–20% faster
+(89 pages: 5.0 s vs 6.1 s) and peak memory was about 190 MiB vs 206 MiB. No render-version bump: a
+2 px split-row difference on one page is below what the September policy treats as a rendering change.
+
+Same PR, small bumps: Next.js and `eslint-config-next` 16.4.6 (ordinary patch, no advisory),
+nodemailer 10.4.0 (adds `close({ force: true })` for pooled connections; unused here), and the
+build/dev-only overrides vite 7.3.8 and postcss's nanoid 3.3.20.
 
 ## 2026-11-06 — Payload 3.93.0
 
