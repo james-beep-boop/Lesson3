@@ -186,19 +186,23 @@ describe('partitionLessonSequence and readingDisclosures — the lesson page blo
     expect(sh.overview + sh.lessons[0]!.html).toBe(shared)
   })
 
-  it('builds Overview, Lesson n · title, then the other documents, with a nav that matches the ids', () => {
+  it('builds Unit overview, Lesson n · title, then the other documents, with a nav that matches the ids', () => {
     const { disclosures, nav } = readingDisclosures([
       { label: 'Lesson Sequence', html: `<p>Doc</p>${header('1', 'Cells')}${header('2', '')}` },
       { label: 'Final Explanation', html: '<p>FE</p>' },
       { label: 'Summary Table', html: '<p>ST</p>' },
     ])
     expect(disclosures.map((d) => [d.id, d.title, d.lessonNumber])).toEqual([
-      ['doc-lesson-sequence', 'Overview', undefined],
+      ['doc-lesson-sequence', 'Unit overview', undefined],
       ['lesson-1', 'Lesson 1 · Cells', 1],
       ['lesson-2', 'Lesson 2', 2],
-      ['doc-final-explanation', 'Final Explanation', undefined],
-      ['doc-summary-table', 'Summary Table', undefined],
+      ['doc-final-explanation', 'Final explanation', undefined],
+      ['doc-summary-table', 'Summary table', undefined],
     ])
+    // The page's jump links: short "Overview", sentence-cased document names.
+    expect(nav.filter((i) => i.kind === 'section').map((i) => ('text' in i ? i.text : ''))).toEqual(
+      ['Overview', 'Final explanation', 'Summary table'],
+    )
     const ids = new Set(disclosures.map((d) => d.id))
     for (const item of nav) if ('href' in item) expect(ids.has(item.href.slice(1))).toBe(true)
     // The blocks carry the raw HTML: no injected ids to duplicate the block ids.

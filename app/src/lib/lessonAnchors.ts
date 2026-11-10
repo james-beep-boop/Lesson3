@@ -205,14 +205,16 @@ export function readingDisclosures(sections: { label: string; html: string }[]):
   const navSections: AnnotatedSection[] = []
   for (const s of sections) {
     if (s.label !== LESSON_SEQUENCE_LABEL) {
-      disclosures.push({ id: docSectionId(s.label), title: s.label, html: s.html })
+      disclosures.push({ id: docSectionId(s.label), title: sentenceCase(s.label), html: s.html })
       navSections.push({ label: s.label, html: '', anchors: [] })
       continue
     }
     const { overview, lessons } = partitionLessonSequence(s.html)
     // Always present, so the nav's Overview link has a target. Generated plans always open with the
     // sub-strand overview table; with no lesson headers at all the whole document lands here.
-    disclosures.push({ id: docSectionId(s.label), title: 'Overview', html: overview })
+    // Titled "Unit overview" to match the agreed preview (operator decision 2026-11-10); its jump
+    // link stays the shorter "Overview".
+    disclosures.push({ id: docSectionId(s.label), title: 'Unit overview', html: overview })
     for (const l of lessons)
       disclosures.push({
         id: l.anchor.id,
@@ -224,5 +226,15 @@ export function readingDisclosures(sections: { label: string; html: string }[]):
       })
     navSections.push({ label: s.label, html: '', anchors: lessons.map((l) => l.anchor) })
   }
-  return { disclosures, nav: docNavItems(navSections) }
+  // Sentence case on this page only ("Final explanation"), as in the agreed preview; the shared
+  // `docNavItems` keeps the generator's labels for Quick preview.
+  const nav = docNavItems(navSections).map((item) =>
+    item.kind === 'section' ? { ...item, text: sentenceCase(item.text) } : item,
+  )
+  return { disclosures, nav }
+}
+
+/** "Final Explanation" → "Final explanation". The labels are fixed English, so this is safe. */
+function sentenceCase(label: string): string {
+  return label.charAt(0) + label.slice(1).toLowerCase()
 }

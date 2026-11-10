@@ -11,6 +11,25 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Lesson page: one collapsed section per lesson
+
+Step 5 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint, and no
+parallel renderer: the blocks frame the same DOCX-derived HTML as before.
+
+- `readingDisclosures()` (`lib/lessonAnchors.ts`) partitions the cached Lesson Sequence HTML at the
+  outermost table of each lesson header that `annotateLessonAnchors` already recognises, per request,
+  on the lesson page only. Quick preview and Compare are unchanged.
+- Blocks, all native `<details>`, collapsed on arrival: Unit overview, "Lesson n · title" (or
+  "Lesson n" if the title is missing), Final explanation, Summary table. Reassembling the parts gives
+  back the original HTML byte for byte (unit-tested against the real generator).
+- `DisclosureLinks.tsx` opens the target of a jump link, an inbound `#lesson-n` or a hash change.
+  Opening a lesson by its title `replaceState`s `#lesson-n`, with no history entry and no scroll, so
+  Edit's handoff still lands on that lesson.
+- The sticky toolbar's scroll-margin now targets `.doc-disclosure` (and `.doc-section` for Compare).
+- The ▸/▾ markers use CSS alt text (`content: '▸' / ''`) so they stay out of accessible names; the same
+  fix applies to the catalogue's strand groups and the Details toggle.
+- Browser printing of the reading page is out of scope (see the print entry below).
+
 ## 2026-11-10 — Lesson header matches the agreed preview exactly (operator decision)
 
 David compared the step-4 build with the reviewed preview
