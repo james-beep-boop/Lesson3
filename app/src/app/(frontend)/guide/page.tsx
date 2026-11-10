@@ -132,7 +132,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     page.
                   </li>
                   <li>
-                    Find the lesson later in <em>My favorites</em> at the top of the home page.
+                    Find it later by choosing <em>My favorites</em> above the list on the home page.
                   </li>
                 </ol>
                 <p>

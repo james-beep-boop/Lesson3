@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Catalogue: offered grades, a favorites switch, open strand groups, one resume row
+
+Step 3 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint.
+
+- **Grades are `{10, 11, 12} ∪ grades in the data`** (`gradeChoices`, `OFFERED_GRADES` in
+  `lib/substrand.ts`). The checkboxes and the URL parser use the same list. `?grade=12` stays selected
+  with no Grade 12 plans and says "No Grade 12 lesson plans are available yet.", instead of silently
+  becoming All. A plan at another grade is still offered. Hard-coded by operator decision: Grade 12
+  is the only new grade expected for a long while.
+- **Two empty states, chosen by cause.** "Not available yet" only when the selected grades (and
+  subject) hold no plans at all. "No lesson plans match…" when search, favorites or filters exclude
+  plans that exist. No date is promised.
+- **All lesson plans / My favorites is a two-button switch with `aria-pressed`**, not ARIA tabs, so
+  no tab keyboard contract is needed. Filters and search apply to both. It is written to the URL as
+  `view=favorites` with the same 250 ms `replaceState`, so it adds no Back step. Favorites no longer
+  sit above the catalogue.
+- **Strand groups are native `<details open>`.** Folding lasts for the visit and is never stored
+  (SPEC §13). The catalogue is keyed by subject and grades, so a filter change re-opens every group
+  and a folded strand cannot hide what the new filter matched.
+- **One resume row** from `listUnsavedWork`, the helper behind Manage's "Your drafts". It is called
+  with a `createLocalReq({ user })`, so ownership, readable-source and editing-access checks are the
+  same, and it returns before any query for someone without editing access. The newest capture
+  links to Manage's exact-version route (`?edit=1`), labelled "Continue editing" or "Open to copy"
+  by `restorable`. Opening it changes nothing.
+
 ## 2026-11-10 — Sign-in page: two columns, approved wording, forum line only when the forum is on
 
 Step 2 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`, as in the reviewed preview. Desktop

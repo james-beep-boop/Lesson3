@@ -1,6 +1,7 @@
 import SchoolName from '@/components/SchoolName'
 import { schoolNameForRender } from '@/lib/systemFlags'
 import React from 'react'
+import { createLocalReq } from 'payload'
 
 import { requireUser } from '@/lib/session'
 import { startRenderTimings } from '@/lib/renderTimings'
@@ -12,6 +13,7 @@ import LibraryBrowser from './LibraryBrowser'
 import { lessonDisplayName, type LessonRow } from '@/lib/substrand'
 import { versionCountsByPlan } from '@/lib/versionCounts'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
+import { listUnsavedWork } from '@/lib/editRecovery/unsavedWork'
 
 /**
  * Lesson Plans — the one browse page shared by all roles (SPEC §13). Strand-first: subject-grade
@@ -22,7 +24,7 @@ import { findPersonalFavorites } from '@/lib/personalFavorites'
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; subject?: string; grade?: string }>
+  searchParams: Promise<{ q?: string; subject?: string; grade?: string; view?: string }>
 }) {
   // No-op unless RENDER_TIMINGS=1 (see lib/renderTimings.ts) — this render is the open perf question
   // after the 2026-08-03 double-render fix, and it must be measured before anything is denormalised.
@@ -32,6 +34,7 @@ export default async function BrowsePage({
   const q = (params.q ?? '').trim()
   const subject = (params.subject ?? '').trim()
   const grade = (params.grade ?? '').trim()
+  const view = (params.view ?? '').trim()
 
   // 1. Access-gated plans (every authenticated user reads all plans). We only need each plan's id +
   //    its Official version pointer; the listable content lives on that version.
@@ -50,20 +53,37 @@ export default async function BrowsePage({
   // version as history grows.
   // Timed individually, with no wrapper around the `Promise.all`: these start together, so the
   // barrier the render waits on is just the largest of the three — derivable, not worth an indent.
-  const [{ docs: plans }, { docs: favorites }, versionCountByPlan] = await Promise.all([
-    t.time('plans', () =>
-      payload.find({
-        collection: 'lesson-plans',
-        overrideAccess: false,
-        user,
-        depth: 0,
-        pagination: false,
-        select: { officialVersion: true },
-      }),
-    ),
-    t.time('favorites', () => findPersonalFavorites(payload, { user })),
-    t.time('versionCounts', () => versionCountsByPlan(payload)),
-  ])
+  // The fourth is the "Pick up where you left off" row: the caller's own unsaved work, through the
+  // SAME helper as Manage's "Your drafts", so ownership, expiry, readable-source and editing-access
+  // checks all apply. It returns before any query for someone with editing access nowhere.
+  const [{ docs: plans }, { docs: favorites }, versionCountByPlan, unsavedWork] = await Promise.all(
+    [
+      t.time('plans', () =>
+        payload.find({
+          collection: 'lesson-plans',
+          overrideAccess: false,
+          user,
+          depth: 0,
+          pagination: false,
+          select: { officialVersion: true },
+        }),
+      ),
+      t.time('favorites', () => findPersonalFavorites(payload, { user })),
+      t.time('versionCounts', () => versionCountsByPlan(payload)),
+      t.time('unsavedWork', async () =>
+        listUnsavedWork(await createLocalReq({ user }, payload), user),
+      ),
+    ],
+  )
+  // Newest first, as listed; one row only (plan §4). The link is Manage's exact-version continuation.
+  const newest = unsavedWork[0]
+  const resume = newest
+    ? {
+        label: newest.label,
+        href: `/admin/collections/lesson-bundle-versions/${newest.versionId}?edit=1`,
+        restorable: newest.restorable,
+      }
+    : null
   const officialIds = distinctIds(plans.map((p) => relId(p.officialVersion)))
 
   // version id → the caller's favorite row id (drives the star's filled state + DELETE target).
@@ -244,7 +264,8 @@ export default async function BrowsePage({
         rows={rows}
         pinnedRows={pinnedRows}
         favPairs={[...favByVersion]}
-        initial={{ q, subject, grade }}
+        initial={{ q, subject, grade, view }}
+        resume={resume}
       />
     </section>
   )
