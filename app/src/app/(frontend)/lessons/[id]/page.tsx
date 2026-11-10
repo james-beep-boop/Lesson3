@@ -61,7 +61,7 @@ export default async function LessonView({
   // access-gated list (lib/readBundle) — also the compare page's READ proof, so the visibility
   // rule lives in one place.
   // The forum switch rides along (the render's one reading, shared with the nav): it only decides
-  // whether the Share menu offers "Discuss this version".
+  // whether the Share menu offers "Start a forum discussion…".
   // Edit affordances (Stage 2b, working-copy model): teachers with editing access (and admins) for this plan's
   // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
   // Official pointer (Make Official). Known before the version list, so only they load its ancestry
@@ -86,7 +86,7 @@ export default async function LessonView({
       <article className="lesson">
         <PageHeader
           title={lessonDisplayName(official?.meta?.substrand_name, plan.title)}
-          actions={<PageBackLink href="/" label="Back to lesson plans" />}
+          actions={<PageBackLink href="/" label="Back to lesson plans" showLabel />}
         />
         <p className="muted">This version is no longer available.</p>
         {official && (

@@ -11,6 +11,20 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Wording: forum label, one useful empty-inbox step, Welcome mentions favorites
+
+Step 6 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint.
+
+- Share's "Discuss this version" is now **"Start a forum discussion…"**. The ellipsis is honest: it
+  opens the existing `/discuss/new?version=<viewed id>` composer, and nothing posts until the reader
+  submits. The version stays the one being viewed, never the Official pointer. Older comments that
+  describe past behaviour under the old label are left as written.
+- **An empty inbox suggests New message only when the roster has someone in it**; otherwise it says
+  messages will appear there. Other empty states were reviewed and left alone: the catalogue's were
+  done in step 3, Discuss already guides, and Manage and the editor have no dead ends.
+- The Teacher Welcome dialog adds one line about starring plans for My favorites. The Guide and
+  `USER_GUIDE.md` now place Compare under "Versions & details" on a lesson page.
+
 ## 2026-11-10 — Lesson page: one collapsed section per lesson
 
 Step 5 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint, and no

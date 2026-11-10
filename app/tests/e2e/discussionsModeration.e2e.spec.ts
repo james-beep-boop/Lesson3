@@ -57,7 +57,7 @@ test.describe('Discussion administration', () => {
     ).toHaveCount(0)
     await page.getByRole('button', { name: /^Share/ }).click()
     await expect(page.getByRole('link', { name: 'Message a colleague' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Discuss this version' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Start a forum discussion…' })).toHaveCount(0)
   })
 
   /** What the nav check would answer for this page's user right now. */

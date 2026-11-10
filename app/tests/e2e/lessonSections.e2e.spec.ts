@@ -80,6 +80,26 @@ for (const role of ['teacher', 'editor'] as const) {
   }
 }
 
+test('Teacher on a phone turned sideways: the wrapped toolbar is cleared, then the portrait one', async ({
+  page,
+}) => {
+  // Landscape shows Request editing access again, so the toolbar wraps to two rows; rotating back
+  // to portrait shrinks it. The measured offset must follow both.
+  await page.setViewportSize({ width: 390, height: 300 })
+  await loginAs(page, fx, 'teacher')
+  await page.goto(`${BASE}/lessons/${fx.plan.id}?version=${versionId}`)
+  await expect(page.getByRole('button', { name: 'Request editing access' })).toBeVisible()
+  await hydrated(page)
+  await page.locator('.doc-nav a[href="#lesson-7"]').click()
+  await expect(page.locator('#lesson-7')).toHaveAttribute('open', '')
+  await expect.poll(() => clearance(page, 'lesson-7')).toBeGreaterThanOrEqual(0)
+
+  await page.setViewportSize({ width: 390, height: 740 })
+  await page.locator('.doc-nav a[href="#lesson-3"]').click()
+  await expect(page.locator('#lesson-3')).toHaveAttribute('open', '')
+  await expect.poll(() => clearance(page, 'lesson-3')).toBeGreaterThanOrEqual(0)
+})
+
 test('a malformed fragment is ignored, on load and on a later hash change', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))

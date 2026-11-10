@@ -36,12 +36,16 @@ export default function DisclosureLinks() {
     // different number of rows by role and width, so no fixed offset clears it everywhere.
     const toolbar = document.querySelector<HTMLElement>('.lesson-toolbar')
     const root = document.documentElement
-    const measure = () => {
-      if (toolbar) root.style.setProperty('--lesson-toolbar-h', `${toolbar.offsetHeight}px`)
+    let observer: ResizeObserver | null = null
+    if (toolbar) {
+      const measure = () =>
+        root.style.setProperty('--lesson-toolbar-h', `${toolbar.offsetHeight}px`)
+      measure()
+      if ('ResizeObserver' in window) {
+        observer = new ResizeObserver(measure)
+        observer.observe(toolbar)
+      }
     }
-    measure()
-    const observer = toolbar && 'ResizeObserver' in window ? new ResizeObserver(measure) : null
-    if (toolbar) observer?.observe(toolbar)
 
     openTarget(window.location.hash, true)
 

@@ -10,6 +10,24 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Interface refinement (plan `docs/PLAN-interface-refinement-2026-11-10-revised.md`, six PRs):
+  - the brand mark on both headers, and the app version in the avatar menu;
+  - a two-column sign-in page reading "Good lessons. Ready to teach.", with the forum line only
+    when the forum is on;
+  - the catalogue: Grades 10–12 always offered, an All lesson plans / My favorites switch, open
+    strand groups, one "pick up where you left off" row;
+  - the lesson page, matching the agreed preview:
+    - a grey subject · grade label and "Lesson version 1.0.0 · Official";
+    - "Details" (or "Versions & details" for editors with a choice);
+    - PDF as the filled action, with download arrows on PDF and Word;
+    - "Back to lesson plans";
+  - each lesson in its own collapsed section;
+  - phones in portrait drop "Request editing access", so PDF and Share keep one row;
+  - Share's "Discuss this version" is now "Start a forum discussion…";
+  - an empty inbox suggests New message only when there is someone to write to;
+  - the Welcome dialog mentions My favorites.
+
+  No migration, endpoint or export change.
 - Gotenberg 9.3.0, replacing 8.40.0 (the last 8.x release) in both PDF converter images: the internet
   server's image with Microsoft fonts and the school servers' LibreOffice-only image. Lesson3's
   conversion request is unchanged. Compared on 12 lesson-plan documents (440 pages per image type),

@@ -26,6 +26,8 @@ function LoginIntro({
   schoolName: string | null
   children?: React.ReactNode
 }) {
+  // The school name, when set, is the page's h1; otherwise the headline is.
+  const Headline = schoolName ? 'p' : 'h1'
   return (
     <div className="login-intro">
       {schoolName ? (
@@ -33,19 +35,11 @@ function LoginIntro({
       ) : (
         <p className="login-kicker">For your classroom</p>
       )}
-      {schoolName ? (
-        <p className="login-headline">
-          Good lessons.
-          <br />
-          Ready to teach.
-        </p>
-      ) : (
-        <h1 className="login-headline">
-          Good lessons.
-          <br />
-          Ready to teach.
-        </h1>
-      )}
+      <Headline className="login-headline">
+        Good lessons.
+        <br />
+        Ready to teach.
+      </Headline>
       <p className="login-lead">Find, adapt, and download lesson plans for your classroom.</p>
       {children}
     </div>

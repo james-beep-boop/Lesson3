@@ -107,7 +107,7 @@ export type DocNavItem =
  * and numbered chips appear only when anchors matched) live in one place and cannot drift
  * between surfaces.
  */
-export function docNavItems(sections: AnnotatedSection[]): DocNavItem[] {
+export function docNavItems(sections: Pick<AnnotatedSection, 'label' | 'anchors'>[]): DocNavItem[] {
   const items: DocNavItem[] = []
   for (const s of sections) {
     const isSequence = s.label === LESSON_SEQUENCE_LABEL
@@ -202,11 +202,11 @@ export function readingDisclosures(sections: { label: string; html: string }[]):
   nav: DocNavItem[]
 } {
   const disclosures: ReadingDisclosure[] = []
-  const navSections: AnnotatedSection[] = []
+  const navSections: Pick<AnnotatedSection, 'label' | 'anchors'>[] = []
   for (const s of sections) {
     if (s.label !== LESSON_SEQUENCE_LABEL) {
       disclosures.push({ id: docSectionId(s.label), title: sentenceCase(s.label), html: s.html })
-      navSections.push({ label: s.label, html: '', anchors: [] })
+      navSections.push({ label: s.label, anchors: [] })
       continue
     }
     const { overview, lessons } = partitionLessonSequence(s.html)
@@ -224,7 +224,7 @@ export function readingDisclosures(sections: { label: string; html: string }[]):
         html: l.html,
         lessonNumber: l.anchor.number,
       })
-    navSections.push({ label: s.label, html: '', anchors: lessons.map((l) => l.anchor) })
+    navSections.push({ label: s.label, anchors: lessons.map((l) => l.anchor) })
   }
   // Sentence case on this page only ("Final explanation"), as in the agreed preview; the shared
   // `docNavItems` keeps the generator's labels for Quick preview.

@@ -13,7 +13,8 @@ import Link from 'next/link'
  * `next/link` would buy no speed and only risk the admin router mishandling the cross-root hop.
  * Same appearance (shared `--app-btn-*` tokens), fastest correct navigation per surface.
  *
- * The VISIBLE label is always the single word "Back" (operator decision 2026-07-30): it was the
+ * The VISIBLE label is the single word "Back" (operator decision 2026-07-30), except on the lesson
+ * page, which shows "Back to lesson plans" via `showLabel` (operator decision 2026-11-10). It was the
  * widest control in a narrow action bar, and its old 16px/600 treatment made it read heavier than
  * everything beside it. The destination moves into `aria-label`, where it is still announced — the
  * two surfaces go to different places ("Back to lesson plans" vs "Back to lesson"), and that

@@ -258,9 +258,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   remove a prefilled reference before posting.
                 </p>
                 <p>
-                  From a lesson page, <em>Share → Discuss this version</em> opens a discussion with
-                  that version already attached. <em>Compare changes</em> appears when its source
-                  version is still available. If the referenced version is deleted, its label
+                  From a lesson page, <em>Share → Start a forum discussion…</em> opens a discussion
+                  with that version already attached. <em>Compare changes</em> appears when its
+                  source version is still available. If the referenced version is deleted, its label
                   remains with no link to another version.
                 </p>
               </GuideAccordionPanel>
@@ -359,10 +359,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 title="Find a saved version or compare versions"
               >
                 <p>
-                  The <em>N versions</em> panel on library rows and lesson pages lists saved
-                  versions, newest first, with Official at the top. Each row shows its author, date,
-                  and favorite star. Choose <em>Compare</em> when more than one version is
-                  available.
+                  The <em>N versions</em> panel on library rows lists saved versions, newest first,
+                  with Official at the top. Each row shows its author, date, and favorite star. On a
+                  lesson page, open <em>Versions &amp; details</em> for the same list and{' '}
+                  <em>Compare</em>; it appears when more than one version is available.
                 </p>
               </GuideAccordionPanel>
             )}

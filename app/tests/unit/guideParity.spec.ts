@@ -104,7 +104,7 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'immutable posts and administrator thread deletion',
     claim: 'Posts cannot be edited. Only a Site administrator can delete a thread',
   },
-  { what: 'the version discussion entry point', claim: 'Discuss this version' },
+  { what: 'the version discussion entry point', claim: 'Start a forum discussion…' },
   { what: 'the after-save discussion entry point', claim: 'Post about these changes' },
   // SPEC §5 Drafts (2026-10-17): the retention a teacher plans around, stated identically on both.
   {

@@ -245,15 +245,20 @@ a {
   font-weight: 700;
   margin: 0 0 1rem;
 }
-/* The short blue title accent (operator decision 2026-11-10: kept, it costs no space). */
-.lp-title::after {
+/* The short blue title accent (operator decision 2026-11-10: kept, it costs no space). One shape
+   for the catalogue, sign-in and lesson titles; each sets only its own margin. */
+.lp-title::after,
+.login-headline::after,
+.lesson .page-heading h1::after {
   content: '';
   display: block;
   width: 2.6rem;
   height: 3px;
-  margin-top: 0.6rem;
   border-radius: 2px;
   background: var(--accent);
+}
+.lp-title::after {
+  margin-top: 0.6rem;
 }
 /* Search, Subject and Grades on one row on desktop; they wrap onto their own lines on phones. */
 .lp-controls {
@@ -268,7 +273,7 @@ a {
   margin: 0;
 }
 .lp-controls .lp-search input {
-  min-height: 44px;
+  min-height: var(--app-btn-touch-min-height);
 }
 /* Let the filters shrink to the row. A native select is as wide as its longest option, and a flex
    item's automatic minimum width would otherwise let a long subject name push the page sideways on
@@ -298,7 +303,7 @@ a {
   gap: 1.25rem;
 }
 .lp-views__option {
-  min-height: 44px;
+  min-height: var(--app-btn-touch-min-height);
   padding: 0 0.1rem;
   border: none;
   border-bottom: 2px solid transparent;
@@ -403,28 +408,44 @@ summary.strand-head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 44px;
+  min-height: var(--app-btn-touch-min-height);
   margin: 0;
   padding: 0 0.75rem;
   border-top: 1px solid var(--line);
   background: var(--bg-soft);
   cursor: pointer;
+}
+/* ONE ▸/▾ marker for the three text disclosures added on 2026-11-10: strand groups, the lesson
+   page's Details and its document sections. `/ ''` gives the marker empty alt text, so a screen
+   reader names the group, not "▾ Strand 1"; the first `content` is the fallback for browsers without
+   alt text. Each block sets only its own colour and spacing. */
+summary.strand-head,
+.lesson-details summary,
+.doc-disclosure__title {
   list-style: none;
 }
-summary.strand-head::-webkit-details-marker {
+summary.strand-head::-webkit-details-marker,
+.lesson-details summary::-webkit-details-marker,
+.doc-disclosure__title::-webkit-details-marker {
   display: none;
 }
-/* `/ ''` gives the marker empty alt text, so a screen reader names the group, not "▾ Strand 1".
-   The first `content` is the fallback for browsers without alt text. */
-summary.strand-head::before {
+summary.strand-head::before,
+.lesson-details summary::before,
+.doc-disclosure__title::before {
   content: '▸';
   content: '▸' / '';
-  color: var(--muted);
+  flex-shrink: 0;
   font-size: 0.85em;
 }
-details[open] > summary.strand-head::before {
+details[open] > summary.strand-head::before,
+.lesson-details[open] > summary::before,
+.doc-disclosure[open] > .doc-disclosure__title::before {
   content: '▾';
   content: '▾' / '';
+}
+summary.strand-head::before,
+.doc-disclosure__title::before {
+  color: var(--muted);
 }
 
 .substrand-list {
@@ -484,26 +505,14 @@ details[open] > summary.strand-head::before {
 .substrand-main .doc-buttons {
   flex-shrink: 0;
 }
-/* The lesson page's action-bar pair (`variant="toolbar"`, 2026-08-30). Full-size `.btn` comes from
-   the component; what this adds is that the pair reads as part of `.export-bar` rather than as a
-   tight catalogue-row grouping — the bar's own 0.6rem gap — and that it OPENS the output group, so
-   it carries that group's hairline divider (moved off `.share-wrap`, which used to lead the group;
-   its rule below records why the declarations were deleted there rather than overridden).
-   ⚑ NOT "matching the editor bar's `--output` divider" — the comment this replaced said that, and
-   `custom.scss` says the editor's lifecycle|output divider went away with the single-row layout it
-   separated. The live convention it does share is the editor bar's GROUPS; the hairline is this
-   bar's own. Do not restore a citation to a rule that is gone. */
+/* The lesson page's action-bar pair (`variant="toolbar"`, the only user). Full-size `.btn` comes
+   from the component; the bar's own 0.6rem gap makes the pair read as part of `.export-bar`. Since
+   the interface refinement (2026-11-10) the output group (PDF · Word · Share) sits at the right of
+   the action row, so the space between the groups divides them; the hairline divider it used to
+   carry is gone. */
 .doc-buttons--toolbar {
   gap: 0.6rem;
-  padding-left: 0.6rem;
-  border-left: 1px solid var(--line);
-}
-/* Interface refinement 2026-11-10: the output group (PDF · Word · Share) sits at the right of the
-   action row, so the space between the groups divides them and the hairline goes. */
-.lesson-toolbar .doc-buttons.doc-buttons--toolbar {
   margin-left: auto;
-  padding-left: 0;
-  border-left: none;
 }
 
 /* D4's neutral-until-hover download pills are now `.btn--quiet.btn--compact` — the shared button
@@ -855,10 +864,6 @@ details[open] > summary.strand-head::before {
   color: var(--muted);
   margin: 0.35rem 0 1.5rem;
 }
-/* What the site is for, directly under its name and above the credit line (operator, 2026-10-27). */
-.login-tagline {
-  margin-bottom: 0;
-}
 .login-links {
   display: flex;
   gap: 1.25rem;
@@ -986,13 +991,7 @@ details[open] > summary.strand-head::before {
   color: var(--ink);
 }
 .login-headline::after {
-  content: '';
-  display: block;
-  width: 2.6rem;
-  height: 3px;
   margin: 0.9rem 0 1rem;
-  border-radius: 2px;
-  background: var(--accent);
 }
 .login-lead {
   max-width: 22rem;
@@ -1119,15 +1118,9 @@ details[open] > summary.strand-head::before {
   color: var(--muted);
   font-size: 0.95rem;
 }
-/* The lesson title carries the same short blue accent as the catalogue's. */
+/* The lesson title carries the same short blue accent as the catalogue's (shape at `.lp-title`). */
 .lesson .page-heading h1::after {
-  content: '';
-  display: block;
-  width: 2.6rem;
-  height: 3px;
   margin: 0.6rem 0 0.75rem;
-  border-radius: 2px;
-  background: var(--accent);
 }
 
 /* "Details" / "Versions & details": a quiet text disclosure under the version line (interface
@@ -1139,24 +1132,10 @@ details[open] > summary.strand-head::before {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  min-height: 44px;
+  min-height: var(--app-btn-touch-min-height);
   color: var(--accent);
   font-size: var(--app-secondary-size);
   cursor: pointer;
-  list-style: none;
-}
-.lesson-details summary::-webkit-details-marker {
-  display: none;
-}
-.lesson-details summary::before {
-  /* The '/ ""' alt text keeps the marker out of the toggle's accessible name. */
-  content: '▸';
-  content: '▸' / '';
-  font-size: 0.85em;
-}
-.lesson-details[open] summary::before {
-  content: '▾';
-  content: '▾' / '';
 }
 .lesson-details summary:hover {
   text-decoration: underline;
@@ -1234,18 +1213,15 @@ details[open] > summary.strand-head::before {
   text-align: center;
   border: 1px solid var(--line);
 }
-/* Land jump targets below the sticky toolbar, not underneath it. The lesson page's targets are the
-   `.doc-disclosure` blocks themselves (step 5, 2026-11-10); the ids used to sit on a paragraph inside
-   `.doc-preview`, which no page emits any more. `.doc-section` is the Compare page's. */
-.doc-section,
-.doc-disclosure {
+/* Land jump targets below the sticky toolbar, not underneath it. `.doc-section` is the Compare
+   page's. */
+.doc-section {
   scroll-margin-top: 6.5rem;
 }
-/* On the lesson page, clear the toolbar by its measured height (set by DisclosureLinks.tsx), plus a
-   little air. A plain Teacher's toolbar wraps to two rows on some phones, which a fixed 8rem did not
-   clear. (0-2-0) wins over both fixed rules, including the ≤640px one; they remain the fallback
-   before script runs. */
-.lesson .doc-disclosure {
+/* The lesson page's targets are its `.doc-disclosure` blocks (step 5, 2026-11-10). They clear the
+   toolbar by its MEASURED height (set by DisclosureLinks.tsx), plus a little air, because the toolbar
+   wraps to one or two rows by role and width; 8rem is the fallback before script runs. */
+.doc-disclosure {
   scroll-margin-top: calc(var(--lesson-toolbar-h, 8rem) + 0.75rem);
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -1540,32 +1516,16 @@ details[open] > summary.strand-head::before {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  min-height: 44px;
+  min-height: var(--app-btn-touch-min-height);
   padding: 0.6rem 0.9rem;
   background: var(--bg-soft);
   border-radius: var(--radius);
   font-weight: 600;
   cursor: pointer;
-  list-style: none;
-}
-.doc-disclosure__title::-webkit-details-marker {
-  display: none;
-}
-.doc-disclosure__title::before {
-  /* The '/ ""' alt text keeps the marker out of the lesson title's accessible name. */
-  content: '▸';
-  content: '▸' / '';
-  flex-shrink: 0;
-  color: var(--muted);
-  font-size: 0.85em;
 }
 .doc-disclosure[open] > .doc-disclosure__title {
   border-bottom: 1px solid var(--line);
   border-radius: var(--radius) var(--radius) 0 0;
-}
-.doc-disclosure[open] > .doc-disclosure__title::before {
-  content: '▾';
-  content: '▾' / '';
 }
 .doc-disclosure > .doc-preview {
   padding: 0.9rem;
@@ -2261,16 +2221,6 @@ details[open] > summary.strand-head::before {
   .export-bar {
     row-gap: 0.5rem;
   }
-  /* ⚑ THIS RESET FOLLOWED THE DIVIDER off `.share-wrap` on 2026-08-30 — it is the same rule this
-     block always carried, repointed, not a second one.
-     ⚑ SPECIFICITY, NOT ORDER: `.doc-buttons.doc-buttons--toolbar` is (0-2-0) and beats the base
-     `.doc-buttons--toolbar` (0-1-0) outright. Written as a bare `.doc-buttons--toolbar` it would
-     merely TIE and win on source position — the failure mode `buttonSystem.spec.ts` was written
-     after, and the one that already shipped the phone Word rule inert. */
-  .doc-buttons.doc-buttons--toolbar {
-    padding-left: 0;
-    border-left: none;
-  }
 
   /* Inside the sticky lesson toolbar the JUMP NAV stays ONE row and scrolls sideways — a wrapped
      multi-row nav would eat a phone viewport. Jump links keep the 44px touch bar. The right-edge
@@ -2303,8 +2253,7 @@ details[open] > summary.strand-head::before {
     align-items: center;
     min-height: 2.75rem;
   }
-  .doc-section,
-  .doc-disclosure {
+  .doc-section {
     scroll-margin-top: 8rem;
   }
   /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers.

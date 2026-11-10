@@ -67,12 +67,14 @@ test.describe('Discussions', () => {
     await fx?.teardown()
   })
 
-  test('Discuss this version starts a discussion that references the version', async ({ page }) => {
+  test('Share → Start a forum discussion… opens a discussion that references the version', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 360, height: 800 })
     await loginAs(page, fx, 'teacher')
     await page.goto(`${BASE}/lessons/${fx.plan.id}?version=${saved.id}`)
     await page.getByRole('button', { name: /^Share/ }).click()
-    await page.getByRole('link', { name: 'Discuss this version' }).click()
+    await page.getByRole('link', { name: 'Start a forum discussion…' }).click()
     await page.waitForURL(new RegExp(`/discuss/new\\?version=${saved.id}$`))
     await expect(page.getByText('Lesson reference:')).toBeVisible()
 
@@ -370,7 +372,7 @@ test.describe('Discussions', () => {
       await expect(primaryNav(page).getByRole('link', { name: /^Discuss/ })).toHaveCount(0)
       await page.getByRole('button', { name: /^Share/ }).click()
       await expect(page.getByRole('link', { name: 'Message a colleague' })).toBeVisible()
-      await expect(page.getByRole('link', { name: 'Discuss this version' })).toHaveCount(0)
+      await expect(page.getByRole('link', { name: 'Start a forum discussion…' })).toHaveCount(0)
     } finally {
       await setForumEnabled(fx.payload, true)
     }
