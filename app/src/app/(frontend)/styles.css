@@ -406,13 +406,17 @@ summary.strand-head {
 summary.strand-head::-webkit-details-marker {
   display: none;
 }
+/* `/ ''` gives the marker empty alt text, so a screen reader names the group, not "▾ Strand 1".
+   The first `content` is the fallback for browsers without alt text. */
 summary.strand-head::before {
   content: '▸';
+  content: '▸' / '';
   color: var(--muted);
   font-size: 0.85em;
 }
 details[open] > summary.strand-head::before {
   content: '▾';
+  content: '▾' / '';
 }
 
 .substrand-list {
