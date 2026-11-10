@@ -10,6 +10,8 @@ import {
   annotateSections,
   docNavItems,
   docSectionId,
+  partitionLessonSequence,
+  readingDisclosures,
 } from '@/lib/lessonAnchors'
 import { renderBundlePreview } from '@/generator/previewBundle'
 import { STORED_NULL_LINKS } from '../helpers/nullResourceLinks'
@@ -138,5 +140,72 @@ describe('drift guard: real generator → mammoth output still carries matchable
     expect(anchors.map((a) => a.number)).toEqual([1, 2])
     // Titles survive the escape → decode round-trip.
     expect(anchors[0]!.title).toBe("Cells & 'Transport'")
+
+    // The lesson page's blocks split the REAL document at top-level tables and lose nothing.
+    const { overview, lessons } = partitionLessonSequence(sequence!.html)
+    expect(lessons.map((l) => l.anchor.number)).toEqual([1, 2])
+    expect(overview + lessons.map((l) => l.html).join('')).toBe(sequence!.html)
+    for (const l of lessons) {
+      expect(l.html.startsWith('<table')).toBe(true)
+      expect(l.html.match(/<table\b/g)?.length).toBe(l.html.match(/<\/table>/g)?.length)
+    }
+    expect(lessons[0]!.html).toContain('LESSON 1 (40 min)')
+    expect(lessons[0]!.html).not.toContain('LESSON 2 (40 min)')
+  })
+})
+
+describe('partitionLessonSequence and readingDisclosures — the lesson page blocks', () => {
+  const nested = (n: string, title: string) =>
+    `<table><tbody><tr><td><p><strong>LESSON ${n} (40 min): ${title}</strong></p><table><tbody><tr><td>inner</td></tr></tbody></table></td></tr></tbody></table><table><tbody><tr><td>body ${n}</td></tr></tbody></table>`
+
+  it('splits at the outermost table of each header and reassembles the input exactly', () => {
+    const html = `<p>Doc</p><table><tbody><tr><td>overview</td></tr></tbody></table>${nested('1', 'A')}${nested('2', 'B &amp; C')}`
+    const { overview, lessons } = partitionLessonSequence(html)
+    expect(overview).toBe('<p>Doc</p><table><tbody><tr><td>overview</td></tr></tbody></table>')
+    expect(lessons.map((l) => l.anchor)).toEqual([
+      { id: 'lesson-1', number: 1, title: 'A' },
+      { id: 'lesson-2', number: 2, title: 'B & C' },
+    ])
+    expect(lessons[0]!.html).toContain('body 1')
+    expect(lessons[0]!.html).not.toContain('LESSON 2')
+    expect(overview + lessons.map((l) => l.html).join('')).toBe(html)
+  })
+
+  it('handles zero lessons, duplicate numbers and two headers in one table without losing HTML', () => {
+    const none = '<p>No lessons here</p>'
+    expect(partitionLessonSequence(none)).toEqual({ overview: none, lessons: [] })
+
+    const dup = header('3', 'One') + header('3', 'Two')
+    const d = partitionLessonSequence(dup)
+    expect(d.lessons.map((l) => l.anchor.number)).toEqual([3])
+    expect(d.overview + d.lessons[0]!.html).toBe(dup)
+
+    const shared = `<table><tbody><tr><td><p><strong>LESSON 1 (40 min): A</strong></p></td></tr><tr><td><p><strong>LESSON 2 (40 min): B</strong></p></td></tr></tbody></table>`
+    const sh = partitionLessonSequence(shared)
+    expect(sh.lessons.map((l) => l.anchor.number)).toEqual([1])
+    expect(sh.overview + sh.lessons[0]!.html).toBe(shared)
+  })
+
+  it('builds Unit overview, Lesson n · title, then the other documents, with a nav that matches the ids', () => {
+    const { disclosures, nav } = readingDisclosures([
+      { label: 'Lesson Sequence', html: `<p>Doc</p>${header('1', 'Cells')}${header('2', '')}` },
+      { label: 'Final Explanation', html: '<p>FE</p>' },
+      { label: 'Summary Table', html: '<p>ST</p>' },
+    ])
+    expect(disclosures.map((d) => [d.id, d.title, d.lessonNumber])).toEqual([
+      ['doc-lesson-sequence', 'Unit overview', undefined],
+      ['lesson-1', 'Lesson 1 · Cells', 1],
+      ['lesson-2', 'Lesson 2', 2],
+      ['doc-final-explanation', 'Final explanation', undefined],
+      ['doc-summary-table', 'Summary table', undefined],
+    ])
+    // The page's jump links: short "Overview", sentence-cased document names.
+    expect(nav.filter((i) => i.kind === 'section').map((i) => ('text' in i ? i.text : ''))).toEqual(
+      ['Overview', 'Final explanation', 'Summary table'],
+    )
+    const ids = new Set(disclosures.map((d) => d.id))
+    for (const item of nav) if ('href' in item) expect(ids.has(item.href.slice(1))).toBe(true)
+    // The blocks carry the raw HTML: no injected ids to duplicate the block ids.
+    expect(disclosures.some((d) => d.html.includes('id="lesson-'))).toBe(false)
   })
 })

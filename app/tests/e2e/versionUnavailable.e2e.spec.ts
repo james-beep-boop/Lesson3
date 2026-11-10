@@ -7,8 +7,8 @@
  * now says so and renders no content. These specs drive the real pages, because the regression this
  * guards against is silent: a fallback renders a perfectly good-looking lesson.
  *
- * ⚑ THE LOAD-BEARING ASSERTIONS are the NEGATIVE ones — no `.doc-section` and no `.compare-grid` on a
- * notice page. The notice text alone would pass against a page that printed it above the substituted
+ * ⚑ THE LOAD-BEARING ASSERTIONS are the NEGATIVE ones — no `.doc-disclosure` (the lesson page's
+ * document blocks since 2026-11-10), no `.doc-section` and no `.compare-grid` on a notice page. The notice text alone would pass against a page that printed it above the substituted
  * content.
  *
  * Runs exactly like `catalogue.e2e.spec.ts` — see `manage.e2e.spec.ts`'s header.
@@ -64,6 +64,7 @@ test.describe('Missing-version notice', () => {
     await expect(page.getByText(LESSON_NOTICE)).toBeVisible()
     // Not the Official version underneath: no rendered document, no version meta line.
     await expect(page.locator('.doc-section')).toHaveCount(0)
+    await expect(page.locator('.doc-disclosure')).toHaveCount(0)
     await expect(page.locator('.lesson-context')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Open the Official version' })).toHaveAttribute(
       'href',
@@ -76,6 +77,7 @@ test.describe('Missing-version notice', () => {
     await page.goto(`${BASE}/lessons/${fx.plan.id}?version=not-an-id`)
     await expect(page.getByText(LESSON_NOTICE)).toBeVisible()
     await expect(page.locator('.doc-section')).toHaveCount(0)
+    await expect(page.locator('.doc-disclosure')).toHaveCount(0)
   })
 
   test('lesson page: no version asked for still opens the Official version', async ({ page }) => {
@@ -83,14 +85,14 @@ test.describe('Missing-version notice', () => {
     await page.goto(`${BASE}/lessons/${fx.plan.id}`)
     await expect(page.getByText(LESSON_NOTICE)).toHaveCount(0)
     await expect(page.locator('.lesson-context')).toContainText('Official')
-    await expect(page.locator('.doc-section').first()).toBeVisible()
+    await expect(page.locator('.doc-disclosure').first()).toBeVisible()
   })
 
   test('lesson page: an existing version is shown as asked', async ({ page }) => {
     await loginAs(page, fx, 'teacher')
     await page.goto(`${BASE}/lessons/${fx.plan.id}?version=${fx.version.id}`)
     await expect(page.getByText(LESSON_NOTICE)).toHaveCount(0)
-    await expect(page.locator('.doc-section').first()).toBeVisible()
+    await expect(page.locator('.doc-disclosure').first()).toBeVisible()
   })
 
   test('compare page: a deleted side is stated, with no substitute comparison — even with one version left', async ({

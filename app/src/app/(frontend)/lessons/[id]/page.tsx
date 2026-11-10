@@ -10,7 +10,8 @@ import { resolveRequestedVersion } from '@/lib/requestedVersion'
 import { lessonDisplayName } from '@/lib/substrand'
 import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
 import { type PreviewSection } from '@/generator/previewBundle'
-import { annotateSections, docNavItems, docSectionId } from '@/lib/lessonAnchors'
+import { readingDisclosures } from '@/lib/lessonAnchors'
+import DisclosureLinks from './DisclosureLinks'
 import EditActions from './EditActions'
 import { hasUnsavedWork } from '@/lib/editRecovery/kernel'
 import ShareMenu from './ShareMenu'
@@ -161,11 +162,12 @@ export default async function LessonView({
     viewError = 'Could not render this lesson.'
   }
 
-  // In-page navigation (critique 2026-07-12): inject per-lesson anchor ids into the Lesson
-  // Sequence HTML (post-cache string transform — the cached entry itself is untouched). The nav
-  // items come from the shared cross-surface model so this page and the preview page can't drift.
-  const annotatedSections = annotateSections(sections)
-  const navItems = docNavItems(annotatedSections)
+  // The reading page opens as a table of contents (interface refinement 2026-11-10, step 5; the
+  // August accordion design): Overview, Lesson 1…n by their real titles, Final Explanation and Summary
+  // Table, each a closed `<details>` around its slice of the generated document. A per-request split
+  // of the cached HTML, on THIS page only: Quick preview and Compare keep their own layouts, and the
+  // cache entry is untouched. The jump nav is built from the same split, so every chip has a target.
+  const { disclosures, nav: navItems } = readingDisclosures(sections)
 
   return (
     <article className="lesson">
@@ -297,12 +299,15 @@ export default async function LessonView({
       {viewError ? (
         <p className="muted">{viewError}</p>
       ) : (
-        annotatedSections.map((s) => (
-          <section key={s.label} id={docSectionId(s.label)} className="doc-section">
-            <h2 className="doc-section-title">{s.label}</h2>
-            <div className="doc-preview" dangerouslySetInnerHTML={{ __html: s.html }} />
-          </section>
-        ))
+        <div className="doc-disclosures">
+          {disclosures.map((d) => (
+            <details key={d.id} id={d.id} className="doc-disclosure" data-lesson={d.lessonNumber}>
+              <summary className="doc-disclosure__title">{d.title}</summary>
+              <div className="doc-preview" dangerouslySetInnerHTML={{ __html: d.html }} />
+            </details>
+          ))}
+          <DisclosureLinks />
+        </div>
       )}
     </article>
   )

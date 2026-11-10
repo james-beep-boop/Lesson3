@@ -130,3 +130,111 @@ export function docNavItems(sections: AnnotatedSection[]): DocNavItem[] {
   }
   return items
 }
+
+/** One collapsible block on the lesson page: an id to link to, a title, and its DOCX-derived HTML. */
+export interface ReadingDisclosure {
+  id: string
+  title: string
+  html: string
+  /** Set for a lesson block: the edit handoff remembers the lesson a reader opened (`#lesson-n`). */
+  lessonNumber?: number
+}
+
+/**
+ * Split the Lesson Sequence HTML at lesson boundaries (interface refinement 2026-11-10, step 5;
+ * `docs/DESIGN-read-page-accordion-2026-08-29.md` §4). A lesson begins at the TOP-LEVEL table whose
+ * first row is its `LESSON n (…): title` header, so the split happens at that table's `<table`, never
+ * inside it. Everything before the first lesson is the overview.
+ *
+ * ⚑ NOTHING IS ADDED OR LOST: the chunks concatenate back to the input exactly (pinned by
+ * `lessonAnchors.spec.ts`). This frames the generated document; it is not a second renderer. The same
+ * header pattern and the same keep-the-first rule for duplicate numbers as {@link annotateLessonAnchors},
+ * so the jump nav and the blocks agree. Two headers inside one table (malformed) cannot be split
+ * apart, so the second stays inside the first's block and gets no block or nav chip of its own.
+ */
+export function partitionLessonSequence(html: string): {
+  overview: string
+  lessons: { anchor: LessonAnchor; html: string }[]
+} {
+  // Outermost open <table> at each position, by walking the table tags once.
+  const tableTags = [...html.matchAll(/<table\b|<\/table>/g)]
+  const outermostTableStartAt = (index: number): number => {
+    let depth = 0
+    let start = index
+    for (const t of tableTags) {
+      if ((t.index ?? 0) >= index) break
+      if (t[0] === '</table>') depth = Math.max(0, depth - 1)
+      else {
+        if (depth === 0) start = t.index ?? index
+        depth++
+      }
+    }
+    return depth > 0 ? start : index
+  }
+
+  const cuts: { at: number; anchor: LessonAnchor }[] = []
+  const seen = new Set<number>()
+  for (const m of html.matchAll(LESSON_HEADER)) {
+    const number = Number(m[1])
+    if (seen.has(number)) continue
+    seen.add(number)
+    const at = outermostTableStartAt(m.index ?? 0)
+    if (cuts.length > 0 && at <= cuts[cuts.length - 1].at) continue
+    cuts.push({ at, anchor: { id: `lesson-${number}`, number, title: decodeEntities(m[3]) } })
+  }
+
+  return {
+    overview: html.slice(0, cuts[0]?.at ?? html.length),
+    lessons: cuts.map((c, i) => ({
+      anchor: c.anchor,
+      html: html.slice(c.at, cuts[i + 1]?.at ?? html.length),
+    })),
+  }
+}
+
+/**
+ * The lesson page's collapsible blocks, in document order: Overview, Lesson 1…n, then the other
+ * documents, plus the matching jump-nav model. A per-request transform on the cached HTML, used ONLY
+ * by the lesson page: Quick preview and Compare keep `annotateSections` and their own layouts.
+ */
+export function readingDisclosures(sections: { label: string; html: string }[]): {
+  disclosures: ReadingDisclosure[]
+  nav: DocNavItem[]
+} {
+  const disclosures: ReadingDisclosure[] = []
+  const navSections: AnnotatedSection[] = []
+  for (const s of sections) {
+    if (s.label !== LESSON_SEQUENCE_LABEL) {
+      disclosures.push({ id: docSectionId(s.label), title: sentenceCase(s.label), html: s.html })
+      navSections.push({ label: s.label, html: '', anchors: [] })
+      continue
+    }
+    const { overview, lessons } = partitionLessonSequence(s.html)
+    // Always present, so the nav's Overview link has a target. Generated plans always open with the
+    // sub-strand overview table; with no lesson headers at all the whole document lands here.
+    // Titled "Unit overview" to match the agreed preview (operator decision 2026-11-10); its jump
+    // link stays the shorter "Overview".
+    disclosures.push({ id: docSectionId(s.label), title: 'Unit overview', html: overview })
+    for (const l of lessons)
+      disclosures.push({
+        id: l.anchor.id,
+        title: l.anchor.title
+          ? `Lesson ${l.anchor.number} · ${l.anchor.title}`
+          : `Lesson ${l.anchor.number}`,
+        html: l.html,
+        lessonNumber: l.anchor.number,
+      })
+    navSections.push({ label: s.label, html: '', anchors: lessons.map((l) => l.anchor) })
+  }
+  // Sentence case on this page only ("Final explanation"), as in the agreed preview; the shared
+  // `docNavItems` keeps the generator's labels for Quick preview.
+  const nav = docNavItems(navSections).map((item) =>
+    item.kind === 'section' ? { ...item, text: sentenceCase(item.text) } : item,
+  )
+  return { disclosures, nav }
+}
+
+/** "Final Explanation" → "Final explanation". The labels are fixed English, so this is safe. */
+function sentenceCase(label: string): string {
+  return label.charAt(0) + label.slice(1).toLowerCase()
+}
