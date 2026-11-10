@@ -8,19 +8,21 @@
 # closes the visible table-height gap (three-way Liberation/Arial/Word render comparison).
 #
 # `ttf-mscorefonts-installer` (Debian `contrib`) downloads the fonts after accepting Microsoft's EULA
-# non-interactively at build time. We deliberately do not vendor the font files; redistribution rights
-# remain a separate legal question. Build needs outbound network (SourceForge) once per image build.
+# non-interactively in a build-only stage. We deliberately do not vendor the font files in the repo;
+# redistribution rights remain a separate legal question. Build needs outbound network (SourceForge)
+# once per image build. The final image contains only the unchanged font files, not the installer,
+# wget or cabextract.
 #
 # Supply-chain pinning (Codex 2026-07-05 #8): the base image is pinned by its multi-arch INDEX
 # digest (covers amd64 for CI and arm64 for the Rock/Macs) and the font installer package by exact
 # version, so `docker build` cannot silently pick up a different upstream. Both pins fail LOUDLY
 # when upstream moves (Debian archives drop superseded package versions) — that build error is the
 # deliberate re-pin moment, not a bug. To re-pin:
-#   docker buildx imagetools inspect gotenberg/gotenberg:9   → new index digest ("Digest:" line)
+#   docker buildx imagetools inspect gotenberg/gotenberg:9.3.0-libreoffice → index digest
 #   apt-cache policy ttf-mscorefonts-installer (in the new base, contrib enabled) → new version
-# Resolved 2026-11-10: digest = Gotenberg 9.3.0; installer 3.8.1. The font
-# binaries themselves are Microsoft's frozen cab files — the installer verifies their checksums.
-FROM gotenberg/gotenberg:9.3.0@sha256:04eaccf4c512167381c8084dfc35e3cda4dd7e8ea605e5fd9fcf3bd83917566c
+# Resolved 2026-11-10: digest = Gotenberg 9.3.0 LibreOffice-only; installer 3.8.1. The font binaries
+# themselves are Microsoft's frozen cab files — the installer verifies their checksums.
+FROM gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042 AS fonts
 
 USER root
 RUN set -eux; \
@@ -46,7 +48,21 @@ RUN set -eux; \
     # substitutes Liberation Sans and shifts table row heights vs Word).
     dpkg -s ttf-mscorefonts-installer | grep -q '^Status: install ok installed'; \
     fc-cache -f; \
-    fc-list | grep -qi arial; \
-    apt-get clean; \
-    rm -rf /var/lib/apt/lists/*
+    fc-list | grep -qi arial
+
+# Lesson3 never calls Chromium. Starting from the LibreOffice-only image removes that browser and its
+# dependency tree rather than merely making the routes unreachable. The build tools stay behind in the
+# `fonts` stage; copying the downloaded, unmodified fonts preserves the existing build-on-the-box policy.
+FROM gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042
+
+USER root
+COPY --from=fonts /usr/share/fonts/truetype/msttcorefonts/ /usr/share/fonts/truetype/msttcorefonts/
+RUN set -eux; \
+    fc-cache -f; \
+    fc-match Arial | grep -q '^Arial.ttf:'; \
+    if command -v wget >/dev/null 2>&1; then echo 'wget leaked into the runtime image' >&2; exit 1; fi; \
+    if command -v cabextract >/dev/null 2>&1; then echo 'cabextract leaked into the runtime image' >&2; exit 1; fi; \
+    if dpkg-query -s ttf-mscorefonts-installer >/dev/null 2>&1; then \
+      echo 'ttf-mscorefonts-installer leaked into the runtime image' >&2; exit 1; \
+    fi
 USER gotenberg

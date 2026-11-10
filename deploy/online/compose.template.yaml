@@ -52,6 +52,10 @@ services:
     command:
       - gotenberg
       - --api-timeout=120s
+      - --api-disable-download-from=true
+      - --webhook-disable=true
+      - --pdf-disable-routes=true
+      - --pdf-disable-stages=true
     mem_limit: 1024m
     cpus: 2.0
 

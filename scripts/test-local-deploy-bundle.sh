@@ -43,6 +43,18 @@ grep -Eq "lesson3-migrate:v0\\.0\\.0@$migrate_digest" "$BUNDLE/compose.yaml" \
   || fail "migrate tag or digest missing"
 ! grep -Eq '^[[:space:]]+build:' "$BUNDLE/compose.yaml" \
   || fail "release compose builds on the server"
+grep -Fq 'gotenberg/gotenberg:9.3.0-libreoffice@sha256:7b8061d5b45416a6d2ccb1506745d8cc15ab95aaa2b993a34a1e4f97aaf35042' \
+  "$BUNDLE/compose.yaml" || fail "release bundle does not pin the reviewed LibreOffice-only image"
+for flag in \
+  '--api-disable-download-from=true' \
+  '--webhook-disable=true' \
+  '--pdf-disable-routes=true' \
+  '--pdf-disable-stages=true'; do
+  grep -Fq -- "$flag" "$BUNDLE/compose.yaml" \
+    || fail "release bundle omits Gotenberg hardening flag $flag"
+done
+! grep -Fq -- '--chromium-' "$BUNDLE/compose.yaml" \
+  || fail "release bundle configures Chromium in a LibreOffice-only image"
 
 for helper in "$ROOT/scripts/lib/"backup-*.sh; do
   cmp "$helper" "$BUNDLE/scripts/lib/${helper##*/}" || fail "backup helper $helper was not packaged"
