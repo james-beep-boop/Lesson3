@@ -86,7 +86,7 @@ export default async function LessonView({
       <article className="lesson">
         <PageHeader
           title={lessonDisplayName(official?.meta?.substrand_name, plan.title)}
-          actions={<PageBackLink href="/" label="Back to lesson plans" />}
+          actions={<PageBackLink href="/" label="Back to lesson plans" showLabel />}
         />
         <p className="muted">This version is no longer available.</p>
         {official && (
