@@ -144,4 +144,23 @@ test.describe('Catalogue (/)', () => {
       }
     }
   })
+
+  test('phone portrait: no Request editing access, PDF and Share share one row; landscape keeps it', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    const request = page.getByRole('button', { name: 'Request editing access' })
+    const pdf = page.getByRole('button', { name: 'PDF', exact: true })
+    const share = page.getByRole('button', { name: /^Share/ })
+    await expect(pdf).toBeVisible()
+    await expect(share).toBeVisible()
+    await expect(request).toBeHidden()
+    const [p, s] = [await pdf.boundingBox(), await share.boundingBox()]
+    expect(Math.abs(p!.y - s!.y), 'PDF and Share on one row').toBeLessThan(4)
+
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect(request).toBeVisible()
+  })
 })

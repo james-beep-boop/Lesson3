@@ -25,6 +25,11 @@ details exactly, knowingly reversing three earlier choices. This applies to the 
 - **"Lesson version 1.0.0 · Official"** replaces "Version 1.0.0 · Official" in the line under the title.
 - **PDF and Word carry a download arrow** (decorative inline SVG, `aria-hidden`), at David's request.
   Catalogue download pills stay text-only.
+- **Phones in portrait hide "Request editing access"** (operator decision 2026-11-10): asking is a
+  one-off and a phone is too small to edit on, so PDF and Share keep one row. Landscape and wider
+  screens still show it; Messages and the Welcome dialog remain a route from a phone. PDF stays a
+  visible button on phones (not moved into Share), because it is what teachers come for; Word stays
+  hidden there as before.
 - Step 5's first section is titled **"Unit overview"** (the jump link still says "Overview"), and the
   lesson page's jump links read "Final explanation" / "Summary table" in sentence case.
 

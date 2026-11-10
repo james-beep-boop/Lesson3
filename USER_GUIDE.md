@@ -73,7 +73,8 @@ _Compare_ button.
   when the site can send email.
 - **Want to edit?** use _Request editing access_ on a lesson page. ARES Lesson Plans notifies the administrators
   for that subject and grade. You can request access once a day for each subject and grade. The
-  limit applies separately to each teacher.
+  limit applies separately to each teacher. On a phone held upright the button is hidden; turn the
+  phone sideways, or use a computer or tablet.
 - **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to anyone
   with an ARES Lesson Plans account — a lesson page's _Share → Message a colleague_ item attaches that lesson
   to your note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
