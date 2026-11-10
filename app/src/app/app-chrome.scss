@@ -20,6 +20,24 @@
  * surfaces paint this menu identically.
  */
 
+/* The product wordmark's vertical blue mark (interface refinement 2026-11-10), on BOTH headers: the
+   frontend's and the admin's `.brand` each keep their own type rules and take the mark from here, so
+   the two cannot drift. A pseudo-element, not markup: it is decoration, and it stays out of the link's
+   accessible name and its hover underline. Literal px, like every other cross-surface metric. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+.brand::before {
+  content: '';
+  flex-shrink: 0;
+  width: 5px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--app-accent);
+}
+
 .app-nav {
   display: flex;
   align-items: center;
@@ -221,6 +239,16 @@ button.user-menu__item {
 }
 .user-menu__logout:hover {
   text-decoration: underline;
+}
+/* The application's own version, at the foot of the menu (interface refinement 2026-11-10). Quiet
+   and inert — information, not an item — so no divider-and-hover treatment like the rows above it,
+   just a hairline and the smallest secondary size. */
+.user-menu__version {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--app-border);
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
 }
 
 @media (max-width: 640px) {

@@ -4,6 +4,7 @@ import config from '@payload-config'
 
 import { canUseAdminPanel, userTypeLabel } from '../../access'
 import { resolveAccessSummary } from '../../lib/accessScopes'
+import { appVersionLabel, currentAppVersion } from '../../lib/appVersion'
 import { hasUnread } from '../../lib/discussions'
 import { schoolNameForRender, systemFlagsForRender } from '../../lib/systemFlags'
 import SchoolName from '../SchoolName'
@@ -97,6 +98,7 @@ export async function AppNav({
         loginName={user.email}
         unread={unread}
         userId={user.id}
+        appVersion={appVersionLabel(currentAppVersion())}
       />
     </nav>
   )

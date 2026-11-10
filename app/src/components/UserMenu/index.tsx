@@ -14,7 +14,10 @@ import { DisplayNameForm } from './DisplayNameForm'
  *          longer a type: an editor-only user shows "Teacher" plus an "Editing access:" line.
  *   next:  the login name (email)
  *   then:  "Messages" (with the unread count) — moved here from the top nav
- *   last:  "Log Out"
+ *   then:  "Log Out"
+ *   foot:  the application version, quiet ("ARES Lesson Plans · Version 1.14"), from the same source
+ *          as the sign-in page and the Guide footer. It is the SOFTWARE's version — a lesson plan's
+ *          own version ("Version 1.0.0") belongs to the lesson page, never here.
  *
  * Shared by BOTH surfaces (frontend header + admin header) so they match exactly; each surface only
  * supplies the theme colors for the shared `.user-menu*` classes. Logout clears the shared auth cookie
@@ -29,6 +32,7 @@ export function UserMenu({
   loginName,
   unread,
   userId,
+  appVersion,
 }: {
   schoolName?: React.ReactNode
   typeLabel: UserTypeLabel
@@ -43,6 +47,9 @@ export function UserMenu({
   unread: number
   /** The signed-in user's id — the PATCH target for the display-name edit. */
   userId: number
+  /** Finished application-version label (`appVersionLabel`), computed on the server: the release
+   *  environment is not readable in this client component. */
+  appVersion: string
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -122,6 +129,7 @@ export function UserMenu({
           <button type="button" className="user-menu__logout" onClick={onLogout}>
             Log Out
           </button>
+          <div className="user-menu__version">ARES Lesson Plans · {appVersion}</div>
         </div>
       )}
     </div>
