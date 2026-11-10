@@ -1210,9 +1210,11 @@ details[open] > summary.strand-head::before {
   text-align: center;
   border: 1px solid var(--line);
 }
-/* Land jump targets below the sticky toolbar, not underneath it. */
+/* Land jump targets below the sticky toolbar, not underneath it. The lesson page's targets are the
+   `.doc-disclosure` blocks themselves (step 5, 2026-11-10); the ids used to sit on a paragraph inside
+   `.doc-preview`, which no page emits any more. `.doc-section` is the Compare page's. */
 .doc-section,
-.doc-preview [id^='lesson-'] {
+.doc-disclosure {
   scroll-margin-top: 6.5rem;
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -1487,7 +1489,55 @@ details[open] > summary.strand-head::before {
   color: var(--app-btn-disabled-ink);
 }
 
-/* Each of the three documents (Lesson Sequence / Final Explanation / Summary Table). */
+/* The lesson page as a table of contents (interface refinement 2026-11-10, step 5): one closed block
+   per part of the generated document, titled with the lesson's real title. Native <details>, so it
+   works with the keyboard and without script; DisclosureLinks.tsx only opens linked targets. */
+.doc-disclosures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.doc-disclosure {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.doc-disclosure__title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  background: var(--bg-soft);
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.doc-disclosure__title::-webkit-details-marker {
+  display: none;
+}
+.doc-disclosure__title::before {
+  /* The '/ ""' alt text keeps the marker out of the lesson title's accessible name. */
+  content: '▸';
+  content: '▸' / '';
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+.doc-disclosure[open] > .doc-disclosure__title {
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.doc-disclosure[open] > .doc-disclosure__title::before {
+  content: '▾';
+  content: '▾' / '';
+}
+.doc-disclosure > .doc-preview {
+  padding: 0.9rem;
+}
+
+/* Each of the three documents on the Compare page (Lesson Sequence / Final Explanation / Summary
+   Table). */
 .doc-section + .doc-section {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
@@ -2219,7 +2269,7 @@ details[open] > summary.strand-head::before {
     min-height: 2.75rem;
   }
   .doc-section,
-  .doc-preview [id^='lesson-'] {
+  .doc-disclosure {
     scroll-margin-top: 8rem;
   }
   /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers.
