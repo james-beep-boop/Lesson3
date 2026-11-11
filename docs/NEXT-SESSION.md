@@ -24,7 +24,7 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 ---
 
-# Release v1.15 — 2026-11-10
+# Release v1.15 — 2026-11-11
 
 Everything merged since v1.14 (main `d5217a4`) plus this release note:
 
@@ -33,6 +33,8 @@ Everything merged since v1.14 (main `d5217a4`) plus this release note:
   brand mark and version in the header, the two-column sign-in page, the catalogue switch and open
   strand groups, the lesson page matching the agreed preview with one collapsed section per lesson,
   phone-portrait toolbar, and wording fixes. No migration, endpoint or export change.
+- **Phone fixes** (#502), found on a real phone before tagging: Share menu stays on screen,
+  catalogue rows with a versions chip wrap in order, Role notes chart draws groups as siblings.
 
 v1.14 (2026-11-10) was tagged at `d5217a4` with Gotenberg 9.3.0 and small bumps (#493); its CHANGELOG
 heading was added with this release. **Not deployed.** On the next deploy: the Gotenberg sidecar
