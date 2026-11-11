@@ -2426,6 +2426,14 @@ summary.strand-head::before,
   .fav-toggle--label-mobile .fav-toggle__label {
     display: inline;
   }
+  /* The star lines up with the text around it, not the edge of its own touch box: the 0.6rem
+     padding above is pulled back out on both sides, so on a wrapped catalogue line "☆ Favorite"
+     starts under "12 lessons", and the word sits the same 1rem from its neighbours as every other
+     control in the row (reported from a phone 2026-11-11). Margin only, so the 44px target and its
+     hit area are unchanged; the boxes stay 0.4rem apart. */
+  .substrand-actions .fav-toggle.fav-toggle--label-mobile:not(.btn) {
+    margin-inline: -0.6rem;
+  }
   /* (Compare joins the 44px touch bar through the shared `.btn` rule above.) */
 
   /* ⚑ NO WORD DOWNLOADS ON A PHONE (operator decision 2026-08-29). Not a size compromise — the
