@@ -24,6 +24,13 @@ Chromium. Both the custom Arial image (both stages) and the school-tier image ar
 (via 10.4.1): address/domain and header-encoding fixes, DKIM `d=` encoding (unused here), and an
 `AbortSignal` option for sends; no security advisory.
 
+Rendering check on the Rock (arm64, production command and limits, separate test containers on spare
+ports; the live stack untouched): main's 9.3.0 custom image and this branch's 9.4.0 image both select
+real Arial. 18 DOCX (six Biology Chemicals of Life deliverables from the Rock's export folder and the
+twelve upstream oracle deliverables for Physics, Indices and Trigonometry I at `f83db61`) gave 308 page
+pairs with identical page counts, boxes, `pdftotext -layout`, links and 96 DPI rasters. The 69-page
+Trigonometry lesson sequence converted at the same speed (about 3.8 s on both). No render-version bump.
+
 ## 2026-11-10 — Phone fixes after v1.15: Share opens leftwards, catalogue rows wrap in order, roles chart is a tree
 
 Three defects in the interface refinement, reported from a phone. No migration, no endpoint.
