@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-11 — Gotenberg 9.4.0, nodemailer 10.5.0
+
+Operator-approved patch round before the first school installs. Gotenberg 9.4.0 (released 2026-11-10)
+lists no security fixes; it is taken for reliability: a LibreOffice process killed after a timeout is
+restarted immediately rather than on the next request, so `/health` stops reporting it down in the
+meantime. Its other LibreOffice change (documents with no page size default to A4 again, as in 8.x)
+does not apply: generated lesson-plan DOCX set their page size. The remaining changes (a `position`
+option on PDF stamp routes, a Chromium cookie 400) touch routes Lesson3 disables or images without
+Chromium. Both the custom Arial image (both stages) and the school-tier image are re-pinned to
+`9.4.0-libreoffice@sha256:4f870050…`; the hardening flags are unchanged.
+
+nodemailer 10.4.0 → 10.5.0 includes two **moderate security fixes** from 10.4.1, both published
+2026-11-10 and both affecting 10.4.0: [GHSA-3q53-mvfw-q9v8](https://github.com/nodemailer/nodemailer/security/advisories/GHSA-3q53-mvfw-q9v8)
+(addressparser truncated a domain at whitespace or a comment before a dot, so the SMTP envelope
+recipient could differ from the address another parser reads) and
+[GHSA-2g53-87p2-4qq8](https://github.com/nodemailer/nodemailer/security/advisories/GHSA-2g53-87p2-4qq8)
+(the domain was lowercased before UTS-46 mapping, so `ẞ`/`Σ` domains could pass an allow-list as one
+domain and be sent to another). Lesson3's exposure is small: recipients are stored account addresses,
+not free-typed strings checked against an allow-list. 10.5.0 itself adds header/DKIM encoding fixes
+and an `AbortSignal` send option.
+
+⚑ **Correction (2026-11-11, from review):** the first version of this entry, and the 2026-11-10
+dependency report, said nodemailer 10.4.1/10.5.0 carried "no security advisory". The upstream
+CHANGELOG lists the fixes only as bug fixes, and `npm audit` did not yet report the advisories, so
+both checks missed them. **Rule: on every dependency round, also read the package's GitHub Security
+Advisories page for each version being skipped or taken; a CHANGELOG "Bug Fixes" heading and a clean
+`npm audit` do not establish that a release has no security content.**
+
+Rendering check on the Rock (arm64, production command and limits, separate test containers on spare
+ports; the live stack untouched): main's 9.3.0 custom image and this branch's 9.4.0 image both select
+real Arial. 18 DOCX (six Biology Chemicals of Life deliverables from the Rock's export folder and the
+twelve upstream oracle deliverables for Physics, Indices and Trigonometry I at `f83db61`) gave 308 page
+pairs with identical page counts, boxes, `pdftotext -layout`, links and 96 DPI rasters. The 69-page
+Trigonometry lesson sequence converted at the same speed (about 3.8 s on both). A second, independent
+run on a Mac (12 DOCX generated through Lesson3 from upstream JSON at `f83db61`, custom Arial and stock
+school images separately, production flags and limits) gave 24 PDF pairs / 440 page pairs, all
+identical; both versions run LibreOffice 26.8.2.2. No render-version bump.
+
 ## 2026-11-10 — Phone fixes after v1.15: Share opens leftwards, catalogue rows wrap in order, roles chart is a tree
 
 Three defects in the interface refinement, reported from a phone. No migration, no endpoint.
