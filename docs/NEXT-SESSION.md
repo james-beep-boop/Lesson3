@@ -35,10 +35,12 @@ Everything merged since v1.14 (main `d5217a4`) plus this release note:
   phone-portrait toolbar, and wording fixes. No migration, endpoint or export change.
 - **Phone fixes** (#502), found on a real phone before tagging: Share menu stays on screen,
   catalogue rows with a versions chip wrap in order, Role notes chart draws groups as siblings.
+- **Gotenberg 9.4.0 and nodemailer 10.5.0** (#503): LibreOffice restarts at once after a timeout
+  kill; nodemailer includes two moderate security fixes from 10.4.1 (GHSA-3q53-mvfw-q9v8,
+  GHSA-2g53-87p2-4qq8). PDFs pixel-identical to 9.3.0 on the Rock and a Mac.
 
 v1.14 (2026-11-10) was tagged at `d5217a4` with Gotenberg 9.3.0 and small bumps (#493); its CHANGELOG
-heading was added with this release. **Not tagged yet** (David, 2026-11-11: no tag for now; tag the
-merge of #502 or later when asked). **Not deployed.** On the next deploy: the Gotenberg sidecar
+heading was added with this release. Tagged after #503 merged (David, 2026-11-11). **Not deployed.** On the next deploy: the Gotenberg sidecar
 rebuilds (download one PDF to check), v1.13's two migrations run if not yet deployed, sign in once,
 and check the lesson page on a real phone in portrait and landscape.
 Deferred from the v1.15 simplify pass: a shared helper for the editor-link logic.
