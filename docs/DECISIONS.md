@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-10 — Phone fixes after v1.15: Share opens leftwards, catalogue rows wrap in order, roles chart is a tree
+
+Three defects in the interface refinement, reported from a phone. No migration, no endpoint.
+
+- **Share ▾ ran off the right of the screen.** Step 4 moved the output group (PDF · Word · Share) to
+  the right of the action row, but `.share-menu` still hung from the button's *left* edge. It now
+  hangs from the right edge and opens leftwards, with a max-width inside a phone's gutters.
+  `ShareMenu.tsx` measures the panel before paint and flips it to `--rightward` if the row wraps and
+  Share lands at the start of a line. Pinned by `tests/unit/shareMenuPlacement.spec.tsx`.
+- **A catalogue card with a versions chip was jumbled on a phone.** The indent under the name was a
+  margin on `.substrand-count`, so only the line the count started on was indented; the chip pushed
+  the star to a third line flush with the card's edge. Now `.substrand-main` pads every line and the
+  title link alone reaches back over the number column, and the star and PDF/Word sit in one
+  `.substrand-actions` group so they wrap together. Desktop rows are unchanged.
+- **The Role notes chart read as a chain of command on a phone.** Stacked groups each hung from a
+  centred drop below the previous group, so Chemistry Grade 11's administrator looked like it
+  reported to Chemistry Grade 10's. Narrow widths now draw an indented tree: one spine from the Site
+  administrator with a branch and arrow into each group, so the groups are visibly siblings.
+
+**Lessons, as rules:**
+- When a control moves to the other end of its row, check what is anchored to it: popovers, menus,
+  and anything positioned from an edge.
+- An indent on a wrapping flex line belongs on the container (padding), not on whichever child
+  happens to start the first line.
+- A container query cannot style its own container. Custom properties for the narrow layout go on a
+  descendant (`.roles-chart__tree`), or every `calc()` that uses them is silently invalid.
+- In a stacked tree, siblings need a shared parent line. A straight drop from one group to the next
+  says "reports to".
+
 ## 2026-11-10 — Wording: forum label, one useful empty-inbox step, Welcome mentions favorites
 
 Step 6 of `docs/PLAN-interface-refinement-2026-11-10-revised.md`. No migration, no endpoint.

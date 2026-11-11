@@ -422,17 +422,23 @@ function SubstrandRow({
             )}
           </span>
         )}
+        {/* ⚑ THE STAR AND THE DOWNLOADS WRAP AS ONE UNIT. On a phone the title line wraps, and as
+            loose siblings they broke wherever the width ran out: with a versions chip the star fell
+            to the start of a third line, out of line with everything above it (reported
+            2026-11-10). Grouped, they share one line and move together. */}
         {row.versionId != null && (
-          <FavoriteToggle
-            versionId={row.versionId}
-            favoriteId={favByVersion.get(row.versionId) ?? null}
-            labelOnMobile
-          />
-        )}
-        {/* Row redesign (Option B, 2026-07-14): the primary Lesson plan's PDF/Word sit inline on
-            the title line — one-click download next to the (now clearly-linked) name. */}
-        {row.versionId != null && row.deliverables?.includes(PRIMARY_DELIVERABLE) && (
-          <DocButtons versionId={row.versionId} tag={PRIMARY_DELIVERABLE} />
+          <span className="substrand-actions">
+            <FavoriteToggle
+              versionId={row.versionId}
+              favoriteId={favByVersion.get(row.versionId) ?? null}
+              labelOnMobile
+            />
+            {/* Row redesign (Option B, 2026-07-14): the primary Lesson plan's PDF/Word sit inline on
+                the title line — one-click download next to the (now clearly-linked) name. */}
+            {row.deliverables?.includes(PRIMARY_DELIVERABLE) && (
+              <DocButtons versionId={row.versionId} tag={PRIMARY_DELIVERABLE} />
+            )}
+          </span>
         )}
       </div>
       {/* Secondary documents (Final explanation / Summary table) fold behind a disclosure below;

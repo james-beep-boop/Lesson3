@@ -10,7 +10,12 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
-## v1.15 (2026-11-10)
+## v1.15 (2026-11-11)
+
+- Phone fixes found before the tag (PR #502):
+  - the lesson page's Share menu opens leftwards, so it stays on screen;
+  - catalogue cards with a versions chip line up under the plan name;
+  - the Role notes chart shows the subject-grade groups as siblings under the Site administrator.
 
 - The Guide's Role notes, and `USER_GUIDE.md`, open with a chart of what each role can do (PR #494).
 - Interface refinement (plan `docs/PLAN-interface-refinement-2026-11-10-revised.md`, six PRs):
