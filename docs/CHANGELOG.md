@@ -10,6 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Gotenberg 9.4.0 (LibreOffice-only base, both image types). A LibreOffice process killed after a
+  conversion timeout now restarts at once instead of on the next request, so the PDF service recovers
+  sooner. Documents that set no page size now default to A4 again; lesson plans set their own size.
+- nodemailer 10.5.0: email header and domain encoding fixes.
+
 ## v1.15 (2026-11-11)
 
 - Phone fixes found before the tag (PR #502):

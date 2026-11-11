@@ -11,6 +11,19 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-11 — Gotenberg 9.4.0, nodemailer 10.5.0
+
+Operator-approved patch round before the first school installs. Gotenberg 9.4.0 (released 2026-11-10)
+lists no security fixes; it is taken for reliability: a LibreOffice process killed after a timeout is
+restarted immediately rather than on the next request, so `/health` stops reporting it down in the
+meantime. Its other LibreOffice change (documents with no page size default to A4 again, as in 8.x)
+does not apply: generated lesson-plan DOCX set their page size. The remaining changes (a `position`
+option on PDF stamp routes, a Chromium cookie 400) touch routes Lesson3 disables or images without
+Chromium. Both the custom Arial image (both stages) and the school-tier image are re-pinned to
+`9.4.0-libreoffice@sha256:4f870050…`; the hardening flags are unchanged. nodemailer 10.4.0 → 10.5.0
+(via 10.4.1): address/domain and header-encoding fixes, DKIM `d=` encoding (unused here), and an
+`AbortSignal` option for sends; no security advisory.
+
 ## 2026-11-10 — Phone fixes after v1.15: Share opens leftwards, catalogue rows wrap in order, roles chart is a tree
 
 Three defects in the interface refinement, reported from a phone. No migration, no endpoint.
