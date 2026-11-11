@@ -2135,6 +2135,20 @@ summary.strand-head::before,
   .roles-chart .roles-chart__box--admin::before {
     display: none;
   }
+  /* The indent costs each panel ~1.75rem, and two 9rem teachers side by side no longer fit at 320px:
+     the row spilled out of its panel, over the spine, and scrolled the page sideways (review of
+     #502). Capped at the panel, the row and its boxes shrink below 9rem only when they must, so
+     wider phones keep the 9rem boxes and the teachers stay side by side under their bus. */
+  .roles-chart__teachers {
+    max-width: 100%;
+  }
+  .roles-chart__teacher {
+    min-width: 0;
+  }
+  .roles-chart__box--teacher,
+  .roles-chart__box--admin {
+    max-width: 100%;
+  }
 }
 .guide code {
   padding: 0.05rem 0.25rem;
