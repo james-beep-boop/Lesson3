@@ -37,7 +37,8 @@ Everything merged since v1.14 (main `d5217a4`) plus this release note:
   catalogue rows with a versions chip wrap in order, Role notes chart draws groups as siblings.
 
 v1.14 (2026-11-10) was tagged at `d5217a4` with Gotenberg 9.3.0 and small bumps (#493); its CHANGELOG
-heading was added with this release. **Not deployed.** On the next deploy: the Gotenberg sidecar
+heading was added with this release. **Not tagged yet** (David, 2026-11-11: no tag for now; tag the
+merge of #502 or later when asked). **Not deployed.** On the next deploy: the Gotenberg sidecar
 rebuilds (download one PDF to check), v1.13's two migrations run if not yet deployed, sign in once,
 and check the lesson page on a real phone in portrait and landscape.
 Deferred from the v1.15 simplify pass: a shared helper for the editor-link logic.
