@@ -19,7 +19,7 @@ audit. The first Knip run lacked project entry points and its findings were not 
 The configured follow-up, dispositions and limitations are in [first-pass/README.md](first-pass/README.md).
 
 Keep the repository report short. Full coverage, packets, reviewer notes, original execution plan,
-verification snapshots and raw scan data remain on the [evidence branch](https://github.com/james-beep-boop/Lesson3/tree/review/simplification-v1.10-evidence), not in this PR's
+verification snapshots and raw scan data remain on the [evidence archive tag](https://github.com/james-beep-boop/Lesson3/tree/archive/simplification-v1.10-evidence), not in this PR's
 proposed main-tree changes. Links there preserve the detailed record without importing 8,500 lines.
 
 ## Cleanup PRs
