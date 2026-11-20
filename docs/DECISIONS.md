@@ -33,6 +33,15 @@ minifier's renames are mapped (`Xb`→`Zb` useRef, `t2`→`l2`, `Yb`→`Jb`, `CL
 3.93.0 bundle after renaming. The strings, and the four names the behaviour spec hard-codes, were
 re-derived by that mapping alone; the behaviour spec passes.
 
+**Rock benchmark (2026-11-20, operator-run).** `scripts/bench-rock.sh` (new in this PR: throwaway
+`lesson3-perf-<run id>` containers, no ports or named volumes, Postgres on tmpfs, everything removed on
+exit), 12-lesson *Animal Transport* plan, lesson row 5, 1× CPU, 3 alternating rounds, load 0.8–2.1.
+`main` (`efe4dcc`, Payload 3.93.0): 40 ms/key in every round. This branch (`e3f9acd`, 3.94.0): 48 ms/key
+in every round. Event Timing durations come in 8 ms steps, so the real difference is one step, between
+about 1 and 16 ms per key. The patch is clearly still working (unpatched was 176–184 ms), and 48 ms
+keeps pace with typing at 120 ms per key. The slower step is consistent, so it is real, most likely from
+3.94.0's own client changes; it was accepted rather than profiled further.
+
 ## 2026-11-20 — Node 24.22.3 and Postgres 16.16 (security), small bumps
 
 Operator-approved security round. **Node 24.22.3** (2026-11-11) is a security release: nine High fixes
