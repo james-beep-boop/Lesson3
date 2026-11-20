@@ -50,11 +50,11 @@ const patchedSpan = bundle.slice(spanStart, spanEnd)
 
 /** The prototype measured in §3.2: the listener filter without the commit-time catch-up check. */
 const PROTOTYPE_TO =
-  'let R=Xb(null);t2(()=>{R.current={e,s:l[1]}});return Object.is(l[1],i)||a(),t2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}'
+  'let R=Zb(null);l2(()=>{R.current={e,s:l[1]}});return Object.is(l[1],i)||a(),l2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}'
 
 const scheduler = createRequire(import.meta.url)('scheduler')
 
-// `import{createElement as vL,…}from"react";` → `createElement:vL,…`, destructured from React below.
+// `import{createElement as RL,…}from"react";` → `createElement:RL,…`, destructured from React below.
 const REACT_BINDINGS = IMPORT_LINE.slice('import{'.length, IMPORT_LINE.indexOf('}from'))
   .split(',')
   .map((pair) => pair.split(' as ').join(':'))
@@ -67,8 +67,8 @@ function load(span: string): Impl {
     return m[1]!
   }
   const schedulerName = name(/([\w$]+)\.unstable_runWithPriority\?/)
-  const createContext = name(/function ([\w$]+)\(t\)\{let e=yL\(/)
-  const useContextSelector = name(/function ([\w$]+)\(t,e\)\{let o=CL\(t\)\[/)
+  const createContext = name(/function ([\w$]+)\(t\)\{let e=_L\(/)
+  const useContextSelector = name(/function ([\w$]+)\(t,e\)\{let o=FL\(t\)\[/)
   const uf = name(/^var ([\w$]+)=Symbol\(\)/)
   const body = `const{${REACT_BINDINGS}}=React;${span};return{createContext:${createContext},useContextSelector:${useContextSelector},uf:${uf}}`
   return new Function('React', schedulerName, body)(React, scheduler) as Impl

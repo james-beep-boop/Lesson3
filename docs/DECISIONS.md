@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-20 — Payload 3.94.0
+
+Operator-approved minor upgrade, kept apart from the Node/Postgres security round because it needs the
+typing-speed patch re-derived and the Rock benchmark. All six Payload packages move together; nothing
+else in the lockfile changes. 3.94.0 raises its minimum Node to 24.22.3 (taken in the previous entry)
+and Next.js to 16.4.5 (we run 16.4.6). Changes that touch Lesson3: the Postgres adapter reuses the
+request's transaction for document-lock checks (our native locks, #442); `findByID` passes the request
+to `db.findOne`; omitted field values are deep-copied from the original document; failed job updates
+roll back; cookie auth is accepted on cross-site top-level navigations when Payload's CSRF list is
+active. The last one does not change Lesson3's model: `serverURL` defaults to `''`, so the CSRF list is
+empty unless `SERVER_URL` is set, and either way the `SameSite=Lax` cookie already rides on top-level
+GETs, which are side-effect free (mark-read is a POST). No new Payload security advisory (the Lexical
+stored-XSS GHSA-9wh8-6gp5-gx53 was fixed in 3.93.0, which we already run). Generated types and the
+import map are unchanged; the password-work unit test still matches Payload's hashing source.
+
+The #436 typing-speed patch failed its name checks on 3.94.0, as designed. The inlined
+`use-context-selector` function and `RowLabelProvider` are byte-identical to 3.93.0 once the
+minifier's renames are mapped (`Xb`→`Zb` useRef, `t2`→`l2`, `Yb`→`Jb`, `CL`→`FL`, `SL`→`PL`, `df`→`ff`,
+`Kb`→`t1`, `vf`→`Cf`; `Ge` is still useForm), checked by diffing both functions against the published
+3.93.0 bundle after renaming. The strings, and the four names the behaviour spec hard-codes, were
+re-derived by that mapping alone; the behaviour spec passes.
+
+**Rock benchmark (2026-11-20, operator-run).** `scripts/bench-rock.sh` (new in this PR: throwaway
+`lesson3-perf-<run id>` containers, no ports or named volumes, Postgres on tmpfs, everything removed on
+exit), 12-lesson *Animal Transport* plan, lesson row 5, 1× CPU, 3 alternating rounds, load 0.8–2.1.
+`main` (`efe4dcc`, Payload 3.93.0): 40 ms/key in every round. This branch (`e3f9acd`, 3.94.0): 48 ms/key
+in every round. Event Timing durations come in 8 ms steps, so the real difference is one step, between
+about 1 and 16 ms per key. The patch is clearly still working (unpatched was 176–184 ms), and 48 ms
+keeps pace with typing at 120 ms per key. The slower step is consistent, so it is real, most likely from
+3.94.0's own client changes; it was accepted rather than profiled further.
+
 ## 2026-11-20 — Node 24.22.3 and Postgres 16.16 (security), small bumps
 
 Operator-approved security round. **Node 24.22.3** (2026-11-11) is a security release: nine High fixes

@@ -21,8 +21,8 @@
  *     revision of this patch) → exit non-zero;
  *   - both patches must end up applied; one applied and one not is an error.
  *
- * ⚑ The strings are tied to the pinned `@payloadcms/ui` (3.93.0; re-derived 2026-11-06 — the code is
- * unchanged from 3.92.1, only its minified names moved). On every deliberate Payload upgrade,
+ * ⚑ The strings are tied to the pinned `@payloadcms/ui` (3.94.0; re-derived 2026-11-20 — the patched
+ * code is unchanged from 3.93.0, only its minified names moved). On every deliberate Payload upgrade,
  * re-derive them from the new bundle. If Payload fixes either problem upstream, delete the patch on
  * that upgrade. Rollback: remove the `postinstall` line and rebuild.
  *
@@ -38,30 +38,30 @@ export const DEFAULT_TARGET = createRequire(import.meta.url).resolve('@payloadcm
 
 /** Strings that must each occur exactly once before anything is written. */
 export const NAME_CHECKS = [
-  // The inlined library's React imports: `Xb` is useRef, `wL` useLayoutEffect, `CL` useContext.
-  'import{createElement as vL,createContext as yL,useContext as CL,useEffect as xL,useLayoutEffect as wL,useReducer as SL,useRef as Xb,useState as IL}from"react";',
-  // `t2` is the isomorphic layout effect.
-  't2=RL?xL:wL',
+  // The inlined library's React imports: `Zb` is useRef, `AL` useLayoutEffect, `FL` useContext.
+  'import{createElement as RL,createContext as _L,useContext as FL,useEffect as DL,useLayoutEffect as AL,useReducer as PL,useRef as Zb,useState as EL}from"react";',
+  // `l2` is the isomorphic layout effect.
+  'l2=LL?DL:AL',
   // useContextSelector's head: `o` is the provider handle, `r` the value this render read, `l`/`a`
   // the reducer state and dispatch, `s` the listener set — every name the ucs replacement uses.
-  'function Yb(t,e){let o=CL(t)[df],{v:{current:r},n:{current:n},l:s}=o,i=e(r),[l,a]=SL(',
-  // Ge and vf, as used by the rowlabel replacement.
+  'function Jb(t,e){let o=FL(t)[ff],{v:{current:r},n:{current:n},l:s}=o,i=e(r),[l,a]=PL(',
+  // Ge and Cf, as used by the rowlabel replacement.
   'Ge as useForm',
-  'vf as useWatchForm',
+  'Cf as useWatchForm',
 ]
 
 export const PATCHES = [
   {
     name: 'ucs',
     marker: '/*lesson3-patch:ucs*/',
-    from: 'return Object.is(l[1],i)||a(),t2(()=>(s.add(a),()=>{s.delete(a)}),[s]),l[1]}',
-    to: '/*lesson3-patch:ucs*/let R=Xb(null);t2(()=>{R.current={e,s:l[1]};let v=o.v.current;if(!Object.is(v,r))try{Object.is(l[1],e(v))||a()}catch{a()}});return Object.is(l[1],i)||a(),t2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}',
+    from: 'return Object.is(l[1],i)||a(),l2(()=>(s.add(a),()=>{s.delete(a)}),[s]),l[1]}',
+    to: '/*lesson3-patch:ucs*/let R=Zb(null);l2(()=>{R.current={e,s:l[1]};let v=o.v.current;if(!Object.is(v,r))try{Object.is(l[1],e(v))||a()}catch{a()}});return Object.is(l[1],i)||a(),l2(()=>{let L=u=>{if(u&&"v"in u&&!("p"in u)&&R.current)try{if(Object.is(R.current.s,R.current.e(u.v)))return}catch{}a(u)};return s.add(L),()=>{s.delete(L)}},[s]),l[1]}',
   },
   {
     name: 'rowlabel',
     marker: '/*lesson3-patch:rowlabel*/',
-    from: 'Kb=({children:t,path:e,rowNumber:o})=>{let{getDataByPath:r,getSiblingData:n}=vf(),',
-    to: 'Kb=({children:t,path:e,rowNumber:o})=>{/*lesson3-patch:rowlabel*/let{getDataByPath:r,getSiblingData:n}=Ge(),',
+    from: 't1=({children:t,path:e,rowNumber:o})=>{let{getDataByPath:r,getSiblingData:n}=Cf(),',
+    to: 't1=({children:t,path:e,rowNumber:o})=>{/*lesson3-patch:rowlabel*/let{getDataByPath:r,getSiblingData:n}=Ge(),',
   },
 ]
 
