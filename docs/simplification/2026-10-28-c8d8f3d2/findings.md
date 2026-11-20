@@ -1,7 +1,7 @@
 # Consolidated findings
 
 Claude reviewed the original five fixes. Detailed source references and reviewer notes remain on the
-[evidence branch](https://github.com/james-beep-boop/Lesson3/tree/review/simplification-v1.10-evidence). Nothing is merged; James’s hold remains active.
+[evidence archive tag](https://github.com/james-beep-boop/Lesson3/tree/archive/simplification-v1.10-evidence). Nothing is merged; James’s hold remains active.
 
 Source SHA is fixed in README; implementation is revalidated against current main per fix.
 

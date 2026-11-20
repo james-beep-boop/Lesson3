@@ -21,7 +21,7 @@ traversed; generated/migration output and vendor files are not deletion targets.
 convention was confirmed from installed source: the old Knip plugin did not recognize it automatically.
 
 At the fixed baseline: **0 unused files, 56 export hits, 93 type-export hits, one dependency hit and
-one undeclared import**. Every hit has a disposition in the [evidence ledger](https://github.com/james-beep-boop/Lesson3/tree/review/simplification-v1.10-evidence/docs/simplification/2026-10-28-c8d8f3d2/first-pass).
+one undeclared import**. Every hit has a disposition in the [evidence ledger](https://github.com/james-beep-boop/Lesson3/tree/archive/simplification-v1.10-evidence/docs/simplification/2026-10-28-c8d8f3d2/first-pass).
 An additional include-entry-exports run exposed only REQUEST_HEADER (used locally) and Next's
 proxy/config convention exports; all three were retained.
 

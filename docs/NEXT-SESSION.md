@@ -240,8 +240,9 @@ rule was never added, and Cloudflare is unchanged. See
 deployment, defaults, tests and residual limits. Existing signup/forgot-password mail ceilings are
 unchanged. Historical deferred-finding text below describes the previous release.
 
-The v1.07 audit remains on PR #456 and branch `audit/2026-10-25-v107`, unmerged by design. The fix
-merges do not merge the audit findings into `main`.
+The v1.07 audit evidence is kept, unmerged by design, in tag `archive/audit-2026-10-25-v107` (the
+former branch `audit/2026-10-25-v107`; PR #456 closed 2026-11-12). The fix merges do not merge the
+audit findings into `main`.
 
 ---
 
@@ -279,7 +280,8 @@ button row, which would retire the `.modal__actions--pair` reset but touches abo
 **Next:** the majors (Sentry 11,
 jsdom 30, …), each as its own change.
 
-**Audit state.** Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
+**Audit state** (archived 2026-11-12: the branch is now tag `archive/audit-2026-10-24-review`, PR #437
+closed, and the unfinished catalogue and D01–D03 checks were dropped). Branch `audit/2026-10-24-review` stays unmerged by design. #445 (cross-origin cookie
 evidence, L-C23-01) merged into it 2026-10-25, so no audit *finding* PR is open; the audit branch's
 own PR, #437, stays open on purpose (it never merges). Not started: the rest of the
 catalogue (`docs/audit/catalog.md`) and the deferred hardware checks D01–D03.
