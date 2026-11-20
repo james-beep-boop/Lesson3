@@ -1,6 +1,6 @@
 # Cross-group synthesis
 
-Detailed packet evidence is retained on the [evidence branch](https://github.com/james-beep-boop/Lesson3/tree/review/simplification-v1.10-evidence).
+Detailed packet evidence is retained on the [evidence archive tag](https://github.com/james-beep-boop/Lesson3/tree/archive/simplification-v1.10-evidence).
 The initial dead-code check was insufficient; see first-pass/README.md for the configured follow-up.
 
 Bounded coordinator pass after packet reviews, fixed v1.10 c8d8f3d2. This combines the source-backed
