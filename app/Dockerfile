@@ -6,8 +6,8 @@
 # so a rebuilt tag upstream cannot change the runtime under an unchanged Dockerfile. To re-pin:
 #   docker buildx imagetools inspect node:<version>-alpine     → the index "Digest:" line, not a platform's
 #   docker buildx imagetools inspect node:<version>-bookworm
-# Resolved 2026-11-06: Node 24.22.2 on Alpine 3.24 / Debian bookworm.
-FROM node:24.22.2-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS base
+# Resolved 2026-11-20: Node 24.22.3 on Alpine 3.24 / Debian bookworm.
+FROM node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -39,7 +39,7 @@ RUN \
 # the same legacy-peer-deps reason as `deps` above. npm ci AND the chromium download happen at
 # BUILD time so the test step doesn't redo them on every run, matching how `deps` front-loads
 # installs for the other test steps.
-FROM node:24.22.2-bookworm@sha256:8fa96264f302f58bbb13aa7339c541547b56975766ce956c875da149452a3e40 AS e2e
+FROM node:24.22.3-bookworm@sha256:9d266751ca3d7fdbe651c878ffd5ad0a42fed49a18c283509267c97f025b7496 AS e2e
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc* ./
 # Same `postinstall` patch as `deps` above.

@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Security updates: Node 24.22.3 (HTTP/2, TLS and HTTP fixes) and Postgres 16.16. No database
+  reindex is needed. Also DOMPurify 3.4.18, nodemailer 10.6.0, postcss 8.5.33, Playwright 1.65.1.
+
 ## v1.15 (2026-11-11)
 
 - Gotenberg 9.4.0 (LibreOffice-only base, both image types). A LibreOffice process killed after a
