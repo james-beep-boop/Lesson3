@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-20 — Payload 3.94.0
+
+Operator-approved minor upgrade, kept apart from the Node/Postgres security round because it needs the
+typing-speed patch re-derived and the Rock benchmark. All six Payload packages move together; nothing
+else in the lockfile changes. 3.94.0 raises its minimum Node to 24.22.3 (taken in the previous entry)
+and Next.js to 16.4.5 (we run 16.4.6). Changes that touch Lesson3: the Postgres adapter reuses the
+request's transaction for document-lock checks (our native locks, #442); `findByID` passes the request
+to `db.findOne`; omitted field values are deep-copied from the original document; failed job updates
+roll back; cookie auth is accepted on cross-site top-level navigations when Payload's CSRF list is
+active. The last one does not change Lesson3's model: `serverURL` defaults to `''`, so the CSRF list is
+empty unless `SERVER_URL` is set, and either way the `SameSite=Lax` cookie already rides on top-level
+GETs, which are side-effect free (mark-read is a POST). No new Payload security advisory (the Lexical
+stored-XSS GHSA-9wh8-6gp5-gx53 was fixed in 3.93.0, which we already run). Generated types and the
+import map are unchanged; the password-work unit test still matches Payload's hashing source.
+
+The #436 typing-speed patch failed its name checks on 3.94.0, as designed. The inlined
+`use-context-selector` function and `RowLabelProvider` are byte-identical to 3.93.0 once the
+minifier's renames are mapped (`Xb`→`Zb` useRef, `t2`→`l2`, `Yb`→`Jb`, `CL`→`FL`, `SL`→`PL`, `df`→`ff`,
+`Kb`→`t1`, `vf`→`Cf`; `Ge` is still useForm), checked by diffing both functions against the published
+3.93.0 bundle after renaming. The strings, and the four names the behaviour spec hard-codes, were
+re-derived by that mapping alone; the behaviour spec passes.
+
 ## 2026-11-20 — Node 24.22.3 and Postgres 16.16 (security), small bumps
 
 Operator-approved security round. **Node 24.22.3** (2026-11-11) is a security release: nine High fixes
