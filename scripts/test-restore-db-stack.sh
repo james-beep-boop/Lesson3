@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# The live-replacement restore (design A1) against a REAL, isolated stack: Postgres 16.15, the migrate
+# The live-replacement restore (design A1) against a REAL, isolated stack: Postgres 16.16, the migrate
 # and app images, and Gotenberg, laid out like a release-bundle installation in a throwaway directory.
 # Nothing is stubbed below the scripts' own process: the renames, the terminations, the migrations, the
 # Local API read and the DOCX/PDF render all happen for real.

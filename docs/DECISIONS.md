@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-20 — Node 24.22.3 and Postgres 16.16 (security), small bumps
+
+Operator-approved security round. **Node 24.22.3** (2026-11-11) is a security release: nine High fixes
+in `http2`, `tls` and `http` (among them a remotely reachable TLS server crash and nested HTTP parser
+execution from empty writes), plus Medium/Low fixes. Lesson3's own server speaks plain HTTP/1.1 behind
+the proxy, but outbound TLS (SMTP, Sentry) and the HTTP parser are on the path, and Payload 3.94.0
+makes 24.22.3 its minimum. Both Node stages and the restore-probe image are re-pinned to the
+multi-architecture index digests (`24.22.3-alpine@sha256:116b800c…` = Alpine 3.24,
+`24.22.3-bookworm@sha256:9d266751…`), `.nvmrc` follows, and `engines`/`devEngines` now require
+`>=24.22.3 <25` so a development machine on an unpatched 24.x is refused.
+
+**Postgres 16.16** (2026-11-12) fixes several CVEs (composite-type and use-after-free hazards,
+CVE-2026-6460 and others; view row visibility in `INSERT … ON CONFLICT`). Same major, so no
+dump/restore. Its notes ask for REINDEX only of btree indexes on `bpchar` columns and of `pg_trgm`
+GiST indexes; Lesson3's migrations create neither (Payload/drizzle use `varchar`/`text`), so none is
+needed. Re-pinned to `16.16-alpine@sha256:1d5b02d3…` (Alpine 3.24) in both compose files. Deploying
+recreates the Postgres container (a few seconds without the database).
+
+Small: DOMPurify 3.4.18 (its new advisories GHSA-qm7q-q8h9-jg8q / GHSA-c6gr-qvv4-5v3f need
+`SAFE_FOR_TEMPLATES`, an XHTML parser type or `IN_PLACE`, none of which `lib/sanitizeHtml.ts` uses),
+nodemailer 10.6.0 (a `socketCloseTimeout` option and bug fixes; its advisories page lists nothing new),
+postcss 8.5.33, Playwright 1.65.1. Checked and left: Gotenberg 9.5–9.9 (features only for Lesson3's
+routes; the one new advisory, GHSA-g85v-3gpx-4gw5, was already fixed in the 9.4.0 we run), Postgres 19
+(new major), source-map-js 1.2.3/1.2.4 (a day old).
+
 ## 2026-11-11 — Gotenberg 9.4.0, nodemailer 10.5.0
 
 Operator-approved patch round before the first school installs. Gotenberg 9.4.0 (released 2026-11-10)
