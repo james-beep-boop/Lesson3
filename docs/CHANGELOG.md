@@ -10,6 +10,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Gotenberg 9.9.3 (security): a conversion that overruns its timeout can no longer answer another request.
 - Payload 3.94.2 (security fixes to access checks), DOMPurify 3.5.0 (security), nodemailer 10.6.1.
 - Payload 3.94.0 (bug fixes, including document-lock checks inside the request's transaction).
 - Security updates: Node 24.22.3 (HTTP/2, TLS and HTTP fixes) and Postgres 16.16. No database
