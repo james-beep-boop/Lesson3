@@ -33,6 +33,30 @@ merging.
 3938c60 (9.9.3): identical documents 3 of 3, identical page images 44 of 44 (byte-identical 96 DPI
 renders, same text and page counts). Total conversion time 4.8 s → 4.1 s. No output change.
 
+## 2026-11-24 — Payload 3.94.2 (security), DOMPurify 3.5.0, nodemailer 10.6.1
+
+Operator-approved. **Payload 3.94.2** (2026-11-24) is marked "vital security updates" upstream; its
+advisories were not yet published when this was written. The fixes that touch Lesson3: read access of
+the related collection is now applied to nested relationship queries and to draft `find` filters,
+version diffs respect read access for relationship labels, top-level update operators are stripped
+before persistence, Next.js server-function dispatch is restricted to registered handlers (Lesson3's
+`(payload)/layout.tsx` passes Payload's own `handleServerFunctions`, so nothing custom is affected),
+and the publish permission is checked in the schedule-publish server function. 3.94.1 (2026-11-20)
+removes the vulnerable `deepmerge` dependency (it leaves the lockfile) and releases the Postgres client
+checked out during connect. The typing-speed patch matches the 3.94.2 `@payloadcms/ui` bundle
+unchanged (no re-derive); the Rock benchmark is rerun with `scripts/bench-rock.sh` before merging.
+
+**DOMPurify 3.5.0** (2026-11-22) carries further `SAFE_FOR_TEMPLATES` and `IN_PLACE` fixes
+(GHSA-hrxw-jjj6-2g2j among them) and ends the 3.4 line. Its behaviour changes concern DOM-node input,
+`IN_PLACE`, custom elements inside SVG/MathML and nested `sanitize()` calls from hooks; `lib/sanitizeHtml.ts`
+sanitizes strings with none of those options, so its output is unchanged. **nodemailer 10.6.1**: DKIM
+signs `List-Unsubscribe-Post`, fetch cookies keyed by name/domain/path; no advisory.
+
+**Rock benchmark (2026-11-24, operator-run, `scripts/bench-rock.sh`, 1x CPU, lesson row 5 of Animal
+Transport):** main e4d1d2c (3.94.0) median 48 ms/key (rounds 48 48 48); b9652bc (3.94.2) median
+40 ms/key (rounds 40 40 48). Event Timing reports in 8 ms steps, so this is one step either way of
+the 2026-11-20 result: no regression, and still far from the unpatched 176–184 ms/key.
+
 ## 2026-11-20 — Payload 3.94.0
 
 Operator-approved minor upgrade, kept apart from the Node/Postgres security round because it needs the
