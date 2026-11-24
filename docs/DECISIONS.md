@@ -30,6 +30,11 @@ unchanged (no re-derive); the Rock benchmark is rerun with `scripts/bench-rock.s
 sanitizes strings with none of those options, so its output is unchanged. **nodemailer 10.6.1**: DKIM
 signs `List-Unsubscribe-Post`, fetch cookies keyed by name/domain/path; no advisory.
 
+**Rock benchmark (2026-11-24, operator-run, `scripts/bench-rock.sh`, 1x CPU, lesson row 5 of Animal
+Transport):** main e4d1d2c (3.94.0) median 48 ms/key (rounds 48 48 48); b9652bc (3.94.2) median
+40 ms/key (rounds 40 40 48). Event Timing reports in 8 ms steps, so this is one step either way of
+the 2026-11-20 result: no regression, and still far from the unpatched 176–184 ms/key.
+
 ## 2026-11-20 — Payload 3.94.0
 
 Operator-approved minor upgrade, kept apart from the Node/Postgres security round because it needs the
