@@ -11,6 +11,24 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-24 — Gotenberg 9.9.3 (security)
+
+Operator-approved. Gotenberg published nine advisories on 2026-11-22, fixed across 9.9.1–9.9.3.
+Lesson3's sidecar is reachable only from the app (no host port), runs the LibreOffice-only image and
+disables downloads, webhooks and the PDF routes and stages, so most of them (Chromium DevTools and
+Web Worker reads, Markdown template DoS, PDF attachment handling, ZIP filenames) do not apply. The one
+that does is GHSA-2hmf-8jxv-q3p7: after a hard timeout, a handler could write into *another* request's
+response, so under concurrent conversions one caller could in principle receive another's output. The
+CPU/memory work that outlived `--api-timeout` (GHSA-46q8-5hgc-jxxj) is also fixed. Between 9.4.0 and
+9.9.3 the LibreOffice path otherwise gained options Lesson3 does not send (`locale`, A0–A2 paper
+sizes), `--libreoffice-max-memory`, and an updated `lok` (0.0.7 in 9.9.0); output filenames are now
+sanitised to a portable form, which does not matter because `docxToPdf` reads only the response body.
+Both images (the custom Arial build, both stages, and the school-tier image) are re-pinned to
+`9.9.3-libreoffice@sha256:d7c238a1…`; the hardening flags are unchanged. Because `lok` changed, the PDF
+output is compared on the Rock with the new `scripts/compare-gotenberg-rock.sh` (main's sidecar
+against this branch's, same DOCX, page counts, `pdftotext -layout` and 96 DPI page images) before
+merging.
+
 ## 2026-11-20 — Payload 3.94.0
 
 Operator-approved minor upgrade, kept apart from the Node/Postgres security round because it needs the

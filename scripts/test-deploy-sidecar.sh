@@ -100,7 +100,7 @@ echo "deploy.sh branch decisions:"
 # The sidecar is an internal file-conversion service, not a general Gotenberg API. Keep the browser
 # dependency out of the final image and keep every unused request surface disabled in Compose.
 static_check "Arial image uses the LibreOffice-only base" "expected the pinned -libreoffice base" \
-  grep -Fq 'FROM gotenberg/gotenberg:9.4.0-libreoffice@sha256:4f8700501877b7198e1e393061add6ead52f4b0b2f1e4972a404be95b751d9e9' \
+  grep -Fq 'FROM gotenberg/gotenberg:9.9.3-libreoffice@sha256:d7c238a1b1f5726c0e82e5838b2b5acbbead95a4f4a367c6ffa05c2dc20485f6' \
   "$ROOT/gotenberg/Dockerfile"
 static_check "font download tools stay in the builder" "expected a multi-stage font copy" \
   grep -Fq 'COPY --from=fonts' "$ROOT/gotenberg/Dockerfile"

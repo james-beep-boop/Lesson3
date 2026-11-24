@@ -43,7 +43,7 @@ grep -Eq "lesson3-migrate:v0\\.0\\.0@$migrate_digest" "$BUNDLE/compose.yaml" \
   || fail "migrate tag or digest missing"
 ! grep -Eq '^[[:space:]]+build:' "$BUNDLE/compose.yaml" \
   || fail "release compose builds on the server"
-grep -Fq 'gotenberg/gotenberg:9.4.0-libreoffice@sha256:4f8700501877b7198e1e393061add6ead52f4b0b2f1e4972a404be95b751d9e9' \
+grep -Fq 'gotenberg/gotenberg:9.9.3-libreoffice@sha256:d7c238a1b1f5726c0e82e5838b2b5acbbead95a4f4a367c6ffa05c2dc20485f6' \
   "$BUNDLE/compose.yaml" || fail "release bundle does not pin the reviewed LibreOffice-only image"
 for flag in \
   '--api-disable-download-from=true' \

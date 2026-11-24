@@ -18,11 +18,11 @@
 # version, so `docker build` cannot silently pick up a different upstream. Both pins fail LOUDLY
 # when upstream moves (Debian archives drop superseded package versions) — that build error is the
 # deliberate re-pin moment, not a bug. To re-pin:
-#   docker buildx imagetools inspect gotenberg/gotenberg:9.4.0-libreoffice → index digest
+#   docker buildx imagetools inspect gotenberg/gotenberg:9.9.3-libreoffice → index digest
 #   apt-cache policy ttf-mscorefonts-installer (in the new base, contrib enabled) → new version
-# Resolved 2026-11-11: digest = Gotenberg 9.4.0 LibreOffice-only; installer 3.8.1. The font binaries
+# Resolved 2026-11-24: digest = Gotenberg 9.9.3 LibreOffice-only; installer 3.8.1. The font binaries
 # themselves are Microsoft's frozen cab files — the installer verifies their checksums.
-FROM gotenberg/gotenberg:9.4.0-libreoffice@sha256:4f8700501877b7198e1e393061add6ead52f4b0b2f1e4972a404be95b751d9e9 AS fonts
+FROM gotenberg/gotenberg:9.9.3-libreoffice@sha256:d7c238a1b1f5726c0e82e5838b2b5acbbead95a4f4a367c6ffa05c2dc20485f6 AS fonts
 
 USER root
 RUN set -eux; \
@@ -53,7 +53,7 @@ RUN set -eux; \
 # Lesson3 never calls Chromium. Starting from the LibreOffice-only image removes that browser and its
 # dependency tree rather than merely making the routes unreachable. The build tools stay behind in the
 # `fonts` stage; copying the downloaded, unmodified fonts preserves the existing build-on-the-box policy.
-FROM gotenberg/gotenberg:9.4.0-libreoffice@sha256:4f8700501877b7198e1e393061add6ead52f4b0b2f1e4972a404be95b751d9e9
+FROM gotenberg/gotenberg:9.9.3-libreoffice@sha256:d7c238a1b1f5726c0e82e5838b2b5acbbead95a4f4a367c6ffa05c2dc20485f6
 
 USER root
 COPY --from=fonts /usr/share/fonts/truetype/msttcorefonts/ /usr/share/fonts/truetype/msttcorefonts/
