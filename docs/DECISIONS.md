@@ -29,6 +29,10 @@ output is compared on the Rock with the new `scripts/compare-gotenberg-rock.sh` 
 against this branch's, same DOCX, page counts, `pdftotext -layout` and 96 DPI page images) before
 merging.
 
+**Rock result (2026-11-24, operator-run):** 3 DOCX from `/srv/lesson3/out`, main e4d1d2c (9.4.0) against
+3938c60 (9.9.3): identical documents 3 of 3, identical page images 44 of 44 (byte-identical 96 DPI
+renders, same text and page counts). Total conversion time 4.8 s → 4.1 s. No output change.
+
 ## 2026-11-20 — Payload 3.94.0
 
 Operator-approved minor upgrade, kept apart from the Node/Postgres security round because it needs the
