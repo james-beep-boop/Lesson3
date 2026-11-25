@@ -24,6 +24,30 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 ---
 
+# Release v1.16 — 2026-11-25
+
+Everything merged since v1.15 (main `4ed8a56`) plus this release note. A security and maintenance
+release; no feature, endpoint, migration or export-format change.
+
+- **Node 24.22.3 and Postgres 16.16** (#505), both security releases, plus small bumps. Postgres 16.16
+  needs no reindex here (DECISIONS 2026-11-20).
+- **Payload 3.94.0** (#506) and **3.94.2** (#507, security: access checks on nested relationship and
+  draft queries, update operators stripped, server-function dispatch restricted), with DOMPurify 3.5.0
+  and nodemailer 10.6.1. The typing-speed patch was re-derived for 3.94.0 and applies unchanged to
+  3.94.2; Rock benchmark 40 ms/key (main before it: 48).
+- **Gotenberg 9.9.3** (#508, security: a conversion that overruns its timeout can no longer answer
+  another request). Rock PDF comparison: 3 of 3 documents and 44 of 44 page images identical to 9.4.0.
+- New Rock tools, run from a separate clone and never against the live stack:
+  `scripts/bench-rock.sh` (typing benchmark, main vs HEAD) and `scripts/compare-gotenberg-rock.sh`
+  (PDF comparison, main's sidecar vs HEAD's).
+
+On the next deploy: Postgres restarts on the new image (brief), the Gotenberg sidecar rebuilds;
+sign in once and download one PDF to check. The sign-in page should read "Version 1.16".
+Not taken: Gotenberg 9.10.x (features, no advisory) and Payload 4 (beta; impact notes in DECISIONS
+history of this round, and Payload's `docs/migration-guide/v4.mdx`).
+
+---
+
 # Release v1.15 — 2026-11-11
 
 Everything merged since v1.14 (main `d5217a4`) plus this release note:
