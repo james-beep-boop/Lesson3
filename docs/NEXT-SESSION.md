@@ -43,8 +43,8 @@ release; no feature, endpoint, migration or export-format change.
 
 On the next deploy: Postgres restarts on the new image (brief), the Gotenberg sidecar rebuilds;
 sign in once and download one PDF to check. The sign-in page should read "Version 1.16".
-Not taken: Gotenberg 9.10.x (features, no advisory) and Payload 4 (beta; impact notes in DECISIONS
-history of this round, and Payload's `docs/migration-guide/v4.mdx`).
+Not taken: Gotenberg 9.10.x (features, no advisory) and Payload 4 (still beta; its guide is
+`docs/migration-guide/v4.mdx` in the payloadcms/payload repository).
 
 ---
 
