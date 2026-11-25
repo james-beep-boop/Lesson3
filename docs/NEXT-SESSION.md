@@ -26,8 +26,10 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 # Release v1.16 — 2026-11-25
 
-Everything merged since v1.15 (main `4ed8a56`) plus this release note. A security and maintenance
-release; no feature, endpoint, migration or export-format change.
+Everything merged since v1.15 (main `4ed8a56`). Tagged at `e5f02e4` (the merge of #508) by David on
+2026-11-25, just before this release note merged, so the tagged tree's CHANGELOG still says
+"Unreleased" (as with v1.12 and v1.14). A security and maintenance release; no feature, endpoint,
+migration or export-format change.
 
 - **Node 24.22.3 and Postgres 16.16** (#505), both security releases, plus small bumps. Postgres 16.16
   needs no reindex here (DECISIONS 2026-11-20).
