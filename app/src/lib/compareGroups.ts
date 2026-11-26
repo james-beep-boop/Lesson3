@@ -101,8 +101,9 @@ const serializeNode = (node: ChildNode): string =>
 /**
  * Widest row in a table, counting CELLS (not colspans). Used ONLY by the Final Explanation, where
  * the header text cannot be trusted:
- *   instructions → 1 (one full-width cell)   section → 2 (prompt + exemplar)   rubric → 4
- * Probed values, pinned by the spec.
+ *   instructions → 1 (one full-width cell)   section → 2 (prompt + exemplar)   rubric → 5
+ * Probed values, pinned by the spec. (The rubric was 4 wide until the 2026-11 re-pin to ARES contract R1
+ * added a fourth CBE level; every plan now renders 5, a blank last column for plans imported under 1.0.0.)
  */
 const maxCells = (el: Element): number => {
   // ⚑ `HTMLTableElement.rows` is exactly THIS table's own rows. `querySelectorAll('tr')` also returns the
@@ -199,7 +200,7 @@ const DOCUMENT_SPECS: Record<string, DocumentSpec> = {
       // Then structure, never the header text: an authored section may legitimately be TITLED
       // "RUBRIC" or "INSTRUCTIONS FOR STUDENTS", but it always has 2 cells across.
       const cells = maxCells(node)
-      if (cells === 4) return { key: 'rubric', label: 'Rubric' }
+      if (cells === 5) return { key: 'rubric', label: 'Rubric' }
       if (cells === 1) return { key: 'instructions', label: 'Instructions' }
       if (cells === 2) {
         const n = (state.ordinal += 1)

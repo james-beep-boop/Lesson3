@@ -24,7 +24,13 @@ const table = Object.fromEntries(
 )
 
 describe('vendored generator provenance', () => {
-  it.each(['lib/build_docs.js', 'lib/sections.js', 'lib/docx_kit.js', 'lib/attribution.js'])(
+  it.each([
+    'lib/build_docs.js',
+    'lib/sections.js',
+    'lib/docx_kit.js',
+    'lib/attribution.js',
+    'lib/lesson_contract.js',
+  ])(
     '%s matches its recorded SHA-256',
     (file) => {
       expect(table[file], `${file} must be listed in PROVENANCE.md`).toBeDefined()

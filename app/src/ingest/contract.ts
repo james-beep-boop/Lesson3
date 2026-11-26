@@ -68,7 +68,10 @@ function schemaFor(raw: unknown): Schema {
     ...CURRENT,
     properties: {
       ...CURRENT.properties,
-      schemaVersion: { ...CURRENT.properties!.schemaVersion!, enum: [...SUPPORTED_SCHEMA_VERSIONS] },
+      schemaVersion: {
+        ...CURRENT.properties!.schemaVersion!,
+        enum: [...SUPPORTED_SCHEMA_VERSIONS],
+      },
     },
   }
 }

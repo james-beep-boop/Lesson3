@@ -126,8 +126,19 @@ const COMPOSE_ONLY = new Set(['POSTGRES_PASSWORD', 'GOTENBERG_TREE', 'NODE_ENV',
  * variable elsewhere would change the licence text and year stamped on every document without a
  * render-version bump, so it is not an operator setting. Being in this set ALSO means test D enforces that
  * it stays out of every template. A NEW env read in vendored code still fails this suite until classified.
+ *
+ * `CBE_OUTPUT_ROOT` and `CBE_LEGACY_RUBRIC` (vendored with the 2026-11 re-pin to upstream 129ffc5) are
+ * upstream's own build tooling: `build_docs.js` `run()` writes files under `CBE_OUTPUT_ROOT`, and
+ * `lesson_contract.js` `checkModule()` accepts three-level rubrics under `CBE_LEGACY_RUBRIC=1` for upstream's
+ * tracked-change baseline renders. Lesson3 calls neither function (it uses the builders directly), so
+ * neither variable has any effect here, and offering them as settings would only mislead.
  */
-const NEVER_IN_TEMPLATE = new Set(['ALLOW_FIRST_USER_BOOTSTRAP', 'ATTRIBUTION_YAML'])
+const NEVER_IN_TEMPLATE = new Set([
+  'ALLOW_FIRST_USER_BOOTSTRAP',
+  'ATTRIBUTION_YAML',
+  'CBE_OUTPUT_ROOT',
+  'CBE_LEGACY_RUBRIC',
+])
 
 /** Without these four, a host-local `next dev` run is misconfigured rather than merely untuned. */
 const DEV_CRITICAL = ['DATABASE_URI', 'PAYLOAD_SECRET', 'ADMIN_URL', 'SERVER_URL']

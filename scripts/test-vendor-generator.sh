@@ -10,14 +10,14 @@ target="$work_dir/lesson3 with spaces"
 mkdir -p "$upstream/generators/lib" "$upstream/config" "$target/scripts"
 cp "$repo_dir/scripts/vendor-generator.sh" "$target/scripts/"
 git -C "$upstream" init -q
-for file in build_docs.js sections.js docx_kit.js attribution.js; do
+for file in build_docs.js sections.js docx_kit.js attribution.js lesson_contract.js; do
   printf 'original library: %s\n' "$file" > "$upstream/generators/lib/$file"
 done
 printf 'year: auto   # upstream dynamic year\nlesson_footer: SeaVuria and ARES.\n' > "$upstream/config/attribution.yaml"
 git -C "$upstream" add .
 git -C "$upstream" -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm original
 library_sha="$(git -C "$upstream" rev-parse HEAD)"
-for file in build_docs.js sections.js docx_kit.js attribution.js; do
+for file in build_docs.js sections.js docx_kit.js attribution.js lesson_contract.js; do
   printf 'changed library: %s\n' "$file" > "$upstream/generators/lib/$file"
 done
 printf 'year: auto   # upstream dynamic year\nlesson_footer: SeaVuria and ARES Education.\nslide_footer: unused\n' > "$upstream/config/attribution.yaml"
@@ -28,7 +28,7 @@ config_sha="$(git -C "$upstream" rev-parse HEAD)"
 fail() { echo "test-vendor-generator: $*" >&2; cat "$work_dir/output" >&2; exit 1; }
 check_copy() {
   local lib_revision="$1" config_revision="$2" file
-  for file in build_docs.js sections.js docx_kit.js attribution.js; do
+  for file in build_docs.js sections.js docx_kit.js attribution.js lesson_contract.js; do
     git -C "$upstream" show "$lib_revision:generators/lib/$file" > "$work_dir/expected"
     cmp "$work_dir/expected" "$target/app/src/generator/vendor/lib/$file" || fail "wrong library: $file"
   done

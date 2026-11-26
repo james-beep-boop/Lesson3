@@ -1,6 +1,6 @@
 # Vendored ARES generator — provenance
 
-The four files under `lib/` are copied byte-verbatim from the ARES CBE generation system and must
+The five files under `lib/` are copied byte-verbatim from the ARES CBE generation system and must
 not be edited locally. Lesson3 integration remains outside those files. The fidelity gates, not the
 commit label alone, are the acceptance proof for this pin.
 
@@ -8,26 +8,30 @@ commit label alone, are the acceptance proof for this pin.
 
 - **Repository:** `markknit/cbe-generation-system`
 - **Branch:** `main`
-- **Library commit:** `f83db61931566df6bde9252db552bd353ed43d7a` (`f83db61`, upstream 2026-10-08 UTC; a direct
-  child of the previous pin `b3743ff`)
-- **Vendored:** 2026-10-08
-- **Reason:** adopt upstream's fix for the cramped table layout we reported. A Markdown table in a
-  lesson-framework column (`learnerExperience`, `teacherMoves`, `sensemakingStrategy`, `formativeAssessment`)
-  is now pulled out of the narrow cell (`stripTables`, new in `docx_kit.js`), a "(table below)" pointer is
-  left behind, and the table prints **full-width in a row of its own under the phase** (`sections.js`).
-  `richCell` also now treats a table as TWO OR MORE consecutive pipe rows — a lone `|x| = 3` line is maths and
-  stays text. Only `sections.js` and `docx_kit.js` changed; `build_docs.js`, `attribution.js`
-  and upstream's `aresResources.js` are byte-identical to the previous library pin. Attribution
-  configuration has its own newer pin below; it is not sourced from this library revision.
-  **Previous pins:** `b3743ff` (2026-10-07), `6591146` (2026-10-06), `a546ee3` (2026-09-19).
+- **Library commit:** `129ffc5f86ca3334fe4c0aa91af61af5b67ead4f` (`129ffc5`, upstream 2026-11-09 UTC). Upstream
+  HEAD on 2026-11-26 (`d201e611`) has byte-identical library files, schema and attribution config.
+- **Vendored:** 2026-11-26
+- **Reason:** ARES contract revision **R1** (`schemaVersion` 1.1.0). The Final Explanation rubric prints four
+  CBE levels — Exceeds (4), Meets (3), Approaches (2), Below Expectations (1) — from the new required
+  `belowExpectations` key. `build_docs.js` also drops its silent `|| ''` / `|| []` defaults (the adapter supplies
+  strings and arrays) and its `run()` now refuses a module that breaks upstream's data contract, which it
+  `require`s from the new **`lib/lesson_contract.js`** — vendored only so that require resolves; Lesson3 never
+  calls `run()` or `checkModule()`. `sections.js` throws on an unknown phase label instead of falling back to the
+  Observe resources (Lesson3's controlled vocabulary already prevents one). `docx_kit.js` and `attribution.js`
+  are byte-identical to the previous pin.
+  **Previous pins:** `f83db61` (2026-10-08), `b3743ff` (2026-10-07), `6591146` (2026-10-06), `a546ee3` (2026-09-19).
+- **Upload contract:** `ingest/ares-contract.schema.json` is upstream's `ares-contract.schema.json` from the same
+  commit, byte-verbatim (hash below; `tests/unit/ingestContract.spec.ts` recomputes it). The R0 schema it
+  replaced is kept, frozen, as `ingest/ares-contract-1.0.0.schema.json`; ingest picks the schema by the file's
+  `schemaVersion`.
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
 
 ## Attribution configuration pin — 2026-10-22
 
 - **Configuration commit:** `d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e` (upstream 2026-10-21).
-- Only `config/attribution.yaml` is synced from this revision. The four vendored `lib/` files
-  remain byte-identical to Lesson3's `f83db61` pin above; this is not a renderer-library re-pin.
+- Only `config/attribution.yaml` is synced from this revision. (When it was synced the vendored `lib/` files
+  stayed at `f83db61`; the library pin above has since moved, and upstream's config is unchanged.)
 - The copyright paragraph and lesson footer now name **SeaVuria and ARES Education**. The
   Production & Layout text and "technical implementation by ARES" remain unchanged. The upstream
   `slide_footer` key is retained verbatim but is not consumed by the lesson renderer.
@@ -43,16 +47,18 @@ GitHub identifies the repository license as SPDX `MIT`.
 The upstream license is copied verbatim into this directory as `LICENSE`; retain it with these
 vendored files. Lesson3's root `LICENSE` covers Lesson3-authored code under the same license but a
 different copyright notice. Matching license terms close the prior redistribution and compatibility
-gap without changing the authorship or provenance of the four byte-pristine library files.
+gap without changing the authorship or provenance of the byte-pristine library files.
 
 ## Pristine files
 
 | Lesson3 path | Upstream path | SHA-256 |
 | --- | --- | --- |
-| `lib/build_docs.js` | `generators/lib/build_docs.js` | `0d41e8efa1fa5b0bece27e00abe52fad3dc11ec32d689fbe4bdddb43e64972de` |
-| `lib/sections.js` | `generators/lib/sections.js` | `55b431ab1760606ea1a6ac666c26122744393fe045ff1a9a29a841548d6c82a3` |
+| `lib/build_docs.js` | `generators/lib/build_docs.js` | `cf378b8c338efa3ab27a34d129c9723816068912efb815c16fd7dc0d7b8814c4` |
+| `lib/sections.js` | `generators/lib/sections.js` | `5a2c3b8fcf9c503637f1c470e51f8f1b1092505a05b37d45043e2fa9e067233d` |
 | `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `3359cf217a07975b276907ecb2628970ef0b8981b509c67e1bc37a686486cfbd` |
 | `lib/attribution.js` | `generators/lib/attribution.js` | `7ac867b861ea1be8f6cfe8590cf7171c94b5536cc828c4d29983bd6abe6f9288` |
+| `lib/lesson_contract.js` | `generators/lib/lesson_contract.js` | `79d3c06ec7a2bf066a87dd0f4feb0739c979a9bd400c310a6a33fb9a2411c354` |
+| `ingest/ares-contract.schema.json` | `ares-contract.schema.json` | `6a103c32ea4ef00dd919f73918e45cb0dbc7c597cb768f0a77d45ed93063e501` |
 | `vendor/config/attribution.upstream.yaml` | `config/attribution.yaml` | `0f20f7dba14508f7eeb74b78bf82d4b38657d06801f97a33109669d8ebe4649c` |
 
 `tests/unit/vendorProvenance.spec.ts` recomputes these hashes from the files on disk, so this table cannot
@@ -114,11 +120,11 @@ Omitting the configuration revision preserves the original single-commit behavio
 
 ```sh
 scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> \
-  f83db61931566df6bde9252db552bd353ed43d7a \
+  129ffc5f86ca3334fe4c0aa91af61af5b67ead4f \
   d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e
 ```
 
-The script copies the four library files from the library revision, and the pristine attribution
+The script copies the five library files from the library revision, and the pristine attribution
 config from the configuration revision, then derives its fixed-year runtime copy. Both revisions
 are validated before any vendored file is replaced. Re-check upstream's `sections.js` resource path
 and `build_docs.js` imports against the bridge before trusting a new library pin.
@@ -135,3 +141,8 @@ npx tsx scripts/adapter-fidelity.ts
 
 Also bump `GENERATOR_RENDER_VERSION` when output can change so cached DOCX, PDF, and HTML previews
 cannot serve bytes from the previous renderer.
+
+The upload contract is not copied by the script: when upstream's `ares-contract.schema.json` changes, copy
+it byte-verbatim over `ingest/ares-contract.schema.json` (after moving the old one aside as
+`ingest/ares-contract-<old version>.schema.json` if older files must stay accepted), update its row above,
+and add the old file to `SCHEMAS` in `ingest/contract.ts`.

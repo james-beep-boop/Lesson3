@@ -158,7 +158,7 @@ describe('splitDocumentGroups — Final Explanation classifies by position and s
   )
   const instructions = table(headerRow('INSTRUCTIONS FOR STUDENTS'), row('Do the thing.'))
   const section = (title: string) => table(headerRow(title), row('prompt', 'exemplar'))
-  const rubric = table(headerRow('RUBRIC', 4), row('C', '4', '3', '2'))
+  const rubric = table(headerRow('RUBRIC', 5), row('C', '4', '3', '2', '1'))
 
   it('labels heading, details, instructions, ordinal sections and the rubric', () => {
     const groups = splitDocumentGroups(
@@ -420,13 +420,15 @@ describe('Final Explanation containing NESTED tables (regression, 2026-10 re-pin
   // and a short section count for others (20 of the 95 current lessons). Only the outer table's own rows count.
   const nestedFour = '<table><tr><td>a</td><td>b</td><td>c</td><td>d</td></tr></table>'
   const nestedThree = '<table><tr><td>a</td><td>b</td><td>c</td></tr></table>'
+  // Since the R1 re-pin the rubric is 5 wide, so a nested 5-column table is the one that could now be mistaken.
+  const nestedFive = '<table><tr><td>a</td><td>b</td><td>c</td><td>d</td><td>e</td></tr></table>'
   const FE =
     '<p>FINAL EXPLANATION</p>' +
     '<table><tr><td>Header</td></tr></table>' + // first table → details
     '<table><tr><td>Instructions</td></tr></table>' + // 1 cell → instructions
     `<table><tr><td>S1</td></tr><tr><td>prompt</td><td>${nestedFour}</td></tr></table>` +
     `<table><tr><td>S2</td></tr><tr><td>prompt</td><td>${nestedThree}</td></tr></table>` +
-    '<table><tr><td>R</td></tr><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></table>' // 4 cells → rubric
+    '<table><tr><td>R</td></tr><tr><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr></table>' // 5 cells → rubric
 
   it('classifies sections by the OUTER table, whatever is nested inside a cell', () => {
     expect(splitDocumentGroups(FINAL_EXPLANATION_LABEL, FE).map((g) => g.key)).toEqual([
@@ -439,11 +441,11 @@ describe('Final Explanation containing NESTED tables (regression, 2026-10 re-pin
     ])
   })
 
-  it('does not throw a duplicate rubric key when two sections each hold a 4-column table', () => {
+  it('does not throw a duplicate rubric key when two sections each hold a rubric-wide table', () => {
     const two =
       '<table><tr><td>H</td></tr></table>' +
-      `<table><tr><td>S</td></tr><tr><td>p</td><td>${nestedFour}</td></tr></table>`.repeat(2) +
-      '<table><tr><td>R</td></tr><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></table>'
+      `<table><tr><td>S</td></tr><tr><td>p</td><td>${nestedFive}</td></tr></table>`.repeat(2) +
+      '<table><tr><td>R</td></tr><tr><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr></table>'
     const keys = splitDocumentGroups(FINAL_EXPLANATION_LABEL, two).map((g) => g.key)
     expect(keys.filter((k) => k === 'fe:rubric')).toHaveLength(1)
     expect(keys.filter((k) => k.startsWith('fe:section:'))).toHaveLength(2)

@@ -16,7 +16,26 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 import { findReadableVersion } from '../lib/readBundle'
 import { bundleToAresData, hasContent } from '../generator/adapter'
 import { safePrefix } from '../generator/exportArtifacts'
+import { CURRENT_SCHEMA_VERSION } from '../ingest/contract'
 import type { User } from '../payload-types'
+
+/**
+ * Always export the CURRENT contract (R1, 1.1.0), whose rubric rows require `belowExpectations`. A plan
+ * imported under 1.0.0 has no fourth level: it exports as an empty string — exactly what it prints (a blank
+ * column) and what its release fingerprint already ignores — so re-importing the file changes nothing.
+ */
+function withFourRubricLevels(fe: unknown): unknown {
+  if (!fe || typeof fe !== 'object' || !Array.isArray((fe as { rubric?: unknown }).rubric))
+    return fe
+  const group = fe as { rubric: Record<string, unknown>[] }
+  return {
+    ...group,
+    rubric: group.rubric.map((row) => ({
+      ...row,
+      belowExpectations: typeof row.belowExpectations === 'string' ? row.belowExpectations : '',
+    })),
+  }
+}
 
 export const aresExportEndpoint: Endpoint = {
   path: '/:id/ares-export',
@@ -40,11 +59,11 @@ export const aresExportEndpoint: Endpoint = {
     // strings, producing UNIT: {} that fails contract validation on import.
     const raw = bundleToAresData(version)
     const aresData = {
-      schemaVersion: '1.0.0',
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       META: raw.META,
       UNIT: hasContent(raw.UNIT) ? raw.UNIT : null,
       LESSONS: raw.LESSONS,
-      FINAL_EXPLANATION: raw.FINAL_EXPLANATION ?? null,
+      FINAL_EXPLANATION: withFourRubricLevels(raw.FINAL_EXPLANATION) ?? null,
       SUMMARY_TABLE: raw.SUMMARY_TABLE ?? null,
     }
     const body = JSON.stringify(aresData, null, 2)

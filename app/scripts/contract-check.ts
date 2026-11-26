@@ -202,10 +202,46 @@ check(
 )
 
 const wrongVersion = conforming()
-wrongVersion.schemaVersion = '1.1.0'
+wrongVersion.schemaVersion = '2.0.0'
 check(
-  'non-baseline schemaVersion is rejected',
-  has(contractDrift(wrongVersion), 'not in allowed [1.0.0]'),
+  'unsupported schemaVersion is rejected, naming every supported version',
+  has(contractDrift(wrongVersion), 'not in allowed [1.0.0, 1.1.0]'),
+)
+
+// ---- One schema per contract revision, chosen by the file's own schemaVersion (R0 1.0.0, R1 1.1.0) ----
+const row3 = { criterion: 'Clarity', excellent: '4', proficient: '3', developing: '2' }
+const row4 = { ...row3, belowExpectations: '1' }
+const withRubric = (version: string, rows: Record<string, string>[]) => {
+  const b = conforming() as ReturnType<typeof conforming> & Record<string, unknown>
+  b.schemaVersion = version
+  ;(b.FINAL_EXPLANATION as Record<string, unknown>).rubric = rows
+  return b
+}
+check(
+  '1.0.0 with three rubric levels conforms (R0 stays accepted)',
+  contractDrift(withRubric('1.0.0', [row3])).length === 0,
+)
+check(
+  '1.1.0 with four rubric levels conforms (R1)',
+  contractDrift(withRubric('1.1.0', [row4])).length === 0,
+)
+check(
+  '1.1.0 without belowExpectations is rejected',
+  has(
+    contractDrift(withRubric('1.1.0', [row3])),
+    'FINAL_EXPLANATION.rubric[0].belowExpectations: required field missing',
+  ),
+)
+check(
+  '1.0.0 WITH belowExpectations is rejected (a four-level row must say 1.1.0)',
+  has(
+    contractDrift(withRubric('1.0.0', [row4])),
+    'FINAL_EXPLANATION.rubric[0].belowExpectations: unexpected key',
+  ),
+)
+check(
+  '1.1.0 without a rubric conforms (rubric stays optional)',
+  contractDrift({ ...conforming(), schemaVersion: '1.1.0' }).length === 0,
 )
 
 // Empty UNIT object (bio_1_4 case) → missing-required, NOT silently accepted.
