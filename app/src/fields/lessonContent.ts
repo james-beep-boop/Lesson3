@@ -415,11 +415,21 @@ export const lessonEditableContentFields: Field[] = [
             labels: { singular: 'Rubric row', plural: 'Rubric' },
             admin: collapsedRow('criterion', 'Rubric row'),
             access: { update: canEditStructure },
+            // Four CBE levels since ARES contract R1 (schemaVersion 1.1.0, 2026-11-09). The stored
+            // keys keep their R0 names on purpose (upstream kept them; renaming is a separate R2);
+            // only the labels follow the printed column headers. `belowExpectations` is optional
+            // here because lesson plans imported under 1.0.0 have no fourth level; the upload
+            // contract still requires it in every 1.1.0 file (ingest/contract.ts).
             fields: [
               structureText('criterion', 'Criterion'),
-              structureText('excellent', 'Excellent'),
-              structureText('proficient', 'Proficient'),
-              structureText('developing', 'Developing'),
+              structureText('excellent', 'Exceeds Expectations (4)'),
+              structureText('proficient', 'Meets Expectations (3)'),
+              structureText('developing', 'Approaches Expectations (2)'),
+              structureText(
+                'belowExpectations',
+                'Below Expectations (1)',
+                'Lesson plans from before November 2026 have only three levels, so this can be blank.',
+              ),
             ],
           }),
         ],

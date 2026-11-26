@@ -10,6 +10,12 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- ARES lesson plans in the new format (contract R1, `schemaVersion` 1.1.0) now upload, beside the
+  1.0.0 format. Final Explanation rubrics print Kenya's four CBE levels (Exceeds, Meets, Approaches,
+  Below Expectations); older plans show a blank fourth column until ARES re-releases them.
+  Administrators can edit the new level. One migration (`20261126_160433_rubric_below_expectations`);
+  every cached document regenerates once (render version 11). Download as JSON writes 1.1.0.
+
 ## v1.16 (2026-11-25)
 
 - Gotenberg 9.9.3 (security): a conversion that overruns its timeout can no longer answer another request.

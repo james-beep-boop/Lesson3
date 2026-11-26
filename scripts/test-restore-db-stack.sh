@@ -204,11 +204,11 @@ variant() { # file-name sql
 OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 # One migration behind = the NEWEST migration undone. ⚑ Update this when a newer migration lands, or the
 # backup has a gap instead of a missing tail and the restore (rightly) refuses it as "not a prefix".
-LATEST_MIGRATION='20261101_002353_reset_code'
-# Its down(): remove the three reset-code columns it added to users.
-ONE_MIGRATION_BEHIND="ALTER TABLE users DROP COLUMN reset_code_hash, DROP COLUMN reset_code_expires_at, DROP COLUMN reset_code_attempts; \
+LATEST_MIGRATION='20261126_160433_rubric_below_expectations'
+# Its down(): remove the fourth rubric level's column.
+ONE_MIGRATION_BEHIND="ALTER TABLE lesson_bundle_versions_final_explanation_rubric DROP COLUMN below_expectations; \
 DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
-SCHEMA_PROBE="SELECT count(*) FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'reset_code_hash';"
+SCHEMA_PROBE="SELECT count(*) FROM information_schema.columns WHERE table_name = 'lesson_bundle_versions_final_explanation_rubric' AND column_name = 'below_expectations';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
 variant "$NEW" "INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"

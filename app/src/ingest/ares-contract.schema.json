@@ -2,15 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/james-beep-boop/Lesson3/main/app/src/ingest/ares-contract.schema.json",
   "title": "ARES CBE Lesson Bundle",
-  "description": "Definitive Lesson3 production interchange contract for current ARES JSON outputs. schemaVersion 1.0.0 is intentionally re-baselined after the former corpus was deleted. Every lesson includes a complete lesson-level resourceLinks map. All prose strings use the shared grammar: '\\n' starts a new paragraph; a line beginning '- ' is a bullet; no inline markup.",
+  "description": "CONTRACT REVISION R1 (2026-11-09): FINAL_EXPLANATION.rubric rows now require a fourth level, belowExpectations; see CONTRACT_CHANGELOG.md for every change, in order. Definitive Lesson3 production interchange contract for current ARES JSON outputs. schemaVersion 1.0.0 is intentionally re-baselined after the former corpus was deleted. Every lesson includes a complete lesson-level resourceLinks map. All prose strings use the shared grammar: '\\n' starts a new paragraph; a line beginning '- ' is a bullet; no inline markup.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "META", "UNIT", "LESSONS", "FINAL_EXPLANATION", "SUMMARY_TABLE"],
   "properties": {
     "schemaVersion": {
       "type": "string",
-      "enum": ["1.0.0"],
-      "description": "Definitive clean-cutover contract version. Former 1.0.0 files without resourceLinks are unsupported."
+      "enum": ["1.1.0"],
+      "description": "Contract version. 1.1.0 = revision R1 (2026-11-09: rubric rows require belowExpectations; see CONTRACT_CHANGELOG.md). 1.0.0 (R0) files are no longer accepted. Former files without resourceLinks are unsupported."
     },
 
     "META": {
@@ -153,12 +153,13 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["criterion", "excellent", "proficient", "developing"],
+            "required": ["criterion", "excellent", "proficient", "developing", "belowExpectations"],
             "properties": {
               "criterion": { "type": "string" },
-              "excellent": { "type": "string" },
-              "proficient": { "type": "string" },
-              "developing": { "type": "string" }
+              "excellent": { "type": "string", "description": "CBE level 4: Exceeds Expectations." },
+              "proficient": { "type": "string", "description": "CBE level 3: Meets Expectations." },
+              "developing": { "type": "string", "description": "CBE level 2: Approaches Expectations." },
+              "belowExpectations": { "type": "string", "description": "CBE level 1: Below Expectations. ADDED 2026-11-09 (contract revision R1, see CONTRACT_CHANGELOG.md). Required." }
             }
           }
         }

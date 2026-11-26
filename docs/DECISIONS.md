@@ -11,6 +11,61 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-11-26 — ARES contract R1 (schemaVersion 1.1.0): four rubric levels; both versions accepted
+
+**Trigger.** Mark Knittel's contract revision R1 (upstream `CONTRACT_CHANGELOG.md`; partner notice dated
+2026-11-23, delivered 2026-11-26) added one required key to every `FINAL_EXPLANATION.rubric[]` row,
+`belowExpectations`, and bumped `schemaVersion` to 1.1.0. Lesson3 rejected every R1 file. Upstream's corpus is
+mixed during the transition (41 Grade 10 Biology/Chemistry/Physics/Mathematics exports at 1.1.0; General
+Science, Essential Mathematics and Grade 11 Biology held at 1.0.0) and asked whether we accept both.
+
+**Decisions.**
+1. **Accept both versions (operator, 2026-11-26).** One schema file per revision, picked by the file's own
+   `schemaVersion` (`ingest/contract.ts`). The current file is upstream's schema **byte-verbatim** (hash pinned
+   in PROVENANCE and recomputed by `tests/unit/ingestContract.spec.ts`), so a later revision is a file copy, not
+   an edit; R0 is frozen as `ares-contract-1.0.0.schema.json`. A unit test fails if either schema uses a JSON
+   Schema keyword the hand-rolled validator does not enforce, so an upstream schema can never be silently
+   weaker here than there. An unknown version is reported against all supported versions.
+2. **Tolerate, do not migrate, plans stored under 1.0.0** (upstream offered either). The new column is
+   nullable; old rows keep NULL and print a blank fourth column; the fourth level arrives only with upstream's
+   own 1.1.0 re-release (an ordinary new major release). We do not invent descriptor text.
+3. **Keep upstream's key names** (no R2 rename). Only the editor labels follow the printed headings.
+4. **JSON export always writes 1.1.0**; a missing fourth level is `""`, which the fingerprint ignores, so an
+   exported 1.0.0-era plan re-imports as "already here" (verified on 25 stored versions).
+5. **Generator re-pinned to upstream `129ffc5`** (identical at upstream HEAD `d201e611`): four rubric headings
+   (Exceeds/Meets/Approaches/Below Expectations), no silent `|| ''` defaults, unknown phase throws, and a new
+   fifth vendored file `lesson_contract.js` that `build_docs.js` requires. `GENERATOR_RENDER_VERSION` 10 → 11.
+   Its two env reads (`CBE_OUTPUT_ROOT`, `CBE_LEGACY_RUBRIC`) belong to upstream's `run()`/`checkModule()`, which
+   Lesson3 never calls; they are classified never-in-template. The compare view's Final Explanation rubric is
+   now 5 cells wide (`compareGroups.ts`).
+
+**Found on the way: a clean install broke at an old migration.** `20261019_211325_worldwide_ids` backfills
+fingerprints with `payload.find` and pinned its top-level `select`, but `finalExplanation: true` still selected
+every rubric column of the CURRENT config — so adding `below_expectations` broke a fresh install at that
+migration (`column … does not exist`). Its select now names the rubric's four original columns. Only fresh
+installs run it; already-migrated servers are unaffected. **Rule:** a data migration that reads through Payload
+must name every field down to the columns that existed at that migration, not just the top-level groups.
+
+**Not done here, by decision.** Upstream renumbered Mathematics Grade 10 (old 2.2 "Area of Polygons" is now 2.5;
+2.2 is "Reflection and Congruence"), merged Biology 1.1 into a new 1.3, and retired its 14 "Core Mathematics"
+exports (they were the main Mathematics under the wrong label). Lesson3 matches releases by
+`(subjectGrade, substrand_id)`, so uploading the new set over the old would attach topics to unrelated plans.
+Operator chose an operational procedure over a name-mismatch guard (which would also block real renames such as
+"Vectors" → "Vectors I"): delete the superseded plans, then upload (SPEC §7). The 43 Codex-authored General
+Science / Core / Essential Mathematics expansion bundles also conform and render, but upstream has not yet said
+which set is authoritative. Their five extra out-of-contract Word documents per unit, and the quiz files, are
+outside the contract and outside this change.
+
+**Verified.** Contract drift: 80/80 current upstream exports and 43/43 expansion bundles conform; the corpus
+check renders, previews and compare-groups all 123 (two known header-only table lines in Essential Mathematics
+Quadratic Equations, unchanged). Both fidelity gates are content-identical to upstream's own R1 DOCX for
+Physics 4.1, Mathematics 2.4 and Biology 1.3 (46/50/66 blocks). A real import into a migrated database: 13
+R0 plans, then 12 R1 files as 2.0.0 releases, R0 re-upload "already here"; every stored version exports as
+1.1.0 with zero drift and renders all four documents. Unit, contract-check and the ingest integration suites
+pass; new integration cases cover R0 then R1 on the same plan and a 1.1.0 row missing the fourth level.
+
+---
+
 ## 2026-11-25 — Branch protection on `main` stays
 
 A docs-only push to `main` for the v1.16 notes was rejected (`GH006`, required status check `gate`):

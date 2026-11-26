@@ -2,7 +2,7 @@
 #
 # vendor-generator.sh — re-sync the vendored ARES generator into Lesson3.
 #
-# Copies the four Node lib files byte-verbatim from a local clone of
+# Copies the five Node lib files byte-verbatim from a local clone of
 # cbe-generation-system at a given commit into app/src/generator/vendor/lib/, and writes the
 # attribution config (see the YAML section below). An optional config revision keeps a
 # configuration-only update reproducible without changing renderer libraries.
@@ -24,7 +24,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VEND="$REPO_ROOT/app/src/generator/vendor/lib"
 mkdir -p "$VEND"
 
-FILES=(build_docs.js sections.js docx_kit.js attribution.js)
+# lesson_contract.js since upstream 129ffc5f: build_docs.js requires it (its run() refuses a module that
+# breaks the contract). Lesson3 never calls run(), but the require must resolve.
+FILES=(build_docs.js sections.js docx_kit.js attribution.js lesson_contract.js)
 
 # Validate both revisions before replacing any vendored file.
 for f in "${FILES[@]}"; do

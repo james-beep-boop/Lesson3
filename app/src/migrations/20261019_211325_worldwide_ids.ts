@@ -66,7 +66,14 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
         meta: true,
         unit: true,
         lessons: true,
-        finalExplanation: true,
+        // ⚑ Named down to the rubric's columns: `finalExplanation: true` also selected the rubric's
+        // `below_expectations`, added by 20261126 (ARES contract R1), so a clean install failed here.
+        finalExplanation: {
+          subjectLabel: true,
+          instructions: true,
+          sections: true,
+          rubric: { criterion: true, excellent: true, proficient: true, developing: true },
+        },
         summaryTable: true,
       },
       depth: 0,

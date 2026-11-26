@@ -661,8 +661,15 @@ describe('JSON export — GET /:id/ares-export (Download as JSON)', () => {
     const res = await fetch(url(jsonUrl(fx.version.id)), { headers: auth('teacher') })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename=".+\.json"$/)
-    const body = (await res.json()) as { schemaVersion?: string; LESSONS?: unknown[] }
-    expect(body.schemaVersion).toBe('1.0.0')
+    const body = (await res.json()) as {
+      schemaVersion?: string
+      LESSONS?: unknown[]
+      FINAL_EXPLANATION?: { rubric?: Record<string, unknown>[] } | null
+    }
+    // Always the current contract (R1): every rubric row carries the fourth level, '' when the plan has none.
+    expect(body.schemaVersion).toBe('1.1.0')
+    for (const row of body.FINAL_EXPLANATION?.rubric ?? [])
+      expect(typeof row.belowExpectations).toBe('string')
     expect(body.LESSONS?.length).toBeGreaterThan(0)
   })
 })

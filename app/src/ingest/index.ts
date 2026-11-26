@@ -564,7 +564,8 @@ async function prepareItems(
       if (problems.length > 0) {
         throw new IngestError(`not generatable:\n    - ${problems.join('\n    - ')}`)
       }
-      // Contract drift is a HARD GATE: ARES adopted ares-contract.schema.json, so any divergence
+      // Contract drift is a HARD GATE: ARES adopted ares-contract.schema.json (checked against the
+      // revision the file's own schemaVersion names, ingest/contract.ts), so any divergence
       // is a regression that must reject this file. Validate the RAW (UPPERCASE)
       // object, the shape the contract describes. See docs/DECISIONS.md (warn-only → hard gate).
       const drift = contractDrift(raw)

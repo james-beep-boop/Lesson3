@@ -29,6 +29,7 @@ const { Document, Packer, PageOrientation } = require('docx');
 const { W, C, SZ, SZ_H, SPACE, PAGE_BREAK, para, cell, richCell, fullHeader, labelRow, makeTable } = require('./docx_kit');
 const { TableRow } = require('docx');
 const { takeDiagnostics } = require('../aresResources');
+const { checkModule } = require('./lesson_contract');
 const { substrandHeaderParas, lessonFooterParas } = require('./attribution');
 const {
   titleBlock, subStrandOverview,
@@ -50,7 +51,7 @@ function pageProps() {
 
 async function buildSoW(META, UNIT, LESSONS) {
   const sectionCConfig = {
-    subject:   META.subject   || 'Biology',
+    subject:   META.subject,
     col3Label: META.col3Label || 'Teacher Moves',
     col5Label: META.col5Label || 'Formative Assessment Strategy',
   };
@@ -105,8 +106,8 @@ async function buildFinalExplanation(META, FE, mode = 'student') {
   }
   const FLW = 3000;
   const FCW = W - FLW;
-  const RW3 = Math.floor(FCW / 3);
-  const RW3r = FCW - RW3 * 2;
+  const RW3 = Math.floor(FCW / 4);        // four rubric level columns (contract revision R1)
+  const RW3r = FCW - RW3 * 3;
 
   const body = [
     ...titleBlock(
@@ -142,13 +143,13 @@ async function buildFinalExplanation(META, FE, mode = 'student') {
   }
 
   // Sections
-  for (const sec of (FE.sections || [])) {
+  for (const sec of FE.sections) {
     if (isTeacher) {
       body.push(makeTable([
         fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 2, true),
         new TableRow({ children: [
-          richCell(sec.prompt  || '', { fill: C.lightTeal,  bold: true, w: FLW, size: SZ }),
-          richCell(sec.exemplar || '', { fill: C.white,      w: FCW, size: SZ }),
+          richCell(sec.prompt,   { fill: C.lightTeal,  bold: true, w: FLW, size: SZ }),
+          richCell(sec.exemplar, { fill: C.white,      w: FCW, size: SZ }),
         ]}),
       ], [FLW, FCW]));
     } else {
@@ -156,7 +157,7 @@ async function buildFinalExplanation(META, FE, mode = 'student') {
       body.push(makeTable([
         fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 1, true),
         new TableRow({ children: [
-          richCell(sec.prompt || '', { fill: C.lightTeal, bold: true, w: W, size: SZ, keepNext: true }),
+          richCell(sec.prompt, { fill: C.lightTeal, bold: true, w: W, size: SZ, keepNext: true }),
         ]}),
         new TableRow({ height: { value: 4200, rule: 'atLeast' }, children: [
           cell('Write your answer here:', { fill: C.white, w: W, size: SZ, italic: true, color: '808080' }),
@@ -172,18 +173,20 @@ async function buildFinalExplanation(META, FE, mode = 'student') {
       fullHeader('RUBRIC', C.darkBlue, 'FFFFFF', SZ_H, 4),
       new TableRow({ children: [
         cell('Criterion',      { fill: C.medBlue, bold: true, color: 'FFFFFF', w: FLW,  size: SZ }),
-        cell('Excellent (4)',  { fill: C.teal,    bold: true, color: 'FFFFFF', w: RW3,  size: SZ }),
-        cell('Proficient (3)', { fill: C.medBlue, bold: true, color: 'FFFFFF', w: RW3,  size: SZ }),
-        cell('Developing (1–2)', { fill: C.teal,  bold: true, color: 'FFFFFF', w: RW3r, size: SZ }),
+        cell('Exceeds Expectations (4)',   { fill: C.teal,    bold: true, color: 'FFFFFF', w: RW3,  size: SZ }),
+        cell('Meets Expectations (3)',     { fill: C.medBlue, bold: true, color: 'FFFFFF', w: RW3,  size: SZ }),
+        cell('Approaches Expectations (2)',{ fill: C.teal,    bold: true, color: 'FFFFFF', w: RW3,  size: SZ }),
+        cell('Below Expectations (1)',     { fill: C.medBlue, bold: true, color: 'FFFFFF', w: RW3r, size: SZ }),
       ]}),
       ...FE.rubric.map(r => new TableRow({ children: [
         cell(r.criterion,  { fill: C.lightBlue,  w: FLW,  size: SZ }),
         cell(r.excellent,  { fill: C.white,      w: RW3,  size: SZ }),
         cell(r.proficient, { fill: C.grey,       w: RW3,  size: SZ }),
-        cell(r.developing, { fill: C.white,      w: RW3r, size: SZ }),
+        cell(r.developing, { fill: C.white,      w: RW3,  size: SZ }),
+        cell(r.belowExpectations || '', { fill: C.grey, w: RW3r, size: SZ }),   // '' only possible under CBE_LEGACY_RUBRIC=1 (baseline render)
       ]})),
     ];
-    body.push(makeTable(rubricRows, [FLW, RW3, RW3, RW3r]));
+    body.push(makeTable(rubricRows, [FLW, RW3, RW3, RW3, RW3r]));
   }
 
   // Attribution at the end of the document (Mark, 2026-10-01).
@@ -207,7 +210,7 @@ async function buildSummaryTable(META, ST) {
   const body = [
     ...titleBlock(
       `SUMMARY TABLE: ${META.subject.toUpperCase()} GRADE ${META.grade}`,
-      `${ST.subStrand || ''} — Teacher Reference (Pre-filled)`,
+      `${ST.subStrand} — Teacher Reference (Pre-filled)`,
     ),
     SPACE(),
   ];
@@ -215,8 +218,8 @@ async function buildSummaryTable(META, ST) {
   // Header info
   body.push(makeTable([
     fullHeader(`SUMMARY TABLE: ${META.subject.toUpperCase()} GRADE ${META.grade}`, C.darkBlue, 'FFFFFF', SZ_H, 2),
-    labelRow('Sub-Strand',       ST.subStrand    || '', SLW),
-    labelRow('Driving Question', ST.drivingQuestion || '', SLW),
+    labelRow('Sub-Strand',       ST.subStrand,       SLW),
+    labelRow('Driving Question', ST.drivingQuestion, SLW),
   ], [SLW, W - SLW]));
 
   body.push(SPACE());
@@ -244,11 +247,11 @@ async function buildSummaryTable(META, ST) {
       cell('What did I learn?',                         { fill: C.teal,     bold: true, color: 'FFFFFF', w: SC3,  size: SZ }),
       cell('How does this explain the phenomenon?',     { fill: C.medBlue,  bold: true, color: 'FFFFFF', w: SC3r, size: SZ }),
     ]}),
-    ...(ST.lessons || []).map(l => new TableRow({ children: [
+    ...ST.lessons.map(l => new TableRow({ children: [
       cell(`Lesson ${l.number}\n${l.title}`, { fill: C.lightBlue,   bold: true, w: SLW,  size: SZ }),
-      cell(l.observed  || '',                { fill: C.white,                   w: SC3,  size: SZ }),
-      cell(l.learned   || '',                { fill: C.grey,                    w: SC3,  size: SZ }),
-      cell(l.explained || '',                { fill: C.white,                   w: SC3r, size: SZ }),
+      cell(l.observed,                       { fill: C.white,                   w: SC3,  size: SZ }),
+      cell(l.learned,                        { fill: C.grey,                    w: SC3,  size: SZ }),
+      cell(l.explained,                      { fill: C.white,                   w: SC3r, size: SZ }),
     ]})),
   ];
 
@@ -265,7 +268,18 @@ async function buildSummaryTable(META, ST) {
 async function run(dataModule) {
   const { schemaVersion, META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE } = dataModule;
 
-  const outBase = path.join(__dirname, '..', '..', 'data', 'outputs', META.outputDir);
+  // Fail loudly, before writing anything: a missing or misnamed field used to
+  // render as a silently empty cell (2026-10-26). Same contract as
+  // scripts/validate_corpus.js and scripts/patch_lesson.js.
+  const contractErrors = checkModule(dataModule);
+  if (contractErrors.length) {
+    throw new Error(`data module breaks the contract (${contractErrors.length} problem(s)); nothing rendered:\n`
+                    + contractErrors.map(e => `    - ${e}`).join('\n'));
+  }
+
+  // CBE_OUTPUT_ROOT redirects all output (used for the revised-corpus build, which must never touch data/outputs)
+  const outRoot = process.env.CBE_OUTPUT_ROOT || path.join(__dirname, '..', '..', 'data', 'outputs');
+  const outBase = path.join(outRoot, META.outputDir);
   if (!fs.existsSync(outBase)) fs.mkdirSync(outBase, { recursive: true });
 
   const files = [];
@@ -281,13 +295,16 @@ async function run(dataModule) {
   // the contract JSON, mirrored under logs/link_matching/<outputDir>/.
   const diag = takeDiagnostics();
   if (diag.length) {
-    const diagDir = path.join(__dirname, '..', '..', 'logs', 'link_matching', META.outputDir);
+    const diagDir = process.env.CBE_OUTPUT_ROOT
+      ? path.join(outRoot, '_link_matching', META.outputDir)
+      : path.join(__dirname, '..', '..', 'logs', 'link_matching', META.outputDir);
     fs.mkdirSync(diagDir, { recursive: true });
     fs.writeFileSync(path.join(diagDir, `${META.filePrefix}.json`), JSON.stringify(diag, null, 2));
   }
 
   // 2. Final Explanation: student version (blank answer space) and teacher
   //    key (exemplars). Same data, so the two cannot drift apart.
+  //    The contract allows null ("not authored yet"): then no FE document, said out loud.
   if (FINAL_EXPLANATION) {
     for (const [mode, suffix] of [['student', 'FinalExplanation'], ['teacher', 'FinalExplanation_TeacherKey']]) {
       const feDoc  = await buildFinalExplanation(META, FINAL_EXPLANATION, mode);
@@ -296,15 +313,19 @@ async function run(dataModule) {
       files.push(fePath);
       console.log(`    Saved: ${fePath}  (${Math.round(fs.statSync(fePath).size / 1024)} KB)`);
     }
+  } else {
+    console.warn('    FINAL_EXPLANATION is null: Final Explanation documents NOT produced');
   }
 
-  // 3. Summary Table
+  // 3. Summary Table (same rule)
   if (SUMMARY_TABLE) {
     const stDoc  = await buildSummaryTable(META, SUMMARY_TABLE);
     const stPath = path.join(outBase, `${META.filePrefix}_SummaryTable.docx`);
     await Packer.toBuffer(stDoc).then(buf => fs.writeFileSync(stPath, buf));
     files.push(stPath);
     console.log(`    Saved: ${stPath}  (${Math.round(fs.statSync(stPath).size / 1024)} KB)`);
+  } else {
+    console.warn('    SUMMARY_TABLE is null: Summary Table document NOT produced');
   }
 
   // 4. JSON export — canonical structured data for downstream tools

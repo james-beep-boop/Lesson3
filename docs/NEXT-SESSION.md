@@ -24,6 +24,27 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 ---
 
+# After v1.16 — ARES contract R1 accepted (2026-11-26)
+
+Lesson plans in upstream's new format (`schemaVersion` 1.1.0: a fourth rubric level, `belowExpectations`) now
+upload beside 1.0.0; the generator is re-pinned to upstream `129ffc5`. One migration, render version 11. Not
+tagged or deployed. Reasoning and verification: DECISIONS 2026-11-26; SPEC §3 "Contract revisions".
+
+**On the next deploy, in this order (operator decision 2026-11-26):**
+1. Deploy; the migration runs; sign in and download one Final Explanation (four rubric columns).
+2. List, then delete on the Rock, the plans upstream superseded: Mathematics Grade 10 (renumbered), Core
+   Mathematics Grade 10 (retired: it was the main Mathematics mislabelled) and Biology Grade 10 sub-strand 1.1
+   (merged into the new 1.3). Deleting is irreversible: show David the exact list first.
+3. Upload upstream's current `data/outputs/v2` exports (80 files at upstream `d201e611`). Unchanged plans report
+   "already here"; revised ones arrive as new major releases.
+
+**Open with Mark:** which General Science / Essential / Core Mathematics set is authoritative (the 43
+Codex-authored expansion bundles conform and render but are not yet promoted upstream); the real Core
+Mathematics is still to come; the extra Word documents and quiz files are outside the contract (file-storage
+phase of the Presentations plan).
+
+---
+
 # Release v1.16 — 2026-11-25
 
 Everything merged since v1.15 (main `4ed8a56`). Tagged at `e5f02e4` (the merge of #508) by David on

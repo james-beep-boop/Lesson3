@@ -538,6 +538,71 @@ describe('re-ingest (SPEC §7)', () => {
   })
 })
 
+/**
+ * ARES contract R1 (schemaVersion 1.1.0, 2026-11-26): rubric rows gain `belowExpectations`. Both versions
+ * are accepted during upstream's transition; a plan stored under 1.0.0 keeps three levels, and its 1.1.0
+ * re-release arrives as an ordinary new major release carrying the fourth level.
+ */
+describe('contract R0 and R1 side by side', () => {
+  const withRubric = (
+    raw: Record<string, unknown>,
+    version: string,
+    row: Record<string, string>,
+  ) => ({
+    ...raw,
+    schemaVersion: version,
+    FINAL_EXPLANATION: {
+      subjectLabel: 'Biology',
+      instructions: 'Explain.',
+      sections: [{ title: 'S', prompt: 'P', exemplar: 'E' }],
+      rubric: [row],
+    },
+  })
+  const row3 = { criterion: 'Clarity', excellent: '4', proficient: '3', developing: '2' }
+  const rubricOf = async (versionId: number) =>
+    (
+      (await payload.findByID({
+        collection: 'lesson-bundle-versions',
+        id: versionId,
+        depth: 0,
+        overrideAccess: true,
+      })) as { finalExplanation?: { rubric?: Record<string, unknown>[] } }
+    ).finalExplanation?.rubric ?? []
+
+  it('stores a 1.0.0 plan with three levels, then its 1.1.0 release with the fourth', async () => {
+    const [r0] = await ingestItems(payload, [
+      item('r0.json', withRubric(rawBundle('97.40', 'Rubric'), '1.0.0', row3)),
+    ])
+    expect(r0.semver).toBe('1.0.0')
+    const v1 = (await officialOf(r0.id)) as number
+    expect((await rubricOf(v1))[0]?.belowExpectations ?? null).toBeNull()
+
+    const [r1] = await ingestItems(payload, [
+      item(
+        'r1.json',
+        withRubric(rawBundle('97.40', 'Rubric'), '1.1.0', { ...row3, belowExpectations: '1' }),
+      ),
+    ])
+    expect(r1.id).toBe(r0.id)
+    expect(r1.semver).toBe('2.0.0')
+    const { docs } = await payload.find({
+      collection: 'lesson-bundle-versions',
+      where: { lessonPlan: { equals: r0.id }, semver: { equals: '2.0.0' } },
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect((await rubricOf(docs[0]!.id))[0]?.belowExpectations).toBe('1')
+  })
+
+  it('rejects a 1.1.0 file whose rubric rows lack the fourth level', async () => {
+    await expect(
+      ingestItems(payload, [
+        item('bad.json', withRubric(rawBundle('97.41', 'Bad'), '1.1.0', row3)),
+      ]),
+    ).rejects.toThrow(/belowExpectations: required field missing/)
+  })
+})
+
 describe('partial web ingest', () => {
   it('re-uploading a corrected batch skips previous imports and then becomes a successful no-op', async () => {
     const first = rawBundle('97.90', 'Unchanged first')

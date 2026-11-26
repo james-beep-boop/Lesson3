@@ -1,6 +1,7 @@
 /**
  * Contract drift report — validate ARES data files against the canonical contract
- * (src/ingest/ares-contract.schema.json) and print, per file, how each diverges.
+ * (src/ingest/ares-contract*.schema.json — the revision each file's schemaVersion names) and print, per file,
+ * how each diverges.
  *
  * DB-less, parse-never-execute (same safe extractors as ingest). Use it to (a) see what a
  * bundle will warn about before ingesting, and (b) generate the drift report we send back to
@@ -55,7 +56,9 @@ function main() {
     process.exit(1)
   }
 
-  console.log(`Contract drift vs src/ingest/ares-contract.schema.json — ${files.length} file(s)\n`)
+  console.log(
+    `Contract drift vs src/ingest/ares-contract*.schema.json (by schemaVersion) — ${files.length} file(s)\n`,
+  )
   let conforming = 0
   let totalIssues = 0
   let unreadable = 0

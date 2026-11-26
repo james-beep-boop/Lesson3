@@ -644,3 +644,38 @@ describe('where an extracted framework table lands (upstream f83db61)', () => {
     }
   })
 })
+
+describe('ARES contract R1 (re-pin to upstream 129ffc5): four rubric levels', () => {
+  const HEADERS = [
+    'Exceeds Expectations (4)',
+    'Meets Expectations (3)',
+    'Approaches Expectations (2)',
+    'Below Expectations (1)',
+  ]
+  const fe = (rubric: Record<string, string>[]) => ({
+    subjectLabel: 'Biology',
+    instructions: 'Explain your thinking.',
+    sections: [{ title: 'Evidence', prompt: 'What happened?', exemplar: 'E' }],
+    rubric,
+  })
+  const row = { criterion: 'Clarity', excellent: 'EX', proficient: 'ME', developing: 'AP' }
+
+  it('prints the four CBE headings and the belowExpectations text', async () => {
+    const { xml } = await parts(
+      await generateFinalExplanationDocx(
+        data({ FINAL_EXPLANATION: fe([{ ...row, belowExpectations: 'BELOW-LEVEL-TEXT' }]) }),
+      ),
+    )
+    for (const h of HEADERS) expect(xml).toContain(h)
+    expect(xml).toContain('BELOW-LEVEL-TEXT')
+    expect(xml).not.toContain('Developing (1')
+  })
+
+  it('a plan imported under 1.0.0 (no fourth level) still renders, with a blank last column', async () => {
+    const { xml } = await parts(
+      await generateFinalExplanationDocx(data({ FINAL_EXPLANATION: fe([row]) })),
+    )
+    for (const h of HEADERS) expect(xml).toContain(h)
+    expect(xml).toContain('AP')
+  })
+})

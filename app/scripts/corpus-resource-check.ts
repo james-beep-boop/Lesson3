@@ -1,7 +1,7 @@
 /**
  * DB-free replacement-corpus gate.
  *
- * Validates every JSON file against the definitive 1.0.0 contract and proves every lesson-level
+ * Validates every JSON file against the contract revision it names (1.0.0 or 1.1.0) and proves every lesson-level
  * resourceLinks map survives raw JSON → ingest mapping → simulated Payload row ids → generator
  * adapter exactly. Defaults to the user's current replacement corpus; CI/Rock can set
  * ARES_JSON_CORPUS_DIR and expected counts.
@@ -83,5 +83,5 @@ if (failures.length) {
   for (const failure of failures) console.error(`  ✗ ${failure}`)
   process.exit(1)
 }
-console.log('  ✓ all files conform to definitive 1.0.0')
+console.log('  ✓ all files conform to the contract revision they name (1.0.0 or 1.1.0)')
 console.log('  ✓ every resourceLinks map round-trips exactly through the Payload adapter boundary')

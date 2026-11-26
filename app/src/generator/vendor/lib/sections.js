@@ -173,9 +173,14 @@ function sectionC(lesson, config = {}) {
   };
 
   // Build the Phase cell: phase label on top, then resource links stacked below.
+  // An unknown label used to fall back to the 'observe' resources and grey
+  // shading without a word; now it stops the render (run() checks first).
   const phaseCell = (ph) => {
+    if (!PHASE_KEY[ph.phase] || !PHASE_COLOUR[ph.phase]) {
+      throw new Error(`L${lesson.number}: unknown phase label ${JSON.stringify(ph.phase)}`);
+    }
     const out = [para(ph.phase, { bold: true, size: SZ, after: 40 })];
-    const resPara = buildResourceParagraphs(aresRes[PHASE_KEY[ph.phase] || 'observe'], ph.phase);
+    const resPara = buildResourceParagraphs(aresRes[PHASE_KEY[ph.phase]], ph.phase);
     return out.concat(resPara);
   };
 
@@ -199,7 +204,7 @@ function sectionC(lesson, config = {}) {
         if (tb) tabs.push(tb);
       }
       const rows = [new TableRow({ children: [
-        cell(phaseCell(ph), { fill: PHASE_COLOUR[ph.phase] || C.grey, w: cw[0] }),
+        cell(phaseCell(ph), { fill: PHASE_COLOUR[ph.phase], w: cw[0] }),
         cell(txt.learnerExperience,   { fill: C.white, w: cw[1], size: SZ }),
         cell(txt.teacherMoves,        { fill: C.grey,  w: cw[2], size: SZ }),
         cell(txt.sensemakingStrategy, { fill: C.white, w: cw[3], size: SZ }),
