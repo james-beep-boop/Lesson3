@@ -115,4 +115,4 @@ identities.
 
 ## Prior implementation (reference only)
 
-The previous build lives in the separate **`Lesson2`** repository (Laravel 13 / Filament 5 / DreamHost). It is preserved unchanged for reference; no code is ported from it.
+The previous build lived in the **`Lesson2`** repository (Laravel 13 / Filament 5 / DreamHost). That repository was deleted on 2026-11-26 as fully superseded; no code was ported from it.

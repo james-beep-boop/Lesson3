@@ -16,7 +16,7 @@ A **versioned lesson-plan repository**: ingest ARES-generated CBE lesson plans a
 
 ## Lineage
 
-This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 13 / Filament 5 app on DreamHost) lives, preserved and unchanged, in the **separate `Lesson2` repository**. Do not port its code. Only the domain rules captured in `SPEC.md` carry over.
+This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 13 / Filament 5 app on DreamHost) lived in the **`Lesson2` repository**, which was deleted on 2026-11-26 as fully superseded. Do not port its code. Only the domain rules captured in `SPEC.md` carry over.
 
 ## Decided architecture
 

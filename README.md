@@ -2,7 +2,7 @@
 
 A **versioned lesson-plan repository** for ARES Kenya. ARES-generated CBE lesson plans are ingested as version 1.0.0; teachers make basic edits; every edit creates a new immutable version; any version exports as **high-fidelity DOCX and PDF**.
 
-> **Clean-slate rewrite.** This repository supersedes the **Lesson2** project (Laravel 13 / Filament 5 on DreamHost), which is preserved unchanged in its own repository for reference. See **`SPEC.md`** for the architecture and **`CLAUDE.md`** for AI-assistant guidance.
+> **Clean-slate rewrite.** This repository supersedes the **Lesson2** project (Laravel 13 / Filament 5 on DreamHost), whose repository was deleted on 2026-11-26 as fully superseded. See **`SPEC.md`** for the architecture and **`CLAUDE.md`** for AI-assistant guidance.
 
 ## Architecture
 
