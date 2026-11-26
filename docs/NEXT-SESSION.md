@@ -24,7 +24,7 @@ start a fresh run; previous approvals and completion counts do not carry over.
 
 ---
 
-# After v1.15 — ARES contract R1 accepted (2026-11-26)
+# After v1.16 — ARES contract R1 accepted (2026-11-26)
 
 Lesson plans in upstream's new format (`schemaVersion` 1.1.0: a fourth rubric level, `belowExpectations`) now
 upload beside 1.0.0; the generator is re-pinned to upstream `129ffc5`. One migration, render version 11. Not
@@ -42,6 +42,32 @@ tagged or deployed. Reasoning and verification: DECISIONS 2026-11-26; SPEC §3 "
 Codex-authored expansion bundles conform and render but are not yet promoted upstream); the real Core
 Mathematics is still to come; the extra Word documents and quiz files are outside the contract (file-storage
 phase of the Presentations plan).
+
+---
+
+# Release v1.16 — 2026-11-25
+
+Everything merged since v1.15 (main `4ed8a56`). Tagged at `e5f02e4` (the merge of #508) by David on
+2026-11-25, just before this release note merged, so the tagged tree's CHANGELOG still says
+"Unreleased" (as with v1.12 and v1.14). A security and maintenance release; no feature, endpoint,
+migration or export-format change.
+
+- **Node 24.22.3 and Postgres 16.16** (#505), both security releases, plus small bumps. Postgres 16.16
+  needs no reindex here (DECISIONS 2026-11-20).
+- **Payload 3.94.0** (#506) and **3.94.2** (#507, security: access checks on nested relationship and
+  draft queries, update operators stripped, server-function dispatch restricted), with DOMPurify 3.5.0
+  and nodemailer 10.6.1. The typing-speed patch was re-derived for 3.94.0 and applies unchanged to
+  3.94.2; Rock benchmark 40 ms/key (main before it: 48).
+- **Gotenberg 9.9.3** (#508, security: a conversion that overruns its timeout can no longer answer
+  another request). Rock PDF comparison: 3 of 3 documents and 44 of 44 page images identical to 9.4.0.
+- New Rock tools, run from a separate clone and never against the live stack:
+  `scripts/bench-rock.sh` (typing benchmark, main vs HEAD) and `scripts/compare-gotenberg-rock.sh`
+  (PDF comparison, main's sidecar vs HEAD's).
+
+On the next deploy: Postgres restarts on the new image (brief), the Gotenberg sidecar rebuilds;
+sign in once and download one PDF to check. The sign-in page should read "Version 1.16".
+Not taken: Gotenberg 9.10.x (features, no advisory) and Payload 4 (still beta; its guide is
+`docs/migration-guide/v4.mdx` in the payloadcms/payload repository).
 
 ---
 

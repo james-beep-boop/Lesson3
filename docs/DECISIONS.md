@@ -66,6 +66,15 @@ pass; new integration cases cover R0 then R1 on the same plan and a 1.1.0 row mi
 
 ---
 
+## 2026-11-25 — Branch protection on `main` stays
+
+A docs-only push to `main` for the v1.16 notes was rejected (`GH006`, required status check `gate`):
+the classic branch protection rule on `main` was active again, although the 2026-10-14 decision had
+removed it for speed and CLAUDE.md/AGENTS.md still said so. Who re-enabled it is not recorded. The
+operator chose to keep it. Every change, docs included, now goes through a pull request and a green
+`gate` (the CI job that requires `checks`, `native_arm` and `restore_stack`, and fails a cancelled run).
+CLAUDE.md and AGENTS.md updated to match.
+
 ## 2026-11-24 — Gotenberg 9.9.3 (security)
 
 Operator-approved. Gotenberg published nine advisories on 2026-11-22, fixed across 9.9.1–9.9.3.

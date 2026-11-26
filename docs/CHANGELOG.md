@@ -15,6 +15,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
   Below Expectations); older plans show a blank fourth column until ARES re-releases them.
   Administrators can edit the new level. One migration (`20261126_160433_rubric_below_expectations`);
   every cached document regenerates once (render version 11). Download as JSON writes 1.1.0.
+
+## v1.16 (2026-11-25)
+
 - Gotenberg 9.9.3 (security): a conversion that overruns its timeout can no longer answer another request.
 - Payload 3.94.2 (security fixes to access checks), DOMPurify 3.5.0 (security), nodemailer 10.6.1.
 - Payload 3.94.0 (bug fixes, including document-lock checks inside the request's transaction).

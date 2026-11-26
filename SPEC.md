@@ -4,7 +4,7 @@
 
 > Canonical reference for the build. All architectural decisions and clarifications agreed during design are recorded here. Code must conform to this spec.
 >
-> **Clean-slate rewrite (Lesson3, June 2026).** This project supersedes the **Lesson2** project (Laravel 13 / Filament 5 on DreamHost), which remains preserved, unchanged, in the separate `Lesson2` repository for reference. Nothing is carried over from it except the domain rules captured here.
+> **Clean-slate rewrite (Lesson3, June 2026).** This project supersedes the **Lesson2** project (Laravel 13 / Filament 5 on DreamHost), whose repository was deleted on 2026-11-26 as fully superseded. Nothing is carried over from it except the domain rules captured here.
 
 ---
 

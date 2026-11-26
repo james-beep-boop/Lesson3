@@ -16,7 +16,7 @@ A **versioned lesson-plan repository**: ingest ARES-generated CBE lesson plans a
 
 ## Lineage
 
-This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 13 / Filament 5 app on DreamHost) lives, preserved and unchanged, in the **separate `Lesson2` repository**. Do not port its code. Only the domain rules captured in `SPEC.md` carry over.
+This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 13 / Filament 5 app on DreamHost) lived in the **`Lesson2` repository**, which was deleted on 2026-11-26 as fully superseded. Do not port its code. Only the domain rules captured in `SPEC.md` carry over.
 
 ## Decided architecture
 
@@ -119,11 +119,12 @@ References: `payloadcms.com/docs`, the `docx` npm package, and the ARES `cbe-gen
 ## Working agreements
 
 - Commit freely on a working branch. Pushing to a feature branch is pre-authorised.
-- Pushing directly to `main` is pre-authorised for docs-only changes and for changes the operator has
-  asked for in the current session. Never force-push. Never rewrite published history.
+- `main` is a protected branch (operator decision 2026-11-25, keeping protection that was found
+  re-enabled): every change, docs-only included, goes branch → PR → green `gate` → merge. A direct
+  push to `main` is rejected with GH006. Never force-push. Never rewrite published history.
 - Tell the operator what was pushed and where, in one line, after pushing.
-- The deployment is a demo server (operator decision 2026-10-14; branch protection removed for
-  speed). Revisit this rule before real users are onboarded.
+- The deployment is a demo server; the 2026-10-14 decision to remove branch protection for speed is
+  superseded by the line above.
 - When in doubt, check `SPEC.md`; if still ambiguous, choose the simplest maintainable option and document the deviation there.
 - Do not invent features beyond the spec.
 - Keep the system single-runtime — do not re-introduce a second language on the core path.
