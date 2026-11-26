@@ -330,6 +330,10 @@ export interface LessonBundleVersion {
           excellent?: string | null;
           proficient?: string | null;
           developing?: string | null;
+          /**
+           * Lesson plans from before November 2026 have only three levels, so this can be blank.
+           */
+          belowExpectations?: string | null;
           id?: string | null;
         }[]
       | null;
@@ -924,6 +928,7 @@ export interface LessonBundleVersionsSelect<T extends boolean = true> {
               excellent?: T;
               proficient?: T;
               developing?: T;
+              belowExpectations?: T;
               id?: T;
             };
       };

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { releaseTagVersion } from '../lib/appVersion'
 import { compareSemver } from '../lib/semver'
 import { IngestError } from './errors'
+import { SUPPORTED_SCHEMA_VERSIONS } from './contract'
 import { isObject as object } from './resourceLinks'
 
 export const LESSON_PROGRAM_VERSION = '1.08'
@@ -59,11 +60,11 @@ export function parseLessonManifest(
     return bad('invalid schemaVersion or minProgram')
   if (
     Number(v.format) > 1 ||
-    v.schemaVersion !== '1.0.0' ||
+    !SUPPORTED_SCHEMA_VERSIONS.includes(v.schemaVersion) ||
     compareSemver(v.minProgram, program) > 0
   ) {
     throw new LessonSetRefused(
-      `This lesson set needs a newer version of ARES Lesson Plans. Update the program first. Set: format ${v.format}, schema ${v.schemaVersion}, minimum program ${v.minProgram}; this program: ${program}, format 1, schema 1.0.0.`,
+      `This lesson set needs a newer version of ARES Lesson Plans. Update the program first. Set: format ${v.format}, schema ${v.schemaVersion}, minimum program ${v.minProgram}; this program: ${program}, format 1, schema ${SUPPORTED_SCHEMA_VERSIONS.join(' or ')}.`,
     )
   }
   if (!object(v.files)) return bad('files must map paths to checksums and kinds')
