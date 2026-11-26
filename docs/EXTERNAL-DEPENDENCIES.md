@@ -16,8 +16,10 @@ This is the upstream system that produces ARES CBE lesson plans. Lesson3 depends
 - **`data/outputs/v2/**/*.json`** — the complete downstream interchange artifacts. The definitive
   Lesson3 1.0.0 contract is `schemaVersion`, `META`, `UNIT`, `LESSONS[]`, `FINAL_EXPLANATION`, and
   `SUMMARY_TABLE`, with mandatory `LESSONS[].resourceLinks`.
-- **`app/src/ingest/ares-contract.schema.json`** — Lesson3's enforceable consumer contract. Keep it
-  aligned to emitted JSON. Upstream `generators/data/SCHEMA.md` remains useful prose documentation but
+- **`app/src/ingest/ares-contract.schema.json`** — Lesson3's enforceable consumer contract: upstream's
+  current `ares-contract.schema.json`, byte-verbatim (since R1, 2026-11-26). Older accepted revisions sit
+  beside it, frozen (`ares-contract-1.0.0.schema.json`); a file is checked against the revision its
+  `schemaVersion` names. Upstream's `CONTRACT_CHANGELOG.md` lists every revision. Upstream `generators/data/SCHEMA.md` remains useful prose documentation but
   is not authoritative when it lags actual output.
 - **`generators/data/*_data.js`** — upstream authoring modules. They are not complete downstream
   interchange artifacts when resources are attached later in the build. Lesson3's web upload is JSON
@@ -71,20 +73,21 @@ as a coordinated upstream product change and re-run the full contract/fidelity p
 Pin the upstream generator to a known commit/version. Because fidelity depends on it, treat generator upgrades as deliberate, tested changes — never automatic.
 
 **Current Lesson3 pin:** see `app/src/generator/vendor/PROVENANCE.md`, which is authoritative and
-whose hashes `tests/unit/vendorProvenance.spec.ts` recomputes. As of 2026-10-22 that is library commit
-`f83db61931566df6bde9252db552bd353ed43d7a` (2026-10-08) for the four `lib/` files, plus attribution
-configuration from `d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e` (2026-10-21). The separate upstream
+whose hashes `tests/unit/vendorProvenance.spec.ts` recomputes. As of 2026-11-26 that is library commit
+`129ffc5f86ca3334fe4c0aa91af61af5b67ead4f` (2026-11-09, contract revision R1) for the five `lib/` files and the
+upload schema, plus attribution configuration from `d3d2b875d5a2e6e6ad2409f900a4df06fd245c3e` (2026-10-21). The separate upstream
 license source is the later commit `15283e42` documented above.
 
 ## Vendored into Lesson3
 
-The four Node generator library files are **vendored byte-verbatim** (not a submodule/npm
+The five Node generator library files are **vendored byte-verbatim** (not a submodule/npm
 dependency), together with upstream's `config/attribution.yaml`. See
 `app/src/generator/vendor/PROVENANCE.md` for the checksums and the re-sync procedure, and follow
 it over this summary if the two ever disagree.
 
 - **Vendored files** (`app/src/generator/vendor/lib/`): `build_docs.js`, `sections.js`,
-  `docx_kit.js`, `attribution.js`; and `vendor/config/attribution.upstream.yaml`
+  `docx_kit.js`, `attribution.js`, `lesson_contract.js` (required by `build_docs.js` since R1; Lesson3
+  never calls it); and `vendor/config/attribution.upstream.yaml`
 - **NOT vendored:** upstream `aresResources.js`, because it invokes Python. Lesson3's pure-Node bridge
   supplies the stored JSON map through `AsyncLocalStorage` and filters hyperlinks to HTTP(S).
 - **`docx` and `mammoth` are pinned production dependencies** in `app/package.json`.

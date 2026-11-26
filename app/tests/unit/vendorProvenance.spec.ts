@@ -30,13 +30,10 @@ describe('vendored generator provenance', () => {
     'lib/docx_kit.js',
     'lib/attribution.js',
     'lib/lesson_contract.js',
-  ])(
-    '%s matches its recorded SHA-256',
-    (file) => {
-      expect(table[file], `${file} must be listed in PROVENANCE.md`).toBeDefined()
-      expect(sha(`vendor/${file}`)).toBe(table[file])
-    },
-  )
+  ])('%s matches its recorded SHA-256', (file) => {
+    expect(table[file], `${file} must be listed in PROVENANCE.md`).toBeDefined()
+    expect(sha(`vendor/${file}`)).toBe(table[file])
+  })
 
   it('the pristine upstream attribution config matches its recorded SHA-256', () => {
     const rec = table['vendor/config/attribution.upstream.yaml']

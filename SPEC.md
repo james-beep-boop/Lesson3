@@ -97,12 +97,24 @@ Sub-strand bundle
 │   │   └── { phase, learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment }
 │   ├── teacherReflection
 │   └── summaryTablePrompt { observed, learned, explained }
-├── FINAL_EXPLANATION    # { subjectLabel, instructions, sections[{title, prompt, exemplar}], rubric[] }
+├── FINAL_EXPLANATION    # { subjectLabel, instructions, sections[{title, prompt, exemplar}], rubric[{criterion, excellent, proficient, developing, belowExpectations}] }
 └── SUMMARY_TABLE        # { subStrand, drivingQuestion, lessons[{number, title, observed, learned, explained}] }
 ```
 
 Authoritative Lesson3 upload schema: `app/src/ingest/ares-contract.schema.json`, aligned to the
-current generated ARES JSON artifacts (see `docs/EXTERNAL-DEPENDENCIES.md`). Upstream's prose schema
+current generated ARES JSON artifacts (see `docs/EXTERNAL-DEPENDENCIES.md`).
+
+**Contract revisions (2026-11-26).** ARES numbers its contract revisions (R0 = `schemaVersion` 1.0.0, R1 =
+1.1.0; upstream `CONTRACT_CHANGELOG.md`). Lesson3 keeps **one schema file per accepted revision** and checks
+each upload against the revision its own `schemaVersion` names: `ares-contract.schema.json` is the current
+revision, copied byte-verbatim from upstream (pin and hash in `generator/vendor/PROVENANCE.md`), and
+`ares-contract-1.0.0.schema.json` is R0, frozen. Both are accepted while upstream's corpus is mixed (operator
+decision 2026-11-26, at upstream's request). **R1** adds one required rubric-row key, `belowExpectations`
+(Kenya's CBE scale has four levels: Exceeds (4) = `excellent`, Meets (3) = `proficient`, Approaches (2) =
+`developing`, Below (1) = `belowExpectations`; the old keys keep their names). A plan stored under 1.0.0 is
+**tolerated, not migrated**: it keeps three levels, prints a blank fourth column, and gains the fourth level
+only from upstream's own 1.1.0 re-release. Lesson3 never invents text for it. Lesson3's JSON export always
+writes the current revision; a missing fourth level exports as `""`, which re-imports unchanged. Upstream's prose schema
 is useful provenance, but it is not the enforceable downstream contract when it differs from emitted
 JSON.
 
@@ -804,12 +816,19 @@ version remains a later phase, alongside stable row identity and support for str
 
 ## 7. Upload / import
 
-- Accept only the definitive ARES JSON contract and create the first version as **1.0.0 Official**.
+- Accept only the definitive ARES JSON contract (any accepted revision, §3) and create the first version as **1.0.0 Official**.
 - **Clean contract cutover (2026-07-19):** `schemaVersion: "1.0.0"` is intentionally re-baselined to
   the new mandatory-`resourceLinks` shape because the old Lesson3 corpus was permanently deleted before
   replacement. There is no legacy compatibility mode or backfill: a former 1.0.0 file without
   `LESSONS[].resourceLinks` fails pre-flight. Any later contract change after this baseline is live must
-  receive a new schema version.
+  receive a new schema version. **The first such change is R1 (`schemaVersion` 1.1.0, 2026-11-26), accepted
+  beside 1.0.0 — see §3 "Contract revisions".** The optional `LESSONS.json` manifest's `schemaVersion` may name
+  either accepted version.
+- **Sub-strand renumbering is not detected.** A release is matched to its plan by `(subjectGrade,
+  META.substrand_id)` only. When upstream renumbers sub-strands (Mathematics Grade 10, 2026-11-23: old 2.2
+  "Area of Polygons" is now 2.5, and 2.2 is "Reflection and Congruence"), uploading the new files over the old
+  set would attach new topics to unrelated plans. The procedure (operator decision 2026-11-26) is operational,
+  not code: a Site Administrator deletes the superseded plans first, so the new files arrive as new plans.
 - **Two entry points, both trusted:** (1) a **dev-only CLI** (`app/scripts/ingest.ts`, `payload run`) accepting `.js` and `.json`; and (2) a **Site-Administrator-only web upload** (`POST /api/lesson-plans/upload`, `.json` exports or `.zip` archives of JSON) — a Lesson3-owned collection endpoint + a self-hiding list-view panel. **Still never teacher-facing.** *(DEVIATION 2026-06-13 from the original "never an HTTP/upload surface" rule — see `docs/DECISIONS.md`. It is now safe because uploads are never executed: `.json` → `JSON.parse`; `.js` stays CLI-only. The web surface parses JSON only; ZIP archives are read in memory and never extracted to disk. Authorization is enforced server-side in the endpoint (`isSiteAdmin`), not just by hiding the button.)*
 - **Extract `.js`/`.json` data to canonical JSON. Never `require()`/execute an uploaded `.js`** (arbitrary code execution). ARES's `extract_generator_data.py` is the model for safe extraction. The `.js` path (`app/src/ingest/extract.ts` → `extractAresData`) is a static **`acorn` AST parse that evaluates ONLY pure data literals** — strings/numbers/booleans/null/arrays/objects, plus **constant folding of `+` string concatenation** (the ARES `'a\n' + 'b\n'` multi-line-prose pattern; operands are themselves evaluated as literals, so nothing dynamic slips in) — and **rejects** anything executable or dynamic (a call, identifier reference, member access, non-`+` operator, template-with-expression, spread, getter, `__proto__` key). No `require`/`vm`/`eval`/`Function`. The `.json` path (`extractAresJson`) is `JSON.parse` (no execution surface) with matching structural guards (non-object root, recursive `__proto__` rejection, required groups). Both share the same downstream pipeline. Highest-risk surface → security-reviewed (re-review the web upload before exposing it).
 - **Resolve `subjectGrade` by EXACT `(META.subject, META.grade)` match.** Nothing is ever created silently.
