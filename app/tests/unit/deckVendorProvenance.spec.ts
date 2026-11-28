@@ -17,7 +17,8 @@ it('matches the recorded SHA-256 for every vendored deck builder file', () => {
 
   expect(Object.keys(hashes).sort()).toEqual(files.sort())
   for (const file of files) {
-    const actual = createHash('sha256').update(readFileSync(join(vendor, file))).digest('hex')
+    const contents = readFileSync(join(vendor, file))
+    const actual = createHash('sha256').update(contents).digest('hex')
     expect(actual, file).toBe(hashes[file])
   }
 })
