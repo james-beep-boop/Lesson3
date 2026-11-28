@@ -144,6 +144,7 @@ async function authorize(
     depth: 0,
     req,
     overrideAccess: true,
+    showHiddenFields: true,
     disableErrors: true,
   })
   if (!complete) throw new VersionUnavailableError('source')

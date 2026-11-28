@@ -96,6 +96,8 @@ function nativeFields(schema: Schema, parent = ''): Field[] {
     const hidden =
       role === 'system'
         ? {
+            // Payload otherwise puts an empty array back after denying read access.
+            hidden: true,
             admin: { hidden: true },
             access: { read: systemOnly, create: systemOnly, update: systemOnly },
           }

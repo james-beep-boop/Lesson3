@@ -162,11 +162,19 @@ it('imports the pilot with art and replaces changed decks', async () => {
   })
   const official = Number(deck.officialVersion)
   const original = await version(official)
-  const stored = await fx.payload.findByID({ collection: 'deck-versions', id: official, depth: 0 })
+  const stored = await fx.payload.findByID({
+    collection: 'deck-versions',
+    id: official,
+    depth: 0,
+    showHiddenFields: true,
+  })
   expect(readDeckSpec(stored.spec)).toEqual(spec)
-  expect(original.spec?.build_log).toBeUndefined()
-  expect(original.spec?.hero?.prompt).toBeUndefined()
-  expect(original.spec?.slides?.[0]?.blocks?.[0]?.art_prompt).toBeUndefined()
+  for (const visible of [original, await version(official, 'siteAdmin')]) {
+    expect(visible.spec?.build_log).toBeUndefined()
+    expect(visible.spec?.figure_coverage).toBeUndefined()
+    expect(visible.spec?.hero?.prompt).toBeUndefined()
+    expect(visible.spec?.slides?.[0]?.blocks?.[0]?.art_prompt).toBeUndefined()
+  }
 
   const art = async () => {
     const query = `supporting-files?where[lessonPlan][equals]=${fx.plan.id}&where[kind][equals]=deck-art`
@@ -235,8 +243,10 @@ it('imports the pilot with art and replaces changed decks', async () => {
     collection: 'deck-versions',
     id: adminCopy.id,
     depth: 0,
+    showHiddenFields: true,
   })
   expect(adminStored.spec?.hero?.prompt).toBe(spec.hero.prompt)
+  expect(readDeckSpec(adminStored.spec)).toMatchObject({ build_log: spec.build_log })
   expect((await version(official)).spec).toEqual(original.spec)
 
   expect(
