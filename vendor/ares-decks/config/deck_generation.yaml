@@ -1,0 +1,37 @@
+# Lesson presentation (deck) generation — settings read by src/generate_deck.py,
+# generators/presentations/build_deck.js and scripts/validate_deck.js.
+# Presentations branch only. Design authority: docs/presentations/BUILD_MANUAL.md
+# as modified by docs/presentations/OVERRIDES.md.
+
+model: claude-sonnet-5-5          # minimum model for every API call (Mark, 2026-09-30)
+reviewer_model: claude-sonnet-5-5
+effort: high                      # output_config.effort
+max_tokens: 80000                 # thinking counts against it; streamed (model accepts up to 128K)
+repair_rounds: 2                  # authoring repair attempts after validator/reviewer findings
+
+# Lesson length (Mark, 2026-10-22): the leading 40 or 80 minutes figure of the
+# lesson's `duration` string. Optional extensions in the qualifier go to the
+# build log only. Never use UNIT.totalDuration.
+lesson_length_regex: '(\d+)\s*minutes'
+lesson_lengths_allowed: [40, 80]
+
+# Phase colours (Manual section 4). Slides write "Driving Question Board" in full.
+phases:
+  predict:  {label: Predict,                 hex: '47C6E4', framework: 'Predict Phase'}
+  observe:  {label: Observe,                 hex: 'D7DF23', framework: 'Observe Phase'}
+  explain:  {label: Explain,                 hex: 'CF128C', framework: 'Explain Phase'}
+  dqb:      {label: Driving Question Board,  hex: 'FCBA63', framework: 'Driving Question Board (DQB) Creation'}
+  model:    {label: Model Building,          hex: 'E44145', framework: 'Model Building Phase'}
+
+font: Calibri
+logos:
+  seavuria: data/logos/Seavuria_Logo.png
+  ares: "data/logos/ARES 2025 Logo3.png"
+
+# Student-facing text never goes below this size (pt); teacher-only hidden slides may use hidden_min_pt.
+min_pt: 18
+hidden_min_pt: 12
+table_min_pt: 14
+
+output_root: data/outputs/presentations
+spec_root: data/presentations_specs      # authored deck specs + build logs (small JSON, reviewed)
