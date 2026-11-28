@@ -53,6 +53,8 @@ dev_deps_hash() {
   # The postinstall patch script changes what `npm ci` installs, so it is an input too: a fix to the
   # script alone must rebuild the image and its node_modules volume (Codex review, typing-speed plan).
   local inputs=(app/package.json app/package-lock.json app/Dockerfile app/scripts/patch-payload-ui.mjs)
+  # The base image copies these fonts into the directory upstream uses for text measurement.
+  inputs+=(app/src/decks/vendor/fonts/carlito/*)
   [ -f app/.npmrc ] && inputs+=(app/.npmrc)
   cat "${inputs[@]}" | shasum | cut -d' ' -f1
 }
