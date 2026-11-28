@@ -1820,7 +1820,7 @@ test.describe('Manage page', () => {
             'true',
           )
           if (panel === 'plans.upload') {
-            await page.locator('input[type="file"]').setInputFiles({
+            await page.getByLabel('Lesson plan files').setInputFiles({
               name: `${'Long lesson plan name '.repeat(6)}.json`,
               mimeType: 'application/json',
               buffer: Buffer.from('{}'),

@@ -256,6 +256,15 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   For plans with no Official version, use **Set an Official
   version** at the bottom of Lesson plans. You can also delete selected lesson plans (with all their versions) under **Delete a plan (all versions)**, or remove
   individual non-Official versions under **Delete individual versions**.
+- **Import supporting files:** add files such as Quick Checks, Answer Keys and Student Materials
+  to lessons that are already on the site.
+  1. Open **Manage → Lesson plans → Import supporting files**.
+  2. Choose a ZIP file or a folder of Word and PDF files. Keep the ARES file names so each file can
+     be matched to its lesson or sub-strand.
+  3. Choose **Check files**. Read **Matched** to see where the files will go. **Already here** lists
+     copies that will be skipped. **Unmatched** gives the reason each remaining file will be skipped.
+  4. Choose **Import matched files**. Open **Supporting documents** on the lesson catalogue to
+     find the new files.
 - **Subjects and grades on upload:** if an upload names a subject or grade that does not exist yet,
   nothing is imported until you answer: the upload lists every missing subject and grade across all
   the files, and you tick which to create. If a new subject's name looks like an existing one (for

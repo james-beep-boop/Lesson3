@@ -122,34 +122,41 @@ export function zipDirectoryEntries(bytes: Uint8Array, limit: number): number | 
   return count
 }
 
-/** Stop inflation at the actual byte limit, including when ZIP size metadata is dishonest. */
-function readEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Buffer> {
+/** Check actual inflated bytes as they arrive, independent of the ZIP size metadata. */
+export function readZipEntry(
+  entry: JSZip.JSZipObject,
+  checkSize: (size: number, chunkBytes: number) => void,
+): Promise<Buffer> {
   // JSZip uses readable-stream 2, whose streams do not support async iteration.
   const stream = entry.nodeStream('nodebuffer') as Readable
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     let size = 0
-    const stop = (error: IngestError) => {
-      // After destroy(), JSZip's adapter pauses its inflater once the stream stops accepting data.
-      stream.destroy()
-      chunks.length = 0
-      reject(error)
-    }
     stream.on('data', (chunk: Buffer) => {
       size += chunk.length
-      budget.remaining -= chunk.length
-      if (size > MAX_FILE_BYTES) {
-        stop(new IngestError(`Exceeds the ${MAX_FILE_BYTES}-byte JSON limit`))
-        return
-      }
-      if (budget.remaining < 0) {
-        stop(overBudget(budget.limit))
+      try {
+        checkSize(size, chunk.length)
+      } catch (error) {
+        // JSZip's adapter pauses its inflater once the stream stops accepting data.
+        stream.destroy()
+        chunks.length = 0
+        reject(error)
         return
       }
       chunks.push(chunk)
     })
     stream.on('error', reject)
     stream.on('end', () => resolve(Buffer.concat(chunks)))
+  })
+}
+
+function readEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Buffer> {
+  return readZipEntry(entry, (size, chunkBytes) => {
+    budget.remaining -= chunkBytes
+    if (size > MAX_FILE_BYTES) {
+      throw new IngestError(`Exceeds the ${MAX_FILE_BYTES}-byte JSON limit`)
+    }
+    if (budget.remaining < 0) throw overBudget(budget.limit)
   })
 }
 

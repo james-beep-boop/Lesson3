@@ -10,6 +10,7 @@ import {
   subjectGradeIdsByRole,
   toId,
 } from '@/access'
+import { importSupportingFilesEndpoint } from '@/endpoints/importSupportingFiles'
 import { relId } from '@/lib/relId'
 import { SUPPORTING_FILE_KINDS } from '@/lib/supportingFiles'
 import { poolDb, rowsOf } from '@/lib/txDb'
@@ -82,6 +83,7 @@ export const SupportingFiles: CollectionConfig = {
   labels: { singular: 'Supporting file', plural: 'Supporting files' },
   lockDocuments: false,
   disableDuplicate: true,
+  endpoints: [importSupportingFilesEndpoint],
   admin: {
     group: 'Curriculum',
     useAsTitle: 'title',

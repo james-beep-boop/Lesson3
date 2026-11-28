@@ -10,6 +10,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Site administrators can import ARES supporting files from a ZIP or folder. The report shows
+  which lesson or sub-strand each file matches, which copies are already here, and which files
+  could not be matched. The same check is available from the command line.
+
 - ARES lesson plans in the new format (contract R1, `schemaVersion` 1.1.0) now upload, beside the
   1.0.0 format. Final Explanation rubrics print Kenya's four CBE levels (Exceeds, Meets, Approaches,
   Below Expectations); older plans show a blank fourth column until ARES re-releases them.
