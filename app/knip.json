@@ -22,6 +22,7 @@
     "!src/payload-types.ts",
     "!src/payload-generated-schema.ts",
     "!src/generator/vendor/**",
+    "!src/decks/vendor/**",
     "!src/migrations/**",
     "!src/app/(payload)/admin/importMap.js",
     "src/migrations/index.ts"
@@ -30,6 +31,7 @@
     "src/payload-types.ts",
     "src/payload-generated-schema.ts",
     "src/generator/vendor/**",
+    "src/decks/vendor/**",
     "src/app/(payload)/admin/importMap.js"
   ],
   "next": true,

@@ -1,0 +1,440 @@
+{
+ "lesson": 1,
+ "lessonMinutes": 40,
+ "slideCount": 21,
+ "slides": [
+  {
+   "n": 1,
+   "kind": "title",
+   "phase": null,
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education. Aligned with KICD objectives. Developed by SeaVuria; technical implementation by ARES (with AI assistance from Claude). Licensed under CC BY-NC 4.0 (https://creativecommons.org/licenses/by-nc/4.0/). · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 2,
+   "kind": "how",
+   "phase": null,
+   "hidden": true,
+   "cfu": true,
+   "noteLabels": [],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 3,
+   "kind": "glance",
+   "phase": null,
+   "hidden": true,
+   "cfu": false,
+   "noteLabels": [],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 4,
+   "kind": "resources",
+   "phase": null,
+   "hidden": true,
+   "cfu": false,
+   "noteLabels": [
+    "RESOURCE LINKS"
+   ],
+   "links": 16,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 5,
+   "kind": "unitmap",
+   "phase": null,
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 6,
+   "kind": "goals",
+   "phase": null,
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 7,
+   "kind": "phase",
+   "phase": "predict",
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "PREDICT PHASE",
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 8,
+   "kind": "phase",
+   "phase": "predict",
+   "hidden": false,
+   "cfu": true,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS",
+    "ANSWER KEY"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 9,
+   "kind": "phase",
+   "phase": "observe",
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "OBSERVE PHASE",
+    "TIME",
+    "DO",
+    "SAY",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 10,
+   "kind": "phase",
+   "phase": "observe",
+   "hidden": false,
+   "cfu": true,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS",
+    "ANSWER KEY"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 11,
+   "kind": "phase",
+   "phase": "observe",
+   "hidden": false,
+   "cfu": true,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 12,
+   "kind": "phase",
+   "phase": "explain",
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "EXPLAIN PHASE",
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 13,
+   "kind": "phase",
+   "phase": "explain",
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 14,
+   "kind": "phase",
+   "phase": "explain",
+   "hidden": false,
+   "cfu": true,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 15,
+   "kind": "phase",
+   "phase": "explain",
+   "hidden": false,
+   "cfu": true,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS",
+    "SCIENCE NOTE FOR YOU"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 16,
+   "kind": "phase",
+   "phase": "dqb",
+   "hidden": false,
+   "cfu": true,
+   "noteLabels": [
+    "DRIVING QUESTION BOARD",
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS",
+    "ANSWER KEY"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 17,
+   "kind": "phase",
+   "phase": "dqb",
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 18,
+   "kind": "phase",
+   "phase": "dqb",
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 19,
+   "kind": "phase",
+   "phase": "model",
+   "hidden": false,
+   "cfu": true,
+   "noteLabels": [
+    "MODEL BUILDING PHASE",
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS",
+    "ANSWER KEY"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 20,
+   "kind": "phase",
+   "phase": "model",
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WAIT TIME",
+    "LOOK FOR",
+    "IF…",
+    "WHY THIS WORKS"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education · CC BY-NC 4.0 · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  },
+  {
+   "n": 21,
+   "kind": "summary",
+   "phase": null,
+   "hidden": false,
+   "cfu": false,
+   "noteLabels": [
+    "TIME",
+    "DO",
+    "SAY",
+    "WHY THIS WORKS",
+    "ANSWER KEY",
+    "TEACHER REFLECTION"
+   ],
+   "links": 0,
+   "footer": "© 2026 SeaVuria and ARES Education. Aligned with KICD objectives. Developed by SeaVuria; technical implementation by ARES (with AI assistance from Claude). Licensed under CC BY-NC 4.0 (https://creativecommons.org/licenses/by-nc/4.0/). · Biology G10 · Cell Structure · Lesson 1",
+   "logos": [
+    "ARES Education logo",
+    "SeaVuria logo"
+   ]
+  }
+ ]
+}

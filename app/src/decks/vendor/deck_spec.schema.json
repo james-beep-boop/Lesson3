@@ -1,0 +1,672 @@
+{
+ "authoring_call_A": {
+  "type": "object",
+  "properties": {
+   "unit_map_minutes": {
+    "type": "integer"
+   },
+   "goals_minutes": {
+    "type": "integer"
+   },
+   "safety_minutes": {
+    "type": "integer"
+   },
+   "summary_minutes": {
+    "type": "integer"
+   },
+   "hero": {
+    "type": "object",
+    "properties": {
+     "art_id": {
+      "type": "string"
+     },
+     "prompt": {
+      "type": "string"
+     },
+     "alt": {
+      "type": "string"
+     },
+     "icon": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "art_id",
+     "prompt",
+     "alt",
+     "icon"
+    ],
+    "additionalProperties": false
+   },
+   "slides": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "phase": {
+       "type": "string",
+       "enum": [
+        "predict",
+        "observe",
+        "explain",
+        "dqb",
+        "model"
+       ]
+      },
+      "title": {
+       "type": "string"
+      },
+      "subtitle": {
+       "type": "string"
+      },
+      "check_for_understanding": {
+       "type": "boolean"
+      },
+      "student_task": {
+       "type": "boolean"
+      },
+      "minutes": {
+       "type": "integer"
+      },
+      "time_note": {
+       "type": "string"
+      },
+      "timers": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "label": {
+          "type": "string"
+         },
+         "time": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "label",
+         "time"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "blocks": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "type": {
+          "type": "string",
+          "enum": [
+           "text",
+           "bullets",
+           "numbered",
+           "callout",
+           "table",
+           "cards",
+           "columns",
+           "tiles",
+           "illustration",
+           "diagram",
+           "figure"
+          ]
+         },
+         "style": {
+          "type": "string",
+          "enum": [
+           "normal",
+           "question",
+           "emphasis",
+           "caption"
+          ]
+         },
+         "text": {
+          "type": "string"
+         },
+         "items": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "rows": {
+          "type": "array",
+          "items": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "template": {
+          "type": "string",
+          "enum": [
+           "none",
+           "animal_cell",
+           "plant_cell",
+           "bacterium",
+           "onion_epidermis",
+           "cheek_cells",
+           "light_microscope",
+           "red_blood_cell",
+           "white_blood_cell",
+           "sperm_cell",
+           "egg_cell",
+           "nerve_cell",
+           "muscle_cell",
+           "ciliated_epithelial_cell",
+           "root_hair_cell",
+           "guard_cells",
+           "xylem_vessel",
+           "phloem_sieve_tube",
+           "palisade_cell",
+           "levels_of_organisation"
+          ]
+         },
+         "labels": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "figure": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "style",
+         "text",
+         "items",
+         "rows",
+         "template",
+         "labels",
+         "figure"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "resources": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "notes": {
+       "$ref": "#/$defs/notes"
+      }
+     },
+     "required": [
+      "phase",
+      "title",
+      "subtitle",
+      "check_for_understanding",
+      "student_task",
+      "minutes",
+      "time_note",
+      "timers",
+      "blocks",
+      "resources",
+      "notes"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "figure_coverage": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "drawn",
+        "declined"
+       ]
+      },
+      "slide": {
+       "type": "string"
+      },
+      "reason": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "status",
+      "slide",
+      "reason"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "build_log": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "slide": {
+       "type": "string"
+      },
+      "type": {
+       "type": "string",
+       "enum": [
+        "science_flag",
+        "term_flag",
+        "inconsistency",
+        "trimmed_time",
+        "placeholder_check",
+        "added_fact",
+        "sow_problem",
+        "safety_flag",
+        "resource_note",
+        "missing_detail",
+        "other"
+       ]
+      },
+      "sow_says": {
+       "type": "string"
+      },
+      "deck_does": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "slide",
+      "type",
+      "sow_says",
+      "deck_does",
+      "why"
+     ],
+     "additionalProperties": false
+    }
+   }
+  },
+  "required": [
+   "unit_map_minutes",
+   "goals_minutes",
+   "safety_minutes",
+   "summary_minutes",
+   "hero",
+   "slides",
+   "figure_coverage",
+   "build_log"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+   "notes": {
+    "type": "object",
+    "properties": {
+     "do": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "say": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "wait_time": {
+      "type": "string"
+     },
+     "look_for": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "if_then": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "why_this_works": {
+      "type": "string"
+     },
+     "answer_key": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "science_note": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "do",
+     "say",
+     "wait_time",
+     "look_for",
+     "if_then",
+     "why_this_works",
+     "answer_key",
+     "science_note"
+    ],
+    "additionalProperties": false
+   }
+  }
+ },
+ "authoring_call_B": {
+  "type": "object",
+  "properties": {
+   "lesson_title_short": {
+    "type": "string"
+   },
+   "lesson_oneliner": {
+    "type": "string"
+   },
+   "purpose": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "before_class": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "do_not_show": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "is_practical": {
+    "type": "boolean"
+   },
+   "so_far": {
+    "type": "string"
+   },
+   "unit_map_titles": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "goals": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "key_words": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "word": {
+       "type": "string"
+      },
+      "definition": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "word",
+      "definition"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "safety": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "rules": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "title",
+     "rules"
+    ],
+    "additionalProperties": false
+   },
+   "fixed_notes": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "slide": {
+       "type": "string",
+       "enum": [
+        "unit_map",
+        "goals",
+        "safety",
+        "summary"
+       ]
+      },
+      "do": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "say": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "why_this_works": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "slide",
+      "do",
+      "say",
+      "why_this_works"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "glance": {
+    "type": "object",
+    "properties": {
+     "rows": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "group": {
+         "type": "string",
+         "enum": [
+          "opening",
+          "predict",
+          "observe",
+          "explain",
+          "dqb",
+          "model",
+          "summary"
+         ]
+        },
+        "minutes": {
+         "type": "integer"
+        },
+        "what": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "group",
+        "minutes",
+        "what"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "materials": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "fallback": {
+      "type": "string"
+     },
+     "resource_notes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "key": {
+         "type": "string"
+        },
+        "match": {
+         "type": "string",
+         "enum": [
+          "best_match",
+          "preview_first",
+          "use_later",
+          "do_not_use"
+         ]
+        },
+        "note": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "key",
+        "match",
+        "note"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "rows",
+     "materials",
+     "fallback",
+     "resource_notes"
+    ],
+    "additionalProperties": false
+   },
+   "summary": {
+    "type": "object",
+    "properties": {
+     "observe_prompt": {
+      "type": "string"
+     },
+     "learn_prompt": {
+      "type": "string"
+     },
+     "explain_prompt": {
+      "type": "string"
+     },
+     "next_lesson": {
+      "type": "string"
+     },
+     "answer_observe": {
+      "type": "string"
+     },
+     "answer_learn": {
+      "type": "string"
+     },
+     "answer_explain": {
+      "type": "string"
+     },
+     "reflection": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "observe_prompt",
+     "learn_prompt",
+     "explain_prompt",
+     "next_lesson",
+     "answer_observe",
+     "answer_learn",
+     "answer_explain",
+     "reflection"
+    ],
+    "additionalProperties": false
+   },
+   "build_log": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "slide": {
+       "type": "string"
+      },
+      "type": {
+       "type": "string",
+       "enum": [
+        "science_flag",
+        "term_flag",
+        "inconsistency",
+        "trimmed_time",
+        "placeholder_check",
+        "added_fact",
+        "sow_problem",
+        "safety_flag",
+        "resource_note",
+        "missing_detail",
+        "other"
+       ]
+      },
+      "sow_says": {
+       "type": "string"
+      },
+      "deck_does": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "slide",
+      "type",
+      "sow_says",
+      "deck_does",
+      "why"
+     ],
+     "additionalProperties": false
+    }
+   }
+  },
+  "required": [
+   "lesson_title_short",
+   "lesson_oneliner",
+   "purpose",
+   "before_class",
+   "do_not_show",
+   "is_practical",
+   "so_far",
+   "unit_map_titles",
+   "goals",
+   "key_words",
+   "safety",
+   "fixed_notes",
+   "glance",
+   "summary",
+   "build_log"
+  ],
+  "additionalProperties": false
+ },
+ "note": "merge(A,B) gives the deck spec read by build_deck.js (safety.minutes and summary.minutes come from A)"
+}
