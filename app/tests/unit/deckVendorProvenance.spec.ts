@@ -8,9 +8,8 @@ const vendor = fileURLToPath(new URL('../../src/decks/vendor/', import.meta.url)
 
 it('matches the recorded SHA-256 for every vendored deck builder file', () => {
   const provenance = readFileSync(join(vendor, 'PROVENANCE.md'), 'utf8')
-  const hashes = Object.fromEntries(
-    [...provenance.matchAll(/^([0-9a-f]{64})  \.\/(.+)$/gm)].map(([, hash, file]) => [file, hash]),
-  )
+  const matches = provenance.matchAll(/^([0-9a-f]{64})  \.\/(.+)$/gm)
+  const hashes = Object.fromEntries([...matches].map(([, hash, file]) => [file, hash]))
   const files = readdirSync(vendor, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => relative(vendor, join(entry.parentPath, entry.name)))
