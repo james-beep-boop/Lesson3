@@ -1240,35 +1240,33 @@ export default function LessonControls({
               Insert link
             </Button>
           )}
-          {isDeck ? (
-            !editing && deckDownload && (
-              <>
-                <a className="btn" href={`${deckDownload}&as=pptx`} download>
-                  Download PowerPoint
-                </a>
-                <a className="btn" href={`${deckDownload}&as=pdf`} download>
-                  Download PDF
-                </a>
-                {versions.length > 1 && (
-                  <select
-                    aria-label="Deck version"
-                    value={String(id)}
-                    onChange={(event) =>
-                      router.push(
-                        `/admin/collections/${collection}/${event.target.value}${versionQuery}`,
-                      )
-                    }
-                  >
-                    {versions.map((version) => (
-                      <option key={version.id} value={version.id}>
-                        Version {version.semver}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </>
-            )
-          ) : (
+          {isDeck && !editing && deckDownload && (
+            <>
+              <a className="btn" href={`${deckDownload}&as=pptx`} download>
+                Download PowerPoint
+              </a>
+              <a className="btn" href={`${deckDownload}&as=pdf`} download>
+                Download PDF
+              </a>
+              {versions.length > 1 && (
+                <select
+                  aria-label="Deck version"
+                  value={String(id)}
+                  onChange={(event) => {
+                    const nextVersion = event.target.value
+                    router.push(`/admin/collections/${collection}/${nextVersion}${versionQuery}`)
+                  }}
+                >
+                  {versions.map((version) => (
+                    <option key={version.id} value={version.id}>
+                      Version {version.semver}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </>
+          )}
+          {!isDeck && (
             <>
               <Button
                 buttonStyle="secondary"
@@ -1496,26 +1494,26 @@ export default function LessonControls({
               <dd>Bold, italics, and underlining are not supported.</dd>
             </div>
             {!isDeck && (
-              <>
-                <div className="help-rows__row">
-                  <dt>Insert a link</dt>
-                  <dd>
-                    Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in
-                    the toolbar. Copy the address from your browser’s address bar on the ARES page
-                    (or any web page), paste it, and add an optional label.
-                  </dd>
-                </div>
-                <div className="help-rows__row">
-                  <dt>Check your work before saving</dt>
-                  <dd>Quick preview checks your content. Formatted PDF shows the final layout.</dd>
-                </div>
-                {canEditStructure && (
-                  <div className="help-rows__row">
-                    <dt>Add a lesson by duplicating one</dt>
-                    <dd>Duplicate an existing lesson, then edit the copy.</dd>
-                  </div>
-                )}
-              </>
+              <div className="help-rows__row">
+                <dt>Insert a link</dt>
+                <dd>
+                  Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in the
+                  toolbar. Copy the address from your browser’s address bar on the ARES page (or any
+                  web page), paste it, and add an optional label.
+                </dd>
+              </div>
+            )}
+            {!isDeck && (
+              <div className="help-rows__row">
+                <dt>Check your work before saving</dt>
+                <dd>Quick preview checks your content. Formatted PDF shows the final layout.</dd>
+              </div>
+            )}
+            {!isDeck && canEditStructure && (
+              <div className="help-rows__row">
+                <dt>Add a lesson by duplicating one</dt>
+                <dd>Duplicate an existing lesson, then edit the copy.</dd>
+              </div>
             )}
             {/* Moved out of the recovery indicator, which now shows only LIVE status: this is a
                 static rule about the feature, so it belongs with the other rules. Still admins
