@@ -2,7 +2,7 @@
 
 Source: https://github.com/markknit/cbe-generation-system branch `presentations` at `51033f4fd7ba8ad73441d0e0ff0d51a2a6163246` (2026-11-24). MIT licence (`LICENSE`).
 
-Copied byte-for-byte from `generators/presentations/` (Python helper scripts left out), `config/deck_spec.schema.json`, and the pilot spec `data/presentations_specs/Biology/SS1.1_Cell_Structure/L1.spec.json` (+ `.manifest.json`) as `fixtures/`. Mark's format is beta and will change; re-sync rather than edit. Wiring, the re-sync script and the pinned `pptxgenjs` dependency (upstream `^4.0.1`) come with the deck-builder issue. Plan: `docs/PLAN-presentations-and-quizzes-2026-11-27.md`.
+Copied byte-for-byte from `generators/presentations/` (Python helper scripts left out), `config/deck_spec.schema.json`, and the pilot spec `data/presentations_specs/Biology/SS1.1_Cell_Structure/L1.spec.json` (+ `.manifest.json`) as `fixtures/`. Mark's format is beta and will change; re-sync rather than edit. Kept outside `app/` until it is wired in, so the app checks do not scan it. Moving it to `app/src/decks/vendor/`, classifying its `process` and env reads (`DECK_ALLOW_MISSING_ART`, `process.argv`/`exit`) in `tests/unit/envTemplateParity.spec.ts`, the lint and knip ignores, the re-sync script and the pinned `pptxgenjs` dependency (upstream `^4.0.1`) come with the deck-builder issue. Plan: `docs/PLAN-presentations-and-quizzes-2026-11-27.md`.
 
 ## sha256
 
