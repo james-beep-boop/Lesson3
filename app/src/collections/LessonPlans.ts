@@ -54,8 +54,8 @@ export const LessonPlans: CollectionConfig = {
     // Any authenticated Official-pointer move pre-warms that version's export artifacts (T1);
     // any pointer move re-points follower (non-editor) favorites to the new Official (T4).
     afterChange: [prewarmOfficialArtifacts, retargetFollowerFavorites],
-    // Deleting a plan must first remove its child versions (NOT NULL lesson_plan_id + ON DELETE SET
-    // NULL FK → Postgres 23502 otherwise, shown as "An unknown error has occurred"). SPEC §6.
+    // Remove supporting files and child versions before deleting the plan. Both require a plan,
+    // so their ON DELETE SET NULL foreign keys would otherwise prevent the deletion.
     // Favorites are per-version (§10) and cascade from the version delete itself.
     beforeDelete: [cascadeDeleteLessonPlanVersions],
   },

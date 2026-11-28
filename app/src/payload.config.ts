@@ -12,6 +12,7 @@ import { Subject } from './collections/Subject'
 import { SubjectGrade } from './collections/SubjectGrade'
 import { LessonPlans } from './collections/LessonPlans'
 import { LessonBundleVersions } from './collections/LessonBundleVersions'
+import { SupportingFiles, setSupportingFileDirectory } from './collections/SupportingFiles'
 import { Favorites } from './collections/Favorites'
 import { EditRecovery } from './collections/EditRecovery'
 import { SystemSettings } from './globals/SystemSettings'
@@ -148,10 +149,11 @@ export default buildConfig({
     },
   },
   // Order here drives the admin nav order (groups appear by first-seen): Lesson plans →
-  // Curriculum (Subjects, Subject Grades) → Users. See each collection's admin.group.
+  // Curriculum (Supporting files, Subjects, Subject Grades) → Users. See each collection's admin.group.
   collections: [
     LessonPlans,
     LessonBundleVersions,
+    SupportingFiles,
     Subject,
     SubjectGrade,
     Users,
@@ -250,6 +252,7 @@ export default buildConfig({
     })
     if (publicLibraryRefusal) throw new Error(publicLibraryRefusal)
 
+    await setSupportingFileDirectory(payload)
     let userCount: number | null = null
     try {
       userCount = (await payload.count({ collection: 'users' })).totalDocs

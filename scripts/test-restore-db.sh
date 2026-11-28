@@ -44,6 +44,11 @@ args="$*"
 printf '%s\n' "$args" >>"$CALLS"
 [[ "${SLOW:-}" == 1 ]] && sleep 0.3
 case "$args" in
+  *"SELECT oid FROM pg_database"*"_restore_check"*) echo 12345 ;;
+  *"FROM supporting_files ORDER BY filename"*) echo worksheet.pdf ;;
+  *"--entrypoint sh app -ec"*)
+    while [[ "$1" != -ec ]]; do shift; done
+    exec sh "$@" ;;
   *"FROM pg_database WHERE datname = '"*)
     name="${args#*datname = \'}"; name="${name%%\'*}"
     # `lesson3_incoming_*` in DBS stands for whichever timestamped copy the run creates.
@@ -87,7 +92,11 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 grep -q WRONG "$id" 2>/dev/null && { echo "age: error: no identity matched any of the recipients" >&2; exit 1; }
-printf 'plain dump' >"$out"
+if [[ -n "${ARCHIVE_FIXTURE:-}" ]]; then
+  cp "$ARCHIVE_FIXTURE" "$out"
+else
+  printf 'plain dump' >"$out"
+fi
 EOF
 
   # Free space for the decrypted dump, in KB, from the case.
@@ -125,7 +134,7 @@ run() {
     BACKUP_MIGRATIONS="${BACKUP_MIGRATIONS:-$INSTALLED}" INSTALLED_FIXTURE="$INSTALLED" DBS="${DBS:-lesson3}" \
     TMP_FREE_KB="${TMP_FREE_KB:-99999999}" VOLUME_FREE_KB="${VOLUME_FREE_KB:-99999999}" \
     LIVE_BYTES="${LIVE_BYTES:-1000}" CHECK_FAILS="${CHECK_FAILS:-0}" RESTORE_APP_WAIT_SECONDS=5 \
-    LOCK_HELD="${LOCK_HELD:-0}" \
+    LOCK_HELD="${LOCK_HELD:-0}" ARCHIVE_FIXTURE="${ARCHIVE_FIXTURE:-}" \
     ARTIFACT_CACHE_DIR="$SANDBOX/cache" CACHE_DELETE_FAIL="${CACHE_DELETE_FAIL:-0}" \
     CHECK_CACHE_EMPTY="${CHECK_CACHE_EMPTY:-0}" \
     bash "$RESTORE" "$@" <"$SANDBOX/answer" >"$SANDBOX/output" 2>&1
@@ -195,6 +204,24 @@ prepare_case
 run_case "$ALL_TABLES" "$FULL_COUNTS"
 check "full backup passes" passed
 check "full backup prints no NOTE" lacks 'NOTE'
+
+# Supporting files must match the dump and are restored to the drill database's directory.
+prepare_case
+mkdir "$SANDBOX/archive"
+printf 'plain dump' >"$SANDBOX/archive/database.dump"
+printf 'a worksheet' >"$SANDBOX/archive/worksheet.pdf"
+tar -cf "$SANDBOX/archive/supporting-files.tar" -C "$SANDBOX/archive" worksheet.pdf
+tar -cf "$SANDBOX/combined.tar" -C "$SANDBOX/archive" database.dump supporting-files.tar
+ARCHIVE_FIXTURE="$SANDBOX/combined.tar" \
+  run_case "$ALL_TABLES"$'\nsupporting_files' "$FULL_COUNTS"$'\nsupporting_files 1'
+check "the backup with a supporting file passes" passed
+check "the drill restores the supporting file bytes" \
+  cmp -s "$SANDBOX/archive/worksheet.pdf" "$SANDBOX/cache/supporting-files/12345/worksheet.pdf"
+
+prepare_case
+run_case "$ALL_TABLES"$'\nsupporting_files' "$FULL_COUNTS"$'\nsupporting_files 1'
+check "a dump missing the listed supporting files is refused" failed
+check "the refusal names the missing files" has 'missing the supporting files'
 
 # 3. No accounts at all: no installation backs up to this, so it is not recoverable.
 prepare_case
