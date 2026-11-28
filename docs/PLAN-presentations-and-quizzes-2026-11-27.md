@@ -22,6 +22,16 @@ Status: **draft for the operator's approval** (2026-11-27). Nothing here is buil
   It has no quiz engine and no student accounts.
 - **No deploys for now.** `test.kenyalessons.org` stays on the version it runs today. When this work is
   ready, it goes to a **second subdomain on the Rock** for testing.
+- **Decks are beta for now.** Mark is still changing the format a lot, so today's `1.0.0` is really a
+  beta. A deck import for a lesson that has no deck creates `1.0.0`. A deck import for a lesson that already
+  has one **replaces** that deck, its versions included, and starts again at `1.0.0`; the upload screen says
+  so before it runs. Normal version rules (a new major per release) apply once the format is stable.
+- **Stored files:** subject-grade and site administrators upload and remove them.
+- **Build against Mark's deck format exactly as it is today**, and adapt when he changes it.
+- **Student Materials, Materials Teacher Key and Assessment Materials are stored files for now**, with
+  generation expected later.
+- **Quiz links are plain data inside the deck.** No quiz-format work until Kolibri's side is real.
+- **No questions go to Mark at this stage.** Section 5 lists working assumptions to check with him later.
 - **Tabled:** a "review" that finds a corrected science or maths error in a new deck and offers to carry
   the same fix back into the lesson plan, matched by fuzzy search.
 
@@ -82,7 +92,8 @@ Upstream is `markknit/cbe-generation-system` (public).
 - **Pictures:** art files are stored in the file store (3.1) and looked up by `art_id` at build time.
 - **Import:** an administrator uploads a deck spec, or a zip of specs plus art. The spec is validated
   against the vendored schema. Like plan import, `.js` is never executed. An unchanged spec reports
-  "already here".
+  "already here". While decks are beta, importing a changed spec for a lesson that already has a deck
+  replaces it and restarts at `1.0.0` (section 1).
 - **Output:** a .pptx download, and a PDF through Gotenberg, both cached by version and render version.
 - **Editing:** the lesson-plan editing screen, drafts and version saving, generalised so that they take a
   deck as well as a plan.
@@ -110,20 +121,10 @@ format.
 8. **Test site on a second Rock subdomain.** This is the operator's step: DNS, tunnel and `sudo`. It is
    written as exact commands, not an agentd task.
 
-## 5. Questions for Mark (kept short)
+## 5. Working assumptions (to check with Mark later, not now)
 
-1. Is the deck spec (`config/deck_spec.schema.json`) plus `build_deck.js` the interface Lesson3 should
-   build against? Will it carry a version number, like `schemaVersion`? What does a build need besides the
-   spec: art files by `art_id`, anything else?
-2. Will the materials bank (cards, diagrams, answers) join the contract, so that Lesson3 can regenerate
-   Student Materials and the keys? Or will you keep sending finished files?
-3. Which quiz format is authoritative, and is the `ares.local/quiz/...` link final? We plan to leave
-   quizzes and results to Kolibri.
-4. Which General Science, Essential Maths and Core Maths set is authoritative, and when does the real Core
-   Maths arrive?
-
-## 6. Remaining questions for the operator
-
-- Who uploads stored files: subject-grade and site administrators? (Suggested: yes.)
-- Should a new deck spec from Mark arrive as a new major version, like a lesson-plan release? (Suggested:
-  yes, same release rules.)
+1. The deck spec (`config/deck_spec.schema.json`) and `build_deck.js` are the interface. A build needs the
+   spec plus art files by `art_id`.
+2. The materials bank is not in the contract yet, so those three documents are stored files.
+3. Quiz link format: `ares.local/quiz/<id>/v1/question/qNN`, stored as data. Kolibri owns quizzes.
+4. The 43 expansion bundles are not uploaded until Mark says they are authoritative.
