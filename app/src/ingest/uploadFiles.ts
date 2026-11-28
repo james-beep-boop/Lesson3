@@ -34,8 +34,8 @@ export const MAX_EXPANDED_BYTES = 200 * 1024 * 1024
 export const MAX_BODY_BYTES = MAX_EXPANDED_BYTES + 256 * 1024
 const MAX_ZIP_ENTRIES = 1000
 
-/** The expanded-byte budget shared by every JSON in one upload. */
-export interface ZipBudget {
+/** The expanded-byte budget shared across the files in one upload. */
+interface ZipBudget {
   limit: number
   remaining: number
 }
@@ -142,43 +142,51 @@ export async function openUploadZip(file: File): Promise<JSZip> {
   }
 }
 
-/** Stop inflation at the actual byte limit, including when ZIP size metadata is dishonest. */
+/** Check actual inflated bytes as they arrive, independent of the ZIP size metadata. */
 export function readZipEntry(
   entry: JSZip.JSZipObject,
-  budget: ZipBudget,
-  maxBytes = MAX_FILE_BYTES,
-  label = 'JSON',
+  checkSize: (size: number, chunkBytes: number) => void,
 ): Promise<Buffer> {
   // JSZip uses readable-stream 2, whose streams do not support async iteration.
   const stream = entry.nodeStream('nodebuffer') as Readable
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     let size = 0
-    const stop = (error: IngestError) => {
-      // After destroy(), JSZip's adapter pauses its inflater once the stream stops accepting data.
-      stream.destroy()
-      chunks.length = 0
-      reject(error)
-    }
     stream.on('data', (chunk: Buffer) => {
       size += chunk.length
-      budget.remaining -= chunk.length
-      if (size > maxBytes) {
-        stop(new IngestError(`Exceeds the ${maxBytes}-byte ${label} limit`))
-        return
-      }
-      if (budget.remaining < 0) {
-        stop(
-          new IngestError(
-            `The upload expands to more than ${budget.limit} bytes. Upload it in parts.`,
-          ),
-        )
+      try {
+        checkSize(size, chunk.length)
+      } catch (error) {
+        // JSZip's adapter pauses its inflater once the stream stops accepting data.
+        stream.destroy()
+        chunks.length = 0
+        reject(error)
         return
       }
       chunks.push(chunk)
     })
     stream.on('error', reject)
     stream.on('end', () => resolve(Buffer.concat(chunks)))
+  })
+}
+
+/** Apply a per-file limit and debit the upload's shared expanded-byte budget. */
+export function readBoundedZipEntry(
+  entry: JSZip.JSZipObject,
+  budget: ZipBudget,
+  maxBytes = MAX_FILE_BYTES,
+  label = 'JSON',
+): Promise<Buffer> {
+  return readZipEntry(entry, (size, chunkBytes) => {
+    budget.remaining -= chunkBytes
+    if (size > maxBytes) {
+      throw new IngestError(`Exceeds the ${maxBytes}-byte ${label} limit`)
+    }
+    if (budget.remaining < 0) {
+      throw new IngestError(
+        `The upload expands to more than ${budget.limit} bytes. Upload it in parts.`,
+      )
+    }
   })
 }
 
@@ -258,7 +266,7 @@ export async function prepareUploadFiles(
     try {
       const root = entries.find((e) => !e.dir && (e.unsafeOriginalName ?? e.name) === MANIFEST_NAME)
       manifest = parseLessonManifest(
-        root ? (await readZipEntry(root, budget)).toString('utf8') : undefined,
+        root ? (await readBoundedZipEntry(root, budget)).toString('utf8') : undefined,
       )
     } catch (e) {
       if (budget.remaining < 0) throw overBudget(budget.limit)
@@ -281,7 +289,7 @@ export async function prepareUploadFiles(
         // Check bytes, never parse an unknown kind. The same inflation caps still apply.
         try {
           for (const error of checksumWarning(
-            await readZipEntry(entry, budget),
+            await readBoundedZipEntry(entry, budget),
             kind.declared.sha256,
           ))
             warnings.push({ file: name, error })
@@ -302,7 +310,7 @@ export async function prepareUploadFiles(
       found = true
       countJson()
       // A checksum warning is reported once, in the set's warnings, even if the file is then rejected.
-      const outcome = readZipEntry(entry, budget).then((bytes) => {
+      const outcome = readBoundedZipEntry(entry, budget).then((bytes) => {
         for (const error of checksumWarning(bytes, kind.declared?.sha256))
           warnings.push({ file: name, error })
         return extractAresJson(bytes.toString('utf8'))

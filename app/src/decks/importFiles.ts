@@ -8,7 +8,7 @@ import {
   MAX_EXPANDED_BYTES,
   MAX_FILE_BYTES,
   openUploadZip,
-  readZipEntry,
+  readBoundedZipEntry,
 } from '../ingest/uploadFiles'
 import { canonicalJson } from '../lib/canonicalJson'
 import { artIdPattern, deckArtIds, deckSpecErrors } from './spec'
@@ -86,7 +86,7 @@ export async function readDeckUpload(
     if (lessons.has(number)) {
       throw new IngestError(`The ZIP has more than one spec for Lesson ${number}.`)
     }
-    const text = (await readZipEntry(entry, budget)).toString('utf8')
+    const text = (await readBoundedZipEntry(entry, budget)).toString('utf8')
     specs.push(parseSpec(name, text, number))
     lessons.add(number)
   }
@@ -100,7 +100,7 @@ export async function readDeckUpload(
       continue
     }
     if (art.has(artId)) throw new IngestError(`The ZIP has more than one picture named ${artId}.`)
-    const data = await readZipEntry(entry, budget, 10 * 1024 * 1024, 'picture')
+    const data = await readBoundedZipEntry(entry, budget, 10 * 1024 * 1024, 'picture')
     const metadata = await sharp(data)
       .metadata()
       .catch(() => null)

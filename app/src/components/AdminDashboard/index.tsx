@@ -21,6 +21,7 @@ import { buildRolesAccess } from '../../lib/editorGroups'
 import { startRenderTimings } from '../../lib/renderTimings'
 import { RolesAccessPanel } from '../Manage/RolesAccessPanel'
 import { BackupStatusPanel } from '../Manage/BackupStatusPanel'
+import ImportSupportingFiles from '../Manage/ImportSupportingFiles'
 import { SystemFactsPanel } from '../Manage/SystemFactsPanel'
 import { SystemFeaturesPanel } from '../Manage/SystemFeaturesPanel'
 import type { FeatureValues } from '../Manage/systemFeaturesState'
@@ -554,6 +555,7 @@ export default async function AdminDashboard({
         !!user && 'plans.mine',
         !!user && 'plans.drafts',
         siteAdmin && 'plans.upload',
+        siteAdmin && 'plans.import-files',
         siteAdmin && 'plans.delete',
         showCleanup && 'plans.versions',
         siteAdmin && repairPlans.length > 0 && 'plans.repair',
@@ -741,6 +743,12 @@ export default async function AdminDashboard({
             {siteAdmin && (
               <AccordionPanel id="plans.upload" title="Upload lesson plans">
                 <UploadBundles />
+              </AccordionPanel>
+            )}
+
+            {siteAdmin && (
+              <AccordionPanel id="plans.import-files" title="Import supporting files">
+                <ImportSupportingFiles />
               </AccordionPanel>
             )}
 

@@ -85,6 +85,7 @@ export const PANEL_IDS = [
   'plans.mine',
   'plans.drafts',
   'plans.upload',
+  'plans.import-files',
   'plans.delete',
   // Administrators only: other people's deletable versions, a cleanup queue ("Delete individual versions").
   'plans.versions',
