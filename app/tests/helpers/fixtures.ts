@@ -34,7 +34,7 @@ import type {
   User,
 } from '../../src/payload-types.js'
 import { jobMatchesVersion } from '../../src/jobs/generateVersionArtifact.js'
-import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../../src/ingest/resourceLinks.js'
+import { RESOURCE_PHASE_KEYS } from '../../src/ingest/resourceLinks.js'
 import { drizzleOf, rowsOf } from './db.js'
 
 /**
@@ -143,20 +143,24 @@ export function minimalResourceLinks() {
   })
 
   return Object.fromEntries(
-    RESOURCE_PHASE_KEYS.map((phase) => [
-      phase,
-      {
-        video: record(phase, 'video'),
-        reading: record(phase, 'reading'),
-        fallback_search_url: `https://ares.example/search/${phase}`,
-      },
-    ]),
+    RESOURCE_PHASE_KEYS.map(
+      (phase) =>
+        [
+          phase,
+          {
+            video: record(phase, 'video'),
+            reading: record(phase, 'reading'),
+            fallback_search_url: `https://ares.example/search/${phase}`,
+          },
+        ] as const,
+    ),
   )
 }
 
 /** The native child-row form used when a fixture writes a LessonBundleVersion directly. */
 export function minimalStoredResourceLinks() {
-  return aresResourceLinksToRows(minimalResourceLinks())
+  const links = minimalResourceLinks()
+  return RESOURCE_PHASE_KEYS.map((phase) => ({ ...links[phase], phase }))
 }
 
 /**

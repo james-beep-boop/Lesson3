@@ -26,3 +26,12 @@ env_get() {
   fi
   printf '%s' "$v"
 }
+
+# The application and recovery tools use the same named volume. A database keeps this directory
+# when PostgreSQL renames it, so swapping databases also selects the right supporting files.
+supporting_files_volume() { # database OID, shell command
+  local oid="$1" command="$2"
+  [[ "$oid" =~ ^[0-9]+$ ]] || { echo "Invalid supporting files database OID" >&2; return 1; }
+  docker compose run --rm --no-deps -T --entrypoint sh app -ec \
+    'dir="${ARTIFACT_CACHE_DIR:-/var/cache/lesson3}/supporting-files/$1"; '"$command" sh "$oid"
+}
