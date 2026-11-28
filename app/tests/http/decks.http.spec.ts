@@ -2,8 +2,12 @@ import { readFile } from 'node:fs/promises'
 import JSZip from 'jszip'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 
+import { deckArtIds } from '../../src/decks/spec'
 import { readDeckSpec } from '../../src/decks/storage'
+import pilotBundle from '../../src/decks/vendor/fixtures/Biology_Cell_Structure_data.json'
+import manifest from '../../src/decks/vendor/fixtures/L1.manifest.json'
 import spec from '../../src/decks/vendor/fixtures/L1.spec.json'
+import { rawToBundle } from '../../src/ingest/toBundle'
 import type { Deck, DeckVersion, SupportingFile } from '../../src/payload-types'
 import {
   createVersionFixture,
@@ -294,3 +298,84 @@ it('imports the pilot with art and replaces changed decks', async () => {
   )
   expect(history.totalDocs).toBe(1)
 }, 60_000)
+
+it('downloads all 21 pilot slides in both formats and caches repeated requests', async () => {
+  const plan = await fx.payload.create({
+    collection: 'lesson-plans',
+    data: { title: `${MARK}Pilot slides`, subjectGrade: fx.subjectGrade.id },
+  })
+  const planVersion = await fx.payload.create({
+    collection: 'lesson-bundle-versions',
+    data: {
+      ...rawToBundle(pilotBundle),
+      title: `${MARK}Pilot slides v1.0.0`,
+      lessonPlan: plan.id,
+      subjectGrade: fx.subjectGrade.id,
+      semver: '1.0.0',
+    } as never,
+  })
+  await fx.payload.update({
+    collection: 'lesson-plans',
+    id: plan.id,
+    data: { officialVersion: planVersion.id },
+  })
+
+  // The upstream illustrations are absent from the fixture. Supply the same local test image for
+  // each illustration so the production app can render the complete deck from the file store.
+  const image = await readFile(
+    new URL('../../src/decks/vendor/data/logos/Seavuria_Logo.png', import.meta.url),
+  )
+  const zip = new JSZip()
+  zip.file('L1.spec.json', JSON.stringify(spec))
+  for (const id of deckArtIds(spec)) zip.file(`art/final/${id}.png`, image)
+  const file = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'pilot.zip')
+  const imported = await body<ImportResult>(await upload('subjectAdmin', file, plan.id))
+  const id = imported.decks[0]!.id
+  const url = `decks/${id}/download`
+
+  expect((await wire(`${url}?as=pptx`)).status).toBe(401)
+  expect((await wire(`decks/${missing}/download?as=pdf`, 'teacher')).status).toBe(404)
+  expect((await wire(`${url}?as=docx`, 'teacher')).status).toBe(400)
+  expect((await wire(`${url}?planVersion=${fx.version.id}`, 'teacher')).status).toBe(404)
+
+  const download = async (kind: 'pptx' | 'pdf', role: RoleKey, cache: 'MISS' | 'HIT') => {
+    const response = await wire(`${url}?as=${kind}&planVersion=${planVersion.id}`, role)
+    expect(response.status, response.ok ? undefined : await response.text()).toBe(200)
+    expect(response.headers.get('x-artifact-cache')).toBe(cache)
+    expect(response.headers.get('content-disposition')).toBe(
+      `attachment; filename="Biology_Cell_Structure_L1_Slides.${kind}"`,
+    )
+    expect(response.headers.get('content-type')).toBe(
+      kind === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    )
+    return Buffer.from(await response.arrayBuffer())
+  }
+
+  const pptx = await download('pptx', 'teacher', 'MISS')
+  const slides = await JSZip.loadAsync(pptx)
+  expect(slides.file(/^ppt\/slides\/slide\d+\.xml$/)).toHaveLength(manifest.slideCount)
+  const firstSlide = await slides.file('ppt/slides/slide1.xml')!.async('string')
+  expect(firstSlide).toContain(spec.lesson_title_short)
+  expect(firstSlide).toContain(spec.hero.alt)
+  expect(firstSlide).not.toContain('[illustration:')
+  expect(await download('pptx', 'editor', 'HIT')).toEqual(pptx)
+
+  const pdf = await download('pdf', 'teacher', 'MISS')
+  expect(pdf.subarray(0, 5).toString()).toBe('%PDF-')
+  // LibreOffice writes the page dictionaries in plain text in its PDF output.
+  expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)).toHaveLength(manifest.slideCount)
+  expect(await download('pdf', 'subjectAdmin', 'HIT')).toEqual(pdf)
+  expect(await download('pdf', 'siteAdmin', 'HIT')).toEqual(pdf)
+  expect((await wire(`${url}?as=pdf`)).status).toBe(401)
+
+  const deck = await body<Deck>(await wire(`decks/${id}?depth=0`, 'teacher'))
+  const official = await version(Number(deck.officialVersion))
+  const title = 'Inside a cell'
+  official.spec!.lesson_title_short = title
+  const revised = await body<{ id: number }>(await save(official.id, 'editor', official))
+  await body(await promote(revised.id, 'subjectAdmin'))
+  const revisedSlides = await JSZip.loadAsync(await download('pptx', 'teacher', 'MISS'))
+  expect(await revisedSlides.file('ppt/slides/slide1.xml')!.async('string')).toContain(title)
+})

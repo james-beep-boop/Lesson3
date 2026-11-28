@@ -62,7 +62,10 @@ export type ReadableVersionListItem = Pick<
   | 'author'
   | 'lineage'
 > & {
-  meta?: Pick<NonNullable<LessonBundleVersion['meta']>, 'subject' | 'grade' | 'substrand_name'>
+  meta?: Pick<
+    NonNullable<LessonBundleVersion['meta']>,
+    'subject' | 'grade' | 'substrand_id' | 'substrand_name'
+  >
 }
 
 /**
@@ -88,7 +91,7 @@ export async function findReadableVersions(
     ...(withAncestry ? { lineage: true } : {}),
     title: true,
     createdAt: true,
-    meta: { subject: true, grade: true, substrand_name: true },
+    meta: { subject: true, grade: true, substrand_id: true, substrand_name: true },
     // The two OPTIONAL deliverable groups — the lesson page's T2 document strip decides its
     // buttons from them (`versionDeliverables`). A plan's version set is naturally bounded.
     finalExplanation: true,
