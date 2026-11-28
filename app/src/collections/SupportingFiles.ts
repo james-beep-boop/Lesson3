@@ -165,8 +165,9 @@ export const SupportingFiles: CollectionConfig = {
       relationTo: 'lesson-plans',
       required: true,
       index: true,
-      filterOptions: ({ req: { user } }) => {
-        if (isSiteAdmin(user)) return true
+      filterOptions: ({ req: { context, user } }) => {
+        // The server-side importer resolves the target before creating the file.
+        if (context.importingSupportingFiles === true || isSiteAdmin(user)) return true
         return { subjectGrade: { in: subjectGradeIdsByRole(user, ['subjectAdmin']) } }
       },
     },

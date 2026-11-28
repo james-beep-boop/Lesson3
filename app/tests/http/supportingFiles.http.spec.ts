@@ -238,8 +238,9 @@ describe('supporting files', () => {
     expect(await saved()).toHaveLength(0)
 
     const confirmed = await bulkImport(files, 'siteAdmin', preview.previewToken)
-    expect(confirmed.status).toBe(200)
-    expect(await confirmed.json()).toMatchObject({ imported: 2 })
+    const confirmation = await confirmed.json()
+    expect(confirmed.status, JSON.stringify(confirmation)).toBe(200)
+    expect(confirmation).toMatchObject({ imported: 2 })
     const docs = await saved()
     expect(docs).toHaveLength(2)
     expect(docs).toEqual(

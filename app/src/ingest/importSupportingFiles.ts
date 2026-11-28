@@ -206,6 +206,7 @@ export async function importSupportingFiles(
             size: input.bytes.length,
           },
           depth: 0,
+          context: { importingSupportingFiles: true },
           overrideAccess: true,
           req,
         })
