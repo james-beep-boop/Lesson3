@@ -12,8 +12,8 @@
  * would make the warning a gate, which it is not — the delete endpoint remains the authority.
  */
 
-// The wire shape, owned by the server (a type-only import is erased from the client bundle).
 import type { UnsavedCount } from '../../lib/editRecovery/kernel'
+import { planSeries, type VersionSeries } from '../../lib/versionSeries'
 import { withDeadline } from './deadline'
 
 /** Pure: the sentence for a count, or '' when nobody would lose anything. Exported for the tests. */
@@ -53,13 +53,14 @@ export const WARNING_TIMEOUT_MS = 3_000
  */
 export async function unsavedWorkWarning(
   versionId: number | string,
-  opts: { apiBase?: string; countCaller?: boolean } = {},
+  opts: { apiBase?: string; countCaller?: boolean; collection?: VersionSeries['versions'] } = {},
 ): Promise<string> {
   // Bounded by the shared deadline (abort AND race — see `deadline.ts`); every failure, the
   // timeout included, falls back to no warning.
+  const collection = opts.collection ?? planSeries.versions
   return withDeadline(WARNING_TIMEOUT_MS, async (signal) => {
     const res = await fetch(
-      `${opts.apiBase ?? '/api'}/lesson-bundle-versions/${versionId}/recovery/unsaved-count`,
+      `${opts.apiBase ?? '/api'}/${collection}/${versionId}/recovery/unsaved-count`,
       { credentials: 'same-origin', signal },
     )
     if (!res.ok) return ''
@@ -76,7 +77,7 @@ export async function unsavedWorkWarning(
 export async function withUnsavedWarning(
   question: string,
   versionId: number | string,
-  opts: { apiBase?: string; countCaller?: boolean } = {},
+  opts: { apiBase?: string; countCaller?: boolean; collection?: VersionSeries['versions'] } = {},
 ): Promise<string> {
   const warning = await unsavedWorkWarning(versionId, opts)
   return warning ? `${question}\n\n${warning}` : question

@@ -14,11 +14,14 @@ export type CollapseRowsAction = {
  * opening state of every later lesson plan. The editor's rule is narrower: each visit starts compact,
  * then the caller may expand whatever they need for the rest of that visit.
  *
- * `null` means the required top-level Lessons array has not reached form state yet. An empty action
+ * `null` means the required main array has not reached form state yet. An empty action
  * list means the form is ready and every array row is already collapsed.
  */
-export function initialCollapseActions(fields: FormState): CollapseRowsAction[] | null {
-  if (!Array.isArray(fields.lessons?.rows)) return null
+export function initialCollapseActions(
+  fields: FormState,
+  mainArray: 'lessons' | 'spec.slides' = 'lessons',
+): CollapseRowsAction[] | null {
+  if (!Array.isArray(fields[mainArray]?.rows)) return null
 
   const actions: CollapseRowsAction[] = []
 

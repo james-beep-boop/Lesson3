@@ -30,7 +30,7 @@ export default function AdminHeaderMenu({ user }: { user?: User | null }) {
         <style
           dangerouslySetInnerHTML={{
             __html:
-              '.doc-tab[href$="/api"]{display:none!important}body:has(.collection-edit--lesson-bundle-versions) .doc-tabs{display:none!important}',
+              '.doc-tab[href$="/api"]{display:none!important}body:has(.collection-edit--lesson-bundle-versions,.collection-edit--deck-versions) .doc-tabs{display:none!important}',
           }}
         />
       )}

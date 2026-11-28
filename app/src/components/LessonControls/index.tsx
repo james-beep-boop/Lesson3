@@ -53,6 +53,7 @@ import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
 import { relId } from '../../lib/relId'
+import { deckSeries, planSeries, type VersionSeries } from '../../lib/versionSeries'
 import type { DraftCombineSuggestion } from '../../lib/editRecovery/draftCombineSuggestion'
 import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
 import { applyCapture, projectCapture, captureFieldPath } from '../../lib/editRecovery/projection'
@@ -110,12 +111,16 @@ const DRAFT_FAILED: Record<Extract<KeepResult, { kind: 'notKept' }>['reason'], s
 
 export default function LessonControls({
   flags,
+  collection = planSeries.versions,
+  deckPlanId = null,
   hasDraft: hasDraftOnLoad = false,
   versions = [],
   draftCombineSuggestion = null,
 }: {
   /** From the server wrapper (`./server.tsx`). Absent means every capability off. */
   flags?: SystemFlags
+  collection?: VersionSeries['versions']
+  deckPlanId?: number | null
   /** From the server wrapper: the signed-in user has a draft on this version at page load. */
   hasDraft?: boolean
   versions?: VersionChoice[]
@@ -143,6 +148,10 @@ export default function LessonControls({
   const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isDeck = collection === deckSeries.versions
+  const series = isDeck ? deckSeries : planSeries
+  const deckContext = isDeck ? relId(searchParams.get('planVersion')) : null
+  const versionQuery = deckContext == null ? '' : `?planVersion=${deckContext}`
 
   // Local mirror of edit/view mode — drives our buttons; the effect below drives the form fields.
   // Initial value honours an explicit edit-intent deep link (`?edit=1`, set by the lesson page's
@@ -226,7 +235,7 @@ export default function LessonControls({
         collapsedOnEntryFor.current = documentId
         return
       }
-      const actions = initialCollapseActions(fields)
+      const actions = initialCollapseActions(fields, isDeck ? 'spec.slides' : 'lessons')
       if (actions === null) return
 
       // Mark before dispatch: each action changes `fields` and re-runs this effect.
@@ -235,7 +244,7 @@ export default function LessonControls({
     }, 300)
 
     return () => window.clearTimeout(timer)
-  }, [dispatchFields, fields, id, initializing])
+  }, [dispatchFields, fields, id, initializing, isDeck])
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
   // is useful context but wide; it starts COLLAPSED so the editor opens with the full width for the
@@ -252,7 +261,7 @@ export default function LessonControls({
   // Standard / Advanced tools (2026-10-20, `lib/advancedTools.ts`): display only. Standard hides the
   // ways to START a Combine and the details toggle; nothing that CONTINUES a Combine is gated.
   const mode = resolveMode(flags)
-  const offerCombine = showsAction(mode, 'combineVersions')
+  const offerCombine = !isDeck && showsAction(mode, 'combineVersions')
   const offerDetails = showsAction(mode, 'showDetails')
   const [combineSignal, setCombineSignal] = useState(0)
   useEffect(() => {
@@ -382,6 +391,7 @@ export default function LessonControls({
   const { register: registerRecoveryFlush } = useEditRecoveryFlushRegistry()
   const recovery = useEditRecovery({
     versionId: id ?? '',
+    collection,
     // ⚑ `editing`, NOT `editIntent`. It is the ACTUAL unlock: at ≤640px Edit opens the
     // narrow-screen dialog without unlocking, and `?edit=1` is neutralised on load. Starting a
     // session on intent would mint rows for people who cannot type into them and spend their
@@ -508,7 +518,7 @@ export default function LessonControls({
       setPendingCombine(null)
       setComparison(null)
       setCombineContext(offer.combineContext ?? null)
-      const { doc } = applyCapture(currentContent() as never, offer.content)
+      const { doc } = applyCapture(currentContent(), offer.content, collection)
       await reset(doc as never)
       setModified(true)
       proseRestored = true
@@ -580,22 +590,23 @@ export default function LessonControls({
     if (Boolean(id) && editing) startRecovery()
   }, [id, editing, startRecovery])
 
-  const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
+  const parentId = relId(savedDocumentData?.[series.parentKey])
+  const planId = isDeck ? deckPlanId : parentId
   const officialVersionId =
-    planId != null && officialPointer?.planId === planId ? officialPointer.versionId : undefined
+    parentId != null && officialPointer?.planId === parentId ? officialPointer.versionId : undefined
   const sourceIsOfficial =
     officialVersionId === undefined ? null : String(officialVersionId) === String(id)
 
   useEffect(() => {
-    if (!id || planId == null) return // leave the pointer unknown → no delete-source or compare offer
+    if (!id || parentId == null) return // leave the pointer unknown → no delete-source or compare offer
     let cancelled = false
-    fetch(`/api/lesson-plans/${planId}?depth=0`, { credentials: 'same-origin' })
+    fetch(`/api/${series.parent}/${parentId}?depth=0`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
       .then((p) => {
         // Only set a definite value when the plan was actually fetched; on failure leave it unknown
         // so Save does NOT offer to delete the source on a transient API error.
         if (!cancelled && p) {
-          setOfficialPointer({ planId, versionId: toId(p.officialVersion) ?? null })
+          setOfficialPointer({ planId: parentId, versionId: toId(p.officialVersion) ?? null })
         }
       })
       .catch(() => {
@@ -604,13 +615,16 @@ export default function LessonControls({
     return () => {
       cancelled = true
     }
-  }, [id, planId])
+  }, [id, parentId, series.parent])
 
   // No id → unsaved/new document; nothing to act on yet.
   // ⚑ ABOVE the early return: hooks must run in the same order every render, and `if (!id) return
   // null` sits just below. Projected once per saved document rather than per render — the restore
   // prompt stays open while the user reads it, and this walks every lesson.
-  const savedProse = useMemo(() => projectCapture(savedDocumentData), [savedDocumentData])
+  const savedProse = useMemo(
+    () => projectCapture(savedDocumentData, collection),
+    [collection, savedDocumentData],
+  )
 
   if (!id) return null
 
@@ -620,8 +634,18 @@ export default function LessonControls({
   // Button rendered as an anchor (el="anchor"), so it sits with the other toolbar buttons.
   // Chrome casing only (D5): the shouty stored title softens in the bar; the stored value is
   // untouched (it is generator input).
-  const title =
-    typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
+  const rawTitle = isDeck ? savedDocumentData?.spec?.lesson_title_short : savedDocumentData?.title
+  const title = typeof rawTitle === 'string' ? displayTitle(rawTitle) : null
+  const backVersion = isDeck ? deckContext : id
+  const backHref =
+    planId == null
+      ? '/'
+      : `/lessons/${planId}${backVersion == null ? '' : `?version=${backVersion}`}`
+  const versionApi = `/api/${collection}/${id}`
+  const deckDownload =
+    isDeck && parentId != null
+      ? `/api/decks/${parentId}/download?deckVersion=${id}${deckContext == null ? '' : `&planVersion=${deckContext}`}`
+      : null
 
   /**
    * WHICH version this is — `1.2.0`, or null while the doc is still loading.
@@ -805,7 +829,11 @@ export default function LessonControls({
         if (issues[0]) focusField(issues[0].path)
         return
       }
-      const snapshot = JSON.stringify(currentContent())
+      const content = currentContent()
+      const snapshot = JSON.stringify({
+        ...content,
+        updatedAt: content.updatedAt ?? savedDocumentData?.updatedAt,
+      })
       // A capture transport failure permits a tokenless save; a 409 stops the save. Resolve that
       // before asking about deletion, since a tokenless save must preserve the source's drafts.
       const plan = await recovery.prepareForSave()
@@ -830,7 +858,7 @@ export default function LessonControls({
           await withUnsavedWarning(
             `Save your edits as a new version and delete ${versionPhrase}?`,
             id ?? '',
-            { countCaller: false },
+            { countCaller: false, collection },
           ),
         )
       const body = new FormData()
@@ -843,10 +871,8 @@ export default function LessonControls({
         body.set('recoveryGeneration', String(plan.token.generation))
         body.set('recoveryExpectedRevision', String(plan.token.revision))
       }
-      const res = await fetch(
-        `/api/lesson-bundle-versions/${id}/save-as-new${deleteSource ? '?deleteSource=true' : ''}`,
-        { method: 'POST', body, credentials: 'same-origin' },
-      )
+      const saveUrl = `${versionApi}/save-as-new${deleteSource ? '?deleteSource=true' : ''}`
+      const res = await fetch(saveUrl, { method: 'POST', body, credentials: 'same-origin' })
       if (!res.ok) {
         if (res.status === 404) {
           const failure = (await res
@@ -888,7 +914,8 @@ export default function LessonControls({
         !combineContext && restoredDraftSuggestion?.sourceId === Number(id)
           ? restoredDraftSuggestion.target
           : null
-      router.push(suggestion ? `${out.adminUrl}?draftCombineWith=${suggestion.id}` : out.adminUrl)
+      const nextQuery = suggestion ? `?draftCombineWith=${suggestion.id}` : versionQuery
+      router.push(out.adminUrl + nextQuery)
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Save failed')
       setSaving(false)
@@ -911,6 +938,7 @@ export default function LessonControls({
           // leading with it was the least informative thing the dialog could say.
           `Delete ${versionPhrase}${title ? ` of “${title}”` : ''}? This cannot be undone.`,
           id ?? '',
+          { collection },
         ),
       )
     ) {
@@ -919,7 +947,7 @@ export default function LessonControls({
     setSaving(true)
     setMsg(null)
     try {
-      const res = await fetch(`/api/lesson-bundle-versions/${id}`, {
+      const res = await fetch(versionApi, {
         method: 'DELETE',
         credentials: 'same-origin',
       })
@@ -927,7 +955,7 @@ export default function LessonControls({
         throw new Error(documentLockedMessage(res) ?? (await errorMessage(res, 'Delete')))
       // Cross-root-layout navigation (admin → frontend), so Next gives the shared Back Link a full
       // page load automatically.
-      window.location.assign(planId != null ? `/lessons/${planId}` : '/')
+      window.location.assign(isDeck ? backHref : planId != null ? `/lessons/${planId}` : '/')
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Delete failed')
       setSaving(false)
@@ -1054,41 +1082,43 @@ export default function LessonControls({
           Combine with {savedDraftSuggestion.semver}
         </Button>
       )}
-      <CombineVersions
-        key={String(id)}
-        id={Number(id)}
-        versions={versions}
-        document={savedDocumentData ?? {}}
-        editing={editing}
-        available={canEdit}
-        busy={busy || restoring || recoveryGate}
-        comparison={comparison}
-        context={combineContext}
-        remaining={remainingChoices}
-        onBegin={(next) => {
-          if (modified || editing) {
-            setMsg('Save or discard your changes before combining versions.')
-            return
-          }
-          if (!editingAvailableAtWidth(window.innerWidth)) {
-            setTooNarrow(true)
-            return
-          }
-          setProcessing(true)
-          setCombineFailure(null)
-          setPendingCombine(next)
-          setEditIntent(true)
-          setMsg(null)
-        }}
-        onResolve={resolveConflict}
-        valueFor={(conflict) => {
-          const path = combineDoc && captureFieldPath(combineDoc, conflict.key, conflict.field)
-          return path ? String(fields[path]?.value ?? '') : ''
-        }}
-        onMessage={setMsg}
-        onNarrow={() => setTooNarrow(true)}
-        startSignal={combineSignal}
-      />
+      {!isDeck && (
+        <CombineVersions
+          key={String(id)}
+          id={Number(id)}
+          versions={versions}
+          document={savedDocumentData ?? {}}
+          editing={editing}
+          available={canEdit}
+          busy={busy || restoring || recoveryGate}
+          comparison={comparison}
+          context={combineContext}
+          remaining={remainingChoices}
+          onBegin={(next) => {
+            if (modified || editing) {
+              setMsg('Save or discard your changes before combining versions.')
+              return
+            }
+            if (!editingAvailableAtWidth(window.innerWidth)) {
+              setTooNarrow(true)
+              return
+            }
+            setProcessing(true)
+            setCombineFailure(null)
+            setPendingCombine(next)
+            setEditIntent(true)
+            setMsg(null)
+          }}
+          onResolve={resolveConflict}
+          valueFor={(conflict) => {
+            const path = combineDoc && captureFieldPath(combineDoc, conflict.key, conflict.field)
+            return path ? String(fields[path]?.value ?? '') : ''
+          }}
+          onMessage={setMsg}
+          onNarrow={() => setTooNarrow(true)}
+          startSignal={combineSignal}
+        />
+      )}
       {combineFailure && (
         <Button
           size="small"
@@ -1144,7 +1174,7 @@ export default function LessonControls({
                 exactly as `lp-btn--compact` already mirrored the frontend's. */}
             <a
               className="btn lp-btn--quiet lp-btn--compact"
-              href={`/lessons/${planId}?version=${id}`}
+              href={backHref}
               aria-label="Back to lesson"
             >
               Back
@@ -1197,7 +1227,7 @@ export default function LessonControls({
               </Button>
             </>
           )}
-          {editing && !comparison && !pendingCombine && !combineContext && (
+          {!isDeck && editing && !comparison && !pendingCombine && !combineContext && (
             <Button
               buttonStyle="secondary"
               size="small"
@@ -1211,59 +1241,91 @@ export default function LessonControls({
               Insert link
             </Button>
           )}
-          <Button
-            buttonStyle="secondary"
-            size="small"
-            onClick={onPreview}
-            aria-label="Quick preview, opens in a new tab"
-          >
-            Quick preview{' '}
-            <span aria-hidden="true" className="lesson-controls__ext">
-              ↗
-            </span>
-          </Button>
-          {/* The accurate, formatted rendering (real DOCX→PDF), next to the quick HTML preview.
-              Pristine → the cached export PDF; unsaved → generated from the current form state. One
-              press computes the available documents (fresh, on click): a single-document plan opens
-              straight away; a plan with a Final Explanation / Summary Table opens a picker so you can
-              choose whichever you're working on. */}
-          <div className="lesson-controls__pdf" ref={pdfMenuRef}>
-            <Button
-              buttonStyle="secondary"
-              size="small"
-              onClick={onViewPdfClick}
-              disabled={pdfBusy}
-              aria-busy={pdfBusy}
-              aria-expanded={pdfMenuOpen}
-              aria-label="Formatted PDF, opens in a new tab"
-            >
-              {pdfBusy ? (
-                'Preparing document…'
-              ) : (
-                <>
-                  Formatted PDF{' '}
-                  <span aria-hidden="true" className="lesson-controls__ext">
-                    ↗
-                  </span>
-                </>
-              )}
-            </Button>
-            {pdfMenuOpen && (
-              <div className="lesson-controls__pdf-menu">
-                {pdfMenuTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className="lesson-controls__pdf-item"
-                    onClick={() => onViewPdf(tag)}
-                    aria-label={`${DELIVERABLE_LABELS[tag]}, opens formatted PDF in a new tab`}
+          {isDeck ? (
+            !editing && deckDownload && (
+              <>
+                <a className="btn" href={`${deckDownload}&as=pptx`} download>
+                  Download PowerPoint
+                </a>
+                <a className="btn" href={`${deckDownload}&as=pdf`} download>
+                  Download PDF
+                </a>
+                {versions.length > 1 && (
+                  <select
+                    aria-label="Deck version"
+                    value={String(id)}
+                    onChange={(event) =>
+                      router.push(
+                        `/admin/collections/${collection}/${event.target.value}${versionQuery}`,
+                      )
+                    }
                   >
-                    {DELIVERABLE_LABELS[tag]}
-                  </button>
-                ))}
+                    {versions.map((version) => (
+                      <option key={version.id} value={version.id}>
+                        Version {version.semver}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </>
+            )
+          ) : (
+            <>
+              <Button
+                buttonStyle="secondary"
+                size="small"
+                onClick={onPreview}
+                aria-label="Quick preview, opens in a new tab"
+              >
+                Quick preview{' '}
+                <span aria-hidden="true" className="lesson-controls__ext">
+                  ↗
+                </span>
+              </Button>
+              {/* The accurate, formatted rendering (real DOCX→PDF), next to the quick HTML preview.
+                  Pristine → the cached export PDF; unsaved → generated from the current form state. One
+                  press computes the available documents (fresh, on click): a single-document plan opens
+                  straight away; a plan with a Final Explanation / Summary Table opens a picker so you can
+                  choose whichever you're working on. */}
+              <div className="lesson-controls__pdf" ref={pdfMenuRef}>
+                <Button
+                  buttonStyle="secondary"
+                  size="small"
+                  onClick={onViewPdfClick}
+                  disabled={pdfBusy}
+                  aria-busy={pdfBusy}
+                  aria-expanded={pdfMenuOpen}
+                  aria-label="Formatted PDF, opens in a new tab"
+                >
+                  {pdfBusy ? (
+                    'Preparing document…'
+                  ) : (
+                    <>
+                      Formatted PDF{' '}
+                      <span aria-hidden="true" className="lesson-controls__ext">
+                        ↗
+                      </span>
+                    </>
+                  )}
+                </Button>
+                {pdfMenuOpen && (
+                  <div className="lesson-controls__pdf-menu">
+                    {pdfMenuTags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className="lesson-controls__pdf-item"
+                        onClick={() => onViewPdf(tag)}
+                        aria-label={`${DELIVERABLE_LABELS[tag]}, opens formatted PDF in a new tab`}
+                      >
+                        {DELIVERABLE_LABELS[tag]}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
           {/* Toggle for the details sidebar; the changing label carries the state (no aria-pressed
               on top — label-swap and pressed-state together read as contradictory to AT). */}
           {/* ⚑ SCROLL TO IT. The toggle always worked — it flips the body class that reveals Payload's
@@ -1305,7 +1367,8 @@ export default function LessonControls({
               here, on the new version's page, so this is the clean saved-version surface. View mode
               only, and only for the version's own author — it is about THEIR changes. A full
               navigation (`<a>`): /discuss is the frontend app. */}
-          {!editing &&
+          {!isDeck &&
+            !editing &&
             flags?.forumEnabled &&
             user &&
             toId((savedDocumentData?.author ?? null) as never) === user.id && (
@@ -1315,7 +1378,7 @@ export default function LessonControls({
             )}
           {/* Explicit destructive action (view mode only), replacing the native document-controls
               kebab. Shown only for a version the caller may delete; the server re-gates. */}
-          {!editing && canDelete && planId != null && officialVersionId != null && (
+          {!isDeck && !editing && canDelete && planId != null && officialVersionId != null && (
             <CompareToOfficialLink
               planId={planId}
               officialVersionId={officialVersionId}
@@ -1356,7 +1419,7 @@ export default function LessonControls({
       </div>
       {/* In-form jump nav (2026-07-13): floats with the toolbar (the enclosing .doc-controls is
           already sticky), the edit-page counterpart to the lesson page's .doc-nav. */}
-      <EditJumpNav />
+      {!isDeck && <EditJumpNav />}
       {/* The restore offer. Rendered only in the `offer` phase, which is also the phase that keeps
           the form locked — so the panel is never behind a form the user can already type into. */}
       {recovery.entry.phase === 'offer' && (
@@ -1433,23 +1496,27 @@ export default function LessonControls({
               <dt>Formatting is plain text</dt>
               <dd>Bold, italics, and underlining are not supported.</dd>
             </div>
-            <div className="help-rows__row">
-              <dt>Insert a link</dt>
-              <dd>
-                Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in the
-                toolbar. Copy the address from your browser’s address bar on the ARES page (or any
-                web page), paste it, and add an optional label.
-              </dd>
-            </div>
-            <div className="help-rows__row">
-              <dt>Check your work before saving</dt>
-              <dd>Quick preview checks your content. Formatted PDF shows the final layout.</dd>
-            </div>
-            {canEditStructure && (
-              <div className="help-rows__row">
-                <dt>Add a lesson by duplicating one</dt>
-                <dd>Duplicate an existing lesson, then edit the copy.</dd>
-              </div>
+            {!isDeck && (
+              <>
+                <div className="help-rows__row">
+                  <dt>Insert a link</dt>
+                  <dd>
+                    Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in the
+                    toolbar. Copy the address from your browser’s address bar on the ARES page (or any
+                    web page), paste it, and add an optional label.
+                  </dd>
+                </div>
+                <div className="help-rows__row">
+                  <dt>Check your work before saving</dt>
+                  <dd>Quick preview checks your content. Formatted PDF shows the final layout.</dd>
+                </div>
+                {canEditStructure && (
+                  <div className="help-rows__row">
+                    <dt>Add a lesson by duplicating one</dt>
+                    <dd>Duplicate an existing lesson, then edit the copy.</dd>
+                  </div>
+                )}
+              </>
             )}
             {/* Moved out of the recovery indicator, which now shows only LIVE status: this is a
                 static rule about the feature, so it belongs with the other rules. Still admins
@@ -1459,7 +1526,11 @@ export default function LessonControls({
             {canEditStructure && (
               <div className="help-rows__row">
                 <dt>Only prose is backed up while you type</dt>
-                <dd>Structural changes and answer keys are not.</dd>
+                <dd>
+                  {isDeck
+                    ? 'Save a new version to keep changes to slide order, timing, pictures or quiz links.'
+                    : 'Structural changes and answer keys are not.'}
+                </dd>
               </div>
             )}
           </dl>

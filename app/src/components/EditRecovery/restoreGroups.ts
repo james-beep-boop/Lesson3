@@ -44,7 +44,7 @@ type Group = { id: string; heading: string; lines: Line[] }
 const fieldLabel = (field: string): string => {
   const authored = PROSE_LABELS[field]
   if (authored) return authored
-  const spaced = field.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()
+  const spaced = field.replaceAll('_', ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
@@ -104,7 +104,7 @@ export const groupsOf = (
     // The row a key belongs to — the singleton scopes have none, so they stand alone under their own
     // name. This is what keeps two different deleted lessons in two different sections.
     const { scope, rowId } = parseKey(key)
-    const id = rowId ?? scope
+    const id = scope.startsWith('deck.') ? key : rowId ?? scope
     const existing = byId.get(id)
     if (existing) {
       existing.lines.push(...lines)

@@ -42,6 +42,7 @@ import * as migration_20261101_002353_reset_code from './20261101_002353_reset_c
 import * as migration_20261126_160433_rubric_below_expectations from './20261126_160433_rubric_below_expectations'
 import * as migration_20261127_165205_supporting_files from './20261127_165205_supporting_files'
 import * as migration_20261128_040000_deck_records from './20261128_040000_deck_records'
+import * as migration_20261128_050000_deck_edit_recovery from './20261128_050000_deck_edit_recovery'
 
 export const migrations = [
   {
@@ -263,5 +264,10 @@ export const migrations = [
     up: migration_20261128_040000_deck_records.up,
     down: migration_20261128_040000_deck_records.down,
     name: '20261128_040000_deck_records',
+  },
+  {
+    up: migration_20261128_050000_deck_edit_recovery.up,
+    down: migration_20261128_050000_deck_edit_recovery.down,
+    name: '20261128_050000_deck_edit_recovery',
   },
 ]

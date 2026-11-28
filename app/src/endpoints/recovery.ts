@@ -1,6 +1,6 @@
 /**
  * Edit-recovery endpoints — **SEVEN operations across FIVE URL paths**, mounted on
- * `lesson-bundle-versions` beside `/:id/preview` and `/:id/save-as-new`.
+ * both version collections beside `/:id/save-as-new`.
  *
  * ⚑ Three counts describe this surface and they are all different, so state which one you mean.
  * **Six** Payload `Endpoint` configurations, one per method+path pair — this is the count the
@@ -54,7 +54,8 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isEditorFor, isSiteAdmin, toId } from '../access'
 import { canDeleteVersionDoc } from '../access/versioning'
-import { findReadableVersion } from '../lib/readBundle'
+import { findReadableVersion, nullOnNotVisible } from '../lib/readBundle'
+import { deckSeries, planSeries, type VersionSeries } from '../lib/versionSeries'
 import { parseCombineContext, type CombineContext } from '../lib/combine/draft'
 import { relId } from '../lib/relId'
 import { enforceUserRateLimit } from '../lib/rateLimit'
@@ -68,7 +69,7 @@ import {
 } from '../lib/editRecovery/kernel'
 import { CAPTURE_SCHEMA_VERSION, captureProvenance } from '../lib/editRecovery/provenance'
 import { readRecoveryBody, requireCounter, requireDocument } from './recoveryParse'
-import type { LessonBundleVersion, User } from '../payload-types'
+import type { DeckVersion, LessonBundleVersion, User } from '../payload-types'
 
 const versionId = (req: PayloadRequest): string => {
   const id = req.routeParams?.id as string | undefined
@@ -76,18 +77,41 @@ const versionId = (req: PayloadRequest): string => {
   return id
 }
 
+type RecoveryVersion =
+  | Pick<LessonBundleVersion, 'id' | 'updatedAt' | 'lessonPlan' | 'subjectGrade' | 'author'>
+  | Pick<DeckVersion, 'id' | 'updatedAt' | 'subjectGrade' | 'author'>
+
+async function loadVersion(
+  req: PayloadRequest,
+  collection: VersionSeries['versions'],
+): Promise<RecoveryVersion> {
+  const id = versionId(req)
+  const user = req.user as User
+  const version =
+    collection === deckSeries.versions
+      ? await req.payload
+          .findByID({
+            collection,
+            id,
+            user,
+            req,
+            depth: 0,
+            overrideAccess: false,
+            select: { updatedAt: true, subjectGrade: true, author: true },
+          })
+          .catch(nullOnNotVisible)
+      : await findReadableVersion(req.payload, { id, user, req })
+  if (!version) throw new APIError('Version not found', 404)
+  return version
+}
+
 /**
  * Read-gate the version, then require EDIT rights on its subject-grade. A non-editor gets the same
  * 404 as a caller who cannot read it at all — see the note on 404 vs 403 above.
  */
-async function loadEditable(req: PayloadRequest): Promise<LessonBundleVersion> {
+async function loadEditable(req: PayloadRequest, collection: VersionSeries['versions']) {
   if (!req.user) throw new APIError('Unauthorized', 401)
-  const version = await findReadableVersion(req.payload, {
-    id: versionId(req),
-    user: req.user as User,
-    req,
-  })
-  if (!version) throw new APIError('Version not found', 404)
+  const version = await loadVersion(req, collection)
   if (!isEditorFor(req.user as User, toId(version.subjectGrade))) {
     throw new APIError('Version not found', 404)
   }
@@ -95,18 +119,12 @@ async function loadEditable(req: PayloadRequest): Promise<LessonBundleVersion> {
 }
 
 /** Site-Admin gate for ops 5 and 6. */
-async function loadForAdmin(req: PayloadRequest): Promise<LessonBundleVersion> {
+async function loadForAdmin(req: PayloadRequest, collection: VersionSeries['versions']) {
   if (!req.user) throw new APIError('Unauthorized', 401)
   if (!isSiteAdmin(req.user as User)) {
     throw new APIError('Only a site administrator may view recovery metadata.', 403)
   }
-  const version = await findReadableVersion(req.payload, {
-    id: versionId(req),
-    user: req.user as User,
-    req,
-  })
-  if (!version) throw new APIError('Version not found', 404)
-  return version
+  return loadVersion(req, collection)
 }
 
 const json = (body: unknown, status = 200): Response =>
@@ -120,7 +138,7 @@ const json = (body: unknown, status = 200): Response =>
  * arrived in a shape this could not read — worth failing loudly rather than filing the capture under
  * a null plan, which would break the admin metadata and cleanup scoping silently.
  */
-function requirePlanId(version: LessonBundleVersion): number {
+function requirePlanId(version: Pick<LessonBundleVersion, 'lessonPlan'>): number {
   const id = relId(version.lessonPlan)
   if (id === null) throw new APIError('Version has no lesson plan', 500)
   return id
@@ -146,22 +164,23 @@ function storedContext(value: unknown): CombineContext | null {
 }
 
 /** 1. Explicit session start — the ONLY insert/reactivate path. */
-export const recoveryStartEndpoint: Endpoint = {
+const recoveryStartFor = (collection: VersionSeries['versions']): Endpoint => ({
   path: '/:id/recovery/start',
   method: 'post',
   handler: async (req) => {
-    const version = await loadEditable(req)
+    const version = await loadEditable(req, collection)
     const limited = await enforceUserRateLimit(req, 'recovery')
     if (limited) return limited
 
     const result = await start(req, {
       userId: (req.user as User).id,
       sourceVersionId: version.id,
+      collection,
       // Derived from the AUTHORIZED source, never from the caller. `relId` rather than `toId`: the
       // latter is typed to the SubjectGrade ref and would need an `as never` cast here, which is the
       // ~30-site papercut CHANGELOG 2026-08-03 records as needing its own change. `relId` is the
       // general one and needs no cast.
-      lessonPlanId: requirePlanId(version),
+      lessonPlanId: 'lessonPlan' in version ? requirePlanId(version) : undefined,
       sourceUpdatedAt: new Date(String(version.updatedAt)).toISOString(),
       schemaVersion: CAPTURE_SCHEMA_VERSION,
     })
@@ -181,14 +200,14 @@ export const recoveryStartEndpoint: Endpoint = {
     }
     return json({ token: result.token })
   },
-}
+})
 
 /** 2. Capture — a CAS update of an existing ACTIVE row. Never an insert. */
-export const recoveryCaptureEndpoint: Endpoint = {
+const recoveryCaptureFor = (collection: VersionSeries['versions']): Endpoint => ({
   path: '/:id/recovery',
   method: 'post',
   handler: async (req) => {
-    const version = await loadEditable(req)
+    const version = await loadEditable(req, collection)
     const limited = await enforceUserRateLimit(req, 'recovery')
     if (limited) return limited
 
@@ -196,11 +215,12 @@ export const recoveryCaptureEndpoint: Endpoint = {
     const result = await capture(req, {
       userId: (req.user as User).id,
       sourceVersionId: version.id,
+      collection,
       generation: requireCounter(payload.generation, 'generation'),
       expectedRevision: requireCounter(payload.expectedRevision, 'expectedRevision'),
       // The RAW form document; the kernel projects it, so the prose whitelist cannot be bypassed here.
       formDocument: requireDocument(payload.document),
-      combineContext: payload.combineContext,
+      combineContext: collection === planSeries.versions ? payload.combineContext : undefined,
     })
 
     if (result.ok) return json({ token: result.token })
@@ -214,17 +234,18 @@ export const recoveryCaptureEndpoint: Endpoint = {
     // session exists for a row this caller may not read. The client's response is the same — refetch.
     return json({ errors: [{ message: 'This draft is out of date — reload to continue.' }] }, 409)
   },
-}
+})
 
 /** 3. The restore prompt's read — the caller's OWN active capture, or null. */
-export const recoveryGetEndpoint: Endpoint = {
+const recoveryGetFor = (collection: VersionSeries['versions']): Endpoint => ({
   path: '/:id/recovery',
   method: 'get',
   handler: async (req) => {
-    const version = await loadEditable(req)
+    const version = await loadEditable(req, collection)
     const active = await readActiveCapture(req, {
       userId: (req.user as User).id,
       sourceVersionId: version.id,
+      collection,
     })
     if (!active) return json({ capture: null })
 
@@ -233,7 +254,8 @@ export const recoveryGetEndpoint: Endpoint = {
     return json({
       capture: {
         content: active.content,
-        combineContext: storedContext(active.combineContext),
+        combineContext:
+          collection === planSeries.versions ? storedContext(active.combineContext) : null,
         // ⚑ When the CAPTURE was written — the row's own `updated_at`, which is what the restore
         // prompt shows the teacher. Distinct from `baseUpdatedAt` below, which is the SOURCE
         // VERSION's mtime and exists only for the staleness comparison; showing that one dates a
@@ -249,21 +271,21 @@ export const recoveryGetEndpoint: Endpoint = {
       token: active.token,
     })
   },
-}
+})
 
 /** 4. Explicit discard ⇒ retire. */
-export const recoveryDiscardEndpoint: Endpoint = {
+const recoveryDiscardFor = (collection: VersionSeries['versions']): Endpoint => ({
   path: '/:id/recovery',
   method: 'delete',
   handler: async (req) => {
-    const version = await loadEditable(req)
+    const version = await loadEditable(req, collection)
     const limited = await enforceUserRateLimit(req, 'recovery')
     if (limited) return limited
 
     const payload = await readRecoveryBody(req)
     const result = await retire(
       req,
-      { userId: (req.user as User).id, sourceVersionId: version.id },
+      { userId: (req.user as User).id, sourceVersionId: version.id, collection },
       {
         by: 'discard',
         generation: requireCounter(payload.generation, 'generation'),
@@ -275,25 +297,25 @@ export const recoveryDiscardEndpoint: Endpoint = {
     }
     return json({ token: result.token })
   },
-}
+})
 
 /** 5. Site-Admin metadata — existence and shape, NEVER content. */
-export const recoveryMetaEndpoint: Endpoint = {
+const recoveryMetaFor = (collection: VersionSeries['versions']): Endpoint => ({
   path: '/:id/recovery/meta',
   method: 'get',
   handler: async (req) => {
-    const version = await loadForAdmin(req)
-    const rows = await readCaptureMetadata(req, { sourceVersionId: version.id })
+    const version = await loadForAdmin(req, collection)
+    const rows = await readCaptureMetadata(req, { sourceVersionId: version.id, collection })
     return json({ captures: rows })
   },
-}
+})
 
 /** 6. Site-Admin cleanup — retires one user's capture, echoing the revision op 5 reported. */
-export const recoveryCleanupEndpoint: Endpoint = {
+const recoveryCleanupFor = (collection: VersionSeries['versions']): Endpoint => ({
   path: '/:id/recovery/meta/cleanup',
   method: 'post',
   handler: async (req) => {
-    const version = await loadForAdmin(req)
+    const version = await loadForAdmin(req, collection)
     const payload = await readRecoveryBody(req)
     const result = await retire(
       req,
@@ -303,6 +325,7 @@ export const recoveryCleanupEndpoint: Endpoint = {
         // metadata read and this call.
         userId: requireCounter(payload.userId, 'userId'),
         sourceVersionId: version.id,
+        collection,
       },
       {
         by: 'admin-cleanup',
@@ -317,7 +340,7 @@ export const recoveryCleanupEndpoint: Endpoint = {
     }
     return json({ token: result.token })
   },
-}
+})
 
 /**
  * 7. How many people would lose unsaved work if this version were deleted — counts, never names.
@@ -326,34 +349,43 @@ export const recoveryCleanupEndpoint: Endpoint = {
  * could act on the warning sees it. It does not repeat the Official-not-deletable rule: the number is
  * advisory, and the delete itself remains the authority on whether deletion happens.
  */
-export const recoveryUnsavedCountEndpoint: Endpoint = {
+const recoveryUnsavedCountFor = (collection: VersionSeries['versions']): Endpoint => ({
   path: '/:id/recovery/unsaved-count',
   method: 'get',
   handler: async (req) => {
     if (!req.user) throw new APIError('Unauthorized', 401)
-    const version = await findReadableVersion(req.payload, {
-      id: versionId(req),
-      user: req.user as User,
-      req,
-    })
-    if (!version) throw new APIError('Version not found', 404)
+    const version = await loadVersion(req, collection)
     if (!canDeleteVersionDoc(req.user as User, version)) {
       throw new APIError('Only someone who may delete this version can see this.', 403)
     }
     const counts = await countUnsavedWorkOnVersion(req, {
       sourceVersionId: version.id,
+      collection,
       callerId: (req.user as User).id,
     })
     return json(counts)
   },
-}
+})
 
-export const recoveryEndpoints: Endpoint[] = [
-  recoveryStartEndpoint,
+export const recoveryCaptureEndpoint = recoveryCaptureFor(planSeries.versions)
+export const recoveryGetEndpoint = recoveryGetFor(planSeries.versions)
+
+export const recoveryEndpoints = [
+  recoveryStartFor(planSeries.versions),
   recoveryCaptureEndpoint,
   recoveryGetEndpoint,
-  recoveryDiscardEndpoint,
-  recoveryMetaEndpoint,
-  recoveryCleanupEndpoint,
-  recoveryUnsavedCountEndpoint,
+  recoveryDiscardFor(planSeries.versions),
+  recoveryMetaFor(planSeries.versions),
+  recoveryCleanupFor(planSeries.versions),
+  recoveryUnsavedCountFor(planSeries.versions),
 ]
+
+export const deckRecoveryEndpoints = [
+  recoveryStartFor,
+  recoveryCaptureFor,
+  recoveryGetFor,
+  recoveryDiscardFor,
+  recoveryMetaFor,
+  recoveryCleanupFor,
+  recoveryUnsavedCountFor,
+].map((endpoint) => endpoint(deckSeries.versions))

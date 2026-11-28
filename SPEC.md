@@ -386,14 +386,14 @@ observable contract, and a failed or backed-off capture must say so rather than 
 - **Captures are stored SERVER-side**, in a user-owned `edit-recovery` collection — never in
   `localStorage`/`sessionStorage`/IndexedDB (§13).
 - **A capture is not a version.** `edit-recovery` is a separate mutable collection creating no
-  `lesson-bundle-versions` rows, so the immutable-version model (§6) is untouched and no version
+  lesson plan or deck version rows, so the immutable-version model (§6) is untouched and no version
   churn is introduced.
 - **No client-facing collection surface.** `read`, `create`, `update` and `delete` are all closed on
   the collection, and it is hidden from the admin panel. Every operation goes through custom
-  endpoints on `lesson-bundle-versions` (alongside `/:id/preview`, `/:id/save-as-new`,
-  `/:id/make-official`) which re-load the source and re-run the caller's editing authorization on
-  each call, then write with `overrideAccess`. This is deliberate and is the **documented Payload-first
-  gap** (§13): `start` needs an atomic upsert keyed `(user, sourceVersion)`, and default REST has none.
+  endpoints on `lesson-bundle-versions` and `deck-versions`. Each call loads the source and checks
+  the caller's editing access before writing with `overrideAccess`. This is the **documented
+  Payload-first gap** (§13). The `start` operation needs an atomic upsert keyed by user and source
+  version, which the default REST API does not provide.
   **Only `start` may insert or reactivate a row.** Capture is a compare-and-set UPDATE of an existing
   *active* row and returns 409 when the row is missing, retired, or its revision has moved — an
   upserting capture would recreate a retired row, which is the resurrection retirement markers exist to
@@ -673,6 +673,15 @@ document → Slides** on the lesson page. The deck uses the lesson plan version 
 The existing Gotenberg sidecar converts the PowerPoint file to PDF with one page for each slide,
 including the slides hidden during the slideshow. Both downloads use the export cache. Its key
 includes the deck version, deck render version, lesson plan version and the pictures used.
+
+Teachers with editing access and administrators can choose **Edit slides** on the same row. The
+shared editing screen opens the Official deck version. **Save as new version** opens the saved
+version with its own PowerPoint and PDF downloads. Use the deck version list to reopen a saved
+version. Downloads from the lesson page still use the Official deck version.
+
+**Save as draft** keeps deck text privately under **Manage → Your drafts** using the same
+edit-recovery rules as lesson plans. Drafts keep text on existing rows. For changes to slide
+order, timing, pictures or quiz links, save a new version.
 
 ### ARES release presentation (Part 1b, approved 2026-10-26)
 

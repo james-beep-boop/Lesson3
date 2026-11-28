@@ -55,6 +55,11 @@ import {
   SUMMARY_PROMPT_PROSE,
 } from '../proseFields'
 
+import type { Schema } from '../../ingest/contract'
+import { nativeName, nativeProperties, rowSchema, visibility } from '../../decks/fieldShape'
+import { deckSchemaNode, deckSpecSchema } from '../../decks/spec'
+import { deckSeries, type VersionSeries } from '../versionSeries'
+
 type Doc = Record<string, unknown>
 type Row = Doc & { id?: unknown }
 
@@ -176,10 +181,65 @@ const put = (map: CaptureMap, key: string | null, leaves: Record<string, ProseVa
   if (key && Object.keys(leaves).length > 0) map[key] = leaves
 }
 
+/** Visit deck prose through the same native schema and access rules used to save a version. */
+function mapDeckGroups(
+  source: Doc,
+  visit: (key: string, heading: string, group: Doc, leaves: string[]) => Doc,
+): Doc {
+  function walk(
+    group: Doc,
+    schema: Schema,
+    scope: string,
+    heading: string,
+    label: string,
+    rowId?: unknown,
+  ): Doc {
+    const fields = Object.entries(nativeProperties(schema, scope))
+    const leaves = fields.filter(([key]) => visibility(scope ? `${scope}.${key}` : key) === 'prose')
+    const key = rowId == null ? `deck.${scope}` : keyFor(`deck.${scope}`, rowId)!
+    const updated = leaves.length
+      ? visit(key, heading, group, leaves.map(([name]) => nativeName(name)))
+      : group
+    const out = { ...updated }
+    for (const [name, child] of fields) {
+      const path = scope ? `${scope}.${name}` : name
+      if (visibility(path) === 'system') continue
+      const stored = nativeName(name)
+      const node = deckSchemaNode(child)
+      const value = group[stored]
+      const fieldLabel = name.replaceAll('_', ' ')
+      if (node.type === 'object' && asDoc(value)) {
+        out[stored] = walk(asDoc(value)!, node, path, `${heading} · ${fieldLabel}`, label, rowId)
+      } else if (node.type === 'array' && Array.isArray(value)) {
+        const row = rowSchema(node.items!).schema
+        out[stored] = asRows(value).map((item, index) => {
+          if (!asDoc(item) || item.id == null) return item
+          const rowLabel =
+            path === 'slides' ? `Slide ${index + 1}` : `${label} · ${fieldLabel} ${index + 1}`
+          return walk(item, row, path, rowLabel, rowLabel, item.id)
+        })
+      }
+    }
+    return out
+  }
+  const spec = asDoc(source.spec)
+  return spec ? { ...source, spec: walk(spec, deckSpecSchema, '', 'Deck', 'Deck') } : source
+}
+
 /** Form document → capture map. Pure; ignores everything outside the prose whitelists. */
-export const projectCapture = (doc: Doc | undefined | null): CaptureMap => {
+export const projectCapture = (
+  doc: Doc | undefined | null,
+  collection?: VersionSeries['versions'],
+): CaptureMap => {
   const map: CaptureMap = {}
   if (!doc) return map
+  if (collection === deckSeries.versions) {
+    mapDeckGroups(doc, (key, _heading, group, leaves) => {
+      put(map, key, pickProse(group, leaves))
+      return group
+    })
+    return map
+  }
 
   for (const lesson of asRows(doc.lessons)) {
     put(map, keyFor('lesson', lesson.id), pickProse(lesson, LESSON_PROSE))
@@ -226,12 +286,22 @@ export const projectCapture = (doc: Doc | undefined | null): CaptureMap => {
  * Lives here because this module already owns the key format; deriving headings in a React component
  * would make `<scope>:<rowId>` a contract between files instead of a private detail.
  */
-export const captureAnchors = (doc: Doc | undefined | null): { key: string; heading: string }[] => {
+export const captureAnchors = (
+  doc: Doc | undefined | null,
+  collection?: VersionSeries['versions'],
+): { key: string; heading: string }[] => {
   const out: { key: string; heading: string }[] = []
   const add = (key: string | null, heading: string) => {
     if (key) out.push({ key, heading })
   }
   if (!doc) return out
+  if (collection === deckSeries.versions) {
+    mapDeckGroups(doc, (key, heading, group) => {
+      add(key, heading)
+      return group
+    })
+    return out
+  }
 
   asRows(doc.lessons).forEach((lesson, i) => {
     // The lesson's own `number` when it has one — that is what the teacher sees in the editor and on
@@ -273,6 +343,7 @@ export const captureAnchors = (doc: Doc | undefined | null): { key: string; head
  * Unnumbered on purpose: there is no row left to count, so any number would be invented.
  */
 export const orphanHeading = (scope: string): string =>
+  (scope.startsWith('deck.') ? 'No longer in this deck' : null) ??
   ({
     lesson: 'A lesson that is no longer in this plan',
     slo: 'A lesson that is no longer in this plan',
@@ -392,6 +463,7 @@ const overlay = (
 export const applyCapture = (
   base: Doc,
   capture: CaptureMap | null | undefined,
+  collection?: VersionSeries['versions'],
 ): { doc: Doc; report: ApplyReport } => {
   const report = { applied: 0 }
   const seen = new Set<string>()
@@ -400,6 +472,16 @@ export const applyCapture = (
     if (!key) return undefined
     seen.add(key)
     return map[key]
+  }
+
+  if (collection === deckSeries.versions) {
+    const doc = mapDeckGroups(base, (key, _heading, group, leaves) =>
+      overlay(group, take(key), leaves, report),
+    )
+    return {
+      doc,
+      report: { ...report, droppedKeys: Object.keys(map).filter((key) => !seen.has(key)) },
+    }
   }
 
   const out: Doc = { ...base }

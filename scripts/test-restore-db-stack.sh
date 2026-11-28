@@ -219,20 +219,11 @@ variant() { # file-name sql
 OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 # One migration behind = the NEWEST migration undone. ⚑ Update this when a newer migration lands, or the
 # backup has a gap instead of a missing tail and the restore (rightly) refuses it as "not a prefix".
-LATEST_MIGRATION='20261128_040000_deck_records'
-# Drop the deck tables (including the nested spec rows) and their enums in the probe database.
-ONE_MIGRATION_BEHIND="DO \$\$ BEGIN
-  EXECUTE 'DROP TABLE ' || (
-    SELECT string_agg(quote_ident(tablename), ', ')
-    FROM pg_tables WHERE schemaname = 'public'
-      AND (tablename = 'decks' OR starts_with(tablename, 'deck_versions'))
-  );
-  EXECUTE 'DROP TYPE ' || (
-    SELECT string_agg(quote_ident(typname), ', ')
-    FROM pg_type JOIN pg_namespace ON pg_namespace.oid = typnamespace
-    WHERE nspname = 'public' AND typtype = 'e' AND starts_with(typname, 'enum_deck_versions_')
-  );
-END \$\$;
+LATEST_MIGRATION='20261128_050000_deck_edit_recovery'
+ONE_MIGRATION_BEHIND="DELETE FROM edit_recovery WHERE deck_version_id IS NOT NULL;
+ALTER TABLE edit_recovery DROP COLUMN deck_version_id;
+ALTER TABLE edit_recovery ALTER COLUMN source_version_id SET NOT NULL;
+ALTER TABLE edit_recovery ALTER COLUMN lesson_plan_id SET NOT NULL;
 DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
 SCHEMA_PROBE="SELECT count(*) FROM information_schema.tables WHERE table_name = 'decks';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"

@@ -26,6 +26,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
+import { planSeries } from '../../lib/versionSeries'
 import { apiBaseFrom } from '../../lib/apiBase'
 import { CAPTURE_TTL_DAYS } from '../../lib/editRecovery/ttl'
 import type { UnsavedWorkRow } from '../../lib/editRecovery/unsavedWork'
@@ -38,10 +39,13 @@ export type UnsavedWorkItem = Omit<UnsavedWorkRow, 'capturedAt' | 'subjectGradeI
   keptUntil: string
 }
 
+const versionPath = (row: UnsavedWorkItem) =>
+  `${row.collection ?? planSeries.versions}/${row.versionId}`
+
 export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
   const router = useRouter()
   const { config } = useConfig()
-  const [busyId, setBusyId] = useState<number | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const apiBase = apiBaseFrom(config)
 
@@ -54,9 +58,9 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
     ) {
       return
     }
-    setBusyId(row.versionId)
+    setBusyId(versionPath(row))
     try {
-      const res = await fetch(`${apiBase}/lesson-bundle-versions/${row.versionId}/recovery`, {
+      const res = await fetch(`${apiBase}/${versionPath(row)}/recovery`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -89,7 +93,7 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
       ) : (
         <ul className="lp-manage__list">
           {rows.map((row) => {
-            const href = `/admin/collections/lesson-bundle-versions/${row.versionId}?edit=1`
+            const href = `/admin/collections/${versionPath(row)}?edit=1`
             const meta = [
               row.sgLabel,
               `Based on version ${row.semver}`,
@@ -97,7 +101,7 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
               `Kept until ${row.keptUntil}`,
             ].filter(Boolean)
             return (
-              <li key={row.versionId} className="lp-manage__row">
+              <li key={versionPath(row)} className="lp-manage__row">
                 <div className="lp-manage__row-main">
                   <Link className="lp-manage__link" href={href}>
                     {row.label}
@@ -121,7 +125,7 @@ export function UnsavedWorkList({ rows }: { rows: UnsavedWorkItem[] }) {
                     disabled={busyId != null}
                     onClick={() => void onDiscard(row)}
                   >
-                    {busyId === row.versionId ? 'Discarding…' : 'Discard'}
+                    {busyId === versionPath(row) ? 'Discarding…' : 'Discard'}
                   </Button>
                 </div>
               </li>
