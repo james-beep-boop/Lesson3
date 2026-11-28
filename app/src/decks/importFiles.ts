@@ -72,7 +72,10 @@ export async function readDeckUpload(
   }
 
   const zip = await openUploadZip(file)
-  const entries = Object.values(zip.files).filter((entry) => !entry.dir)
+  const entries = Object.values(zip.files).filter((entry) => {
+    const name = entry.unsafeOriginalName ?? entry.name
+    return !entry.dir && !name.startsWith('__MACOSX/') && !basename(name).startsWith('._')
+  })
   const budget = { limit: MAX_EXPANDED_BYTES, remaining: MAX_EXPANDED_BYTES }
   const specs: DeckImportSpec[] = []
   const lessons = new Set<number>()

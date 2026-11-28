@@ -13,6 +13,7 @@ export function DeckUploadForm({ plans }: { plans: { id: number; label: string }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [results, setResults] = useState<Result[]>([])
+  const [replace, setReplace] = useState(false)
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -24,9 +25,15 @@ export function DeckUploadForm({ plans }: { plans: { id: number; label: string }
         method: 'POST',
         body: new FormData(event.currentTarget),
       })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.errors?.[0]?.message || 'The upload failed.')
+      const result = await response.json().catch(() => null)
+      if (!response.ok || !result) {
+        throw new Error(
+          result?.errors?.[0]?.message ||
+            (response.status === 413 ? 'The upload is too large.' : 'The upload failed.'),
+        )
+      }
       setResults(result.decks)
+      setReplace(false)
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'The upload failed.')
     } finally {
@@ -69,7 +76,18 @@ export function DeckUploadForm({ plans }: { plans: { id: number; label: string }
             at version 1.0.0.
           </strong>
         </p>
-        <input name="replace" type="hidden" value="yes" />
+        <label>
+          <span>
+            <input
+              name="replace"
+              type="checkbox"
+              value="yes"
+              checked={replace}
+              onChange={(event) => setReplace(event.target.checked)}
+            />{' '}
+            Replace changed decks
+          </span>
+        </label>
         <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy}>
           {busy ? 'Uploading…' : 'Upload decks'}
         </button>

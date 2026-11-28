@@ -5,7 +5,13 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import { readDeckSpec } from '../../src/decks/storage'
 import spec from '../../src/decks/vendor/fixtures/L1.spec.json'
 import type { Deck, DeckVersion, SupportingFile } from '../../src/payload-types'
-import { MARK, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures'
+import {
+  createVersionFixture,
+  MARK,
+  setupRoleFixture,
+  type RoleFixture,
+  type RoleKey,
+} from '../helpers/fixtures'
 
 const base = process.env.E2E_BASE_URL ?? 'http://app:3000'
 const missing = 2_147_483_647
@@ -65,6 +71,16 @@ beforeAll(async () => {
       data: { subjectGrade: otherGrade.id, title: `${MARK}Outside assigned grade` },
     })
   ).id
+  const otherVersion = await createVersionFixture(fx.payload, {
+    planId: otherPlan,
+    subjectGradeId: otherGrade.id,
+    semver: '1.0.0',
+  })
+  await fx.payload.update({
+    collection: 'lesson-plans',
+    id: otherPlan,
+    data: { officialVersion: otherVersion.id },
+  })
   for (const role of roles) {
     const login = await body<{ token: string }>(
       await wire('users/login', undefined, {
@@ -77,6 +93,9 @@ beforeAll(async () => {
   }
   const zip = new JSZip()
   zip.file('specs/Biology/1.1/L1.spec.json', JSON.stringify(spec))
+  zip.file('__MACOSX/specs/Biology/1.1/._L1.spec.json', 'Finder metadata')
+  zip.file('specs/Biology/1.1/._L1.spec.json', 'Finder metadata')
+  zip.file(`__MACOSX/art/final/${spec.hero.art_id}.png`, 'Finder metadata')
   zip.file(
     `art/final/${spec.hero.art_id}.png`,
     await readFile(new URL('../../src/decks/vendor/data/logos/Seavuria_Logo.png', import.meta.url)),
@@ -87,6 +106,19 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await fx?.teardown()
+})
+
+it('lists only the sub-strands the administrator can import decks for', async () => {
+  for (const role of ['subjectAdmin', 'siteAdmin'] as const) {
+    const response = await fetch(`${base}/decks/import`, {
+      headers: { Cookie: `payload-token=${tokens[role]}` },
+      redirect: 'manual',
+    })
+    expect(response.status).toBe(200)
+    const html = await response.text()
+    expect(html).toContain(`<option value="${fx.plan.id}"`)
+    expect(html.includes(`<option value="${otherPlan}"`)).toBe(role === 'siteAdmin')
+  }
 })
 
 it('requires an administrator of the selected sub-strand to import decks', async () => {
@@ -104,6 +136,18 @@ it('requires an administrator of the selected sub-strand to import decks', async
     (await upload('subjectAdmin', new File([JSON.stringify(spec)], 'L99.spec.json'))).status,
   ).toBe(404)
   expect((await upload('siteAdmin', new File(['{}'], 'L1.js'))).status).toBe(400)
+})
+
+it('rejects a ZIP containing only a manifest and art', async () => {
+  const zip = new JSZip()
+  zip.file('manifest.json', '{}')
+  zip.file(`art/${spec.hero.art_id}.png`, 'picture omitted for this test')
+  const file = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'art.zip')
+  const result = await body<{ errors: { message: string }[] }>(
+    await upload('subjectAdmin', file),
+    400,
+  )
+  expect(result.errors[0]?.message).toContain('The ZIP has no specs')
 })
 
 it('imports the pilot with art and replaces changed decks', async () => {

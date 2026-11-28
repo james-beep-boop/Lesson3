@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
-import { canManageCurriculum, isSiteAdmin, subjectGradeIdsByRole } from '@/access'
+import { adminScopeIds, canImportDecks, isSiteAdmin } from '@/access'
 import PageBackLink from '@/components/PageBackLink'
 import PageHeader from '@/components/PageHeader'
 import { requireUser } from '@/lib/session'
@@ -9,15 +9,13 @@ import { DeckUploadForm } from './DeckUploadForm'
 
 export default async function DeckImportPage() {
   const { payload, user } = await requireUser()
-  if (!canManageCurriculum(user)) notFound()
+  if (!canImportDecks(user)) notFound()
 
   const { docs } = await payload.find({
     collection: 'lesson-plans',
     where: {
       officialVersion: { exists: true },
-      ...(isSiteAdmin(user)
-        ? {}
-        : { subjectGrade: { in: subjectGradeIdsByRole(user, ['subjectAdmin']) } }),
+      ...(isSiteAdmin(user) ? {} : { subjectGrade: { in: adminScopeIds(user) } }),
     },
     depth: 1,
     select: { title: true, subjectGrade: true },

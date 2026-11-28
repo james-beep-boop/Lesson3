@@ -7,7 +7,7 @@ import {
   type PayloadRequest,
 } from 'payload'
 
-import { canManageCurriculum, isSubjectAdminFor, toId } from '../access'
+import { canImportDecks, isSubjectAdminFor, toId } from '../access'
 import { findDeckArt, readDeckArt } from '../decks/art'
 import { readDeckUpload } from '../decks/importFiles'
 import { storeDeckSpec } from '../decks/storage'
@@ -40,7 +40,7 @@ export const uploadDecksEndpoint: Endpoint = {
   method: 'post',
   handler: async (req) => {
     if (!req.user) throw new APIError('Sign in to upload decks.', 401)
-    if (!canManageCurriculum(req.user)) {
+    if (!canImportDecks(req.user)) {
       throw new APIError('Only administrators can upload decks.', 403)
     }
 
@@ -125,7 +125,7 @@ export const uploadDecksEndpoint: Endpoint = {
           if (existing) {
             if (form?.get('replace') !== 'yes') {
               throw new APIError(
-                'Confirm that a changed upload will remove all previous deck versions.',
+                'Select “Replace changed decks” and try again to remove the previous deck versions.',
                 409,
               )
             }
