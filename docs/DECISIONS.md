@@ -16900,3 +16900,7 @@ all attempts if any destination had a real error, including a foreign installati
 disk copy does not hide that failure from automation. An unplugged USB is neutral “not connected”,
 recorded separately, and does not fail an otherwise successful disk backup. Freshness remains
 independent: USB defaults to 30 days, disk uses the school’s agreed maximum data loss.
+
+## Answers from David (agentd)
+
+- 2026-11-27, #516: Provide a local checkout of upstream commit `51033f4f` readable by the coder, including the deck theme and SeaVuria logo, or add those pinned files to the worktree before rerunning #516. — Fixed in PR 521 on main. Merge main into the task branch. vendor/ares-decks/ now mirrors upstream's layout (config/, data/logos/, fonts/carlito/), and the builder runs unedited. See its PROVENANCE.md. Use DECK_ALLOW_MISSING_ART=1 in tests. <!-- agentd #516 q:e4c30cd12d567646 -->

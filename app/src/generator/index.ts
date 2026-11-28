@@ -6,27 +6,10 @@
  * them to return in-memory Buffers — no disk writes, no Python, no edits to vendored code.
  */
 import { createRequire } from 'node:module'
-import path from 'node:path'
 
+import './attributionEnvironment'
 import type { DeliverableTag } from './exportArtifacts'
 import { withParenthesizedProseLinks } from './proseLinks'
-
-// ⚑ Where the vendored attribution code finds its config — and why this line cannot be removed.
-// `vendor/lib/attribution.js` defaults to `<its own dir>/../../config/attribution.yaml`. Inside the Next.js
-// production bundle that `__dirname` becomes the BUILD-TIME placeholder `/ROOT/src/generator/vendor/lib`,
-// which is never rewritten in the standalone image, so every export died with
-// `ENOENT '/ROOT/src/generator/config/attribution.yaml'`. Dev, unit tests and the fidelity scripts all
-// resolve the real directory, so only the production image shows it (caught by tests/http/teacherKey).
-// The file is shipped into the image by `outputFileTracingIncludes` (next.config.ts); the process always
-// starts from the app root (`node server.js` in /app; `next dev`, vitest and tsx from app/). Set BEFORE
-// the vendored module is first required below; an explicit ATTRIBUTION_YAML still wins.
-process.env.ATTRIBUTION_YAML ??= path.join(
-  process.cwd(),
-  'src',
-  'generator',
-  'config',
-  'attribution.yaml',
-)
 
 const require = createRequire(import.meta.url)
 const { buildSoW, buildFinalExplanation, buildSummaryTable } =
