@@ -1436,10 +1436,9 @@ body {
 // shared AppNav) is the only nav on both, matching the frontend. On a phone the hamburger opened an
 // EMPTY sidebar over the content and the header showed a second, redundant avatar. Scoped with :has()
 // so every OTHER admin page keeps full chrome. (Class names verified against installed payload/next.)
-$version-edit-view: ':is(.collection-edit--lesson-bundle-versions, .collection-edit--deck-versions)';
-
 body:has(.lp-admin-dash),
-body:has(#{$version-edit-view}) {
+body:has(.collection-edit--lesson-bundle-versions),
+body:has(.collection-edit--deck-versions) {
   .nav,
   .template-default__nav-toggler-wrapper,
   .app-header {
@@ -1453,7 +1452,8 @@ body:has(#{$version-edit-view}) {
 // chrome-stripped surfaces: the Manage dashboard AND the version editor (the editor's document form
 // otherwise renders in a ~360px sliver — see the squished-editor report 2026-07-03).
 body:has(.lp-admin-dash) .template-default,
-body:has(#{$version-edit-view}) .template-default {
+body:has(.collection-edit--lesson-bundle-versions) .template-default,
+body:has(.collection-edit--deck-versions) .template-default {
   grid-template-columns: 1fr;
 }
 
@@ -1477,11 +1477,13 @@ body:has(#{$version-edit-view}) .template-default {
 // ⚑ SCOPED TO `.clipboard-action__popup`, NOT `.array-field__header-action`. Payload passes that
 // second class to the popup as well, so hiding by it would take Collapse All and Show All with it —
 // the two controls this editor's collapse-on-entry design depends on.
-#{$version-edit-view} .clipboard-action__popup {
+.collection-edit--lesson-bundle-versions .clipboard-action__popup,
+.collection-edit--deck-versions .clipboard-action__popup {
   display: none;
 }
 
-#{$version-edit-view} .lp-phase-select {
+.collection-edit--lesson-bundle-versions .lp-phase-select,
+.collection-edit--deck-versions .lp-phase-select {
   select {
     width: 100%;
     min-height: 44px;
@@ -1516,7 +1518,8 @@ body:has(#{$version-edit-view}) .template-default {
 //
 // Keep Collapse All / Show All and each row's disclosure chevron visible. In particular, do not hide
 // `.array-field__header-action` or `.collapsible__indicator`; both are navigation, not mutation.
-body:has(.lesson-controls-wrap--prose-only) #{$version-edit-view} {
+body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-versions,
+body:has(.lesson-controls-wrap--prose-only) .collection-edit--deck-versions {
   .array-actions,
   .array-field__add-row,
   .array-field__row .collapsible__drag {
@@ -1535,7 +1538,8 @@ body:has(.lesson-controls-wrap--prose-only) #{$version-edit-view} {
 // Deliberately NOT `--app-list-heading-size` (18px): this rule reaches every array in the editor,
 // nested ones included (13 on a 13-lesson plan), and 18px on a phase list inside a lesson row would
 // shout louder than the lesson it belongs to.
-#{$version-edit-view} {
+.collection-edit--lesson-bundle-versions,
+.collection-edit--deck-versions {
   .array-field__title .field-label {
     font-size: var(--app-body-size);
     font-weight: 600;
@@ -1550,7 +1554,8 @@ body:has(.lesson-controls-wrap--prose-only) #{$version-edit-view} {
 // filled the entire viewport after the Payload nav was stripped (1280px at a 1280px viewport), while
 // every frontend page and Manage use the shared 960px column. Override Payload's large admin gutter
 // inside this one collection so the content edge also matches the shared 20px page gutter.
-#{$version-edit-view} {
+.collection-edit--lesson-bundle-versions,
+.collection-edit--deck-versions {
   max-width: var(--app-content-width);
   margin-inline: auto;
   --gutter-h: var(--app-content-pad);
@@ -1649,14 +1654,16 @@ body:has(.lesson-controls-wrap--prose-only) #{$version-edit-view} {
 // Lesson-version edit view: the native "Last Modified / Created" row is relocated into the sidebar
 // (the VersionTimestamps UI field, under "Version"). Hide the native row, SCOPED to this collection
 // so other collections keep their timestamp display.
-#{$version-edit-view} .doc-controls__meta {
+.collection-edit--lesson-bundle-versions .doc-controls__meta,
+.collection-edit--deck-versions .doc-controls__meta {
   display: none;
 }
 
 // Lesson-version edit view: our LessonControls bar is the only control surface — hide the native Save
 // button and the top-right "Edit" tab (Edit now lives in the bar). API tab: Site-Admins keep it;
 // non-Site-Admins get all tabs hidden via the admin header's conditional <style>.
-#{$version-edit-view} {
+.collection-edit--lesson-bundle-versions,
+.collection-edit--deck-versions {
   // The native Save lives INSIDE the edit View (`.doc-controls` is a descendant of the
   // `.collection-edit--…` wrapper), so this descendant rule matches.
   .doc-controls .form-submit {
@@ -1729,7 +1736,8 @@ body:has(.lesson-controls-wrap--prose-only) #{$version-edit-view} {
 // rather than defaulting the React state to hidden. The body class is applied in an EFFECT, so a
 // state-only default would paint the sidebar and then yank it away on every load. Keying the default
 // off the absence of a class means first paint is already correct and there is no hydration branch.
-body:not(.lp-details-shown) #{$version-edit-view} {
+body:not(.lp-details-shown) .collection-edit--lesson-bundle-versions,
+body:not(.lp-details-shown) .collection-edit--deck-versions {
   .document-fields--has-sidebar {
     --main-width: 100%;
     --main-border: none;
@@ -1748,7 +1756,8 @@ body:not(.lp-details-shown) #{$version-edit-view} {
 // label); the SCOPING was. Fixed 2026-07-07 by matching via the same `body:has()` ancestor pattern the
 // chrome-strip block above uses. The live element is a disabled `<div class="doc-tab doc-tab--active"
 // aria-label="Edit" title="Edit">`, so the selector below hits it. In-browser confirmed.
-body:has(#{$version-edit-view}) .doc-tab[aria-label='Edit'] {
+body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'],
+body:has(.collection-edit--deck-versions) .doc-tab[aria-label='Edit'] {
   display: none;
 }
 
@@ -1757,7 +1766,8 @@ body:has(#{$version-edit-view}) .doc-tab[aria-label='Edit'] {
 // `body:has()` ancestor pattern as the Edit tab above (the title lives in DocumentHeader, a
 // preceding SIBLING of the `.collection-edit--…` wrapper). The API doc-tab (Site-Admins) survives:
 // only the title element is hidden, not the header.
-body:has(#{$version-edit-view}) .doc-header__title {
+body:has(.collection-edit--lesson-bundle-versions) .doc-header__title,
+body:has(.collection-edit--deck-versions) .doc-header__title {
   display: none;
 }
 
@@ -1831,7 +1841,8 @@ body:has(#{$version-edit-view}) .doc-header__title {
 // scope because that view hosts Payload's own `.btn`s (array row actions) which must not be
 // restyled; a `Modal`'s subtree is only ever our own components, which is the same argument that
 // licensed the opt-in class on Manage, applied to a tighter subtree.
-#{$version-edit-view} .lesson-controls-wrap .btn,
+.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
+.collection-edit--deck-versions .lesson-controls-wrap .btn,
 .lp-modal .btn,
 .btn.lp-btn {
   --color: var(--app-accent);
@@ -2239,7 +2250,8 @@ body:has(#{$version-edit-view}) .doc-header__title {
 // above on 2026-08-02 it kept only `.lp-manage__row-actions a.btn`, so it covered one of the four
 // new scopes by luck (Continue editing is the only admin `<a class="btn">`). Under the opt-in class
 // it is the same `.lp-btn` as everywhere else and cannot fall out of step again.
-#{$version-edit-view} .lesson-controls-wrap a.btn,
+.collection-edit--lesson-bundle-versions .lesson-controls-wrap a.btn,
+.collection-edit--deck-versions .lesson-controls-wrap a.btn,
 // `.lp-modal a.btn` is 0-2-1, so it still outranks the 0-2-0 scope above — the same relationship
 // `a.btn.lp-btn` (0-3-1) has to `.btn.lp-btn`.
 .lp-modal a.btn,
@@ -2367,7 +2379,8 @@ a.btn.lp-btn {
     max-width: 100%;
   }
 
-  #{$version-edit-view} .lesson-controls-wrap .btn,
+  .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
+  .collection-edit--deck-versions .lesson-controls-wrap .btn,
   .lp-modal .btn,
   .btn.lp-btn,
   .lp-manage__select,
@@ -2386,7 +2399,8 @@ a.btn.lp-btn {
   // control is `.collection-edit--… .lesson-controls-wrap .btn` and carries no `.lp-btn`, so neither
   // selector below reached it — it would have shipped at 26px on a phone while this block claimed a
   // 44px target, which is #179 exactly, one scope over.
-  #{$version-edit-view} .lesson-controls-wrap .btn.lp-btn--compact,
+  .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn.lp-btn--compact,
+  .collection-edit--deck-versions .lesson-controls-wrap .btn.lp-btn--compact,
   .lp-modal .btn.lp-btn--compact,
   .btn.lp-btn.lp-btn--compact {
     min-height: var(--app-btn-touch-min-height);
@@ -2707,7 +2721,8 @@ a.btn.lp-btn {
 // active-section line, so a jumped-to header counts as current instead of lighting its neighbour.
 // This block stays the single owner of the number — change it freely, but don't delete the rule or
 // move the margin onto a different selector without checking that tracking still sees it.
-#{$version-edit-view} {
+.collection-edit--lesson-bundle-versions,
+.collection-edit--deck-versions {
   #field-title,
   #field-finalExplanation,
   #field-summaryTable,
@@ -2722,7 +2737,8 @@ a.btn.lp-btn {
 // read-only is locked by ROLE, not by mode, so its label grows a quiet "read-only" chip. In view
 // mode everything is read-only and the bold "Viewing:" prefix already says so — no chips. The
 // `read-only` wrapper class is Payload's own (verified @payloadcms/ui fields/*/input.js).
-body:has(.lesson-controls-wrap--editing) #{$version-edit-view} {
+body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-versions,
+body:has(.lesson-controls-wrap--editing) .collection-edit--deck-versions {
   // Relationship fields spell the modifier `relationship--read-only` (installed @payloadcms/ui).
   .field-type.read-only > .field-label::after,
   .field-type.read-only > label.field-label::after,
@@ -2742,8 +2758,10 @@ body:has(.lesson-controls-wrap--editing) #{$version-edit-view} {
 // Read-only inputs everywhere in the version editor: the default gray-on-gray disabled styling
 // was a likely AA contrast failure (critique §8) — the VALUE is still information the user came
 // to read, so darken it while keeping the muted field background as the "not editable" cue.
-#{$version-edit-view} .field-type.read-only,
-#{$version-edit-view} .field-type.relationship--read-only {
+.collection-edit--lesson-bundle-versions .field-type.read-only,
+.collection-edit--deck-versions .field-type.read-only,
+.collection-edit--lesson-bundle-versions .field-type.relationship--read-only,
+.collection-edit--deck-versions .field-type.relationship--read-only {
   input,
   textarea,
   .rs__single-value {
@@ -2781,7 +2799,8 @@ body:has(.lesson-controls-wrap--editing) #{$version-edit-view} {
   // phone breakpoint let the bar scroll away with the page instead (the frontend lesson page keeps a
   // sticky jump nav for READING; this is the editor). Field scroll-margins shrink to match — with no
   // sticky toolbar there is nothing to clear.
-  #{$version-edit-view} {
+  .collection-edit--lesson-bundle-versions,
+  .collection-edit--deck-versions {
     .doc-controls {
       position: static;
     }
