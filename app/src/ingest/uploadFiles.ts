@@ -124,13 +124,15 @@ export function zipDirectoryEntries(bytes: Uint8Array, limit: number): number | 
 
 /** Inspect the directory before JSZip allocates objects for its entries. */
 export async function openUploadZip(file: File): Promise<JSZip> {
-  if (file.size > MAX_ZIP_BYTES) throw new IngestError(`Exceeds the ${MAX_ZIP_BYTES}-byte ZIP limit`)
+  if (file.size > MAX_ZIP_BYTES)
+    throw new IngestError(`Exceeds the ${MAX_ZIP_BYTES}-byte ZIP limit`)
   const bytes = new Uint8Array(await file.arrayBuffer())
   const records = zipDirectoryEntries(bytes, MAX_ZIP_ENTRIES)
   if (records != null && records > MAX_ZIP_ENTRIES) {
     throw new IngestError(`Too many ZIP entries (max ${MAX_ZIP_ENTRIES})`)
   }
-  const unreadable = () => new IngestError('Cannot read ZIP archive (invalid, corrupt, or encrypted)')
+  const unreadable = () =>
+    new IngestError('Cannot read ZIP archive (invalid, corrupt, or encrypted)')
   if (records == null) throw unreadable()
   try {
     // CRC validation would inflate all entries before the byte limits apply.
@@ -167,7 +169,9 @@ export function readZipEntry(
       }
       if (budget.remaining < 0) {
         stop(
-          new IngestError(`The upload expands to more than ${budget.limit} bytes. Upload it in parts.`),
+          new IngestError(
+            `The upload expands to more than ${budget.limit} bytes. Upload it in parts.`,
+          ),
         )
         return
       }
@@ -276,7 +280,10 @@ export async function prepareUploadFiles(
         if (originalName.toLowerCase().endsWith('.json')) countJson()
         // Check bytes, never parse an unknown kind. The same inflation caps still apply.
         try {
-          for (const error of checksumWarning(await readZipEntry(entry, budget), kind.declared.sha256))
+          for (const error of checksumWarning(
+            await readZipEntry(entry, budget),
+            kind.declared.sha256,
+          ))
             warnings.push({ file: name, error })
         } catch (e) {
           if (budget.remaining < 0) throw overBudget(budget.limit)

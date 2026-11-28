@@ -22,13 +22,19 @@ it('validates the merged pilot spec against the upstream authoring schema', () =
 it('validates nested fields and quiz links before accepting a deck', () => {
   const first = spec.slides[0]
   expect(deckSpecErrors({ ...spec, slides: [{ ...first, minutes: '4', phase: 'intro' }] })).toEqual(
-    expect.arrayContaining([expect.stringContaining('.minutes'), expect.stringContaining('.phase')]),
+    expect.arrayContaining([
+      expect.stringContaining('.minutes'),
+      expect.stringContaining('.phase'),
+    ]),
   )
-  expect(deckSpecErrors({ ...spec, slides: [{ ...first, quiz_links: ['file:///test'] }] })).toEqual([
-    'slides[0].quiz_links: use only HTTP or HTTPS links',
-  ])
+  expect(deckSpecErrors({ ...spec, slides: [{ ...first, quiz_links: ['file:///test'] }] })).toEqual(
+    ['slides[0].quiz_links: use only HTTP or HTTPS links'],
+  )
   expect(
-    deckSpecErrors({ ...spec, slides: [{ ...first, quiz_links: ['https://quiz.example/lesson1'] }] }),
+    deckSpecErrors({
+      ...spec,
+      slides: [{ ...first, quiz_links: ['https://quiz.example/lesson1'] }],
+    }),
   ).toEqual([])
 })
 

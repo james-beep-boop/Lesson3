@@ -59,10 +59,12 @@ beforeAll(async () => {
     collection: 'subject-grades',
     data: { subject: fx.subject.id, grade: 11 },
   })
-  otherPlan = (await fx.payload.create({
-    collection: 'lesson-plans',
-    data: { subjectGrade: otherGrade.id, title: `${MARK}Outside assigned grade` },
-  })).id
+  otherPlan = (
+    await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { subjectGrade: otherGrade.id, title: `${MARK}Outside assigned grade` },
+    })
+  ).id
   for (const role of roles) {
     const login = await body<{ token: string }>(
       await wire('users/login', undefined, {
@@ -182,7 +184,9 @@ it('imports the pilot with art and replaces changed decks', async () => {
   expect(adminVersion.spec?.slides?.[0]).toMatchObject({ phase: 'model', minutes: 9 })
   expect(adminVersion.spec!.slides![1]!.timers![0]!.time).toBe('9:00')
   expect(adminVersion.spec?.hero?.art_id).toBe('new_art')
-  expect(adminVersion.spec?.slides?.[0]?.quiz_links?.[0]?.value).toBe('https://quiz.example/lesson1')
+  expect(adminVersion.spec?.slides?.[0]?.quiz_links?.[0]?.value).toBe(
+    'https://quiz.example/lesson1',
+  )
   const adminStored = await fx.payload.findByID({
     collection: 'deck-versions',
     id: adminCopy.id,

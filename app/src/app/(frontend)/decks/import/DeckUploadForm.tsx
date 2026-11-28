@@ -65,8 +65,8 @@ export function DeckUploadForm({ plans }: { plans: { id: number; label: string }
         <p>Fill this in if your single JSON file does not give the lesson number in its name.</p>
         <p>
           <strong>
-            A changed spec replaces the deck and deletes all its saved versions. The new deck
-            starts at version 1.0.0.
+            A changed spec replaces the deck and deletes all its saved versions. The new deck starts
+            at version 1.0.0.
           </strong>
         </p>
         <input name="replace" type="hidden" value="yes" />
@@ -80,7 +80,8 @@ export function DeckUploadForm({ plans }: { plans: { id: number; label: string }
           {results.map(({ id, lessonNumber, status, semver }) => (
             <li key={id}>
               Lesson {lessonNumber}{' '}
-              {status === 'already here' ? 'is already here' : `was ${status} at version ${semver}`}.
+              {status === 'already here' ? 'is already here' : `was ${status} at version ${semver}`}
+              .
             </li>
           ))}
         </ul>

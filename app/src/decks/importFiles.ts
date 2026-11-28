@@ -98,7 +98,9 @@ export async function readDeckUpload(
     }
     if (art.has(artId)) throw new IngestError(`The ZIP has more than one picture named ${artId}.`)
     const data = await readZipEntry(entry, budget, 10 * 1024 * 1024, 'picture')
-    const metadata = await sharp(data).metadata().catch(() => null)
+    const metadata = await sharp(data)
+      .metadata()
+      .catch(() => null)
     const format = metadata?.format as keyof typeof imageTypes | undefined
     if (!format || !Object.hasOwn(imageTypes, format)) {
       throw new IngestError(`${fileName}: choose a PNG, JPEG, or WebP picture.`)
