@@ -668,6 +668,12 @@ Administrators can also change structure, phases, timing, pictures and quiz link
 are administrator fields. The build log, figure coverage and prompts used to make pictures are
 system fields. Quiz links store HTTP or HTTPS addresses for Kolibri.
 
+Signed-in users can download the Official deck in PowerPoint or PDF from **Share → Download one
+document → Slides** on the lesson page. The deck uses the lesson plan version open on that page.
+The existing Gotenberg sidecar converts the PowerPoint file to PDF with one page for each slide,
+including the slides hidden during the slideshow. Both downloads use the export cache. Its key
+includes the deck version, deck render version, lesson plan version and the pictures used.
+
 ### ARES release presentation (Part 1b, approved 2026-10-26)
 
 - A version with `releaseFingerprint` shows its semver and **ARES release 14 Nov 2026** (full calendar

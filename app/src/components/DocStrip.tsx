@@ -23,6 +23,7 @@ import DocButtons from './DocButtons'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
 import { DELIVERABLE_LABELS, secondaryDeliverables } from '@/generator/deliverables'
 import { SUPPORTING_FILE_KINDS, type SupportingFileLink } from '@/lib/supportingFiles'
+import type { Deck } from '@/payload-types'
 
 function StripItem({ versionId, tag }: { versionId: number; tag: DeliverableTag }) {
   return (
@@ -36,11 +37,13 @@ function StripItem({ versionId, tag }: { versionId: number; tag: DeliverableTag 
 export default function DocStrip({
   versionId,
   tags,
+  slideDecks = [],
   supportingFiles = [],
   condensed = false,
 }: {
   versionId: number
   tags: DeliverableTag[]
+  slideDecks?: Pick<Deck, 'id' | 'lessonNumber'>[]
   supportingFiles?: SupportingFileLink[]
   condensed?: boolean
 }) {
@@ -99,6 +102,32 @@ export default function DocStrip({
       {tags.map((tag) => (
         <StripItem key={tag} versionId={versionId} tag={tag} />
       ))}
+      {slideDecks.map(({ id, lessonNumber }) => {
+        const url = `/api/decks/${id}/download?planVersion=${versionId}`
+        return (
+          <li className="doc-strip-item" key={id}>
+            <span className="doc-strip-label">Slides · Lesson {lessonNumber}</span>
+            <span className="doc-buttons">
+              <a
+                className="btn btn--quiet btn--compact"
+                href={`${url}&as=pdf`}
+                aria-label={`Download Lesson ${lessonNumber} slides as PDF`}
+                download
+              >
+                PDF
+              </a>
+              <a
+                className="btn btn--quiet btn--compact"
+                href={`${url}&as=pptx`}
+                aria-label={`Download Lesson ${lessonNumber} slides as PowerPoint`}
+                download
+              >
+                PowerPoint
+              </a>
+            </span>
+          </li>
+        )
+      })}
     </ul>
   )
 }

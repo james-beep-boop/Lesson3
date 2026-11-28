@@ -59,7 +59,11 @@ async function removeStaleTempFiles(): Promise<void> {
  * `render:<generatorVersion>:version:<id>` for an immutable snapshot. Keeping the cache key
  * generator-agnostic keeps storage mechanics separate from renderer identity.
  */
-export function artifactKey(parts: { scope: string; kind: 'docx' | 'pdf'; doc: string }): string {
+export function artifactKey(parts: {
+  scope: string
+  kind: 'docx' | 'pdf' | 'pptx'
+  doc: string
+}): string {
   return [parts.scope, parts.kind, parts.doc].join('::')
 }
 

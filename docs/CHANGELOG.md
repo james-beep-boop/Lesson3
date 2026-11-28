@@ -10,6 +10,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Signed-in users can download **Slides** as PowerPoint or PDF from a lesson page’s
+  **Share → Download one document** list.
 - Administrators can upload lesson decks and their pictures from Manage. A new deck starts at
   Official 1.0.0. An unchanged upload keeps all versions. During beta, a changed spec replaces the
   deck and its versions. The upload form warns before the administrator uploads.

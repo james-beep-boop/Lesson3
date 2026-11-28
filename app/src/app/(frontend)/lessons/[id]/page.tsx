@@ -134,10 +134,26 @@ export default async function LessonView({
   // The caller's favorite row for the VIEWED version (§10, per-version by design 2026-07-06:
   // favoriting 1.0.2 pins that snapshot). Explicitly own-only, including Site Admins; presence + row
   // id drive the heading star, which follows the version selector.
-  const { docs: favRows } = await findPersonalFavorites(payload, {
-    user,
-    versionId: selectedId,
-  })
+  const substrandId = selected.meta?.substrand_id?.trim()
+  const [{ docs: favRows }, { docs: decks }] = await Promise.all([
+    findPersonalFavorites(payload, { user, versionId: selectedId }),
+    substrandId
+      ? payload.find({
+          collection: 'decks',
+          where: {
+            lessonPlan: { equals: plan.id },
+            substrandId: { equals: substrandId },
+            officialVersion: { exists: true },
+          },
+          overrideAccess: false,
+          user,
+          depth: 0,
+          pagination: false,
+          sort: 'lessonNumber',
+          select: { lessonNumber: true },
+        })
+      : { docs: [] },
+  ])
   const favoriteId = favRows[0]?.id ?? null
 
   // What the export will contain. The Share menu takes the whole list and renders the SUPPORTING
@@ -168,6 +184,8 @@ export default async function LessonView({
   // of the cached HTML, on THIS page only: Quick preview and Compare keep their own layouts, and the
   // cache entry is untouched. The jump nav is built from the same split, so every chip has a target.
   const { disclosures, nav: navItems } = readingDisclosures(sections)
+  const lessonNumbers = new Set(disclosures.map(({ lessonNumber }) => lessonNumber))
+  const slideDecks = decks.filter((deck) => viewError || lessonNumbers.has(deck.lessonNumber))
 
   return (
     <article className="lesson">
@@ -264,6 +282,7 @@ export default async function LessonView({
             versionId={selectedId}
             semver={selected.semver}
             deliverables={deliverables}
+            slideDecks={slideDecks}
             canDiscuss={forumEnabled}
             smtpEnabled={!!process.env.SMTP_HOST?.trim()}
             mode={mode}

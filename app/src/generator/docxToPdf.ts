@@ -42,13 +42,30 @@ export const gotenbergUrl = (): string =>
  * .docx extension for LibreOffice to pick the right import filter.
  */
 export async function docxToPdf(docx: Buffer, filename = 'document.docx'): Promise<Buffer> {
+  return officeToPdf(
+    docx,
+    filename.endsWith('.docx') ? filename : `${filename}.docx`,
+    mimeFor('docx'),
+  )
+}
+
+export const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+
+/** Export every slide once, including the teacher slides hidden during a slideshow. */
+export function pptxToPdf(pptx: Buffer): Promise<Buffer> {
+  return officeToPdf(pptx, 'slides.pptx', PPTX_MIME, { exportHiddenSlides: 'true' })
+}
+
+async function officeToPdf(
+  bytes: Buffer,
+  filename: string,
+  mime: string,
+  options: Record<string, string> = {},
+): Promise<Buffer> {
   const form = new FormData()
   // A Blob over a fresh Uint8Array view avoids leaking the Buffer's backing pool.
-  form.append(
-    'files',
-    new Blob([new Uint8Array(docx)], { type: mimeFor('docx') }),
-    filename.endsWith('.docx') ? filename : `${filename}.docx`,
-  )
+  form.append('files', new Blob([new Uint8Array(bytes)], { type: mime }), filename)
+  for (const [key, value] of Object.entries(options)) form.set(key, value)
 
   const base = gotenbergUrl()
   // Cap a hung conversion so it can't pin a Node request slot indefinitely (the converter is
