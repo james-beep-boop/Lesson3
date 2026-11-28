@@ -1,6 +1,8 @@
 import { createHash, pbkdf2Sync } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { sql } from '@payloadcms/db-postgres'
+import { positiveIntEnv } from '../../src/lib/env'
 import { clearRateLimitBuckets, drizzleOf } from '../helpers/db'
 import { MARK, createUserVerified, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 import { HTTP_BASE } from '../helpers/httpWire'
@@ -9,6 +11,8 @@ import { HTTP_BASE } from '../helpers/httpWire'
 // no proxy. These addresses are synthetic clients, not an exemption from the production rate limits.
 const A = '198.18.0.11'
 const B = '198.18.0.12'
+const loginWindowMs = positiveIntEnv('RATE_LIMIT_LOGIN_WINDOW_MS', 3_600_000)
+const clientWindowMs = positiveIntEnv('RATE_LIMIT_LOGIN_CLIENT_WINDOW_MS', 60_000)
 let fx: RoleFixture
 const key = (ip: string) => createHash('sha256').update(ip).digest('hex')
 const send = (email: string, password: string, client = A, base = HTTP_BASE) =>
@@ -21,6 +25,14 @@ const send = (email: string, password: string, client = A, base = HTTP_BASE) =>
     },
     body: JSON.stringify({ email, password }),
   })
+
+async function rateLimitWindowStart(windowMs: number, timeNeededMs: number): Promise<number> {
+  // A rollover clears the count. Wait for the next window if there is too little time to finish.
+  const remainingMs = windowMs - (Date.now() % windowMs)
+  if (remainingMs < timeNeededMs) await delay(remainingMs + 1)
+  return Math.floor(Date.now() / windowMs) * windowMs
+}
+
 beforeAll(async () => {
   fx = await setupRoleFixture()
 })
@@ -69,6 +81,7 @@ describe('sign-in abuse controls over HTTP', () => {
     expect((await send(fx.users.teacher.email, fx.password)).status).toBe(200)
   })
   it('one client exhausting a victim budget cannot lock that account for another client', async () => {
+    await rateLimitWindowStart(loginWindowMs, 10_000)
     for (let i = 0; i < (Number(process.env.RATE_LIMIT_LOGIN_MAX) || 20); i++) {
       expect((await send(fx.users.teacher.email, 'wrong-password')).status).toBe(401)
     }
@@ -89,16 +102,18 @@ describe('sign-in abuse controls over HTTP', () => {
       expect((await send(`${MARK}absent-${i}@example.test`, 'wrong-password')).status).toBe(401)
     }
     // Fill the remainder in the current window rather than race a minute boundary during 60 hashes.
+    const windowStart = await rateLimitWindowStart(clientWindowMs, 1_000)
     await drizzleOf(fx.payload).execute(sql`
-      UPDATE rate_limit_counters SET count=${max}, window_start=${Math.floor(Date.now() / 60_000) * 60_000}
+      UPDATE rate_limit_counters SET count=${max}, window_start=${windowStart}
       WHERE bucket_key=${`loginClient:${key(A)}`}`)
     expect((await send(fx.users.teacher.email, fx.password)).status).toBe(429)
     expect((await send(fx.users.siteAdmin.email, fx.password, B)).status).toBe(200)
   }, 60_000)
   it('forged forwarding prefixes and internal tokens do not evade a client limit', async () => {
+    const windowStart = await rateLimitWindowStart(clientWindowMs, 1_000)
     await drizzleOf(fx.payload).execute(sql`
       INSERT INTO rate_limit_counters (bucket_key, window_start, count)
-      VALUES (${`loginClient:${key(A)}`}, ${Math.floor(Date.now() / 60_000) * 60_000}, 100000)
+      VALUES (${`loginClient:${key(A)}`}, ${windowStart}, 100000)
       ON CONFLICT (bucket_key) DO UPDATE SET window_start=EXCLUDED.window_start, count=EXCLUDED.count`)
     expect((await send(fx.users.teacher.email, fx.password, `${B}, ${A}`)).status).toBe(429)
     expect((await send(fx.users.teacher.email, fx.password, B)).status).toBe(200)
@@ -106,6 +121,7 @@ describe('sign-in abuse controls over HTTP', () => {
   it('untrusted direct clients cannot select a new identity with forwarding headers', async () => {
     const direct = 'http://pdf-private:3000'
     const max = Number(process.env.RATE_LIMIT_LOGIN_MAX) || 20
+    await rateLimitWindowStart(loginWindowMs, 10_000)
     for (let i = 0; i < max; i++) {
       expect(
         (await send(fx.users.teacher.email, 'wrong-password', `203.0.113.${i + 1}`, direct)).status,
