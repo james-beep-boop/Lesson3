@@ -1,4 +1,6 @@
 /** ZIP import reporting in the real Manage panel, against a disposable database and running app. */
+import { copyFile, mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
 import JSZip from 'jszip'
 import { test, expect } from '@playwright/test'
 
@@ -60,7 +62,7 @@ test.describe('ZIP upload report', () => {
       .file('invalid.json', '{}')
       .file('folder/last.json', JSON.stringify(raw('99.browserZip2')))
       .file('readme.txt', 'Notes')
-    await page.locator('input[type=file]').setInputFiles({
+    await page.getByLabel('Lesson plan files').setInputFiles({
       name: 'lessons.zip',
       mimeType: 'application/zip',
       buffer: await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }),
@@ -80,7 +82,7 @@ test.describe('ZIP upload report', () => {
     zip.file('invalid.json', JSON.stringify(raw('99.browserZip4')))
     const corrected = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
     await page
-      .locator('input[type=file]')
+      .getByLabel('Lesson plan files')
       .setInputFiles({ name: 'lessons.zip', mimeType: 'application/zip', buffer: corrected })
     await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
     await expect(
@@ -89,7 +91,7 @@ test.describe('ZIP upload report', () => {
     await expect(page.getByText(/lessons.zip\/first.json: Unchanged/)).toBeVisible()
     await expect(page.getByText(/lessons.zip\/folder\/last.json: Unchanged/)).toBeVisible()
     await page
-      .locator('input[type=file]')
+      .getByLabel('Lesson plan files')
       .setInputFiles({ name: 'lessons.zip', mimeType: 'application/zip', buffer: corrected })
     await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
     await expect(
@@ -99,7 +101,7 @@ test.describe('ZIP upload report', () => {
     await page.screenshot({ path: testInfo.outputPath('unchanged-upload.png'), fullPage: true })
 
     // A completed all-invalid attempt replaces the earlier successes with its own report.
-    await page.locator('input[type=file]').setInputFiles({
+    await page.getByLabel('Lesson plan files').setInputFiles({
       name: 'bad.zip',
       mimeType: 'application/zip',
       buffer: await new JSZip().file('bad.json', '{').generateAsync({ type: 'nodebuffer' }),
@@ -123,11 +125,11 @@ test.describe('ZIP upload report', () => {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(content)),
     })
-    await page.locator('input[type=file]').setInputFiles(file())
+    await page.getByLabel('Lesson plan files').setInputFiles(file())
     await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Imported 1 file(s)' })).toBeVisible()
     content.LESSONS[0].slo.purpose = 'New ARES release purpose'
-    await page.locator('input[type=file]').setInputFiles(file())
+    await page.getByLabel('Lesson plan files').setInputFiles(file())
     await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
     await expect(page.getByRole('group', { name: 'Confirm Official updates' })).toBeVisible()
     await expect(page.getByText(/Will become Official/)).toBeVisible()
@@ -144,7 +146,7 @@ test.describe('ZIP upload report', () => {
     await loginAs(page, fx, 'siteAdmin')
     await page.goto(`${BASE}/admin?open=plans,plans.upload`)
     const updating = raw('99.combinedRelease')
-    await page.locator('input[type=file]').setInputFiles({
+    await page.getByLabel('Lesson plan files').setInputFiles({
       name: 'existing.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(updating)),
@@ -161,7 +163,7 @@ test.describe('ZIP upload report', () => {
       .file('geo-a.json', JSON.stringify(raw('99.newTax1', geography, 9)))
       .file('geo-b.json', JSON.stringify(raw('99.newTax2', geography, 9)))
       .file('bio.json', JSON.stringify(raw('99.newTax3', fx.subject.name, 9)))
-    await page.locator('input[type=file]').setInputFiles({
+    await page.getByLabel('Lesson plan files').setInputFiles({
       name: 'new.zip',
       mimeType: 'application/zip',
       buffer: await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }),
@@ -195,5 +197,43 @@ test.describe('ZIP upload report', () => {
       `${fx.subject.name} — Grade 9`,
     ])
     await expect(confirm).toHaveCount(0)
+  })
+
+  test('checks a folder before importing supporting files', async ({ page }, testInfo) => {
+    await loginAs(page, fx, 'siteAdmin')
+    await page.goto(`${BASE}/admin?open=plans.upload`)
+    const bundle = raw('99.supportingFiles')
+    const filePrefix = `${MARK}BIO_10_SS99.1`
+    await page.getByLabel('Lesson plan files').setInputFiles({
+      name: 'lessons.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({ ...bundle, META: { ...bundle.META, filePrefix } })),
+    })
+    await page.getByRole('button', { name: 'Upload 1 file(s)', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Imported 1 file(s)' })).toBeVisible()
+
+    const folder = testInfo.outputPath('worksheets')
+    await mkdir(folder, { recursive: true })
+    const pdf = new URL('../fixtures/pdf-library/public-wire.pdf', import.meta.url)
+    const unmatched = `${filePrefix}_unknown_L1_QuickCheck.pdf`
+    const names = [`${filePrefix}_L1_QuickCheck.pdf`, `${filePrefix}_L1_AnswerKey.pdf`, unmatched]
+    for (const name of names) {
+      await copyFile(pdf, join(folder, name))
+    }
+    await page.goto(`${BASE}/admin?open=plans.import-files`)
+    const folderInput = page.getByLabel('Folder', { exact: true })
+    await expect(folderInput).toHaveAttribute('webkitdirectory', '')
+    await folderInput.setInputFiles(folder)
+    const check = page.getByRole('button', { name: 'Check files' })
+    await check.click()
+    await expect(page.getByText('Matched (2)', { exact: true })).toBeVisible()
+    await expect(page.getByText('Unmatched (1)', { exact: true })).toBeVisible()
+    await expect(page.getByText(unmatched, { exact: false })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Import matched files' }).click()
+    await expect(page.getByText('Imported 2 files.', { exact: true })).toBeVisible()
+    await check.click()
+    await expect(page.getByText('Already here (2)', { exact: true })).toBeVisible()
+    await expect(page.getByText(unmatched, { exact: false })).toBeVisible()
   })
 })

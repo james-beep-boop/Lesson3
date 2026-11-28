@@ -901,6 +901,20 @@ version remains a later phase, alongside stable row identity and support for str
 - **Validate against the schema on upload/import, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo`, `summaryTablePrompt`, a complete and valid `resourceLinks` map, and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced before any version is saved; export then trusts validated-in data.
 - **Resource handling (§3):** validate and store the already-resolved `LESSONS[].resourceLinks` exactly;
   do not run the recommender, infer missing buckets, or silently drop unknown/malformed resource fields.
+- **Bulk import of supporting files (#514).** A Site Administrator can choose a ZIP or folder in
+  **Manage → Lesson plans → Import supporting files**. Both this screen and the operator CLI check
+  the batch before writing. Match the case-sensitive file prefix with `META.filePrefix` in each
+  plan's current Official version. `<prefix>_<Kind>.docx|.pdf` attaches to the whole sub-strand.
+  `<prefix>_L<n>_<Kind>.docx|.pdf` attaches to an existing lesson number in that version. The kinds
+  are `QuickCheck`, `AnswerKey`, `StudentMaterials`, `MaterialsTeacherKey` and `AssessmentMaterials`.
+  A missing or ambiguous match appears in **Unmatched** with a reason. The same SHA-256 hash for
+  the same sub-strand, lesson number and kind appears in **Already here**, including files added
+  individually. After confirmation, import the matched files through the supporting-file
+  collection. The confirmation binds the report and the bytes to import. If either changes, show
+  the new report before saving. A batch takes up to 2,000 files and 200 MiB of document data.
+  The operator CLI runs from `app/` with the app's database and supporting-file volume mounted at
+  its `ARTIFACT_CACHE_DIR`. Run `npx payload run src/ingest/importSupportingFilesCli.ts -- <zip-or-folder>`
+  to see the report. Add `--confirm <preview-token>` from that report to save the matches.
 
 ---
 

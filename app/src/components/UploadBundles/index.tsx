@@ -208,6 +208,7 @@ export default function UploadBundles() {
           ref={inputRef}
           type="file"
           className="lp-manage__file"
+          aria-label="Lesson plan files"
           accept=".json,.zip,application/json,application/zip,application/x-zip-compressed"
           multiple
           disabled={busy}

@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
+import JSZip from 'jszip'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import type { SupportingFileReport } from '../../src/ingest/importSupportingFiles'
 import type { SupportingFile } from '../../src/payload-types'
 import {
   MARK,
@@ -18,6 +20,10 @@ const pdf = new Uint8Array(
   await readFile(new URL('../fixtures/pdf-library/public-wire.pdf', import.meta.url)),
 )
 const missingId = 2_147_483_647
+const prefix = `${MARK}BIO_10_SS99.1`
+const quickCheck = `${prefix}_L1_QuickCheck.pdf`
+const answerKey = `${prefix}_L1_AnswerKey.pdf`
+const unmatched = `${prefix}_missing_L1_QuickCheck.pdf`
 let fx: RoleFixture
 let otherPlanId: number
 
@@ -51,6 +57,13 @@ async function expectUpload(response: Response): Promise<SupportingFile> {
   return body.doc
 }
 
+function bulkImport(files: File[], role?: RoleKey, confirm?: string) {
+  const body = new FormData()
+  for (const file of files) body.append('files', file)
+  if (confirm) body.append('confirm', confirm)
+  return wire(`${collection}/import`, role, { method: 'POST', body })
+}
+
 beforeAll(async () => {
   fx = await setupRoleFixture()
   const content = minimalBundleContent()
@@ -58,6 +71,7 @@ beforeAll(async () => {
     collection: 'lesson-bundle-versions',
     data: {
       ...content,
+      meta: { ...content.meta, filePrefix: prefix },
       lessonPlan: fx.plan.id,
       subjectGrade: fx.subjectGrade.id,
       semver: '1.0.1',
@@ -173,5 +187,84 @@ describe('supporting files', () => {
     const file = await expectUpload(await upload('siteAdmin', { lessonPlan: otherPlanId }))
     expect((await remove(file.id, 'subjectAdmin')).status).toBe(403)
     expect((await remove(file.id, 'siteAdmin')).status).toBe(200)
+  })
+
+  it('requires a site administrator to check or confirm a bulk import', async () => {
+    for (const confirm of [undefined, '0'.repeat(64)]) {
+      expect((await bulkImport([], undefined, confirm)).status).toBe(401)
+      for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
+        expect((await bulkImport([], role, confirm)).status).toBe(403)
+      }
+    }
+  })
+
+  it('checks the files before saving, attaches each match, and recognises the same bytes on repeat', async () => {
+    const files = [quickCheck, answerKey, unmatched].map(
+      (name) => new File([pdf], name, { type: 'application/pdf' }),
+    )
+    const saved = async () =>
+      (
+        await fx.payload.find({
+          collection: 'supporting-files',
+          where: { lessonPlan: { equals: fx.plan.id } },
+          depth: 0,
+        })
+      ).docs
+
+    const previewResponse = await bulkImport(files, 'siteAdmin')
+    expect(previewResponse.status).toBe(200)
+    const preview: SupportingFileReport = await previewResponse.json()
+    expect(preview.imported).toBe(0)
+    expect(preview.rows).toMatchObject([
+      {
+        file: quickCheck,
+        status: 'matched',
+        attachment: { lessonPlan: fx.plan.id, lessonNumber: 1, kind: 'quick-check' },
+      },
+      {
+        file: answerKey,
+        status: 'matched',
+        attachment: { lessonPlan: fx.plan.id, lessonNumber: 1, kind: 'answer-key' },
+      },
+      { file: unmatched, status: 'unmatched' },
+    ])
+    expect(await saved()).toHaveLength(0)
+
+    const changed = [
+      new File([pdf, '\n'], quickCheck, { type: 'application/pdf' }),
+      ...files.slice(1),
+    ]
+    expect((await bulkImport(changed, 'siteAdmin', preview.previewToken)).status).toBe(409)
+    expect(await saved()).toHaveLength(0)
+
+    const confirmed = await bulkImport(files, 'siteAdmin', preview.previewToken)
+    const confirmation = await confirmed.json()
+    expect(confirmed.status, JSON.stringify(confirmation)).toBe(200)
+    expect(confirmation).toMatchObject({ imported: 2 })
+    const docs = await saved()
+    expect(docs).toHaveLength(2)
+    expect(docs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: quickCheck, lessonNumber: 1, kind: 'quick-check' }),
+        expect.objectContaining({ title: answerKey, lessonNumber: 1, kind: 'answer-key' }),
+      ]),
+    )
+    expect((await wire(`${collection}/file/${unmatched}`, 'teacher')).status).toBe(404)
+
+    const zip = new JSZip()
+    for (const file of files) zip.file(`nested/${file.name}`, await file.arrayBuffer())
+    const archive = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'worksheets.zip')
+    const repeat = await bulkImport([archive], 'siteAdmin')
+    expect(repeat.status).toBe(200)
+    expect(await repeat.json()).toMatchObject({
+      imported: 0,
+      rows: [
+        { file: `worksheets.zip/nested/${quickCheck}`, status: 'alreadyHere' },
+        { file: `worksheets.zip/nested/${answerKey}`, status: 'alreadyHere' },
+        { file: `worksheets.zip/nested/${unmatched}`, status: 'unmatched' },
+      ],
+    })
+    expect(await saved()).toHaveLength(2)
+    for (const doc of docs) expect((await remove(doc.id, 'siteAdmin')).status).toBe(200)
   })
 })
