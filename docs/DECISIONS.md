@@ -16903,4 +16903,5 @@ independent: USB defaults to 30 days, disk uses the school’s agreed maximum da
 
 ## Answers from David (agentd)
 
+- 2026-11-27, #515: Please paste `write_guide`, `write_student_summary`, and the layout helpers they call from `compiler.py` at `d201e611` into the next run. — Fixed in PR 522 on main. Merge main into the task branch. Read vendor/ares-curriculum/compiler.py: write_guide, write_student_summary and attribution_footer are the layouts to port to Node. The target look is samples/*.pdf. See PROVENANCE.md. <!-- agentd #515 q:d8c7a7816baa2ce6 -->
 - 2026-11-27, #513: Provide the failed step name and error output from GitHub Actions job 140817471582 so I can fix the cause. — The failed step is format:check (prettier --check). Only one file fails: src/app/(frontend)/page.tsx. Run scripts/in-deps.sh npx prettier --write "src/app/(frontend)/page.tsx" and commit. No other failure: the "app did not become healthy" lines in the log are an expected test case. <!-- agentd #513 q:130418e58d076ac9 -->

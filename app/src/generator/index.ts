@@ -8,7 +8,8 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
-import type { DeliverableTag } from './exportArtifacts'
+import { buildCompactTeacherGuide, buildStudentSummaryTable } from './companionDocuments'
+import type { DeliverableTag } from './deliverables'
 import { withParenthesizedProseLinks } from './proseLinks'
 
 // ⚑ Where the vendored attribution code finds its config — and why this line cannot be removed.
@@ -57,30 +58,18 @@ export interface AresDataObject {
   SUMMARY_TABLE?: unknown
 }
 
-/**
- * The four deliverable DOCX as Buffers. The final explanation and teacher key exist together or not at
- * all (both come from `FINAL_EXPLANATION`); FE/key/ST are null when absent from the bundle. Key order is
- * the document order (lesson plan, student final explanation, teacher key, summary table).
- */
-export type GeneratedDocx = { lessonSequence: Buffer } & Record<
-  Exclude<DeliverableTag, 'lessonSequence'>,
-  Buffer | null
->
+type AlwaysGenerated = 'lessonSequence' | 'compactTeacherGuide' | 'studentSummaryTable'
 
 /**
- * Generate the CBE DOCX from an ARES data object, in-process, as Buffers.
- *
- * There is ONE document format: the current pristine ARES five-column Section C. Required stored
- * resourceLinks render beneath each phase label through the Lesson3-owned pure-Node bridge, which makes
- * the pristine renderer use each lesson's own `resourceLinks` (see vendor/aresResources.js). The student
- * final explanation, teacher key and summary table use the same pinned upstream builders.
+ * The deliverable DOCX as Buffers. The final explanation and teacher key both come from
+ * `FINAL_EXPLANATION`. Those two and the filled summary table are null when absent from the bundle.
  */
+export type GeneratedDocx = Record<AlwaysGenerated, Buffer> &
+  Record<Exclude<DeliverableTag, AlwaysGenerated>, Buffer | null>
+
 /**
- * Per-deliverable builders, each generating ONE DOCX (the primary always exists; FE/ST return null
- * when the bundle has no such content — matching `GeneratedDocx`'s null contract). Split out so a
- * caller that consumes a single deliverable — the editor's "View as PDF" preview — need not build and
- * discard the other two, and so each deliverable has ONE build definition that `generateBundleDocx`
- * and `generateDeliverableDocx` both compose.
+ * Generate the lesson plan in the pinned ARES layout. Stored resourceLinks render beneath
+ * each phase label through the bridge in vendor/aresResources.js.
  */
 export async function generateLessonSequenceDocx(data: AresDataObject): Promise<Buffer> {
   const { META, UNIT, LESSONS } = withParenthesizedProseLinks(data)
@@ -110,12 +99,20 @@ export async function generateSummaryTableDocx(data: AresDataObject): Promise<Bu
   return SUMMARY_TABLE ? Packer.toBuffer(await buildSummaryTable(META, SUMMARY_TABLE)) : null
 }
 
+const generateCompactTeacherGuideDocx = (data: AresDataObject): Promise<Buffer> =>
+  Packer.toBuffer(buildCompactTeacherGuide(data))
+
+const generateStudentSummaryTableDocx = (data: AresDataObject): Promise<Buffer> =>
+  Packer.toBuffer(buildStudentSummaryTable(data))
+
 export async function generateBundleDocx(data: AresDataObject): Promise<GeneratedDocx> {
   return {
     lessonSequence: await generateLessonSequenceDocx(data),
     finalExplanation: await generateFinalExplanationDocx(data),
     teacherKey: await generateTeacherKeyDocx(data),
     summaryTable: await generateSummaryTableDocx(data),
+    compactTeacherGuide: await generateCompactTeacherGuideDocx(data),
+    studentSummaryTable: await generateStudentSummaryTableDocx(data),
   }
 }
 
@@ -132,13 +129,12 @@ const DELIVERABLE_BUILDERS: Record<
   finalExplanation: generateFinalExplanationDocx,
   teacherKey: generateTeacherKeyDocx,
   summaryTable: generateSummaryTableDocx,
+  compactTeacherGuide: generateCompactTeacherGuideDocx,
+  studentSummaryTable: generateStudentSummaryTableDocx,
 }
 
 /**
- * Generate a SINGLE deliverable DOCX by tag — the editor "View as PDF" per-document path. Returns
- * null for an absent FE/ST (the caller 404s), Buffer otherwise. Tag values match `DeliverableTag`
- * (the export layer's union) by construction (`keyof GeneratedDocx`), kept decoupled so this module
- * needs no import from the export/cache layer.
+ * Generate one DOCX for the "View as PDF" preview. An absent optional document returns null.
  */
 export function generateDeliverableDocx(
   data: AresDataObject,

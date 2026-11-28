@@ -67,6 +67,9 @@ library rows, and on a lesson page _Versions & details_ holds the versions list 
   download lives in the _Share_ menu: the supporting documents one at a time under _Download one document_, plus
   _Download all_ as a Word or PDF `.zip`. On a phone the Word downloads are omitted — use
   _Email all — Word_, or a larger screen.
+- **Compact Teacher Guide and Student Summary Table:** open _Share → Download one document_ on
+  any lesson page. Use the guide for a unit overview and a quick reference for each lesson. Give
+  students the blank table to fill in what they observed, learned and can explain.
 - **Email:** choose _Share → Email all — Word_ or _Email all — PDF_ on a lesson page to send the
   generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
   day. _Email all_ and _Download as JSON_ appear when Advanced tools is switched on, and Email all only
