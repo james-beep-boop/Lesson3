@@ -740,6 +740,30 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
     expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF')
   })
 
+  it.each([
+    ['compactTeacherGuide', 'CompactTeacherGuide'],
+    ['studentSummaryTable', 'StudentSummaryTable'],
+  ])(
+    'a Teacher downloads %s even without a final explanation or filled summary',
+    async (tag, suffix) => {
+      for (const kind of ['docx', 'pdf'] as const) {
+        await prepareExport(fx.version.id, 'teacher', kind)
+        const res = await fetch(url(docUrl(fx.version.id, tag, kind)), { headers: auth('teacher') })
+        expect(res.status).toBe(200)
+        const disposition = kind === 'pdf' ? 'inline' : 'attachment'
+        expect(res.headers.get('content-disposition')).toMatch(
+          new RegExp(`^${disposition}; filename=".+_${suffix}\\.${kind}"$`),
+        )
+        const magic = kind === 'pdf' ? '%PDF' : 'PK'
+        expect(
+          Buffer.from(await res.arrayBuffer())
+            .subarray(0, magic.length)
+            .toString(),
+        ).toBe(magic)
+      }
+    },
+  )
+
   it('404 when the version has no such deliverable (fixture has no Final Explanation)', async () => {
     await prepareExport(fx.version.id, 'teacher', 'docx')
     const res = await fetch(url(docUrl(fx.version.id, 'finalExplanation', 'docx')), {

@@ -1,5 +1,5 @@
 /**
- * Generate the three CBE DOCX for a stored lesson-plan VERSION (the Official-version model).
+ * Generate the DOCX deliverables for a stored lesson-plan version.
  *
  * A `lesson-bundle-version` is an immutable snapshot that already passed
  * `enforceBundleVersionGeneratable` at create time, so there is NO published/draft gate here: every

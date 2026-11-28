@@ -3,8 +3,7 @@
  * synchronous export endpoint (warm-cache path) and the async `generateArtifact` job
  * (cold/heavy path), so the two can never drift on cache keys, filenames, or zip layout.
  *
- * MODEL: a bundle export is up to three deliverables (LessonSequence always; FinalExplanation
- * + SummaryTable for some sub-strands). Generation is content-stable, so each deliverable's
+ * MODEL: a bundle export may contain up to six deliverables. Each deliverable's
  * bytes are cached by (scope, kind, doc). A small MANIFEST entry —
  * written LAST, after every deliverable — records which docs exist and their filenames; its
  * presence is the "this export is fully ready" sentinel the warm path and status poll check.
@@ -16,6 +15,7 @@
 import { createRequire } from 'node:module'
 
 import { artifactKey, getArtifact, hasArtifact, putArtifact } from './artifactCache'
+import { DELIVERABLE_TAGS, type DeliverableTag } from './deliverables'
 import type { GeneratedDocx } from './index'
 import { GENERATOR_RENDER_VERSION } from './renderVersion'
 import { decodeCachedJson, isStringRecord } from './cacheCodecs'
@@ -52,18 +52,7 @@ interface Manifest {
 
 const MANIFEST_DOC = '__manifest__'
 
-/**
- * Every deliverable tag a version export can contain (the manifest lists which exist). In document
- * order. `finalExplanation` is the STUDENT document (blank answer space); `teacherKey` is the same
- * content with the exemplar answers — it exists whenever a final explanation does.
- */
-export const DELIVERABLE_TAGS = [
-  'lessonSequence',
-  'finalExplanation',
-  'teacherKey',
-  'summaryTable',
-] as const
-export type DeliverableTag = (typeof DELIVERABLE_TAGS)[number]
+export type { DeliverableTag }
 
 const extFor = (kind: ExportKind): string => (kind === 'pdf' ? 'pdf' : 'docx')
 
@@ -98,6 +87,8 @@ const STEM_SUFFIX: Record<DeliverableTag, string> = {
   finalExplanation: 'FinalExplanation',
   teacherKey: 'FinalExplanation_TeacherKey',
   summaryTable: 'SummaryTable',
+  compactTeacherGuide: 'CompactTeacherGuide',
+  studentSummaryTable: 'StudentSummaryTable',
 }
 
 /** One deliverable's download filename stem (no extension) from a safe filePrefix. */
@@ -141,7 +132,7 @@ export async function produceArtifacts(
   // `docListFor` only lists tags whose document exists, so the lookup below is never null.
   const docxFor = (tag: DeliverableTag): Buffer => generated[tag] as Buffer
 
-  // Convert (the heavy step — PDF only) concurrently, capped at docs.length (≤4) onto the single
+  // Convert (the heavy step — PDF only) concurrently, capped at docs.length onto the single
   // Gotenberg sidecar, matching the prior synchronous endpoint's fan-out; then cache each.
   const entries = await Promise.all(
     docs.map(async (d) => ({

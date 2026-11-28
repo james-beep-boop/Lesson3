@@ -21,7 +21,7 @@
  * `updatedAt`, `title`, `subjectGrade`, `lessonPlan`) are simply not read.
  */
 import type { LessonBundleVersion } from '../payload-types'
-import type { DeliverableTag } from './exportArtifacts'
+import { DELIVERABLE_TAGS, type DeliverableTag } from './deliverables'
 import type { AresDataObject } from './index'
 import { toAresResourceLinks } from '../ingest/resourceLinks'
 
@@ -68,19 +68,20 @@ function clean(value: unknown): unknown {
 /**
  * Which deliverables this version's export will contain (teacher-first T2) — the UI's
  * per-document buttons must show EXACTLY what `bundleToAresData` below will emit, so this
- * applies the same clean→hasContent decision to the same two optional groups. LessonSequence
- * always exists. The teacher key is built from the SAME `finalExplanation` group as the student
- * document, so it is listed whenever (and only when) the final explanation is.
+ * applies the same clean→hasContent decision to the same two optional groups. The teacher key
+ * and final explanation come from the same group. The other documents are always available.
  */
 export function versionDeliverables(
   bundle: Pick<LessonBundleVersion, 'finalExplanation' | 'summaryTable'>,
 ): DeliverableTag[] {
   const has = (group: unknown): boolean => hasContent(clean(group ?? {}))
-  return [
-    'lessonSequence',
-    ...(has(bundle.finalExplanation) ? (['finalExplanation', 'teacherKey'] as const) : []),
-    ...(has(bundle.summaryTable) ? (['summaryTable'] as const) : []),
-  ]
+  const hasFinal = has(bundle.finalExplanation)
+  const hasSummary = has(bundle.summaryTable)
+  return DELIVERABLE_TAGS.filter((tag) => {
+    if (tag === 'finalExplanation' || tag === 'teacherKey') return hasFinal
+    if (tag === 'summaryTable') return hasSummary
+    return true
+  })
 }
 
 /** Map a stored version snapshot to the ARES generator's data object. */
