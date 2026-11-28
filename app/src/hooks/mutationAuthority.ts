@@ -4,6 +4,7 @@ import { refreshCaller } from '../endpoints/respond'
 import { findReadableVersion } from '../lib/readBundle'
 import { relId } from '../lib/relId'
 import { lockRows, takeAdvisoryLock } from '../lib/txDb'
+import { deckSeries } from '../lib/versionSeries'
 import type { User } from '../payload-types'
 
 /**
@@ -25,7 +26,12 @@ export const refreshMutationAuthority: CollectionBeforeOperationHook = async ({
 }) => {
   if (overrideAccess || !req.user || (operation !== 'update' && operation !== 'delete')) return args
   // Authenticated in-place version updates are unconditionally refused by immutability already.
-  if (collection.slug === 'lesson-bundle-versions' && operation !== 'delete') return args
+  if (
+    (collection.slug === 'lesson-bundle-versions' || collection.slug === deckSeries.versions) &&
+    operation !== 'delete'
+  ) {
+    return args
+  }
   await takeAdvisoryLock(req, 'adminCount')
   const id = 'id' in args ? relId(args.id) : null
   if (id !== null) {
@@ -40,6 +46,20 @@ export const refreshMutationAuthority: CollectionBeforeOperationHook = async ({
       })
       const planId = relId(version?.lessonPlan)
       if (planId !== null) await lockRows(req, 'lesson_plans', [planId])
+    } else if (collection.slug === deckSeries.parent) {
+      await lockRows(req, deckSeries.table, [id])
+    } else if (collection.slug === deckSeries.versions) {
+      const version = await req.payload.findByID({
+        collection: deckSeries.versions,
+        id,
+        depth: 0,
+        select: { deck: true },
+        overrideAccess: true,
+        disableErrors: true,
+        req,
+      })
+      const deckId = relId(version?.deck)
+      if (deckId !== null) await lockRows(req, deckSeries.table, [deckId])
     }
   }
   await refreshCaller(req)

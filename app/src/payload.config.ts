@@ -10,6 +10,8 @@ import sharp from 'sharp'
 import { Users } from './collections/Users'
 import { Subject } from './collections/Subject'
 import { SubjectGrade } from './collections/SubjectGrade'
+import { Decks } from './collections/Decks'
+import { DeckVersions } from './collections/DeckVersions'
 import { LessonPlans } from './collections/LessonPlans'
 import { LessonBundleVersions } from './collections/LessonBundleVersions'
 import { SupportingFiles, setSupportingFileDirectory } from './collections/SupportingFiles'
@@ -154,6 +156,8 @@ export default buildConfig({
     LessonPlans,
     LessonBundleVersions,
     SupportingFiles,
+    Decks,
+    DeckVersions,
     Subject,
     SubjectGrade,
     Users,

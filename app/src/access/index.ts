@@ -131,6 +131,9 @@ export const canManageUsers = (user: User | null | undefined): boolean =>
 
 export const canManageCurriculum = (user: User | null | undefined): boolean => isSiteAdmin(user)
 
+export const canImportDecks = (user: User | null | undefined): boolean =>
+  isSiteAdmin(user) || isSubjectAdminForAny(user)
+
 // `access.admin` must return a plain boolean (not a Where query), so it has a narrower
 // signature than collection `Access`.
 export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): boolean =>

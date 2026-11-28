@@ -205,26 +205,39 @@ seed "Probe plan B (after the backup)" || die "seeding plan B failed"
 eq "$(plans)" 2 || die "expected two live plans"
 
 if [[ "${RESTORE_PROBE_SETUP_ONLY:-0}" != 1 ]]; then
-# Variants made from a copy of the live database, then dumped and encrypted like a real backup.
+# Schema variants are database-only dumps, so remove file records from the copy before dumping it.
 variant() { # file-name sql
   sql postgres "DROP DATABASE IF EXISTS probe_variant;" >/dev/null
   sql postgres "CREATE DATABASE probe_variant;" >/dev/null
   dc exec -T postgres sh -c 'pg_dump -U lesson3 -Fc lesson3 | pg_restore -U lesson3 -d probe_variant --no-owner' >/dev/null 2>&1
-  sql probe_variant "$2" >/dev/null
+  local result
+  result="$(sql probe_variant "DELETE FROM supporting_files; $2")" \
+    || die "preparing backup variant $1 failed: $result"
   dc exec -T postgres pg_dump -U lesson3 -Fc probe_variant | T age -r "$RECIPIENT" -o "$SANDBOX/$1"
   sql postgres "DROP DATABASE probe_variant;" >/dev/null
 }
 OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 # One migration behind = the NEWEST migration undone. ⚑ Update this when a newer migration lands, or the
 # backup has a gap instead of a missing tail and the restore (rightly) refuses it as "not a prefix".
-LATEST_MIGRATION='20261127_165205_supporting_files'
-# Its down(): remove the supporting files table and kind enum.
-ONE_MIGRATION_BEHIND="DROP TABLE supporting_files; DROP TYPE enum_supporting_files_kind; \
+LATEST_MIGRATION='20261128_040000_deck_records'
+# Drop the deck tables (including the nested spec rows) and their enums in the probe database.
+ONE_MIGRATION_BEHIND="DO \$\$ BEGIN
+  EXECUTE 'DROP TABLE ' || (
+    SELECT string_agg(quote_ident(tablename), ', ')
+    FROM pg_tables WHERE schemaname = 'public'
+      AND (tablename = 'decks' OR starts_with(tablename, 'deck_versions'))
+  );
+  EXECUTE 'DROP TYPE ' || (
+    SELECT string_agg(quote_ident(typname), ', ')
+    FROM pg_type JOIN pg_namespace ON pg_namespace.oid = typnamespace
+    WHERE nspname = 'public' AND typtype = 'e' AND starts_with(typname, 'enum_deck_versions_')
+  );
+END \$\$;
 DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
-SCHEMA_PROBE="SELECT count(*) FROM information_schema.tables WHERE table_name = 'supporting_files';"
+SCHEMA_PROBE="SELECT count(*) FROM information_schema.tables WHERE table_name = 'decks';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
-variant "$NEW" "DELETE FROM supporting_files; INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"
+variant "$NEW" "INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"
 
 # ─── The property the swap rests on, re-verified on this Postgres ────────────────────────────────────
 say "transactional rename on $(sql postgres "SHOW server_version;")"
@@ -295,8 +308,8 @@ restore "" --resume
 check "[checked] the kill left no lock to clear" bad_lock_message
 check "[checked] resume reverses it" eq "$(dbs)" "$BEFORE_DBS"
 dc run --rm --no-deps -T migrate >/dev/null 2>&1 || die "re-migrating live failed"
-sql lesson3 "INSERT INTO supporting_files (title, lesson_plan_id, kind, filename, filesize)
-SELECT 'Probe file', min(id), 'quick-check', 'probe.pdf', 15 FROM lesson_plans;" >/dev/null
+sql lesson3 "UPDATE supporting_files SET filesize = 15 WHERE filename = 'probe.pdf';" >/dev/null \
+  || die "supporting file metadata update failed"
 dc run --rm --no-deps -T --entrypoint sh app -ec \
   'printf "%s" "new support PDF" >"$ARTIFACT_CACHE_DIR/supporting-files/$1/probe.pdf"' \
   sh "$(supporting_oid lesson3)" >/dev/null || die "supporting file replacement failed"

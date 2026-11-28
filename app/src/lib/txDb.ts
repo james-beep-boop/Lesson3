@@ -101,7 +101,7 @@ export const poolDb = (payload: { db: unknown }): DrizzleHandle =>
  * here is a deliberate edit; passing one through from a request is impossible.
  */
 export type LockableTable =
-  'subject_grades' | 'users' | 'lesson_plans' | 'discussion_topics' | 'discussion_replies'
+  'subject_grades' | 'users' | 'lesson_plans' | 'decks' | 'discussion_topics' | 'discussion_replies'
 
 /**
  * The collection represented by each lockable database table.
@@ -111,6 +111,7 @@ export type LockableTable =
  */
 const COLLECTION_OF = {
   lesson_plans: 'lesson-plans',
+  decks: 'decks',
   discussion_topics: 'discussion-topics',
   discussion_replies: 'discussion-replies',
   subject_grades: 'subject-grades',

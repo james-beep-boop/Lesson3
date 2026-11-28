@@ -4,6 +4,8 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
+import { planSeries, type VersionSeries } from './versionSeries'
+
 export const bumpSemver = (
   current: string | null | undefined,
   bump: 'major' | 'minor' | 'patch' = 'patch',
@@ -41,15 +43,15 @@ export const compareSemver = (a: string, b: string): number => {
  * names the constraint both on the error's `constraint` field and inside the message; drizzle wraps the
  * pg error, so we check the error and its `cause`, and match the index name (not a bare `23505`).
  */
-export function isSemverConflict(e: unknown): boolean {
+export function isSemverConflict(e: unknown, series: VersionSeries = planSeries): boolean {
   const err = e as {
     constraint?: string
     message?: string
     cause?: { constraint?: string; message?: string }
   }
-  if ((err?.constraint ?? err?.cause?.constraint) === 'lessonPlan_semver_idx') return true
+  if ((err?.constraint ?? err?.cause?.constraint) === series.semverIndex) return true
   const msg = `${err?.message ?? ''} ${err?.cause?.message ?? ''}`
-  return /lessonPlan_semver_idx/i.test(msg)
+  return msg.toLowerCase().includes(series.semverIndex.toLowerCase())
 }
 
 /**
@@ -62,8 +64,9 @@ export async function nextSemverForPlan(
   payload: Payload,
   planId: number | string,
   req?: Partial<PayloadRequest>,
+  series: VersionSeries = planSeries,
 ): Promise<string> {
-  return nextSemverForPlanBumped(payload, planId, 'patch', req)
+  return nextSemverForPlanBumped(payload, planId, 'patch', req, series)
 }
 
 /**
@@ -85,10 +88,11 @@ async function nextSemverForPlanBumped(
   planId: number | string,
   bump: 'major' | 'minor' | 'patch',
   req?: Partial<PayloadRequest>,
+  series: VersionSeries = planSeries,
 ): Promise<string> {
   const { docs } = await payload.find({
-    collection: 'lesson-bundle-versions',
-    where: { lessonPlan: { equals: planId } },
+    collection: series.versions,
+    where: { [series.parentKey]: { equals: planId } },
     depth: 0,
     pagination: false,
     // Only the semver column — without this, every save-as-new (and each conflict retry) loads the

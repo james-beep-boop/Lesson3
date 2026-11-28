@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Administrators can upload lesson decks and their pictures from Manage. A new deck starts at
+  Official 1.0.0. An unchanged upload keeps all versions. During beta, a changed spec replaces the
+  deck and its versions. The upload form warns before the administrator uploads.
 - Site administrators can import ARES supporting files from a ZIP or folder. The report shows
   which lesson or sub-strand each file matches, which copies are already here, and which files
   could not be matched. The same check is available from the command line.

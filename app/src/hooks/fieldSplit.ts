@@ -38,7 +38,8 @@ import {
   SUMMARY_PROMPT_PROSE,
 } from '../lib/proseFields'
 
-type Doc = Record<string, unknown> & { id?: string | number }
+export type FieldSplitDoc = Record<string, unknown> & { id?: string | number }
+type Doc = FieldSplitDoc
 type Row = { id?: string | number }
 type Req = Parameters<CollectionBeforeChangeHook>[0]['req']
 
@@ -77,7 +78,7 @@ const storedRows = (value: unknown): Row[] => (Array.isArray(value) ? value : []
  * Nullish is the one carve-out: `?? []` was the pre-existing contract here, so `null`/`undefined`
  * still read as no rows. Narrowing THAT is a separate behavioural change, not part of this fix.
  */
-const submittedRows = (value: unknown, reject: () => never): Row[] => {
+export const submittedRows = (value: unknown, reject: () => never): Row[] => {
   // Every member must be a row object: `idsOf` reads `.id` from each, so a `[null]` used to throw a
   // TypeError and surface as a 500 instead of this guard's controlled refusal (audit F-C31-002).
   if (Array.isArray(value)) return value.every(isObject) ? value : reject()
@@ -101,13 +102,25 @@ const asSubmittedGroup = (value: unknown): Doc | undefined => (isObject(value) ?
  * it matches, so `?? reject()` fires on exactly the values the long form rejected. Two hand-written
  * copies of one security predicate is the drift hazard this whole fix was about.
  */
-const submittedGroup = (value: unknown, reject: () => never): Doc =>
+export const submittedGroup = (value: unknown, reject: () => never): Doc =>
   asSubmittedGroup(value) ?? reject()
 
 const sameSequence = (
   a: Array<string | number | undefined>,
   b: Array<string | number | undefined>,
 ): boolean => a.length === b.length && a.every((v, i) => v === b[i])
+
+/** Verify the submitted row ids before overlaying prose onto stored rows. */
+export const guardRowOrder = (before: unknown, candidate: unknown, reject: () => never): Doc[] => {
+  const rows = submittedRows(candidate, reject)
+  if (!sameSequence(idsOf(storedRows(before)), idsOf(rows))) reject()
+  return rows
+}
+
+export type FieldSplitPolicy = {
+  prepare: (data: Doc, source: Doc, authenticated: boolean) => Doc
+  restrictToProse: (data: Doc, source: Doc, reject: () => never) => Doc
+}
 
 // META identity — Site-Admin-only corruption-repair fields (decided 2026-07-05): subject/grade only
 // label the printed document (the plan's subjectGrade relationship is the categorization truth) and
@@ -125,7 +138,7 @@ const overlayProse = (base: Doc, sub: Doc | undefined, proseKeys: string[]): Doc
 }
 
 /** Map submitted array rows back onto their originals by id, overlaying only prose. */
-const overlayRows = (
+export const overlayRows = (
   base: Doc[] | undefined,
   submitted: Doc[],
   proseKeys: string[],
@@ -260,26 +273,37 @@ export const applyEditorFieldSplit = ({
   operation,
   req,
   editorTopLevelKeys,
+  policy,
 }: {
   data: Doc | undefined
   originalDoc: Doc | undefined
   operation: string
   req: Req
   editorTopLevelKeys: Set<string>
+  policy?: FieldSplitPolicy
 }): Doc | undefined => {
   if (operation !== 'update' || !originalDoc || !data) return data
-  // Shape first, for EVERY role — see the function's own note for why it cannot live below the fork.
-  normalizeEmptyArrayContainers(data)
-  if (req.user) {
-    preserveLessonResourceLinks(data, originalDoc)
-    preserveStoredAresFields(data, originalDoc)
-  }
   // AUTHORITY from the STORED doc first (hardened 2026-07-04): the actor's role is judged against
   // the subject-grade the document actually belongs to, never one the submission claims — a caller
   // who is Subject Admin elsewhere must not be able to name THAT grade and bypass the whitelist.
   // (`data.subjectGrade` is only a fallback for callers that pre-strip the original; on this
   // update-only path `originalDoc.subjectGrade` is required data and always present.)
   const subjectGradeId = toId((originalDoc.subjectGrade ?? data.subjectGrade) as never)
+  if (policy) {
+    const prepared = policy.prepare(data, originalDoc, Boolean(req.user))
+    if (!req.user || isSubjectAdminFor(req.user as User, subjectGradeId)) {
+      return prepared
+    }
+    return policy.restrictToProse(prepared, originalDoc, () => {
+      throw new Forbidden(req.t)
+    })
+  }
+  // Shape first, for EVERY role — see the function's own note for why it cannot live below the fork.
+  normalizeEmptyArrayContainers(data)
+  if (req.user) {
+    preserveLessonResourceLinks(data, originalDoc)
+    preserveStoredAresFields(data, originalDoc)
+  }
   // Site Admins (and trusted system / overrideAccess calls — a missing user; unauthenticated
   // updates are denied at collection access) are unrestricted apart from the system-owned
   // resourceLinks preservation already applied above.
@@ -309,16 +333,14 @@ export const applyEditorFieldSplit = ({
     // Validated once and reused: the `for…of` below must iterate the same checked value, and a
     // numeric container is not nullish, so an unchecked `data.lessons ?? []` would throw
     // "0 is not iterable" here even after the sequence check passed (both sides empty).
-    const submittedLessons = submittedRows(data.lessons, reject)
-    if (!sameSequence(idsOf(storedRows(originalDoc.lessons)), idsOf(submittedLessons))) reject()
+    const submittedLessons = guardRowOrder(originalDoc.lessons, data.lessons, reject)
     const prevById = new Map(
       storedRows(originalDoc.lessons).map((l: Row & { framework?: Row[] }) => [l.id, l]),
     )
     for (const lesson of submittedLessons) {
       const prev = prevById.get(lesson.id) as { framework?: Row[] } | undefined
       if (prev && 'framework' in lesson) {
-        const submittedFramework = submittedRows((lesson as Doc).framework, reject)
-        if (!sameSequence(idsOf(storedRows(prev.framework)), idsOf(submittedFramework))) reject()
+        guardRowOrder(prev.framework, (lesson as Doc).framework, reject)
       }
     }
   }
@@ -330,11 +352,7 @@ export const applyEditorFieldSplit = ({
   // it pass straight through. The `unreachable` comment inside `overlayRows` is true only because
   // this runs first.
   const guardRows = (before: Doc, sub: Doc, key: string): void => {
-    if (
-      key in sub &&
-      !sameSequence(idsOf(storedRows(before[key])), idsOf(submittedRows(sub[key], reject)))
-    )
-      reject()
+    if (key in sub) guardRowOrder(before[key], sub[key], reject)
   }
 
   // PRESENCE, not truthiness — see the rebuild note in step 2 for what the truthiness form let past.

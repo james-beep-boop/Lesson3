@@ -23,8 +23,9 @@ import {
 import { json, refreshCaller } from './respond'
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { canDeleteVersionDoc } from '../access/versioning'
-import { applyEditorFieldSplit } from '../hooks/fieldSplit'
-import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
+import { applyEditorFieldSplit, type FieldSplitPolicy } from '../hooks/fieldSplit'
+import { VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
+import { isOfficialVersion } from '../hooks/versionSeries'
 import { parsePreviewForm } from './previewParse'
 import { readSaveRecoveryToken } from './recoveryParse'
 import { retire } from '../lib/editRecovery/kernel'
@@ -32,12 +33,13 @@ import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { lockRows } from '../lib/txDb'
 import { relId } from '../lib/relId'
 import { stripIds } from '../lib/stripIds'
-import { findReadableVersion } from '../lib/readBundle'
+import { findReadableVersion, nullOnNotVisible } from '../lib/readBundle'
+import { planSeries, type VersionSeries } from '../lib/versionSeries'
 import { generatableFieldErrors } from '../ingest/validateGeneratable'
 // `comparableContent` is the no-op guard's canonical form: applied identically to the merged
 // submission and the source, so ONE definition decides what counts as "the same content".
 import { comparableContent, DROP_KEYS } from '../lib/versionContent'
-import type { LessonBundleVersion, User } from '../payload-types'
+import type { DeckVersion, LessonBundleVersion, User } from '../payload-types'
 
 /** How many times to retry `save-as-new` when two concurrent saves race for the same next semver. */
 const SEMVER_CONFLICT_RETRIES = 4
@@ -82,16 +84,50 @@ class VersionUnavailableError extends APIError {
 const unavailableVersion = (unavailable: 'source' | 'secondParent'): Response =>
   json({ errors: [{ message: 'Version not found' }], unavailable }, 404)
 
+type Snapshot = (LessonBundleVersion | DeckVersion) &
+  Record<string, unknown> & { title?: string | null }
+
+async function readVersion(
+  req: PayloadRequest,
+  series: VersionSeries,
+  id: string | number,
+  user: User,
+  identityOnly = false,
+): Promise<Snapshot | null> {
+  if (series === planSeries) {
+    return (await findReadableVersion(req.payload, {
+      id,
+      user,
+      req,
+      ...(identityOnly ? { select: { lessonPlan: true, subjectGrade: true } } : {}),
+    })) as Snapshot | null
+  }
+  try {
+    return (await req.payload.findByID({
+      collection: series.versions,
+      id,
+      req,
+      user,
+      overrideAccess: false,
+      depth: 0,
+      select: { [series.parentKey]: true, subjectGrade: true },
+    })) as Snapshot
+  } catch (error) {
+    return nullOnNotVisible(error)
+  }
+}
+
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(
   req: PayloadRequest,
   role: 'editor' | 'admin',
-): Promise<LessonBundleVersion> {
+  series: VersionSeries,
+): Promise<Snapshot> {
   if (!req.user) throw new APIError('Unauthorized', 401)
   const id = req.routeParams?.id as string | undefined
   if (!id) throw new APIError('Missing version id', 400)
 
-  const version = await findReadableVersion(req.payload, { id, user: req.user as User, req })
+  const version = await readVersion(req, series, id, req.user as User)
   if (!version) throw new VersionUnavailableError('source')
   const sgId = toId(version.subjectGrade as never)
   const ok =
@@ -99,7 +135,20 @@ async function authorize(
       ? isSubjectAdminFor(req.user as User, sgId)
       : isEditorFor(req.user as User, sgId)
   if (!ok) throw new APIError('Not allowed', 403)
-  return version
+  if (role === 'admin' || series === planSeries) return version
+
+  // A fork must preserve the system fields which caller-access reads redact.
+  const complete = await req.payload.findByID({
+    collection: series.versions,
+    id: version.id,
+    depth: 0,
+    req,
+    overrideAccess: true,
+    showHiddenFields: true,
+    disableErrors: true,
+  })
+  if (!complete) throw new VersionUnavailableError('source')
+  return complete as Snapshot
 }
 
 /**
@@ -119,19 +168,30 @@ async function authorize(
  * Returns the new version + the source's identity so the client can offer to delete the source (only
  * when it is NOT the live Official — that guard is the client's, but `sourceIsOfficial` is computed here).
  */
-export const saveAsNewEndpoint: Endpoint = {
+export const saveVersionEndpoint = (
+  series: VersionSeries,
+  {
+    policy,
+    validate = generatableFieldErrors,
+    compare = comparableContent,
+  }: {
+    policy?: FieldSplitPolicy
+    validate?: (content: Record<string, unknown>) => { path: string; message: string }[]
+    compare?: (content: Record<string, unknown>) => string
+  } = {},
+): Endpoint => ({
   path: '/:id/save-as-new',
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
-    let source: LessonBundleVersion
+    let source: Snapshot
     try {
-      source = await authorize(req, 'editor')
+      source = await authorize(req, 'editor', series)
     } catch (e) {
       if (e instanceof VersionUnavailableError) return unavailableVersion(e.unavailable)
       throw e
     }
-    const planId = toId(source.lessonPlan as never)
-    if (planId == null) throw new APIError('Version has no lesson plan', 409)
+    const planId = toId(source[series.parentKey] as never)
+    if (planId == null) throw new APIError(`Version has no ${series.label}`, 409)
 
     // Body guards (Content-Length pre-check, byte cap, JSON + object-shape) shared with the preview
     // parser — this is an authenticated endpoint accepting large nested content. The form is returned
@@ -155,6 +215,9 @@ export const saveAsNewEndpoint: Endpoint = {
     // nothing. Both fields ⇒ retirement is mandatory below. Exactly one ⇒ 400, thrown in here.
     const recoveryToken = readSaveRecoveryToken(parsed.form)
     const mergeValues = parsed.form.getAll('mergeParent')
+    if (series !== planSeries && (recoveryToken || mergeValues.length)) {
+      throw new APIError('Drafts and combined versions are available for lesson plans.', 400)
+    }
     const mergeParent = mergeValues.length ? relId(mergeValues[0]) : null
     if (
       mergeValues.length > 1 ||
@@ -194,10 +257,11 @@ export const saveAsNewEndpoint: Endpoint = {
     // changes by a teacher with editing access are rejected inside the helper.
     const merged = applyEditorFieldSplit({
       data: { ...edited, subjectGrade: toId(source.subjectGrade as never) },
-      originalDoc: source as unknown as Record<string, unknown>,
+      originalDoc: source,
       operation: 'update',
       req,
       editorTopLevelKeys: VERSION_EDITOR_KEYS,
+      policy,
     }) as Record<string, unknown>
 
     // Strip identity/version metadata + row ids so the new candidate gets fresh ones (as fork does).
@@ -207,7 +271,7 @@ export const saveAsNewEndpoint: Endpoint = {
 
     // Own this response: production Payload error formatting can omit a thrown error's data.
     // The collection hook retains the same authoritative check for every other creation path.
-    const problems = generatableFieldErrors(content)
+    const problems = validate(content)
     if (problems.length) {
       return json(
         { errors: [{ message: 'Fix the following before saving.', data: { errors: problems } }] },
@@ -221,8 +285,8 @@ export const saveAsNewEndpoint: Endpoint = {
     // 400, not 409: the request is well-formed, it just asks for nothing. The client disables Save
     // on a pristine form; this is the authoritative backstop (it also catches typed-then-reverted
     // content the client can't see).
-    const mergedComparable = comparableContent(merged)
-    if (mergedComparable === comparableContent(source as unknown as Record<string, unknown>)) {
+    const mergedComparable = compare(merged)
+    if (mergedComparable === compare(source)) {
       throw new APIError(
         'No changes to save — the content is identical to the version you opened.',
         400,
@@ -254,7 +318,7 @@ export const saveAsNewEndpoint: Endpoint = {
       try {
         // Native deletion takes the same plan lock. Every save rechecks its source after waiting;
         // a concurrent deletion must be a controlled 404, not a failed foreign-key insert.
-        await lockRows(req, 'lesson_plans', [planId])
+        await lockRows(req, series.table, [planId])
         const callerAfterLock = await refreshCaller(req)
         if (!isEditorFor(callerAfterLock, toId(source.subjectGrade))) {
           throw new APIError('Not allowed', 403)
@@ -262,15 +326,10 @@ export const saveAsNewEndpoint: Endpoint = {
         const parents: ['source' | 'secondParent', number][] = [['source', source.id]]
         if (mergeParent !== null) parents.push(['secondParent', mergeParent])
         for (const [label, parentId] of parents) {
-          const parent = await findReadableVersion(req.payload, {
-            id: parentId,
-            user: callerAfterLock,
-            req,
-            select: { lessonPlan: true, subjectGrade: true },
-          })
+          const parent = await readVersion(req, series, parentId, callerAfterLock, true)
           if (!parent) throw new VersionUnavailableError(label)
-          if (relId(parent.lessonPlan) !== planId) {
-            throw new APIError('Both versions must belong to the same lesson plan.', 400)
+          if (relId(parent[series.parentKey]) !== planId) {
+            throw new APIError(`Both versions must belong to the same ${series.label}.`, 400)
           }
           if (!isEditorFor(callerAfterLock, toId(parent.subjectGrade))) {
             throw new APIError('Not allowed', 403)
@@ -279,14 +338,14 @@ export const saveAsNewEndpoint: Endpoint = {
         // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
         // also lets a teacher with editing access create a version (the collection create access is admin-only).
         const created = await req.payload.create({
-          collection: 'lesson-bundle-versions',
+          collection: series.versions,
           data: {
             ...content,
-            lessonPlan: planId,
+            [series.parentKey]: planId,
             subjectGrade: toId(source.subjectGrade as never),
-            semver: await nextSemverForPlan(req.payload, planId, req),
+            semver: await nextSemverForPlan(req.payload, planId, req, series),
             sourceVersion: source.id,
-            mergedFrom: mergeParent,
+            ...(series === planSeries ? { mergedFrom: mergeParent } : {}),
             // Authorship stamp: the authenticated caller saved this candidate. Never taken from the
             // submitted content (DROP_KEYS) — drives the teacher with editing access delete scope ("Your saved versions").
             author: caller.id,
@@ -328,13 +387,13 @@ export const saveAsNewEndpoint: Endpoint = {
           retirementToken = retired.token
         }
 
-        const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
+        const sourceIsOfficial = await isOfficialVersion(req, planId, source.id, series)
         let sourceDeleted = false
         // Without a checked retirement token an earlier draft may still be unseen. Deleting its
         // source would cascade that draft away even though the tokenless save itself preserves it.
         if (deleteSource && recoveryToken && !sourceIsOfficial && mayDeleteSource) {
           await req.payload.delete({
-            collection: 'lesson-bundle-versions',
+            collection: series.versions,
             id: source.id,
             overrideAccess: true,
             req,
@@ -352,13 +411,14 @@ export const saveAsNewEndpoint: Endpoint = {
         }
         const permittedNow = applyEditorFieldSplit({
           data: { ...edited, subjectGrade: toId(source.subjectGrade) },
-          originalDoc: source as unknown as Record<string, unknown>,
+          originalDoc: source,
           operation: 'update',
           req,
           editorTopLevelKeys: VERSION_EDITOR_KEYS,
+          policy,
         }) as Record<string, unknown>
         if (
-          comparableContent(permittedNow) !== mergedComparable ||
+          compare(permittedNow) !== mergedComparable ||
           (sourceDeleted && !canDeleteVersionDoc(currentCaller, source))
         )
           throw new APIError('Not allowed', 403)
@@ -366,7 +426,7 @@ export const saveAsNewEndpoint: Endpoint = {
         if (shouldCommit) await commitTransaction(req)
         return json({
           id: created.id,
-          adminUrl: `/admin/collections/lesson-bundle-versions/${created.id}`,
+          adminUrl: `/admin/collections/${series.versions}/${created.id}`,
           sourceId: source.id,
           sourceLabel: source.title ?? source.semver ?? `v${source.id}`,
           sourceIsOfficial,
@@ -385,12 +445,14 @@ export const saveAsNewEndpoint: Endpoint = {
         // retry re-runs an identical, identically-failing precondition — wasted transactions ending
         // in the same 409, not a second chance. §7 case 20 pins the attempt count at one.
         if (e instanceof RecoveryConflictError) throw e
-        if (isSemverConflict(e) && attempt < SEMVER_CONFLICT_RETRIES) continue
+        if (isSemverConflict(e, series) && attempt < SEMVER_CONFLICT_RETRIES) continue
         throw e
       }
     }
   },
-}
+})
+
+export const saveAsNewEndpoint = saveVersionEndpoint(planSeries)
 
 /**
  * POST /:id/make-official — move this version's plan pointer to it (no content copy). Optionally, with
@@ -404,13 +466,19 @@ export const saveAsNewEndpoint: Endpoint = {
  * now-current previous would destroy a version nobody agreed to lose. Mandatory server-side so the
  * safety never depends on which client calls the API (Codex audit 2026-07-01 #2 + round-2 #1).
  */
-export const makeOfficialEndpoint: Endpoint = {
+export const promoteVersionEndpoint = (series: VersionSeries): Endpoint => ({
   path: '/:id/make-official',
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
-    const version = await authorize(req, 'admin')
-    const planId = toId(version.lessonPlan as never)
-    if (planId == null) throw new APIError('Version has no lesson plan', 409)
+    let version: Snapshot
+    try {
+      version = await authorize(req, 'admin', series)
+    } catch (error) {
+      if (error instanceof VersionUnavailableError) return unavailableVersion(error.unavailable)
+      throw error
+    }
+    const planId = toId(version[series.parentKey] as never)
+    if (planId == null) throw new APIError(`Version has no ${series.label}`, 409)
 
     // Pointer move + optional cleanup in ONE transaction, so promote-and-delete-previous is atomic
     // (a failed cleanup rolls back the pointer move rather than leaving a half-applied promotion).
@@ -428,7 +496,7 @@ export const makeOfficialEndpoint: Endpoint = {
     try {
       // Capture the current (about-to-be-previous) Official before moving the pointer.
       const planBefore = (await req.payload.findByID({
-        collection: 'lesson-plans',
+        collection: series.parent,
         id: planId,
         depth: 0,
         overrideAccess: true,
@@ -447,7 +515,7 @@ export const makeOfficialEndpoint: Endpoint = {
 
       // Field access (`canSetOfficialVersion`) + `validateOfficialVersionPointer` gate/validate this.
       await req.payload.update({
-        collection: 'lesson-plans',
+        collection: series.parent,
         id: planId,
         data: { officialVersion: version.id } as never,
         req,
@@ -464,7 +532,7 @@ export const makeOfficialEndpoint: Endpoint = {
         String(previousOfficialId) !== String(version.id)
       ) {
         await req.payload.delete({
-          collection: 'lesson-bundle-versions',
+          collection: series.versions,
           id: previousOfficialId,
           overrideAccess: true,
           req,
@@ -484,4 +552,6 @@ export const makeOfficialEndpoint: Endpoint = {
       throw e
     }
   },
-}
+})
+
+export const makeOfficialEndpoint = promoteVersionEndpoint(planSeries)

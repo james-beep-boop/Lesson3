@@ -37,7 +37,7 @@ export const DROP_KEYS = new Set([
 /** Relationship keys the server sets from the SOURCE on create (never from the submission). They
  *  carry no edit signal, and their representation varies with fetch depth (id vs populated doc), so
  *  content comparisons exclude them on both sides. */
-const SERVER_REL_KEYS = new Set(['lessonPlan', 'subjectGrade'])
+const SERVER_REL_KEYS = new Set(['lessonPlan', 'deck', 'subjectGrade'])
 
 /** The version's content keys only: everything that is neither identity metadata nor a server rel. */
 export const contentOf = (doc: Record<string, unknown>): Record<string, unknown> =>

@@ -24,7 +24,7 @@
 import schemaR0Json from './ares-contract-1.0.0.schema.json'
 import schemaJson from './ares-contract.schema.json'
 
-type Schema = {
+export type Schema = {
   $ref?: string
   $defs?: Record<string, Schema>
   type?: string | string[]
@@ -123,7 +123,7 @@ function matchesType(value: unknown, types: string[]): boolean {
 }
 
 /** Resolve the local `#/$defs/<name>` references used to keep resource schemas single-sourced. */
-function resolveNode(node: Schema, root: Schema): Schema {
+export function resolveNode(node: Schema, root: Schema): Schema {
   if (!node.$ref) return node
   const match = /^#\/\$defs\/([^/]+)$/.exec(node.$ref)
   const resolved = match ? root.$defs?.[match[1]!] : undefined
@@ -132,7 +132,14 @@ function resolveNode(node: Schema, root: Schema): Schema {
 }
 
 /** Recursively collect drift messages for `value` against `node`, prefixing paths with `path`. */
-function walk(value: unknown, node: Schema, path: string, out: string[], root: Schema): void {
+function walk(
+  value: unknown,
+  node: Schema,
+  path: string,
+  out: string[],
+  root: Schema,
+  hint: (key: string) => string,
+): void {
   node = resolveNode(node, root)
   const types = node.type ? (Array.isArray(node.type) ? node.type : [node.type]) : []
   if (types.length && !matchesType(value, types)) {
@@ -157,7 +164,7 @@ function walk(value: unknown, node: Schema, path: string, out: string[], root: S
     if (typeof node.minItems === 'number' && value.length < node.minItems) {
       out.push(`${path}: has ${value.length} item(s), needs at least ${node.minItems}`)
     }
-    value.forEach((item, i) => walk(item, node.items!, `${path}[${i}]`, out, root))
+    value.forEach((item, i) => walk(item, node.items!, `${path}[${i}]`, out, root, hint))
   }
 
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
@@ -172,9 +179,9 @@ function walk(value: unknown, node: Schema, path: string, out: string[], root: S
       // ⚑ `Object.hasOwn`, not `in`: `in` also finds `Object.prototype` members, so `constructor`,
       // `toString` and friends counted as declared keys and slipped past the gate (audit F-C40-001).
       if (Object.hasOwn(props, key)) {
-        walk(v, props[key]!, childPath, out, root)
+        walk(v, props[key]!, childPath, out, root, hint)
       } else if (node.additionalProperties === false) {
-        out.push(`${childPath}: unexpected key${hintForKey(key)}`)
+        out.push(`${childPath}: unexpected key${hint(key)}`)
       }
     }
   }
@@ -185,8 +192,16 @@ function walk(value: unknown, node: Schema, path: string, out: string[], root: S
  * (each `path: reason`); an empty array means the object conforms.
  */
 export function contractDrift(raw: unknown): string[] {
+  return schemaDrift(raw, schemaFor(raw), hintForKey)
+}
+
+/** Validate an upstream schema with the supported vocabulary and optional application hints. */
+export function schemaDrift(
+  raw: unknown,
+  root: Schema,
+  hint: (key: string) => string = () => '',
+): string[] {
   const out: string[] = []
-  const root = schemaFor(raw)
-  walk(raw, root, '', out, root)
+  walk(raw, root, '', out, root, hint)
   return out
 }

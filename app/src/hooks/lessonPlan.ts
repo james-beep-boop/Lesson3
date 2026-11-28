@@ -2,7 +2,6 @@ import type {
   CollectionAfterChangeHook,
   CollectionBeforeDeleteHook,
   CollectionBeforeValidateHook,
-  CollectionSlug,
 } from 'payload'
 import { APIError, NotFound, ValidationError, type PayloadRequest } from 'payload'
 
@@ -17,15 +16,8 @@ import {
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 import type { User } from '../payload-types'
-
-const LESSON_BUNDLE_VERSIONS = 'lesson-bundle-versions' as CollectionSlug
-
-/**
- * `req.context` key carrying the set of lesson-plan ids whose deletion is in progress this request.
- * The version-retention guard (`enforceOfficialNotDeletable`) reads it and stands down for the
- * Official versions of those plans — the pointer is moot once the parent plan is going away.
- */
-export const DELETING_LESSON_PLAN_IDS = 'deletingLessonPlanIds'
+import { planSeries } from '../lib/versionSeries'
+import { deleteSeriesVersions, guardOfficialPointer } from './versionSeries'
 
 const idFrom = (value: unknown): number | undefined => {
   const id = toId(value as never)
@@ -84,123 +76,7 @@ export const enforcePlanSubjectGradeImmutable: CollectionBeforeValidateHook = ({
   return data
 }
 
-export const validateOfficialVersionPointer: CollectionBeforeValidateHook = async ({
-  data,
-  operation,
-  originalDoc,
-  req,
-}) => {
-  // Invariant: a lesson plan keeps exactly one Official version. Reject an AUTHENTICATED update that
-  // clears the pointer to null — browse skips a plan with no Official, its detail can 404, and the
-  // "one Official" product rule breaks. System paths (no `req.user`: migrations, roundtrip cleanup,
-  // the int-fixture teardown that nulls the pointer before deleting versions) legitimately clear it
-  // via overrideAccess and are exempt — same trusted-system carve-out as the field-split/immutability
-  // hooks. (Create with no pointer yet is fine: ingest sets it in a follow-up update.)
-  if (
-    operation === 'update' &&
-    req.user &&
-    data &&
-    'officialVersion' in data &&
-    !idFrom(data.officialVersion)
-  ) {
-    throw validationError(
-      'A lesson plan must keep one Official version; the pointer cannot be cleared.',
-      req,
-    )
-  }
-
-  // Invariant: a NEW plan cannot be created already pointing at an Official version. The pointer is
-  // only set in a follow-up UPDATE, once a version exists under THIS plan (ingest + the fixture do
-  // exactly that). On create `originalDoc` is absent, so the "version belongs to this plan" ownership
-  // check below is skipped — a same-grade version of ANOTHER plan would slip through, letting two
-  // plans share one Official version. Reject any pointer on an authenticated create outright. System
-  // paths (no `req.user`: ingest, migrations) never set it on create and stay exempt.
-  if (operation === 'create' && req.user && data?.officialVersion) {
-    throw validationError(
-      'A new lesson plan cannot set an Official version on create; create a version under it first.',
-      req,
-    )
-  }
-
-  // ⚑ THE REMAINING CHECKS COMPARE THE PLAN AGAINST ITS *STORED* OFFICIAL VERSION, so they must run
-  // whenever this request can move either side of that comparison — not only when it mentions the
-  // pointer.
-  //
-  // This used to read `if (!data?.officialVersion) return data`, which was inconsistent with its own
-  // neighbour: the subject-grade comparison below already consults `originalDoc` because it knows an
-  // update can be PARTIAL. The early return did not. So a request carrying ONLY `subjectGrade`
-  // returned here untouched, and the plan could move to a different subject-grade while its Official
-  // version still belonged to the old one — exactly the state the last check in this function exists
-  // to prevent, reachable by omitting a field rather than by setting one.
-  //
-  // ⚑ THAT SCENARIO IS NO LONGER REACHABLE, and this disjunct is now defence in depth rather than the
-  // thing catching it. `enforcePlanSubjectGradeImmutable` runs first in the same `beforeValidate`
-  // array and rejects ANY changed subject-grade outright, so a request arriving here with the key
-  // present provably carries the stored value. Keep the disjunct — it is what still holds if that hook
-  // is ever removed — but do not spend time re-deriving why it fires: read the ⚑ on that hook first.
-  //
-  // ⚑ `'x' in data`, NOT `??`. The distinction is load-bearing twice over:
-  //   - An explicit `officialVersion: null` is a system CLEAR (authenticated clears are rejected
-  //     above; teardown and re-ingest do it via overrideAccess). `??` would read that null as "not
-  //     mentioned" and fall back to the stored pointer, so every clear fetched and validated the very
-  //     version it was about to unpoint. `purgeMarked` clears up to 200 plans per `Promise.all`, so
-  //     that was hundreds of pointless reads per test run.
-  //   - A request touching NEITHER key cannot change any input to either comparison, so its answer is
-  //     whatever the previous validated write established. Skipping it is closed inductively: both
-  //     sides are gated — the plan side here, the version side by `enforceVersionPlanConsistency`
-  //     plus (since 2026-08-23) `lessonPlan`/`subjectGrade` being system-only on versions. That saves
-  //     a read on every title / visibility / publicSlug edit, which are interactive admin paths.
-  if (!data || !('officialVersion' in data || 'subjectGrade' in data)) return data
-
-  const officialVersionRef =
-    'officialVersion' in data ? data.officialVersion : originalDoc?.officialVersion
-  if (!officialVersionRef) return data
-
-  const officialVersionId = idFrom(officialVersionRef)
-  if (!officialVersionId) {
-    throw validationError('Official version must reference a saved lesson-plan version.', req)
-  }
-
-  // ⚑ NO EXPLICIT PLAN LOCK HERE, DELIBERATELY — and the reason is worth keeping, because "lock
-  // both sides of a race" is the obvious instinct and it is wrong on this side.
-  //
-  // A pointer move ends in `UPDATE lesson_plans`, and that statement takes the row's write lock on
-  // its own. Adding an explicit lock here would only move the same acquisition earlier, widening the
-  // window the row is held while this hook does its validation reads — pure contention for no
-  // additional guarantee. It was written, and then removed when the test meant to justify it passed
-  // just as happily with it gone: the test was observing Postgres's own row lock, not the hook's.
-  //
-  // The asymmetry is the whole point. The DELETE side has no such statement — its guard decides from
-  // a plain `SELECT`, which under READ COMMITTED reads straight past an uncommitted `UPDATE` — so the
-  // lock is load-bearing there and only there. See `enforceOfficialNotDeletable` in
-  // `hooks/bundleVersion.ts`, which carries the full race, and
-  // `tests/int/officialPointerLock.int.spec.ts` for the mutation run that settled it.
-
-  // `select`: the two relationship ids are all this needs, and the row is otherwise a whole lesson
-  // bundle — every prose field plus its array sub-tables. `depth: 0` keeps the ids unpopulated.
-  const version = (await req.payload.findByID({
-    collection: LESSON_BUNDLE_VERSIONS,
-    id: officialVersionId,
-    depth: 0,
-    select: { lessonPlan: true, subjectGrade: true },
-    overrideAccess: true,
-    req,
-  })) as { lessonPlan?: unknown; subjectGrade?: unknown }
-
-  const planId = idFrom(originalDoc?.id)
-  const versionPlanId = idFrom(version.lessonPlan)
-  if (planId && versionPlanId !== planId) {
-    throw validationError('Official version must belong to this lesson plan.', req)
-  }
-
-  const planSubjectGradeId = idFrom(data?.subjectGrade ?? originalDoc?.subjectGrade)
-  const versionSubjectGradeId = idFrom(version.subjectGrade)
-  if (planSubjectGradeId && versionSubjectGradeId !== planSubjectGradeId) {
-    throw validationError('Official version must match this lesson plan subject-grade.', req)
-  }
-
-  return data
-}
+export const validateOfficialVersionPointer = guardOfficialPointer(planSeries)
 
 /** The one user-facing sentence for a malformed slug, stated once so the two paths cannot drift. */
 const SLUG_FORMAT_MESSAGE =
@@ -318,7 +194,7 @@ async function subjectGradeParts(
   if (subjectGradeId == null) return {}
   try {
     const sg = (await req.payload.findByID({
-      collection: 'subject-grades' as CollectionSlug,
+      collection: 'subject-grades',
       id: subjectGradeId,
       depth: 1,
       overrideAccess: true,
@@ -361,7 +237,7 @@ async function firstFreeSlug(
   )
   const taken = { publicSlug: { in: candidates } }
   const { docs } = await req.payload.find({
-    collection: 'lesson-plans' as CollectionSlug,
+    collection: 'lesson-plans',
     where: selfId == null ? taken : { and: [taken, { id: { not_equals: selfId } }] },
     select: { publicSlug: true },
     pagination: false,
@@ -384,17 +260,14 @@ async function firstFreeSlug(
  * being deleted. Mirrors the `purgeMarked` teardown order (versions before plans).
  */
 export const cascadeDeleteLessonPlanVersions: CollectionBeforeDeleteHook = async ({ id, req }) => {
-  const ids =
-    (req.context[DELETING_LESSON_PLAN_IDS] as Set<string> | undefined) ?? new Set<string>()
-  ids.add(String(id))
-  req.context[DELETING_LESSON_PLAN_IDS] = ids
-
-  await req.payload.delete({
-    collection: LESSON_BUNDLE_VERSIONS,
+  await deleteSeriesVersions(req, planSeries, id)
+  const decks = await req.payload.delete({
+    collection: 'decks',
     where: { lessonPlan: { equals: id } },
     overrideAccess: true,
     req,
   })
+  if (decks.errors.length) throw new APIError('Could not remove this plan’s decks.', 500)
   const files = await req.payload.delete({
     collection: 'supporting-files',
     where: { lessonPlan: { equals: id } },
