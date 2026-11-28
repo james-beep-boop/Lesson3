@@ -158,10 +158,12 @@ describe('supporting files', () => {
     expect(linkIndex).toBeGreaterThanOrEqual(0)
     const start = html.lastIndexOf('<details', linkIndex)
     const disclosure = html.slice(start, html.indexOf('</details>', linkIndex))
-    expect(disclosure).toContain('<summary>Supporting documents (3)</summary>')
+    expect(disclosure).toContain('<summary>Supporting documents (5)</summary>')
     expect(disclosure).toContain(`href="${collection}/file/${key.filename}"`)
-    expect(disclosure.indexOf('Summary table')).toBeGreaterThanOrEqual(0)
-    expect(disclosure.indexOf('Summary table')).toBeLessThan(disclosure.indexOf('Quick Check'))
+    for (const label of ['Summary table', 'Compact Teacher Guide', 'Student Summary Table']) {
+      expect(disclosure.indexOf(label)).toBeGreaterThanOrEqual(0)
+      expect(disclosure.indexOf(label)).toBeLessThan(disclosure.indexOf('Quick Check'))
+    }
     expect(disclosure.indexOf('Quick Check')).toBeLessThan(disclosure.indexOf('Answer Key'))
     expect(disclosure).toContain('Lesson 1 ·')
 

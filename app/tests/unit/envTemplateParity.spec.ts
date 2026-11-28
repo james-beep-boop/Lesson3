@@ -203,7 +203,7 @@ const PROCESS_MODULES = new Set(['process', 'node:process'])
  * `process['env']` was missed, then `process?.env` and `(process).env`. Rather than keep widening a
  * pattern, every `process` reference must now be one this checker classified.
  */
-const PROCESS_NON_ENV_MEMBERS = new Set(['pid', 'cwd'])
+const PROCESS_NON_ENV_MEMBERS = new Set(['pid', 'cwd', 'argv', 'exit'])
 
 /**
  * `.js` is included deliberately: `allowJs` is on and `app/src` already contains five `.js` files

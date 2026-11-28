@@ -39,6 +39,8 @@ describe('versionDeliverables mirrors bundleToAresData (T2 strip contract)', () 
     const tags = versionDeliverables(bundle)
     const data = bundleToAresData(bundle)
     expect(tags.includes('lessonSequence')).toBe(true) // always present
+    expect(tags).toContain('compactTeacherGuide')
+    expect(tags).toContain('studentSummaryTable')
     expect(tags.includes('finalExplanation')).toBe(data.FINAL_EXPLANATION !== undefined)
     // The teacher key is built from the SAME group as the student document, so the two come and go
     // together — a strip that listed one without the other would offer a button that 404s.
@@ -48,8 +50,15 @@ describe('versionDeliverables mirrors bundleToAresData (T2 strip contract)', () 
 
   it('lists the documents in document order, and the key is never the primary deliverable', () => {
     const tags = versionDeliverables(asBundle({ intro: 'i' }, { lessons: [{ focus: 'y' }] }))
-    expect(tags).toEqual(['lessonSequence', 'finalExplanation', 'teacherKey', 'summaryTable'])
-    expect(secondaryDeliverables(tags)).toEqual(['finalExplanation', 'teacherKey', 'summaryTable'])
+    const supporting = [
+      'finalExplanation',
+      'teacherKey',
+      'summaryTable',
+      'compactTeacherGuide',
+      'studentSummaryTable',
+    ]
+    expect(tags).toEqual(['lessonSequence', ...supporting])
+    expect(secondaryDeliverables(tags)).toEqual(supporting)
   })
 
   it('the key has its own, unmistakable label', () => {
