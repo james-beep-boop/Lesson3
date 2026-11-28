@@ -442,6 +442,28 @@ export interface SupportingFile {
   title: string;
   lessonPlan: number | LessonPlan;
   /**
+   * Leave blank if the file is for the whole sub-strand.
+   */
+  lessonNumber?: number | null;
+  kind:
+    | 'quick-check'
+    | 'answer-key'
+    | 'student-materials'
+    | 'materials-teacher-key'
+    | 'assessment-materials'
+    | 'deck-art'
+    | 'other';
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "decks".
  */
@@ -877,28 +899,6 @@ export interface DeckVersion {
   };
   updatedAt: string;
   createdAt: string;
-}
-/**
-   * Leave blank if the file is for the whole sub-strand.
-   */
-  lessonNumber?: number | null;
-  kind:
-    | 'quick-check'
-    | 'answer-key'
-    | 'student-materials'
-    | 'materials-teacher-key'
-    | 'assessment-materials'
-    | 'deck-art'
-    | 'other';
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
