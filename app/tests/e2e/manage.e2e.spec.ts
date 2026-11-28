@@ -632,7 +632,7 @@ test.describe('Manage page', () => {
     await expect(accountsHeading).toHaveCount(1)
     await expect(accountsHeading).toBeHidden()
     // The "Lesson plans" section is a top-level panel, so its HEADING is visible while collapsed;
-    // its three nested panels live inside the hidden body and appear once it is opened.
+    // its nested panels live inside the hidden body and appear once it is opened.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toBeHidden()
     await openPanel(page, 'Lesson plans')
@@ -653,6 +653,7 @@ test.describe('Manage page', () => {
       'Your saved versions',
       'Your drafts',
       'Upload lesson plans',
+      'Import supporting files',
       'Delete a plan (all versions)',
       'Delete individual versions',
       'Set an Official version',
