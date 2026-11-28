@@ -2,11 +2,8 @@ import { APIError, type PayloadRequest } from 'payload'
 
 // The deliverable kind (docx | pdf) is owned by the generator's export layer — reuse it here rather
 // than redefining the union, so the parser and the artifact spec can't drift.
-import {
-  DELIVERABLE_TAGS,
-  type DeliverableTag,
-  type ExportKind,
-} from '../generator/exportArtifacts'
+import { DELIVERABLE_TAGS, type DeliverableTag } from '../generator/deliverables'
+import type { ExportKind } from '../generator/exportArtifacts'
 
 export type { ExportKind }
 

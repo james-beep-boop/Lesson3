@@ -10,6 +10,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Every lesson plan now has a Compact Teacher Guide and a blank Student Summary Table. Open
+  _Share → Download one document_ for Word or PDF. Both also come with _Download all_ (render version 12).
 - ARES lesson plans in the new format (contract R1, `schemaVersion` 1.1.0) now upload, beside the
   1.0.0 format. Final Explanation rubrics print Kenya's four CBE levels (Exceeds, Meets, Approaches,
   Below Expectations); older plans show a blank fourth column until ARES re-releases them.

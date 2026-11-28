@@ -4,6 +4,9 @@
  * Increment whenever a fixed immutable lesson snapshot would produce different DOCX/PDF/preview
  * bytes because the pinned generator or rendering pipeline changed.
  *
+ * 12 (2026-11): the Compact Teacher Guide and Student Summary Table join every plan export.
+ * Regenerate manifests to include both downloads for existing versions.
+ *
  * 11 (2026-11): re-pinned to upstream 129ffc5 (ARES contract R1). The Final Explanation rubric prints four CBE
  * levels — Exceeds (4), Meets (3), Approaches (2), Below Expectations (1) — instead of Excellent / Proficient /
  * Developing (1–2), for every plan: a plan imported under 1.0.0 shows a blank fourth column. The renderers
@@ -31,4 +34,4 @@
  * copyright year is FIXED (generator/config/attribution.yaml) so this output does not change in January;
  * changing that year is a deliberate act that must accompany a bump here.
  */
-export const GENERATOR_RENDER_VERSION = 11
+export const GENERATOR_RENDER_VERSION = 12

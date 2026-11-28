@@ -1,5 +1,5 @@
 /**
- * The export cache layer for the four-document world: the zip lists every deliverable that exists, the
+ * The export cache layer: the zip lists every deliverable that exists, the
  * teacher key travels with the final explanation, and artifacts rendered under the PREVIOUS generator are
  * never served after the render-version bump. Uses the real artifact cache in a throwaway directory.
  */
@@ -9,6 +9,8 @@ import { join } from 'node:path'
 
 import JSZip from 'jszip'
 import { afterAll, describe, expect, it } from 'vitest'
+
+import { DELIVERABLE_TAGS } from '../../src/generator/deliverables'
 
 const dir = mkdtempSync(join(tmpdir(), 'lesson3-artifacts-'))
 process.env.ARTIFACT_CACHE_DIR = dir
@@ -28,17 +30,20 @@ const generated = (withFe: boolean) => ({
   finalExplanation: withFe ? Buffer.from('student') : null,
   teacherKey: withFe ? Buffer.from('key') : null,
   summaryTable: Buffer.from('st'),
+  compactTeacherGuide: Buffer.from('guide'),
+  studentSummaryTable: Buffer.from('worksheet'),
 })
 const identity = async (docx: Buffer) => docx
 
 describe('export artifacts', () => {
-  it('the deliverable tags are exactly the four documents, in document order', async () => {
-    const { DELIVERABLE_TAGS } = await load()
+  it('the deliverable tags follow document order', () => {
     expect([...DELIVERABLE_TAGS]).toEqual([
       'lessonSequence',
       'finalExplanation',
       'teacherKey',
       'summaryTable',
+      'compactTeacherGuide',
+      'studentSummaryTable',
     ])
   })
 
@@ -48,22 +53,19 @@ describe('export artifacts', () => {
     expect(deliverableStem('finalExplanation', 'P')).toBe('P_FinalExplanation')
   })
 
-  it('a version with a final explanation caches and zips all four documents', async () => {
+  it('a version with a final explanation caches and zips all six documents', async () => {
     const { produceArtifacts, loadCachedExportZip, versionScope } = await load()
     const spec = { scope: versionScope('with-fe'), kind: 'docx' as const }
     const docs = await produceArtifacts(spec, generated(true) as never, 'P', identity)
-    expect(docs.map((d) => d.tag)).toEqual([
-      'lessonSequence',
-      'finalExplanation',
-      'teacherKey',
-      'summaryTable',
-    ])
+    expect(docs.map((d) => d.tag)).toEqual(DELIVERABLE_TAGS)
     const zip = await JSZip.loadAsync((await loadCachedExportZip(spec))!)
     expect(Object.keys(zip.files)).toEqual([
       'P_CBE_LessonSequence.docx',
       'P_FinalExplanation.docx',
       'P_FinalExplanation_TeacherKey.docx',
       'P_SummaryTable.docx',
+      'P_CompactTeacherGuide.docx',
+      'P_StudentSummaryTable.docx',
     ])
     expect(await zip.files['P_FinalExplanation_TeacherKey.docx']!.async('string')).toBe('key')
     expect(await zip.files['P_FinalExplanation.docx']!.async('string')).toBe('student')
@@ -75,7 +77,12 @@ describe('export artifacts', () => {
     const spec = { scope: versionScope('no-fe'), kind: 'docx' as const }
     await produceArtifacts(spec, generated(false) as never, 'P', identity)
     const zip = await JSZip.loadAsync((await loadCachedExportZip(spec))!)
-    expect(Object.keys(zip.files)).toEqual(['P_CBE_LessonSequence.docx', 'P_SummaryTable.docx'])
+    expect(Object.keys(zip.files)).toEqual([
+      'P_CBE_LessonSequence.docx',
+      'P_SummaryTable.docx',
+      'P_CompactTeacherGuide.docx',
+      'P_StudentSummaryTable.docx',
+    ])
     expect(await loadCachedDeliverable(spec, 'teacherKey')).toEqual({ state: 'absent' })
     expect(await loadCachedDeliverable(spec, 'finalExplanation')).toEqual({ state: 'absent' })
   })

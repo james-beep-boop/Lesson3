@@ -16900,3 +16900,7 @@ all attempts if any destination had a real error, including a foreign installati
 disk copy does not hide that failure from automation. An unplugged USB is neutral “not connected”,
 recorded separately, and does not fail an otherwise successful disk backup. Freshness remains
 independent: USB defaults to 30 days, disk uses the school’s agreed maximum data loss.
+
+## Answers from David (agentd)
+
+- 2026-11-27, #515: Please paste `write_guide`, `write_student_summary`, and the layout helpers they call from `compiler.py` at `d201e611` into the next run. — Fixed in PR 522 on main. Merge main into the task branch. Read vendor/ares-curriculum/compiler.py: write_guide, write_student_summary and attribution_footer are the layouts to port to Node. The target look is samples/*.pdf. See PROVENANCE.md. <!-- agentd #515 q:d8c7a7816baa2ce6 -->

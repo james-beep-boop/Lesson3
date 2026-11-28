@@ -31,6 +31,18 @@ test.afterAll(async () => {
   await fx?.teardown()
 })
 
+test('the lesson page offers both companion documents in Word and PDF', async ({ page }) => {
+  await loginAs(page, fx, 'teacher')
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto(`${BASE}/lessons/${fx.plan.id}?version=${versionId}`)
+  await page.getByRole('button', { name: 'Share ▾' }).click()
+  for (const label of ['Compact Teacher Guide', 'Student Summary Table']) {
+    const row = page.getByRole('listitem').filter({ hasText: label })
+    await expect(row.getByRole('button', { name: 'PDF', exact: true })).toBeVisible()
+    await expect(row.getByRole('button', { name: 'Word', exact: true })).toBeVisible()
+  }
+})
+
 for (const role of ['teacher', 'editor'] as const) {
   test(`${role === 'teacher' ? 'Teacher' : 'Teacher with editing access'} can inspect the selected version in Standard mode`, async ({
     page,

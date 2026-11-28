@@ -4,10 +4,10 @@
  * Until the 2026-10 generator re-pin, a single "Final Explanation" document was titled *Student Assessment
  * Document* yet printed the exemplar answers beside each prompt. It is now two documents from the same data:
  * the student version (blank answer space, no exemplars) and a teacher key. This pins, end to end:
- *   - a version with a final explanation exports FOUR documents, DOCX and PDF, with exact names;
+ *   - a version with a final explanation exports six documents, DOCX and PDF, with exact names;
  *   - the exemplar answer reaches ONLY the teacher key — never the student document;
  *   - the key follows the plan's existing read access (401 / 400 / 404 on the new tag);
- *   - attribution is rendered in all four deliverables out of the production image (`js-yaml` and the
+ *   - attribution is rendered in each deliverable out of the production image (`js-yaml` and the
  *     attribution config both have to be present there — a missing one fails the first export, here).
  *
  * HOW IT RUNS: same as `endpoints.http.spec.ts` (running app + the DB it serves; `E2E_BASE_URL`).
@@ -65,9 +65,10 @@ const exportZip = async (id: number, as: 'docx' | 'pdf') => {
   return JSZip.loadAsync(Buffer.from(await res.arrayBuffer()))
 }
 
-const docXml = async (docx: Buffer) =>
-  (await JSZip.loadAsync(docx)).file('word/document.xml')!.async('string')
-const xmlOf = async (zip: JSZip, name: string) => docXml(await zip.files[name]!.async('nodebuffer'))
+const docXml = async (docx: Buffer, part = 'document') =>
+  (await JSZip.loadAsync(docx)).file(`word/${part}.xml`)!.async('string')
+const xmlOf = async (zip: JSZip, name: string, part?: string) =>
+  docXml(await zip.files[name]!.async('nodebuffer'), part)
 
 // Three tests read the SAME cold DOCX export; prepare, download and unzip it once.
 let docxZip: Promise<JSZip> | undefined
@@ -111,8 +112,8 @@ afterAll(async () => {
   await fx?.teardown()
 })
 
-describe('a version with a final explanation exports four documents', () => {
-  it('DOCX zip: exactly the four expected names', async () => {
+describe('a version with a final explanation exports six documents', () => {
+  it('DOCX zip: exactly the six expected names', async () => {
     const zip = await docxZipOf()
     expect(Object.keys(zip.files).sort()).toEqual(
       [
@@ -120,11 +121,13 @@ describe('a version with a final explanation exports four documents', () => {
         `${PREFIX}_FinalExplanation.docx`,
         `${PREFIX}_FinalExplanation_TeacherKey.docx`,
         `${PREFIX}_SummaryTable.docx`,
+        `${PREFIX}_CompactTeacherGuide.docx`,
+        `${PREFIX}_StudentSummaryTable.docx`,
       ].sort(),
     )
   }, 200_000)
 
-  it('PDF zip: the same four names, every file a real PDF', async () => {
+  it('PDF zip: the same six names, every file a real PDF', async () => {
     const zip = await exportZip(withFe.id, 'pdf')
     expect(Object.keys(zip.files).sort()).toEqual(
       [
@@ -132,6 +135,8 @@ describe('a version with a final explanation exports four documents', () => {
         `${PREFIX}_FinalExplanation.pdf`,
         `${PREFIX}_FinalExplanation_TeacherKey.pdf`,
         `${PREFIX}_SummaryTable.pdf`,
+        `${PREFIX}_CompactTeacherGuide.pdf`,
+        `${PREFIX}_StudentSummaryTable.pdf`,
       ].sort(),
     )
     for (const name of Object.keys(zip.files)) {
@@ -150,12 +155,18 @@ describe('a version with a final explanation exports four documents', () => {
     expect(key).toContain('do not give to students')
   }, 200_000)
 
-  it('attribution is rendered in all four deliverables, from the production image', async () => {
+  it('attribution is rendered in every deliverable, from the production image', async () => {
     const zip = await docxZipOf()
-    expect(Object.keys(zip.files)).toHaveLength(4)
+    const hasPageFooter = [
+      `${PREFIX}_CompactTeacherGuide.docx`,
+      `${PREFIX}_StudentSummaryTable.docx`,
+    ]
     for (const name of Object.keys(zip.files)) {
-      const xml = await xmlOf(zip, name)
-      expect(xml, `${name} carries the licence block`).toContain('This work is licensed under a')
+      const footer = hasPageFooter.includes(name)
+      const xml = await xmlOf(zip, name, footer ? 'footer1' : 'document')
+      expect(xml, `${name} carries the licence`).toContain(
+        footer ? 'Licensed under CC BY-NC 4.0' : 'This work is licensed under a',
+      )
       expect(xml, `${name} carries the fixed year`).toContain('© 2026 SeaVuria and ARES Education.')
       expect(xml, `${name} has no old copyright wording`).not.toContain('SeaVuria and ARES.')
     }

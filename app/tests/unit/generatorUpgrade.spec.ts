@@ -174,13 +174,15 @@ describe('student document vs teacher key', () => {
     expect(out.lessonSequence).not.toBeNull()
   })
 
-  it('the full bundle has all four deliverables, in document order', async () => {
+  it('the full bundle has all six deliverables, in document order', async () => {
     const out = await generateBundleDocx(data())
     expect(Object.keys(out)).toEqual([
       'lessonSequence',
       'finalExplanation',
       'teacherKey',
       'summaryTable',
+      'compactTeacherGuide',
+      'studentSummaryTable',
     ])
     for (const buf of Object.values(out)) expect(buf).not.toBeNull()
   })
@@ -257,10 +259,15 @@ describe('attribution', () => {
   const FOOTER = 'Aligned with KICD objectives'
   const HEADER = 'This work is licensed under a'
 
-  it('appears in all four deliverables', async () => {
+  it('appears in the body of the lesson plan, assessment documents and filled summary', async () => {
     const out = await generateBundleDocx(data())
-    for (const [name, buf] of Object.entries(out)) {
-      const { xml } = await parts(buf)
+    for (const name of [
+      'lessonSequence',
+      'finalExplanation',
+      'teacherKey',
+      'summaryTable',
+    ] as const) {
+      const { xml } = await parts(out[name])
       expect(xml, `${name} carries the attribution block`).toContain('Curriculum Alignment')
       expect(xml, `${name} names the licence`).toContain(HEADER)
       expect(xml, `${name} names the creators`).toContain('SeaVuria and ARES Education.')

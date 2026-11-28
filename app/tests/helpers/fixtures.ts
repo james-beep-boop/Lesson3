@@ -163,7 +163,7 @@ export function minimalStoredResourceLinks() {
  * The smallest bundle that satisfies `validateGeneratable`: META present, ≥1 lesson carrying an
  * `slo` group, a `summaryTablePrompt` group, a complete `resourceLinks` map, and ≥1 framework phase
  * from the controlled vocabulary.
- * FINAL_EXPLANATION / SUMMARY_TABLE intentionally omitted (legitimate single-doc bundle, SPEC §3).
+ * FINAL_EXPLANATION / SUMMARY_TABLE intentionally omitted (optional content, SPEC §3).
  */
 export function minimalBundleContent() {
   return {

@@ -81,7 +81,7 @@ public-security-posture switch in §11/OPS). Its detailed design is
 
 ## 3. Content model
 
-The unit of content is a **sub-strand bundle** — one structured object that generates three Word documents. This is the natural grain of ARES content (e.g. Biology Grade 10, sub-strand 1.4 "Chemicals of Life").
+The unit of content is a **sub-strand bundle** — one structured object that generates the Word documents. This is the natural grain of ARES content (e.g. Biology Grade 10, sub-strand 1.4 "Chemicals of Life").
 
 ```
 Sub-strand bundle
@@ -118,11 +118,11 @@ writes the current revision; a missing fourth level exports as `""`, which re-im
 is useful provenance, but it is not the enforceable downstream contract when it differs from emitted
 JSON.
 
-**Generates up to four documents per bundle:** `*_CBE_LessonSequence.docx`, `*_FinalExplanation.docx` (the **student** document: prompts, blank answer space and rubric — **no exemplar answers**), `*_FinalExplanation_TeacherKey.docx` (the **teacher key**: the same prompts beside the exemplar answers — never give it to students) and `*_SummaryTable.docx` (plus PDF). The student document and the key come from the same `FINAL_EXPLANATION` data, so they exist together or not at all and cannot disagree. All regenerate from the one bundle.
+**Generates up to six documents per bundle**, in Word and PDF. Every bundle produces the Lesson Plan (`*_CBE_LessonSequence`), the Compact Teacher Guide (`*_CompactTeacherGuide`) and the Student Summary Table (`*_StudentSummaryTable`). The guide opens with a unit overview and starts each lesson on a fresh page. The student table lists the lessons and leaves three columns blank for learners to fill. `FINAL_EXPLANATION` supplies both its student document (`*_FinalExplanation`) and the corresponding marking key (`*_FinalExplanation_TeacherKey`). `SUMMARY_TABLE` supplies the filled Summary Table (`*_SummaryTable`). All regenerate from the one bundle.
 
 **The teacher key follows the plan's existing read access (decided 2026-10-06):** anyone who can read and export a plan can export its key, it travels in the whole-zip downloads and in email-a-doc, and it is labelled "Teacher key — not for students". Any future public library must **never** serve it (allowlist public deliverables rather than denying the key). Before this split (to 2026-10-06) the single Final Explanation was titled "Student Assessment Document" yet printed the exemplars.
 
-**Single-document sub-strands are legitimate (confirmed 2026-06-26).** Some sub-strands ship as a *single* document — the LessonSequence only — with no FINAL_EXPLANATION sections and/or no SUMMARY_TABLE rows. This is valid content, not incomplete data: the generator already guards and **skips** an empty FE/ST (`FE.sections || []`, `ST.lessons || []`), so it produces exactly the documents the bundle carries. Consequently a missing FE/ST is **not** a defect and **not** a hard gate — it is surfaced as an informational ingest note only. (See `docs/DECISIONS.md` 2026-06-26; this resolves the §3-option-(a) FE/ST modeling question.) The LessonSequence itself is always required — its completeness *is* a hard gate (`validateGeneratable`).
+**Final Explanation and filled Summary Table content are optional (confirmed 2026-06-26).** The generator skips the corresponding documents when those groups are empty. Ingest flags missing groups with an informational note. The Lesson Plan still has a completeness check (`validateGeneratable`). See `docs/DECISIONS.md` 2026-06-26.
 
 ### Modeling rules
 - Model the bundle as **native Payload nested fields** (groups/arrays), **not a JSON blob** — native fields are what unlock free per-field validation, field-level access control, and versioning. A blob forfeits the reuse Payload is chosen for.
@@ -205,7 +205,7 @@ DOCX fidelity is owned entirely by ARES's generator. Editing must stay within it
   no live Python/SQLite lookup, and no user-editable resource field.
 - **`framework[].phase` is a controlled vocabulary** — phase names drive colour-coding and resource lookup; an unknown phase silently degrades output. Phase is a fixed dropdown, never free text.
 - **Document attribution (implemented 2026-10-07; supersedes the 2026-08-12 "every page" wording):**
-  every document carries upstream's attribution and licence block — **CC BY-NC 4.0**, SeaVuria and ARES Education
+  the Lesson Sequence, Final Explanation, teacher key and filled Summary Table carry upstream's attribution and licence block — **CC BY-NC 4.0**, SeaVuria and ARES Education
   — exactly as Mark's generator renders it: the full block once after the sub-strand overview in the Lesson
   Sequence and at the end of the Final Explanation, teacher key and Summary Table, plus a short footer after
   **every** lesson. It is **not** stamped on every page; the placement is upstream's (2026-10-01) and the
@@ -214,6 +214,8 @@ DOCX fidelity is owned entirely by ARES's generator. Editing must stay within it
   from DOCX; never as a PDF-only overlay and never as repeated prose in lesson content. The year is a
   **fixed, configured copyright year** (2026 for this release) so re-rendering a stored version in a later
   January does not change its bytes; changing it must accompany a `GENERATOR_RENDER_VERSION` bump.
+  The Compact Teacher Guide and Student Summary Table use the same configured short text as a
+  repeating page footer, following ARES's companion document layouts.
   The PDF fidelity gate was retired 2026-07-20 (DECISIONS 2026-07-20): **DOCX is the gated layout
   deliverable**, and a change like this is checked by the DOCX fidelity gates plus a visual inspection of
   representative PDFs.
