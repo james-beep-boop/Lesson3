@@ -547,6 +547,10 @@ summary.strand-head::before,
 .doc-strip-more .doc-strip {
   padding-left: 0.9rem;
 }
+.doc-strip-kind {
+  margin-top: 0.4rem;
+  padding-left: 0.9rem;
+}
 /* D4: reserved chip column on editor rows — the star stays put with or without version history. */
 .substrand-versions {
   flex-shrink: 0;
@@ -2272,7 +2276,8 @@ summary.strand-head::before,
     align-items: center;
     min-height: 2.75rem;
   }
-  .doc-strip-more .doc-strip {
+  .doc-strip-more .doc-strip,
+  .doc-strip-kind {
     padding-left: 0;
   }
   .lp-search__clear {

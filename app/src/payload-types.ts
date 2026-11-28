@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     'lesson-plans': LessonPlan;
     'lesson-bundle-versions': LessonBundleVersion;
+    'supporting-files': SupportingFile;
     subjects: Subject;
     'subject-grades': SubjectGrade;
     users: User;
@@ -88,6 +89,7 @@ export interface Config {
   collectionsSelect: {
     'lesson-plans': LessonPlansSelect<false> | LessonPlansSelect<true>;
     'lesson-bundle-versions': LessonBundleVersionsSelect<false> | LessonBundleVersionsSelect<true>;
+    'supporting-files': SupportingFilesSelect<false> | SupportingFilesSelect<true>;
     subjects: SubjectsSelect<false> | SubjectsSelect<true>;
     'subject-grades': SubjectGradesSelect<false> | SubjectGradesSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
@@ -426,6 +428,36 @@ export interface SubjectGrade {
   displayName?: string | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supporting-files".
+ */
+export interface SupportingFile {
+  id: number;
+  title: string;
+  lessonPlan: number | LessonPlan;
+  /**
+   * Leave blank if the file is for the whole sub-strand.
+   */
+  lessonNumber?: number | null;
+  kind:
+    | 'quick-check'
+    | 'answer-key'
+    | 'student-materials'
+    | 'materials-teacher-key'
+    | 'assessment-materials'
+    | 'deck-art'
+    | 'other';
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -950,6 +982,25 @@ export interface LessonBundleVersionsSelect<T extends boolean = true> {
       };
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "supporting-files_select".
+ */
+export interface SupportingFilesSelect<T extends boolean = true> {
+  title?: T;
+  lessonPlan?: T;
+  lessonNumber?: T;
+  kind?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

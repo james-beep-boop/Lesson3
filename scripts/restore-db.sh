@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Restore a Lesson3 Postgres backup produced by backup-db.sh (SPEC §11 / readiness #9).
+# Restore a Lesson3 backup produced by backup-db.sh (SPEC §11 / readiness #9).
 #
 #   rclone copy from the configured destination  ->  age -d -i <identity>  ->  pg_restore into a DB
 #
@@ -160,6 +160,19 @@ psql_admin() { docker compose exec -T postgres psql -U "$DB_USER" -d postgres -t
 
 db_exists() {
   [[ "$(psql_admin -c "SELECT 1 FROM pg_database WHERE datname = '$1';")" == "1" ]]
+}
+
+db_oid() {
+  psql_admin -c "SELECT oid FROM pg_database WHERE datname = '$1';"
+}
+
+drop_restored_database() {
+  local db="$1" oid
+  oid="$(db_oid "$db")" || return 1
+  if [[ -n "$oid" ]]; then
+    psql_admin -c "DROP DATABASE \"$db\" WITH (FORCE);" >/dev/null || return 1
+    supporting_files_volume "$oid" 'rm -rf -- "$dir"'
+  fi
 }
 
 # Which of the journal's databases exist right now, as "name name …" in a fixed order.
@@ -346,7 +359,7 @@ reverse_unconfirmed() {
   incoming="$(j_get incoming)"; services="$(j_get services)"
   echo "restore-db: reversing the unconfirmed restore; the live database was not changed"
   if db_exists "$incoming"; then
-    psql_admin -c "DROP DATABASE \"$incoming\" WITH (FORCE);" >/dev/null
+    drop_restored_database "$incoming"
     echo "restore-db: dropped '$incoming'"
   fi
   close_journal reversed
@@ -473,7 +486,7 @@ case "$MODE" in
     answer=""; read -r answer <&3 || true
     [[ "$answer" == "$target" ]] || die "not confirmed; nothing was dropped"
     if db_exists "$target"; then
-      psql_admin -c "DROP DATABASE \"$target\" WITH (FORCE);" >/dev/null
+      drop_restored_database "$target"
     fi
     close_journal closed
     echo "restore-db: dropped '$target'. The restore journal is closed (kept under out/ops/restore-history/)."
@@ -519,7 +532,7 @@ if [[ "$INTO" == "$LIVE_DB" ]]; then
 fi
 
 TMP="$(mktemp -d)"
-ENC="$TMP/backup.dump.age"; PLAIN="$TMP/backup.dump"
+ENC="$TMP/backup.dump.age"; PLAIN="$TMP/backup.dump"; ARCHIVE=""
 
 SOURCE_LABEL="${LOCAL_FILE:-$FROM}"
 
@@ -562,6 +575,19 @@ if ! age -d -i "$AGE_IDENTITY" -o "$PLAIN" "$ENC"; then
   [[ "$LIVE" -eq 1 ]] \
     && die "the private key did not decrypt this backup (wrong key, or a damaged or truncated file). Nothing was changed."
   exit 1
+fi
+
+# New backups with supporting files wrap the dump and the files in a tar stream. Plain pg_dump
+# archives from older releases, or installations with no files, still take the original path.
+if head -c 13 "$PLAIN" | cmp -s - <(printf database.dump); then
+  need tar
+  ARCHIVE="$PLAIN"
+  PLAIN="$TMP/database.dump"
+  HAVE_KB="$(free_kb "$TMP")"
+  [[ "$HAVE_KB" =~ ^[0-9]+$ && "$HAVE_KB" -gt 65536 ]] \
+    || die "not enough space to unpack the database dump in $TMP. Set TMPDIR to a larger disk."
+  (ulimit -f "$((HAVE_KB - 65536))" && tar -xOf "$ARCHIVE" database.dump >"$PLAIN") \
+    || die "could not extract the database dump from the backup. Nothing was changed."
 fi
 
 if [[ "$LIVE" -eq 1 ]]; then
@@ -612,9 +638,10 @@ fi
 restore_die() { [[ "$LIVE" -ne 1 ]] || fail_staged "$*"; die "$*"; }
 
 echo "restore-db: (re)creating target DB '$INTO'"
-docker compose exec -T postgres psql -U "$DB_USER" -d postgres -v ON_ERROR_STOP=1 \
-  -c "DROP DATABASE IF EXISTS \"$INTO\";" -c "CREATE DATABASE \"$INTO\";" \
-  || restore_die "could not create '$INTO'."
+if db_exists "$INTO"; then
+  drop_restored_database "$INTO" || restore_die "could not remove the previous copy of '$INTO'."
+fi
+psql_admin -c "CREATE DATABASE \"$INTO\";" >/dev/null || restore_die "could not create '$INTO'."
 
 echo "restore-db: restoring into '$INTO'"
 # Stream the plain dump into pg_restore running in the container.
@@ -703,6 +730,27 @@ fi
 if [[ "$FAILED" -ne 0 ]]; then
   [[ "$LIVE" -ne 1 ]] || fail_staged "the restored copy failed verification; the live database was not changed."
   die "RESTORE DRILL FAILED — decryption and pg_restore completed, but verification did not. Do NOT treat this backup as recoverable."
+fi
+
+FILE_COUNT="$(printf '%s\n' "$COUNTS" | awk '$1=="supporting_files" {print $2}')"
+if [[ "${FILE_COUNT:-0}" -gt 0 ]]; then
+  [[ -n "$ARCHIVE" ]] || restore_die "the backup is missing the supporting files listed in the database."
+  FILE_LIST="$TMP/supporting-files.list"
+  psql_q "SELECT COALESCE(filename, '') FROM supporting_files ORDER BY filename;" >"$FILE_LIST" \
+    || restore_die "could not read the list of supporting files."
+  if grep -qEv '^[[:alnum:]_][[:alnum:]_.-]*$' "$FILE_LIST"; then
+    restore_die "the backup has an invalid supporting filename."
+  fi
+  tar -xOf "$ARCHIVE" supporting-files.tar | LC_ALL=C tar -tvf - |
+    awk 'NF != 6 || $1 !~ /^-/ { exit 1 } { print $6 }' | LC_ALL=C sort >"$TMP/archive-files.list" \
+    || restore_die "could not read the supporting files archive."
+  LC_ALL=C sort "$FILE_LIST" | cmp -s - "$TMP/archive-files.list" \
+    || restore_die "the archived supporting files do not match the database."
+  OID="$(db_oid "$INTO")" || restore_die "could not locate the supporting files directory."
+  tar -xOf "$ARCHIVE" supporting-files.tar |
+    supporting_files_volume "$OID" 'umask 077; mkdir -p "$dir"; exec tar -xf - -C "$dir"' \
+    || restore_die "could not restore the supporting files."
+  echo "  restored $FILE_COUNT supporting files"
 fi
 
 if [[ "$LIVE" -ne 1 ]]; then

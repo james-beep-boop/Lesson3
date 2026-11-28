@@ -441,10 +441,14 @@ function SubstrandRow({
           </span>
         )}
       </div>
-      {/* Secondary documents (Final explanation / Summary table) fold behind a disclosure below;
-          the primary Lesson plan buttons moved up to the title line (Option B). */}
+      {/* Supporting documents fold behind the disclosure below the primary Lesson plan. */}
       {row.versionId != null && row.deliverables && (
-        <DocStrip versionId={row.versionId} tags={row.deliverables} condensed />
+        <DocStrip
+          versionId={row.versionId}
+          tags={row.deliverables}
+          supportingFiles={row.supportingFiles}
+          condensed
+        />
       )}
     </li>
   )

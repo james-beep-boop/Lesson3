@@ -11,9 +11,8 @@
  * surfaces now apply it.
  *
  * `condensed` (design track D4 → row redesign 2026-07-14): the catalogue row renders the PRIMARY
- * Lesson plan's PDF/Word inline itself, so in condensed mode this component renders ONLY the
- * SECONDARY documents (Final explanation, Summary table) folded behind a native <details>
- * disclosure — and nothing at all when there are none. The non-condensed strip (one line per tag it
+ * Lesson plan's PDF/Word inline itself, so the disclosure starts with the secondary generated
+ * documents and follows them with stored files grouped by kind. The non-condensed strip (one line per tag it
  * is given) is the lesson page's Share-menu "Download one document" section (2026-07-17, when that
  * page's own Documents line was removed; narrowed to the supporting documents 2026-08-30 by the
  * filter above). <details>/<summary> needs no script, so this stays a server component.
@@ -23,6 +22,7 @@ import React from 'react'
 import DocButtons from './DocButtons'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
 import { DELIVERABLE_LABELS, secondaryDeliverables } from '@/generator/deliverables'
+import { SUPPORTING_FILE_KINDS, type SupportingFileLink } from '@/lib/supportingFiles'
 
 function StripItem({ versionId, tag }: { versionId: number; tag: DeliverableTag }) {
   return (
@@ -36,26 +36,59 @@ function StripItem({ versionId, tag }: { versionId: number; tag: DeliverableTag 
 export default function DocStrip({
   versionId,
   tags,
+  supportingFiles = [],
   condensed = false,
 }: {
   versionId: number
   tags: DeliverableTag[]
+  supportingFiles?: SupportingFileLink[]
   condensed?: boolean
 }) {
   const secondary = secondaryDeliverables(tags)
 
-  // Condensed (catalogue rows): the primary Lesson plan buttons render inline on the title line,
-  // so here we only surface the secondary documents behind a disclosure — nothing if there are none.
+  // The catalogue row renders the primary Lesson plan buttons on its title line.
   if (condensed) {
-    if (secondary.length === 0) return null
+    const count = secondary.length + supportingFiles.length
+    if (count === 0) return null
     return (
       <details className="doc-strip-more">
-        <summary>Supporting documents ({secondary.length})</summary>
-        <ul className="doc-strip">
-          {secondary.map((tag) => (
-            <StripItem key={tag} versionId={versionId} tag={tag} />
-          ))}
-        </ul>
+        <summary>{`Supporting documents (${count})`}</summary>
+        {secondary.length > 0 && (
+          <ul className="doc-strip">
+            {secondary.map((tag) => (
+              <StripItem key={tag} versionId={versionId} tag={tag} />
+            ))}
+          </ul>
+        )}
+        {SUPPORTING_FILE_KINDS.map(({ value, label }) => {
+          const files = supportingFiles.filter((file) => file.kind === value)
+          if (!files.length) return null
+          return (
+            <div className="doc-strip-kind" key={value}>
+              <strong className="doc-strip-label">{label}</strong>
+              <ul className="doc-strip">
+                {files.map(({ id, filename, title, lessonNumber }) => {
+                  const extension = filename.match(/\.[^.]+$/)?.[0] ?? ''
+                  return (
+                    <li className="doc-strip-item" key={id}>
+                      <span className="doc-strip-label">
+                        {lessonNumber != null && `Lesson ${lessonNumber} · `}
+                        <a
+                          href={`/api/supporting-files/file/${encodeURIComponent(filename)}`}
+                          download={
+                            title.toLowerCase().endsWith(extension) ? title : title + extension
+                          }
+                        >
+                          {title}
+                        </a>
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )
+        })}
       </details>
     )
   }

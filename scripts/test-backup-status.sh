@@ -27,6 +27,16 @@ prepare_case() {
   cat >"$SANDBOX/home/bin/docker" <<EOF
 #!/usr/bin/env bash
 echo "docker \$*" >>"$SANDBOX/calls"
+if [[ " \$* " == *" pg_restore "* && -f "$SANDBOX/upload-list" ]]; then
+  cat "$SANDBOX/upload-list"; exit 0
+fi
+if [[ " \$* " == *" SELECT oid "* ]]; then echo 12345; exit 0; fi
+if [[ "\$1 \$2" == "compose run" ]]; then
+  cd "$SANDBOX/files"
+  set -f
+  set -- \$(cat)
+  exec tar -cf - "\$@"
+fi
 if [[ " \$* " == *" psql "* ]]; then printf '%s\n' "\${TEST_INSTALLATION_ID-11111111-1111-1111-1111-111111111111}"; exit 0; fi
 if [[ "\$1 \$2" == "compose exec" ]]; then
   [[ "\${FAIL_DUMP:-}" == "1" ]] && { echo "pg_dump: error: connection refused" >&2; exit 3; }
@@ -68,6 +78,7 @@ case "\$1" in
   cat) cat "$SANDBOX/remote-marker" ;;
   copyto)
     [[ "\$3" != /proc/self/fd/* ]] || { mkdir -p "\${3%/*}"; cp "\$2" "\$3"; }
+    if [[ -f "$SANDBOX/upload-list" ]]; then cp "\$2" "$SANDBOX/uploaded-backup"; fi
     ;;
 
 esac
@@ -381,6 +392,22 @@ check "a lock never freed fails the run" "expected non-zero exit" "$([[ $EXIT -n
 check "a run without the lock writes no record" "the holder owns the record" "$([[ ! -e "$STATUS" ]] && echo 0 || echo 1)"
 check "a held lock waits before giving up" "flock -w must run" "$([[ "$CALLS" == *"flock -w"* ]] && echo 0 || echo 1)"
 check "a held lock dumps nothing" "docker must not run" "$([[ "$CALLS" != *"pg_dump "* ]] && echo 0 || echo 1)"
+
+# File bytes travel in the same encrypted artifact as their database snapshot.
+prepare_case
+mkdir "$SANDBOX/files"
+printf '%s' 'a worksheet' >"$SANDBOX/files/worksheet.pdf"
+printf '%s\n' 'COPY public.supporting_files (id, title, filename) FROM stdin;' \
+  $'1\tWorksheet\tworksheet.pdf' '\.' >"$SANDBOX/upload-list"
+run_case "drive:lesson3-backups"
+check "supporting file backup succeeds" "expected a successful run" "$(ok test "$EXIT" -eq 0)"
+check "supporting file bytes are archived" "expected the uploaded worksheet bytes" \
+  "$(ok test "$(tar -xOf "$SANDBOX/uploaded-backup" supporting-files.tar | tar -xOf - worksheet.pdf)" = 'a worksheet')"
+rm "$SANDBOX/files/worksheet.pdf"
+run_case "drive:lesson3-backups"
+check "a missing supporting file fails the backup" "expected a failed dump stage" "$(ok failed_at dump)"
+check "a missing supporting file uploads nothing" "expected no upload during this run" \
+  "$([[ "$(grep -c 'rclone copyto' "$SANDBOX/calls")" == 1 ]] && echo 0 || echo 1)"
 
 # 6e. A setup failure is recorded — but only once the lock is held, never before (review 2026-10-21).
 prepare_case
