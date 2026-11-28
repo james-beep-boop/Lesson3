@@ -32,12 +32,14 @@ import { secondaryDeliverables } from '@/generator/deliverables'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
 import EmailModal, { type EmailFormat } from './EmailModal'
 import { showsAction, type InterfaceMode } from '@/lib/advancedTools'
+import type { Deck } from '@/payload-types'
 
 export default function ShareMenu({
   planId,
   versionId,
   semver,
   deliverables = [],
+  slideDecks = [],
   canDiscuss = false,
   smtpEnabled = false,
   mode = 'standard',
@@ -48,6 +50,7 @@ export default function ShareMenu({
   semver?: string | null
   /** This version's documents — drives the per-document download list (empty → section omitted). */
   deliverables?: DeliverableTag[]
+  slideDecks?: Pick<Deck, 'id' | 'lessonNumber'>[]
   /** Offer "Start a forum discussion…" — only while the forum is switched on (§16.1 entry points). */
   canDiscuss?: boolean
   /** Hide email-a-doc when SMTP is not configured — mirrors the server-side gate in emailVersion.ts. */
@@ -189,10 +192,10 @@ export default function ShareMenu({
               the SUPPORTING documents 2026-08-30 — see `supporting` above): one row per document,
               PDF opens a tab / Word downloads. These keep the menu OPEN (no onClick close): their
               busy state renders inline on the row. */}
-          {supporting.length > 0 && (
+          {(supporting.length > 0 || slideDecks.length > 0) && (
             <div className="share-menu__docs">
               <p className="share-menu__group-label">Download one document</p>
-              <DocStrip versionId={versionId} tags={supporting} />
+              <DocStrip versionId={versionId} tags={supporting} slideDecks={slideDecks} />
             </div>
           )}
           {/* Email entries only when SMTP is configured. Hidden (not disabled) when absent: a button

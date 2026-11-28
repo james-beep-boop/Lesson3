@@ -70,6 +70,8 @@ library rows, and on a lesson page _Versions & details_ holds the versions list 
 - **Compact Teacher Guide and Student Summary Table:** open _Share → Download one document_ on
   any lesson page. Use the guide for a unit overview and a quick reference for each lesson. Give
   students the blank table to fill in what they observed, learned and can explain.
+- **Slides** appear under _Share → Download one document_ when the lesson has slides.
+  Choose _PowerPoint_ to present them or _PDF_ to read or print them.
 - **Email:** choose _Share → Email all — Word_ or _Email all — PDF_ on a lesson page to send the
   generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
   day. _Email all_ and _Download as JSON_ appear when Advanced tools is switched on, and Email all only

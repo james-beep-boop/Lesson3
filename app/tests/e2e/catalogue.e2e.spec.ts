@@ -16,6 +16,8 @@ import { test, expect, type Page } from '@playwright/test'
 
 import { E2E_BASE as BASE, loginAs } from '../helpers/e2e'
 import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
+import { storeDeckSpec } from '../../src/decks/storage'
+import pilotSpec from '../../src/decks/vendor/fixtures/L1.spec.json'
 import { subjectGradeLabel } from '../../src/lib/substrand'
 
 /** The fixture's sub-strand name — `minimalBundleContent()` sets `meta.substrand_name`. */
@@ -162,5 +164,54 @@ test.describe('Catalogue (/)', () => {
 
     await page.setViewportSize({ width: 844, height: 390 })
     await expect(request).toBeVisible()
+  })
+
+  test('lesson page lists both slide downloads when the lesson has an Official deck', async ({
+    page,
+  }) => {
+    await loginAs(page, fx, 'teacher')
+    await page.goto(`${BASE}/lessons/${fx.plan.id}`)
+    await page.getByRole('button', { name: /^Share/ }).click()
+    await expect(page.getByText('Slides · Lesson 1', { exact: true })).toHaveCount(0)
+
+    const deck = await fx.payload.create({
+      collection: 'decks',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        substrandId: '99.1',
+        lessonNumber: 1,
+        title: `${MARK}Slides`,
+        importFingerprint: 'pilot',
+      },
+    })
+    const version = await fx.payload.create({
+      collection: 'deck-versions',
+      data: {
+        deck: deck.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.0',
+        spec: storeDeckSpec(pilotSpec),
+      } as never,
+    })
+    await fx.payload.update({
+      collection: 'decks',
+      id: deck.id,
+      data: { officialVersion: version.id },
+    })
+
+    await page.reload()
+    await page.getByRole('button', { name: /^Share/ }).click()
+    await expect(page.getByText('Slides · Lesson 1', { exact: true })).toBeVisible()
+    for (const [label, kind] of [
+      ['PowerPoint', 'pptx'],
+      ['PDF', 'pdf'],
+    ]) {
+      const link = page.getByRole('link', { name: `Download Lesson 1 slides as ${label}` })
+      await expect(link).toHaveAttribute(
+        'href',
+        `/api/decks/${deck.id}/download?planVersion=${fx.version.id}&as=${kind}`,
+      )
+    }
   })
 })

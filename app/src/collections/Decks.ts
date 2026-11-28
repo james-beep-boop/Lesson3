@@ -9,6 +9,7 @@ import {
   lessonPlanRead,
   lessonPlanUpdate,
 } from '../access/versioning'
+import { downloadDeckEndpoint } from '../endpoints/downloadDeck'
 import { uploadDecksEndpoint } from '../endpoints/uploadDecks'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 import { deleteSeriesVersions, guardOfficialPointer } from '../hooks/versionSeries'
@@ -59,7 +60,7 @@ export const Decks: CollectionConfig = {
       },
     ],
   },
-  endpoints: [uploadDecksEndpoint],
+  endpoints: [uploadDecksEndpoint, downloadDeckEndpoint],
   fields: [
     { name: 'title', type: 'text', required: true, access: fixed },
     {
