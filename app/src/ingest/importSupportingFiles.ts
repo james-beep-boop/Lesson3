@@ -18,10 +18,9 @@ type Attachment = {
   kind: SupportingFile['kind']
 }
 
-type ReportRow = { file: string } & (
-  | { status: 'unmatched'; reason: string }
-  | { status: 'matched' | 'alreadyHere'; attachment: Attachment; reason?: string }
-)
+type ReportRow =
+  | { file: string; status: 'unmatched'; reason: string }
+  | { file: string; status: 'matched' | 'alreadyHere'; attachment: Attachment; reason?: string }
 
 export type SupportingFileReport = {
   rows: ReportRow[]
@@ -60,12 +59,12 @@ async function targetsFor(prefixes: string[], req: IngestReq) {
     const version = versionId === null ? undefined : versionsById.get(versionId)
     if (!version || !version.meta?.filePrefix) continue
     const prefix = version.meta.filePrefix
+    const lessons = version.lessons ?? []
+    const lessonNumbers = lessons.flatMap(({ number }) => (number == null ? [] : [number]))
     const target = {
       id: plan.id,
       title: plan.title,
-      lessons: new Set(
-        (version.lessons ?? []).flatMap(({ number }) => (number == null ? [] : [number])),
-      ),
+      lessons: new Set(lessonNumbers),
     }
     targets.set(prefix, [...(targets.get(prefix) ?? []), target])
   }
@@ -92,9 +91,10 @@ async function storedHashes(matches: Pending[], req: IngestReq) {
   const hashes = new Set<string>()
   if (!matches.length) return hashes
   const keys = new Set(
-    matches.map(({ attachment: { lessonPlan, lessonNumber, kind }, input }) =>
-      attachmentKey(lessonPlan, lessonNumber, kind, input.bytes.length),
-    ),
+    matches.map(({ attachment, input }) => {
+      const { lessonPlan, lessonNumber, kind } = attachment
+      return attachmentKey(lessonPlan, lessonNumber, kind, input.bytes.length)
+    }),
   )
   const { docs } = await req.payload.find({
     collection: 'supporting-files',
@@ -115,7 +115,9 @@ async function storedHashes(matches: Pending[], req: IngestReq) {
     if (basename(doc.filename) !== doc.filename) throw new Error('Invalid supporting file name.')
     const hash = createHash('sha256')
     try {
-      for await (const chunk of createReadStream(join(directory, doc.filename))) hash.update(chunk)
+      for await (const chunk of createReadStream(join(directory, doc.filename))) {
+        hash.update(chunk)
+      }
     } catch (error) {
       // A removed row's file may disappear after the query.
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
@@ -173,7 +175,9 @@ export async function importSupportingFiles(
 ): Promise<SupportingFileReport> {
   const req: IngestReq = { payload }
   const preview = await planImport(inputs, req)
-  if (confirmation !== preview.report.previewToken || !preview.pending.length) return preview.report
+  if (confirmation !== preview.report.previewToken || !preview.pending.length) {
+    return preview.report
+  }
 
   const directory = storageDirectory(payload)
   const written: string[] = []
@@ -181,11 +185,8 @@ export async function importSupportingFiles(
   await initTransaction(req)
   try {
     // Serialize imports for the same plans and re-check the match and hash after taking the locks.
-    await lockRows(
-      req,
-      'lesson_plans',
-      preview.pending.map(({ attachment }) => attachment.lessonPlan),
-    )
+    const planIds = preview.pending.map(({ attachment }) => attachment.lessonPlan)
+    await lockRows(req, 'lesson_plans', planIds)
     const current = await planImport(inputs, req)
     report = current.report
     if (confirmation === report.previewToken) {
