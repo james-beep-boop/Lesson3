@@ -118,7 +118,8 @@ function nativeFields(schema: Schema, parent = ''): Field[] {
     if (node.type === 'integer') return { ...field, type: 'number' }
     if (node.type === 'boolean') return { ...field, type: 'checkbox' }
     if (node.type !== 'string') throw new Error(`Cannot store deck field ${path}: ${node.type}`)
-    return { ...field, type: role === 'structure' ? 'text' : 'textarea' }
+    if (role === 'structure') return { ...field, type: 'text' }
+    return { ...field, type: 'textarea' }
   })
 }
 
