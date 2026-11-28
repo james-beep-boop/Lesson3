@@ -9,7 +9,7 @@
 Lesson3 retains the upstream copyright and license text at
 `app/src/generator/vendor/LICENSE`; see the adjacent provenance record for the exact vendored pin.
 
-This is the upstream system that produces ARES CBE lesson plans. Lesson3 depends on it for two things:
+This is the upstream system that produces ARES CBE lesson plans and slides.
 
 ### 1. The generated JSON contract (source of truth for Lesson3 ingest)
 
@@ -115,6 +115,28 @@ oracle's resource links and Lesson3's later prose hyperlinks.
 `742c8a9` pin. Lesson3-owned glue supplies each stored `lesson.resourceLinks` map without
 Python/SQLite, and renderer revision 2 invalidated pre-cutover DOCX, PDF, and HTML-preview cache
 identities.
+
+## ARES presentation builder
+
+The `presentations` commit `51033f4fd7ba8ad73441d0e0ff0d51a2a6163246` supplies the deck builder,
+assets, schema and Biology 1.1 pilot. The source and fixtures live in `app/src/decks/vendor/`.
+`deckVendorProvenance.spec.ts` checks the bytes against the hashes in that directory's `PROVENANCE.md`.
+The local `package.json` marks the vendored JavaScript as CommonJS.
+
+- `buildDeck(spec, data, lessonNumber)` accepts the merged ARES deck spec and the same bundle data
+  object used by the DOCX generator. It returns the `.pptx` as a buffer and removes its temporary
+  files after calling the upstream builder. Both renderers use the shared fixed-year attribution.
+- PptxGenJS `4.0.1` builds the slides. `@napi-rs/canvas` `0.1.80` measures text with the bundled
+  Carlito fonts. The Docker base image places the fonts where upstream looks for them. PptxGenJS's
+  declared `image-size` dependency is overridden to `2.0.4`, which fixes the two high-severity
+  parsing advisories. The deck build uses PptxGenJS's bundled image handling.
+  [PptxGenJS runtime](https://github.com/gitbrent/PptxGenJS/blob/v4.0.1/dist/pptxgen.cjs.js),
+  [CVE-2025-71329](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq),
+  [CVE-2025-71330](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr).
+- `scripts/vendor-decks.sh <clone> <presentations-commit>` copies the recorded renderer files and
+  prints their SHA-256 hashes. Review additions to the upstream file list, update `PROVENANCE.md`,
+  increment `DECK_RENDER_VERSION` and run the pilot unit test through `scripts/in-deps.sh`.
+  The pilot sets `DECK_ALLOW_MISSING_ART=1` to exercise the builder's placeholder art.
 
 ## Prior implementation (reference only)
 

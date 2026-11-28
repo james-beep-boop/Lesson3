@@ -9,6 +9,9 @@
 # Resolved 2026-11-20: Node 24.22.3 on Alpine 3.24 / Debian bookworm.
 FROM node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS base
 
+# The deck builder measures text using Carlito from this system font directory.
+COPY src/decks/vendor/fonts/carlito/ /usr/share/fonts/truetype/crosextra/
+
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
@@ -92,9 +95,10 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # The standalone trace contains executable application and vendored generator code but does not
-# retain source-adjacent license files. Ship both MIT notices explicitly with the distributed image.
+# retain source-adjacent license files. Ship the MIT notices explicitly with the distributed image.
 COPY --from=builder --chown=nextjs:nodejs /app/LICENSE ./LICENSE
 COPY --from=builder --chown=nextjs:nodejs /app/src/generator/vendor/LICENSE ./THIRD_PARTY_LICENSES/cbe-generation-system-MIT.txt
+COPY --from=builder --chown=nextjs:nodejs /app/src/decks/vendor/LICENSE ./THIRD_PARTY_LICENSES/cbe-deck-builder-MIT.txt
 # Prove the final standalone trace contains sharp's native addon and libvips. This caught a real
 # ARM64 failure where the full deps image worked but the production image could not start.
 RUN node --input-type=module -e "const { default: sharp } = await import('sharp'); await sharp({ create: { width: 1, height: 1, channels: 4, background: '#00000000' } }).png().toBuffer()"

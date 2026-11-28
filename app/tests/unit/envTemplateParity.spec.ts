@@ -120,9 +120,9 @@ const COMPOSE_ONLY = new Set(['POSTGRES_PASSWORD', 'GOTENBERG_TREE', 'NODE_ENV',
  *
  * `ATTRIBUTION_YAML` is the second member, for a different reason: it is read by byte-pristine vendored
  * code (vendor/lib/attribution.js lets it override the path of its attribution config), and
- * `generator/index.ts` DEFAULTS it to the real on-disk path because the bundled vendored code would
+ * `generator/attributionEnvironment.ts` defaults it to the real on-disk path because the bundled code would
  * otherwise resolve a build-time `/ROOT/...` placeholder that does not exist in the production image.
- * Lesson3 ships exactly one config (generator/config/attribution.yaml, fixed copyright year); pointing the
+ * Lesson3 ships one shared config (generator/config/attribution.yaml, fixed copyright year); pointing the
  * variable elsewhere would change the licence text and year stamped on every document without a
  * render-version bump, so it is not an operator setting. Being in this set ALSO means test D enforces that
  * it stays out of every template. A NEW env read in vendored code still fails this suite until classified.
@@ -132,12 +132,15 @@ const COMPOSE_ONLY = new Set(['POSTGRES_PASSWORD', 'GOTENBERG_TREE', 'NODE_ENV',
  * `lesson_contract.js` `checkModule()` accepts three-level rubrics under `CBE_LEGACY_RUBRIC=1` for upstream's
  * tracked-change baseline renders. Lesson3 calls neither function (it uses the builders directly), so
  * neither variable has any effect here, and offering them as settings would only mislead.
+ *
+ * `DECK_ALLOW_MISSING_ART` is used by the deck pilot test to render upstream's placeholder art.
  */
 const NEVER_IN_TEMPLATE = new Set([
   'ALLOW_FIRST_USER_BOOTSTRAP',
   'ATTRIBUTION_YAML',
   'CBE_OUTPUT_ROOT',
   'CBE_LEGACY_RUBRIC',
+  'DECK_ALLOW_MISSING_ART',
 ])
 
 /** Without these four, a host-local `next dev` run is misconfigured rather than merely untuned. */
@@ -202,14 +205,13 @@ const PROCESS_MODULES = new Set(['process', 'node:process'])
  * general fix for a problem this file already got wrong twice by enumerating spellings: first
  * `process['env']` was missed, then `process?.env` and `(process).env`. Rather than keep widening a
  * pattern, every `process` reference must now be one this checker classified.
+ * The deck builder's CLI entry point reads argv and exits with the render result.
  */
 const PROCESS_NON_ENV_MEMBERS = new Set(['pid', 'cwd', 'argv', 'exit'])
 
 /**
- * `.js` is included deliberately: `allowJs` is on and `app/src` already contains five `.js` files
- * (the byte-pristine vendored ARES generator, plus Payload's generated importMap). The vendored
- * `attribution.js` reads one (`ATTRIBUTION_YAML`, classified in `NEVER_IN_TEMPLATE`); any other read must
- * be visible here rather than silently unscanned. This test only ever READS those files.
+ * `.js` is included deliberately: both vendored ARES renderers use it and read environment
+ * variables. This test parses their source alongside the app so new reads need classification.
  */
 const SOURCE_EXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 
