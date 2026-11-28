@@ -76,7 +76,9 @@ export default async function BrowsePage({
     ),
     t.time('favorites', () => findPersonalFavorites(payload, { user })),
     t.time('versionCounts', () => versionCountsByPlan(payload)),
-    t.time('unsavedWork', async () => listUnsavedWork(await createLocalReq({ user }, payload), user)),
+    t.time('unsavedWork', async () =>
+      listUnsavedWork(await createLocalReq({ user }, payload), user),
+    ),
     t.time('supportingFiles', () =>
       payload.find({
         collection: 'supporting-files',

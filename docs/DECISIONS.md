@@ -16900,3 +16900,7 @@ all attempts if any destination had a real error, including a foreign installati
 disk copy does not hide that failure from automation. An unplugged USB is neutral “not connected”,
 recorded separately, and does not fail an otherwise successful disk backup. Freshness remains
 independent: USB defaults to 30 days, disk uses the school’s agreed maximum data loss.
+
+## Answers from David (agentd)
+
+- 2026-11-27, #513: Provide the failed step name and error output from GitHub Actions job 140817471582 so I can fix the cause. — The failed step is format:check (prettier --check). Only one file fails: src/app/(frontend)/page.tsx. Run scripts/in-deps.sh npx prettier --write "src/app/(frontend)/page.tsx" and commit. No other failure: the "app did not become healthy" lines in the log are an expected test case. <!-- agentd #513 q:130418e58d076ac9 -->
