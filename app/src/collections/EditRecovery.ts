@@ -3,10 +3,8 @@ import type { CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
 /**
  * Edit recovery (SPEC §5/§13, design in `docs/DESIGN-working-drafts.md`) — a per-user, per-source
  * capture of UNSAVED prose edits, so an idle-timeout logout stops destroying work in progress. One
- * row per `(user, sourceVersion)`: either an active capture or that pair's retirement marker.
- *
- * The feature is "edit recovery", never "draft" — `draft` is a RESERVED word here, already meaning an
- * unofficial saved version (SPEC §13). The file path `DESIGN-working-drafts.md` predates the rename.
+ * row per user and source version in either collection. The row holds an active capture or its
+ * retirement marker. The interface calls an active capture a draft (SPEC §5).
  *
  * ⚑ **What the compound unique index does and does NOT do.** It enforces one row per
  * `(user, sourceVersion)` and gives `start`'s upsert its conflict target. It does **not** enforce the
@@ -39,12 +37,8 @@ import type { CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
  * Payload's Local API defaults `overrideAccess` to true and would bypass every function below,
  * passing vacuously. House pattern: the docblock of `tests/int/access.int.spec.ts`.
  *
- * Parent deletions: `user` and `sourceVersion` are required, so they are NOT NULL columns with
- * ON DELETE SET NULL FKs — leaving rows behind makes Postgres raise 23502, the trap
- * `cascadeDeleteLessonPlanVersions` and `cascadeDeleteVersionFavorites` already document. The two
- * hooks below delete children before the parent row goes (§7 cases 17–18). Deleting a lesson PLAN is
- * covered transitively: it cascades to its versions, and the version hook runs per row even for bulk
- * where-based deletes, so `lessonPlan` needs no third hook of its own.
+ * The deletion hooks remove recovery rows before deleting a user or source version (§7 cases
+ * 17–18). Each version hook also runs when deleting a parent or replacing a deck on import.
  */
 
 /**
@@ -56,7 +50,7 @@ import type { CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
  * nothing left to fence and a tombstone would only leak that the user had been editing.
  */
 const cascadeDeleteRecoveryBy =
-  (field: 'sourceVersion' | 'user'): CollectionBeforeDeleteHook =>
+  (field: 'sourceVersion' | 'deckVersion' | 'user'): CollectionBeforeDeleteHook =>
   async ({ id, req }) => {
     await req.payload.delete({
       collection: 'edit-recovery',
@@ -75,6 +69,7 @@ const cascadeDeleteRecoveryBy =
 /** beforeDelete on `lesson-bundle-versions` — per row even for bulk deletes, so plan deletion is
  *  covered transitively (§7 case 17). */
 export const cascadeDeleteVersionRecovery = cascadeDeleteRecoveryBy('sourceVersion')
+export const cascadeDeleteDeckVersionRecovery = cascadeDeleteRecoveryBy('deckVersion')
 /** beforeDelete on `users` (§7 case 18). */
 export const cascadeDeleteUserRecovery = cascadeDeleteRecoveryBy('user')
 
@@ -89,7 +84,10 @@ export const EditRecovery: CollectionConfig = {
   admin: {
     hidden: true,
   },
-  indexes: [{ fields: ['user', 'sourceVersion'], unique: true }],
+  indexes: [
+    { fields: ['user', 'sourceVersion'], unique: true },
+    { fields: ['user', 'deckVersion'], unique: true },
+  ],
   access: {
     read: closed,
     create: closed,
@@ -113,16 +111,20 @@ export const EditRecovery: CollectionConfig = {
       name: 'sourceVersion',
       type: 'relationship',
       relationTo: 'lesson-bundle-versions',
-      required: true,
+      index: true,
+    },
+    {
+      name: 'deckVersion',
+      type: 'relationship',
+      relationTo: 'deck-versions',
       index: true,
     },
     {
       // Denormalised from the source version so metadata/cleanup can list by plan without loading
-      // every version. Never authoritative — `sourceVersion` is.
+      // every version. Deck captures use only their deckVersion relationship.
       name: 'lessonPlan',
       type: 'relationship',
       relationTo: 'lesson-plans',
-      required: true,
       index: true,
     },
     {

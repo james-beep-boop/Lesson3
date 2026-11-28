@@ -39,9 +39,15 @@ function upload(role?: RoleKey, file = pilot, plan = fx.plan.id, replace = false
   return wire('decks/upload', role, { method: 'POST', body })
 }
 
-function save(id: number, role?: RoleKey, candidate: unknown = {}) {
+type Token = { generation: number; revision: number }
+
+function save(id: number, role?: RoleKey, candidate: unknown = {}, token?: Token) {
   const body = new FormData()
   body.set('data', JSON.stringify(candidate))
+  if (token) {
+    body.set('recoveryGeneration', String(token.generation))
+    body.set('recoveryExpectedRevision', String(token.revision))
+  }
   return wire(`deck-versions/${id}/save-as-new`, role, { method: 'POST', body })
 }
 
@@ -199,6 +205,32 @@ it('imports the pilot with art and replaces changed decks', async () => {
   expect((await promote(missing, 'subjectAdmin')).status).toBe(404)
 
   const edited = structuredClone(original)
+  const recovery = `deck-versions/${official}/recovery`
+  for (const [method, suffix] of [
+    ['POST', '/start'],
+    ['POST', ''],
+    ['GET', ''],
+    ['DELETE', ''],
+    ['GET', '/meta'],
+    ['POST', '/meta/cleanup'],
+    ['GET', '/unsaved-count'],
+  ]) {
+    const adminOnly = suffix.startsWith('/meta') || suffix === '/unsaved-count'
+    expect((await wire(recovery + suffix, undefined, { method })).status).toBe(401)
+    const denied = await wire(recovery + suffix, 'teacher', { method })
+    expect(denied.status).toBe(adminOnly ? 403 : 404)
+    expect(
+      (await wire(`deck-versions/${missing}/recovery${suffix}`, 'siteAdmin', { method })).status,
+    ).toBe(404)
+  }
+  const draftRequest = (method: string, data: unknown): RequestInit => ({
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  const { token: started } = await body<{ token: Token }>(
+    await wire(recovery + '/start', 'editor', { method: 'POST' }),
+  )
   const slide = edited.spec!.slides![0]!
   slide.title = 'Changed slide title'
   slide.phase = 'model'
@@ -214,7 +246,71 @@ it('imports the pilot with art and replaces changed decks', async () => {
   const reordered = structuredClone(edited)
   reordered.spec!.slides!.reverse()
   expect((await save(official, 'editor', reordered)).status).toBe(403)
-  const copy = await body<{ id: number }>(await save(official, 'editor', edited))
+  const { token: captured } = await body<{ token: Token }>(
+    await wire(
+      recovery,
+      'editor',
+      draftRequest('POST', {
+        generation: started.generation,
+        expectedRevision: started.revision,
+        document: edited,
+        combineContext: { mergeParent: 9, resolvedKeys: [] },
+      }),
+    ),
+  )
+  const draft = await body<{ capture: { content: unknown; combineContext: unknown } }>(
+    await wire(recovery, 'editor'),
+  )
+  expect(draft.capture.content).toMatchObject({
+    [`deck.slides:${slide.id}`]: { title: 'Changed slide title' },
+  })
+  expect(JSON.stringify(draft.capture.content)).not.toContain('Forged prompt')
+  expect(JSON.stringify(draft.capture.content)).not.toContain('new_art')
+  expect(draft.capture.combineContext).toBeNull()
+  expect(await body(await wire(recovery, 'subjectAdmin'))).toEqual({ capture: null })
+  expect(await body(await wire(recovery + '/unsaved-count', 'siteAdmin'))).toEqual({
+    otherUsers: 1,
+    includesCaller: false,
+  })
+  const metadata = await body<{ captures: { userId: number; revision: number }[] }>(
+    await wire(recovery + '/meta', 'siteAdmin'),
+  )
+  expect(metadata.captures).toEqual([
+    expect.objectContaining({ userId: fx.users.editor.id, revision: captured.revision }),
+  ])
+  expect(metadata.captures[0]).not.toHaveProperty('content')
+  expect((await save(official, 'editor', edited, started)).status).toBe(409)
+  const copy = await body<{ id: number }>(await save(official, 'editor', edited, captured))
+  expect(await body(await wire(recovery, 'editor'))).toEqual({ capture: null })
+  const ownRecovery = `deck-versions/${copy.id}/recovery`
+  const { token: ownToken } = await body<{ token: Token }>(
+    await wire(ownRecovery + '/start', 'editor', { method: 'POST' }),
+  )
+  await body(
+    await wire(
+      ownRecovery,
+      'editor',
+      draftRequest('DELETE', {
+        generation: ownToken.generation,
+        expectedRevision: ownToken.revision,
+      }),
+    ),
+  )
+  await body(await wire(ownRecovery + '/start', 'editor', { method: 'POST' }))
+  const { captures } = await body<{ captures: { userId: number; revision: number }[] }>(
+    await wire(ownRecovery + '/meta', 'siteAdmin'),
+  )
+  await body(
+    await wire(
+      ownRecovery + '/meta/cleanup',
+      'siteAdmin',
+      draftRequest('POST', {
+        userId: fx.users.editor.id,
+        expectedRevision: captures[0]!.revision,
+      }),
+    ),
+  )
+  expect(await body(await wire(ownRecovery, 'editor'))).toEqual({ capture: null })
   const authored = await version(copy.id)
   expect(authored.semver).toBe('1.0.1')
   expect(authored.author).toBe(fx.users.editor.id)
@@ -234,13 +330,19 @@ it('imports the pilot with art and replaces changed decks', async () => {
   const withQuiz = structuredClone(edited)
   withQuiz.spec!.slides![0]!.quiz_links = [{ value: 'https://quiz.example/lesson1' }]
   expect((await save(official, 'editor', withQuiz)).status).toBe(403)
+  const slides = withQuiz.spec!.slides!
+  const newSlide = { ...structuredClone(slides[0]!), id: undefined, title: 'Added slide' }
+  withQuiz.spec!.slides = [slides[1]!, slides[0]!, ...slides.slice(3), newSlide]
   const adminCopy = await body<{ id: number }>(await save(official, 'subjectAdmin', withQuiz))
   const adminVersion = await version(adminCopy.id)
   expect(adminVersion.semver).toBe('1.0.2')
-  expect(adminVersion.spec?.slides?.[0]).toMatchObject({ phase: 'model', minutes: 9 })
-  expect(adminVersion.spec!.slides![1]!.timers![0]!.time).toBe('9:00')
+  expect(adminVersion.spec?.slides?.map(({ title }) => title)).toEqual(
+    withQuiz.spec!.slides.map(({ title }) => title),
+  )
+  expect(adminVersion.spec?.slides?.[1]).toMatchObject({ phase: 'model', minutes: 9 })
+  expect(adminVersion.spec!.slides![0]!.timers![0]!.time).toBe('9:00')
   expect(adminVersion.spec?.hero?.art_id).toBe('new_art')
-  expect(adminVersion.spec?.slides?.[0]?.quiz_links?.[0]?.value).toBe(
+  expect(adminVersion.spec?.slides?.[1]?.quiz_links?.[0]?.value).toBe(
     'https://quiz.example/lesson1',
   )
   const adminStored = await fx.payload.findByID({
@@ -338,8 +440,14 @@ it('downloads all 21 pilot slides in both formats and caches repeated requests',
   expect((await wire(`${url}?as=docx`, 'teacher')).status).toBe(400)
   expect((await wire(`${url}?planVersion=${fx.version.id}`, 'teacher')).status).toBe(404)
 
-  const download = async (kind: 'pptx' | 'pdf', role: RoleKey, cache: 'MISS' | 'HIT') => {
-    const response = await wire(`${url}?as=${kind}&planVersion=${planVersion.id}`, role)
+  const download = async (
+    kind: 'pptx' | 'pdf',
+    role: RoleKey,
+    cache: 'MISS' | 'HIT',
+    deckVersion?: number,
+  ) => {
+    const exact = deckVersion == null ? '' : `&deckVersion=${deckVersion}`
+    const response = await wire(`${url}?as=${kind}&planVersion=${planVersion.id}${exact}`, role)
     expect(response.status, response.ok ? undefined : await response.text()).toBe(200)
     expect(response.headers.get('x-artifact-cache')).toBe(cache)
     expect(response.headers.get('content-disposition')).toBe(
@@ -373,9 +481,17 @@ it('downloads all 21 pilot slides in both formats and caches repeated requests',
   const deck = await body<Deck>(await wire(`decks/${id}?depth=0`, 'teacher'))
   const official = await version(Number(deck.officialVersion))
   const title = 'Inside a cell'
-  official.spec!.lesson_title_short = title
+  official.spec!.slides![0]!.title = title
   const revised = await body<{ id: number }>(await save(official.id, 'editor', official))
-  await body(await promote(revised.id, 'subjectAdmin'))
-  const revisedSlides = await JSZip.loadAsync(await download('pptx', 'teacher', 'MISS'))
-  expect(await revisedSlides.file('ppt/slides/slide1.xml')!.async('string')).toContain(title)
-})
+  expect((await version(revised.id)).semver).toBe('1.0.1')
+  expect((await wire(`${url}?deckVersion=${missing}`, 'editor')).status).toBe(404)
+  expect((await wire(`${url}?deckVersion=latest`, 'editor')).status).toBe(400)
+  const revisedSlides = await JSZip.loadAsync(await download('pptx', 'editor', 'MISS', revised.id))
+  const revisedText = await Promise.all(
+    revisedSlides.file(/^ppt\/slides\/slide\d+\.xml$/).map((slide) => slide.async('string')),
+  )
+  expect(revisedText.some((text) => text.includes(title))).toBe(true)
+  const revisedPdf = await download('pdf', 'editor', 'MISS', revised.id)
+  expect(revisedPdf.subarray(0, 5).toString()).toBe('%PDF-')
+  expect(await download('pptx', 'teacher', 'HIT')).toEqual(pptx)
+}, 60_000)

@@ -96,7 +96,7 @@ export default async function BrowsePage({
   const resume = newest
     ? {
         label: newest.label,
-        href: `/admin/collections/lesson-bundle-versions/${newest.versionId}?edit=1`,
+        href: `/admin/collections/${newest.collection ?? 'lesson-bundle-versions'}/${newest.versionId}?edit=1`,
         restorable: newest.restorable,
       }
     : null

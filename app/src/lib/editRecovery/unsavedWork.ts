@@ -26,12 +26,14 @@ import type { PayloadRequest } from 'payload'
 import { isEditorFor, isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import type { User } from '../../payload-types'
 import { relId } from '../relId'
+import { deckSeries, type VersionSeries } from '../versionSeries'
 import { lessonDisplayName } from '../substrand'
 import { listOwnCaptures } from './kernel'
 import { captureProvenance } from './provenance'
 
 export interface UnsavedWorkRow {
   versionId: number
+  collection?: VersionSeries['versions']
   label: string
   semver: string
   subjectGradeId: number | null
@@ -52,37 +54,64 @@ export async function listUnsavedWork(req: PayloadRequest, user: User): Promise<
   const captures = await listOwnCaptures(req, { userId: user.id })
   if (captures.length === 0) return []
 
-  const { docs: versions } = await req.payload.find({
-    collection: 'lesson-bundle-versions',
-    overrideAccess: false,
-    user,
-    req,
-    depth: 0,
-    pagination: false,
-    where: { id: { in: captures.map((c) => c.sourceVersionId) } },
-    select: {
-      title: true,
-      semver: true,
-      subjectGrade: true,
-      updatedAt: true,
-      meta: { substrand_name: true },
-    },
-  })
-  const byId = new Map(
-    versions
-      .filter((v) => isEditorFor(user, relId(v.subjectGrade) ?? undefined))
-      .map((v) => [v.id, v]),
-  )
+  const planIds = captures.filter((c) => !c.collection).map((c) => c.sourceVersionId)
+  const deckIds = captures
+    .filter((c) => c.collection === deckSeries.versions)
+    .map((c) => c.sourceVersionId)
+  const [{ docs: versions }, { docs: deckVersions }] = await Promise.all([
+    planIds.length
+      ? req.payload.find({
+          collection: 'lesson-bundle-versions',
+          overrideAccess: false,
+          user,
+          req,
+          depth: 0,
+          pagination: false,
+          where: { id: { in: planIds } },
+          select: {
+            title: true,
+            semver: true,
+            subjectGrade: true,
+            updatedAt: true,
+            meta: { substrand_name: true },
+          },
+        })
+      : { docs: [] },
+    deckIds.length
+      ? req.payload.find({
+          collection: deckSeries.versions,
+          overrideAccess: false,
+          user,
+          req,
+          depth: 0,
+          pagination: false,
+          where: { id: { in: deckIds } },
+          select: {
+            semver: true,
+            subjectGrade: true,
+            updatedAt: true,
+            spec: { lesson_title_short: true },
+          },
+        })
+      : { docs: [] },
+  ])
+  const byId = new Map(versions.map((v) => [v.id, v]))
+  const decksById = new Map(deckVersions.map((v) => [v.id, v]))
 
   // Captures arrive newest first; keep that order rather than the find's.
   return captures.flatMap((c) => {
-    const v = byId.get(c.sourceVersionId)
-    if (!v) return []
+    const plan = c.collection ? undefined : byId.get(c.sourceVersionId)
+    const deck = c.collection ? decksById.get(c.sourceVersionId) : undefined
+    const v = plan ?? deck
+    if (!v || !isEditorFor(user, relId(v.subjectGrade) ?? undefined)) return []
     const { stale, schemaMismatch } = captureProvenance(c, v.updatedAt)
     return [
       {
         versionId: v.id,
-        label: lessonDisplayName(v.meta?.substrand_name, v.title),
+        ...(c.collection ? { collection: c.collection } : {}),
+        label: deck
+          ? `Slides · ${deck.spec?.lesson_title_short || 'Lesson deck'}`
+          : lessonDisplayName(plan?.meta?.substrand_name, plan?.title),
         semver: v.semver ?? '',
         subjectGradeId: relId(v.subjectGrade),
         capturedAt: c.token.updatedAt,

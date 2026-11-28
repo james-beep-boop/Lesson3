@@ -23,7 +23,22 @@ import type { PayloadRequest } from 'payload'
 import { rowsOf, toPositiveInt, txDb, type TxSource } from '../txDb'
 import { parseCombineContext, type CombineContext } from '../combine/draft'
 import { projectCapture } from './projection'
+import { deckSeries, type VersionSeries } from '../versionSeries'
 import { captureExpiryCutoff } from './ttl'
+
+type RecoverySource = {
+  sourceVersionId: number
+  collection?: VersionSeries['versions']
+}
+
+const sourceColumn = (source: RecoverySource) =>
+  source.collection === deckSeries.versions ? sql`deck_version_id` : sql`source_version_id`
+
+function sourceFromRow(row: Record<string, unknown>): RecoverySource {
+  return row.deck_version_id == null
+    ? { sourceVersionId: toPositiveInt(row.source_version_id) }
+    : { sourceVersionId: toPositiveInt(row.deck_version_id), collection: deckSeries.versions }
+}
 
 /** What every advancing write returns, and what the client must adopt (§4's token rule). */
 export type RecoveryToken = {
@@ -107,10 +122,9 @@ export type StartResult =
 
 export const start = async (
   req: PayloadRequest,
-  args: {
+  args: RecoverySource & {
     userId: number
-    sourceVersionId: number
-    lessonPlanId: number
+    lessonPlanId?: number
     /** The SOURCE's `updatedAt`, read server-side from the version this caller was authorized against. */
     sourceUpdatedAt: string
     schemaVersion: string
@@ -129,10 +143,10 @@ export const start = async (
       WHERE user_id = ${args.userId} AND retired_at IS NULL
     )
     INSERT INTO edit_recovery
-      (user_id, source_version_id, lesson_plan_id, generation, revision,
+      (user_id, ${sourceColumn(args)}, lesson_plan_id, generation, revision,
        base_updated_at, schema_version, content, updated_at, created_at)
     SELECT
-      ${args.userId}, ${args.sourceVersionId}, ${args.lessonPlanId}, 1, 1,
+      ${args.userId}, ${args.sourceVersionId}, ${args.lessonPlanId ?? null}, 1, 1,
       ${args.sourceUpdatedAt}::timestamptz, ${args.schemaVersion}, NULL, NOW(), NOW()
     FROM active
     -- The INSERT must still be ATTEMPTED when a row already exists for this pair, or the ON CONFLICT
@@ -141,9 +155,9 @@ export const start = async (
     WHERE active.n < ${cap}
        OR EXISTS (
             SELECT 1 FROM edit_recovery
-            WHERE user_id = ${args.userId} AND source_version_id = ${args.sourceVersionId}
+            WHERE user_id = ${args.userId} AND ${sourceColumn(args)} = ${args.sourceVersionId}
           )
-    ON CONFLICT (user_id, source_version_id) DO UPDATE SET
+    ON CONFLICT (user_id, ${sourceColumn(args)}) DO UPDATE SET
       generation = edit_recovery.generation
                  + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
       revision   = edit_recovery.revision
@@ -233,9 +247,8 @@ export type CaptureResult =
  */
 export const capture = async (
   req: PayloadRequest,
-  args: {
+  args: RecoverySource & {
     userId: number
-    sourceVersionId: number
     generation: number
     expectedRevision: number
     /**
@@ -255,7 +268,8 @@ export const capture = async (
     /* Drop invalid optional metadata. */
   }
   const context = parsed === null ? null : JSON.stringify(parsed)
-  const projected = projectCapture(args.formDocument as Record<string, unknown> | null)
+  const document = args.formDocument as Record<string, unknown> | null
+  const projected = projectCapture(document, args.collection)
   const json = JSON.stringify(projected)
   const bytes = Buffer.byteLength(json, 'utf8')
   if (bytes > MAX_CAPTURE_BYTES) return { ok: false, reason: 'too-large', bytes }
@@ -268,7 +282,7 @@ export const capture = async (
       revision   = edit_recovery.revision + 1,
       updated_at = NOW()
     WHERE user_id = ${args.userId}
-      AND source_version_id = ${args.sourceVersionId}
+      AND ${sourceColumn(args)} = ${args.sourceVersionId}
       AND retired_at IS NULL
       AND generation = ${args.generation}
       AND revision = ${args.expectedRevision}
@@ -331,7 +345,7 @@ export type RetireResult = { ok: true; token: RecoveryToken } | { ok: false; rea
  */
 export const retire = async (
   req: PayloadRequest,
-  target: { userId: number; sourceVersionId: number },
+  target: RecoverySource & { userId: number },
   command: RetireCommand,
 ): Promise<RetireResult> => {
   // Only save-as-new demands a live transaction: it is the caller whose retirement must roll back
@@ -363,7 +377,7 @@ export const retire = async (
       updated_at = NOW(),
       revision   = edit_recovery.revision + 1
     WHERE user_id = ${target.userId}
-      AND source_version_id = ${target.sourceVersionId}
+      AND ${sourceColumn(target)} = ${target.sourceVersionId}
       AND retired_at IS NULL
       AND revision = ${command.expectedRevision}${generationTerm}${cutoffTerm}
     RETURNING generation, revision, updated_at
@@ -411,7 +425,7 @@ export type ExpiryReport = {
  * enclosing transaction — which is also why `retire` does not demand one for this caller.
  */
 /** One row the selection chose, carrying the revision it was chosen with. */
-export type ExpiryCandidate = { userId: number; sourceVersionId: number; revision: number }
+export type ExpiryCandidate = RecoverySource & { userId: number; revision: number }
 
 /**
  * The SELECT half of the pass, split out from the retirement half.
@@ -432,7 +446,7 @@ export const selectExpiredCaptures = async (
   const db = await txDb(req)
   const rows = rowsOf(
     await db.execute(sql`
-      SELECT user_id, source_version_id, revision
+      SELECT user_id, source_version_id, deck_version_id, revision
       FROM edit_recovery
       WHERE retired_at IS NULL
         AND updated_at < ${opts.cutoff.toISOString()}::timestamptz
@@ -442,7 +456,7 @@ export const selectExpiredCaptures = async (
   )
   return rows.map((row) => ({
     userId: toPositiveInt(row.user_id),
-    sourceVersionId: toPositiveInt(row.source_version_id),
+    ...sourceFromRow(row),
     revision: toPositiveInt(row.revision),
   }))
 }
@@ -462,11 +476,11 @@ export const retireSelected = async (
 ): Promise<ExpiryReport> => {
   const report: ExpiryReport = { retired: 0, skipped: 0 }
   for (const candidate of candidates) {
-    const result = await retire(
-      req,
-      { userId: candidate.userId, sourceVersionId: candidate.sourceVersionId },
-      { by: 'expiry', expectedRevision: candidate.revision, cutoff },
-    )
+    const result = await retire(req, candidate, {
+      by: 'expiry',
+      expectedRevision: candidate.revision,
+      cutoff,
+    })
     if (result.ok) report.retired += 1
     else report.skipped += 1
   }
@@ -515,7 +529,7 @@ export type ActiveCapture = {
  */
 export const readActiveCapture = async (
   req: PayloadRequest,
-  args: { userId: number; sourceVersionId: number },
+  args: RecoverySource & { userId: number },
 ): Promise<ActiveCapture | null> => {
   const db = await txDb(req)
   const row = rowsOf(
@@ -523,7 +537,7 @@ export const readActiveCapture = async (
       SELECT generation, revision, updated_at, content, combine_context, base_updated_at, schema_version
       FROM edit_recovery
       WHERE user_id = ${args.userId}
-        AND source_version_id = ${args.sourceVersionId}
+        AND ${sourceColumn(args)} = ${args.sourceVersionId}
         AND retired_at IS NULL
     `),
   )[0]
@@ -577,7 +591,7 @@ export type CaptureMetadata = {
  */
 export const readCaptureMetadata = async (
   req: PayloadRequest,
-  args: { sourceVersionId: number },
+  args: RecoverySource,
 ): Promise<CaptureMetadata[]> => {
   const db = await txDb(req)
   const rows = rowsOf(
@@ -585,7 +599,7 @@ export const readCaptureMetadata = async (
       SELECT user_id, revision, updated_at,
              COALESCE(octet_length(content::text), 0) AS bytes
       FROM edit_recovery
-      WHERE source_version_id = ${args.sourceVersionId}
+      WHERE ${sourceColumn(args)} = ${args.sourceVersionId}
         AND retired_at IS NULL
       ORDER BY updated_at DESC
     `),
@@ -610,8 +624,7 @@ export const readCaptureMetadata = async (
 const holdsUnsavedWork = sql`retired_at IS NULL AND content IS NOT NULL AND content <> '{}'::jsonb`
 
 /** One of the caller's own captures, for the Manage list. ⚑ Deliberately has NO `content` field. */
-export type OwnCapture = {
-  sourceVersionId: number
+export type OwnCapture = RecoverySource & {
   token: RecoveryToken
   /** The source's `updatedAt` when the session began — a mismatch means view/copy only. */
   baseUpdatedAt: string
@@ -635,7 +648,7 @@ export const listOwnCaptures = async (
   const db = await txDb(req)
   const rows = rowsOf(
     await db.execute(sql`
-      SELECT source_version_id, generation, revision, updated_at, base_updated_at, schema_version
+      SELECT source_version_id, deck_version_id, generation, revision, updated_at, base_updated_at, schema_version
       FROM edit_recovery
       WHERE user_id = ${args.userId}
         AND ${holdsUnsavedWork}
@@ -643,7 +656,7 @@ export const listOwnCaptures = async (
     `),
   )
   return rows.map((row) => ({
-    sourceVersionId: toPositiveInt(row.source_version_id),
+    ...sourceFromRow(row),
     token: tokenOf(row),
     baseUpdatedAt: new Date(String(row.base_updated_at)).toISOString(),
     schemaVersion: String(row.schema_version),
@@ -665,7 +678,7 @@ export type UnsavedCount = { otherUsers: number; includesCaller: boolean }
 
 export const countUnsavedWorkOnVersion = async (
   req: PayloadRequest,
-  args: { sourceVersionId: number; callerId: number },
+  args: RecoverySource & { callerId: number },
 ): Promise<UnsavedCount> => {
   const db = await txDb(req)
   const row = rowsOf(
@@ -673,7 +686,7 @@ export const countUnsavedWorkOnVersion = async (
       SELECT COUNT(*) FILTER (WHERE user_id <> ${args.callerId}) AS others,
              BOOL_OR(user_id = ${args.callerId}) AS mine
       FROM edit_recovery
-      WHERE source_version_id = ${args.sourceVersionId}
+      WHERE ${sourceColumn(args)} = ${args.sourceVersionId}
         AND ${holdsUnsavedWork}
     `),
   )[0]
@@ -691,14 +704,14 @@ export const countUnsavedWorkOnVersion = async (
  */
 export const hasUnsavedWork = async (
   req: TxSource,
-  args: { userId: number; sourceVersionId: number },
+  args: RecoverySource & { userId: number },
 ): Promise<boolean> => {
   const db = await txDb(req)
   const row = rowsOf(
     await db.execute(sql`
       SELECT 1 AS found FROM edit_recovery
       WHERE user_id = ${args.userId}
-        AND source_version_id = ${args.sourceVersionId}
+        AND ${sourceColumn(args)} = ${args.sourceVersionId}
         AND ${holdsUnsavedWork}
     `),
   )[0]

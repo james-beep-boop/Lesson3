@@ -26,6 +26,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { withDeadline } from './deadline'
 import type { Registration } from './flushRegistry'
+import { planSeries, type VersionSeries } from '../../lib/versionSeries'
 import { captureAnchors } from '../../lib/editRecovery/projection'
 import {
   classifyResponse,
@@ -163,6 +164,7 @@ export type UseEditRecovery = {
 
 export function useEditRecovery(args: {
   versionId: string | number
+  collection?: VersionSeries['versions']
   /** True only when the form is genuinely unlocked and editable by this user. */
   active: boolean
   /** True while the form is dirty. */
@@ -185,6 +187,7 @@ export function useEditRecovery(args: {
 }): UseEditRecovery {
   const {
     versionId,
+    collection = planSeries.versions,
     active,
     modified,
     changeSignal,
@@ -319,8 +322,8 @@ export function useEditRecovery(args: {
   /** One capture attempt. Returns the classified outcome; never throws. */
   /** The recovery endpoints for the version this hook is serving. */
   const recoveryUrl = useCallback(
-    (suffix = '') => `/api/lesson-bundle-versions/${live.current.versionId}/recovery${suffix}`,
-    [],
+    (suffix = '') => `/api/${collection}/${live.current.versionId}/recovery${suffix}`,
+    [collection],
   )
 
   const captureOnce = useCallback(async (): Promise<CaptureOutcome> => {
@@ -587,14 +590,14 @@ export function useEditRecovery(args: {
                 phase: 'offer',
                 capture,
                 readOnly: kind === 'readOnly',
-                anchors: captureAnchors(live.current.getDocument()),
+                anchors: captureAnchors(live.current.getDocument(), collection),
               },
         )
       } catch {
         unchecked()
       }
     },
-    [enterPhase, recoveryUrl],
+    [collection, enterPhase, recoveryUrl],
   )
 
   const start = useCallback(() => {
@@ -865,7 +868,7 @@ export function useEditRecovery(args: {
   // A different version is a different session, even without leaving edit mode.
   useEffect(() => {
     endSession()
-  }, [versionId, endSession])
+  }, [collection, versionId, endSession])
 
   // ⚑ UNMOUNT, which neither effect above covers: both are no-ops while `active` stays true and the
   // version does not change, so closing the editor mid-backoff previously left the retry scheduled.

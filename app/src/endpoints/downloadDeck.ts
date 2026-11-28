@@ -31,11 +31,16 @@ export const downloadDeckEndpoint: Endpoint = {
     if (!id) throw new APIError('Slides not found.', 404)
     const kind = req.query?.as ?? 'pptx'
     const requestedVersion = relId(req.query?.planVersion)
+    const requestedDeckVersion = relId(req.query?.deckVersion)
     if (kind !== 'pptx' && kind !== 'pdf') {
       throw new APIError('Choose slides in PowerPoint or PDF format.', 400)
     }
     if (req.query?.planVersion !== undefined && !requestedVersion) {
       throw new APIError('Choose a lesson plan version.', 400)
+    }
+
+    if (req.query?.deckVersion !== undefined && !requestedDeckVersion) {
+      throw new APIError('Choose a deck version.', 400)
     }
 
     const deck = await payload.findByID({
@@ -46,7 +51,7 @@ export const downloadDeckEndpoint: Endpoint = {
       disableErrors: true,
       req,
     })
-    const deckVersionId = relId(deck?.officialVersion)
+    const deckVersionId = requestedDeckVersion ?? relId(deck?.officialVersion)
     const planId = relId(deck?.lessonPlan)
     if (!deck || !deckVersionId || !planId) throw new APIError('Slides not found.', 404)
 

@@ -24,6 +24,8 @@ import type { DeliverableTag } from '@/generator/exportArtifacts'
 import { DELIVERABLE_LABELS, secondaryDeliverables } from '@/generator/deliverables'
 import { SUPPORTING_FILE_KINDS, type SupportingFileLink } from '@/lib/supportingFiles'
 import type { Deck } from '@/payload-types'
+import { relId } from '@/lib/relId'
+import { deckSeries } from '@/lib/versionSeries'
 
 function StripItem({ versionId, tag }: { versionId: number; tag: DeliverableTag }) {
   return (
@@ -38,12 +40,14 @@ export default function DocStrip({
   versionId,
   tags,
   slideDecks = [],
+  canEditDecks = false,
   supportingFiles = [],
   condensed = false,
 }: {
   versionId: number
   tags: DeliverableTag[]
-  slideDecks?: Pick<Deck, 'id' | 'lessonNumber'>[]
+  slideDecks?: Pick<Deck, 'id' | 'lessonNumber' | 'officialVersion'>[]
+  canEditDecks?: boolean
   supportingFiles?: SupportingFileLink[]
   condensed?: boolean
 }) {
@@ -102,7 +106,8 @@ export default function DocStrip({
       {tags.map((tag) => (
         <StripItem key={tag} versionId={versionId} tag={tag} />
       ))}
-      {slideDecks.map(({ id, lessonNumber }) => {
+      {slideDecks.map(({ id, lessonNumber, officialVersion }) => {
+        const officialId = relId(officialVersion)
         const url = `/api/decks/${id}/download?planVersion=${versionId}`
         return (
           <li className="doc-strip-item" key={id}>
@@ -124,6 +129,15 @@ export default function DocStrip({
               >
                 PowerPoint
               </a>
+              {canEditDecks && officialId != null && (
+                <a
+                  className="btn btn--quiet btn--compact"
+                  href={`/admin/collections/${deckSeries.versions}/${officialId}?edit=1&planVersion=${versionId}`}
+                  aria-label={`Edit Lesson ${lessonNumber} slides`}
+                >
+                  Edit slides
+                </a>
+              )}
             </span>
           </li>
         )

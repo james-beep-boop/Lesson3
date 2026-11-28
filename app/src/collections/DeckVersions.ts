@@ -1,6 +1,5 @@
 import { ValidationError, type CollectionConfig } from 'payload'
 
-import { canManageCurriculum } from '../access'
 import { systemOnly } from '../access/bundle'
 import {
   enforceVersionImmutable,
@@ -12,13 +11,14 @@ import {
   lessonBundleVersionRead,
 } from '../access/versioning'
 import { deckFieldErrors, deckFieldSplit, deckSpecFields, readDeckSpec } from '../decks/storage'
+import { deckRecoveryEndpoints } from '../endpoints/recovery'
 import { promoteVersionEndpoint, saveVersionEndpoint } from '../endpoints/versionEdit'
 import { versionAuthorField, versionNumberField } from '../fields/versionMetadata'
 import { refreshMutationAuthority } from '../hooks/mutationAuthority'
 import { guardOfficialDeletion, guardVersionSubjectGrade } from '../hooks/versionSeries'
 import { canonicalJson } from '../lib/canonicalJson'
 import { deckSeries } from '../lib/versionSeries'
-import type { User } from '../payload-types'
+import { cascadeDeleteDeckVersionRecovery } from './EditRecovery'
 
 const fixed = { create: systemOnly, update: systemOnly }
 
@@ -28,10 +28,19 @@ export const DeckVersions: CollectionConfig = {
   disableDuplicate: true,
   indexes: [{ fields: [deckSeries.parentKey, 'semver'], unique: true }],
   admin: {
-    group: 'Curriculum',
+    group: false,
     useAsTitle: 'semver',
     defaultColumns: ['deck', 'semver', 'author', 'updatedAt'],
-    hidden: ({ user }) => !canManageCurriculum(user as User),
+    components: {
+      edit: {
+        beforeDocumentControls: [
+          {
+            path: '@/components/LessonControls/server#default',
+            serverProps: { versionCollection: deckSeries.versions },
+          },
+        ],
+      },
+    },
   },
   access: {
     read: lessonBundleVersionRead,
@@ -53,9 +62,10 @@ export const DeckVersions: CollectionConfig = {
       },
     ],
     beforeChange: [enforceVersionImmutable],
-    beforeDelete: [guardOfficialDeletion(deckSeries)],
+    beforeDelete: [guardOfficialDeletion(deckSeries), cascadeDeleteDeckVersionRecovery],
   },
   endpoints: [
+    ...deckRecoveryEndpoints,
     saveVersionEndpoint(deckSeries, {
       policy: deckFieldSplit,
       validate: deckFieldErrors,
@@ -90,6 +100,6 @@ export const DeckVersions: CollectionConfig = {
     },
     versionAuthorField,
     versionNumberField,
-    { name: 'spec', type: 'group', fields: deckSpecFields },
+    { name: 'spec', type: 'group', label: 'Deck', fields: deckSpecFields },
   ],
 }

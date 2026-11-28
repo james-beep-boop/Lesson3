@@ -7,6 +7,7 @@ import { systemFlagsForRender } from '../../lib/systemFlags'
 import { findReadableVersion, findReadableVersionChoices } from '../../lib/readBundle'
 import { isEditorFor, toId } from '../../access'
 import { relId } from '../../lib/relId'
+import { deckSeries, planSeries, type VersionSeries } from '../../lib/versionSeries'
 import type { User } from '../../payload-types'
 import LessonControls from './index'
 
@@ -21,9 +22,11 @@ export default async function LessonControlsServer({
   payload,
   id,
   user,
-}: BeforeDocumentControlsServerProps) {
+  versionCollection: collection = planSeries.versions,
+}: BeforeDocumentControlsServerProps & { versionCollection?: VersionSeries['versions'] }) {
   const versionId = Number(id)
   const signedIn = !!user && Number.isInteger(versionId)
+  const isDeck = collection === deckSeries.versions
   const [flags, hasDraft, source] = await Promise.all([
     systemFlagsForRender(payload),
     // Existence only, keyed on the session user. A version that cannot be edited never shows the
@@ -31,10 +34,10 @@ export default async function LessonControlsServer({
     signedIn
       ? hasUnsavedWork(
           { payload, transactionID: undefined },
-          { userId: Number(user.id), sourceVersionId: versionId },
+          { userId: Number(user.id), sourceVersionId: versionId, collection },
         )
       : false,
-    signedIn
+    signedIn && !isDeck
       ? findReadableVersion(payload, {
           id: versionId,
           user: user as User,
@@ -42,6 +45,54 @@ export default async function LessonControlsServer({
         })
       : null,
   ])
+  if (isDeck) {
+    const version = signedIn
+      ? await payload.findByID({
+          collection: deckSeries.versions,
+          id: versionId,
+          user,
+          overrideAccess: false,
+          depth: 0,
+          disableErrors: true,
+          select: { deck: true },
+        })
+      : null
+    const deckId = relId(version?.deck)
+    const [deck, choices] =
+      deckId == null
+        ? [null, { docs: [] }]
+        : await Promise.all([
+            payload.findByID({
+              collection: deckSeries.parent,
+              id: deckId,
+              user,
+              overrideAccess: false,
+              depth: 0,
+              disableErrors: true,
+              select: { lessonPlan: true },
+            }),
+            payload.find({
+              collection: deckSeries.versions,
+              user,
+              overrideAccess: false,
+              depth: 0,
+              pagination: false,
+              sort: '-createdAt',
+              where: { deck: { equals: deckId } },
+              select: { semver: true },
+            }),
+          ])
+    return (
+      <LessonControls
+        key={`${collection}/${versionId}`}
+        collection={collection}
+        deckPlanId={relId(deck?.lessonPlan)}
+        flags={flags}
+        hasDraft={hasDraft}
+        versions={choices.docs}
+      />
+    )
+  }
   const planId = relId(source?.lessonPlan)
   // The Combine picker's list, only for someone who may combine here (editing access).
   const versions =

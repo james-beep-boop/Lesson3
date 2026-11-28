@@ -14,7 +14,9 @@ import { describe, expect, it } from 'vitest'
 import { stylesheetHasRule, stylesheetSelectors } from '../helpers/cssSelectors.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const scope = 'body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-versions'
+const versionCollections = ['lesson-bundle-versions', 'deck-versions']
+const scopeFor = (collection: string) =>
+  `body:has(.lesson-controls-wrap--prose-only) .collection-edit--${collection}`
 const adminCss = sass.compile(resolve(here, '../../src/app/(payload)/custom.scss')).css
 const adminRoot = postcss.parse(adminCss)
 
@@ -27,9 +29,8 @@ adminRoot.walkRules((rule) => {
   })
 })
 
-const scopedSelectors = rules.flatMap((rule) =>
-  rule.selectors.filter((selector) => selector.startsWith(`${scope} `)),
-)
+const selectorsIn = (scope: string) =>
+  rules.flatMap((rule) => rule.selectors.filter((selector) => selector.startsWith(`${scope} `)))
 
 const payloadCssPath = fileURLToPath(import.meta.resolve('@payloadcms/ui/styles.css'))
 const payloadDist = dirname(payloadCssPath)
@@ -43,21 +44,22 @@ const arrayRowSource = readFileSync(resolve(payloadDist, 'fields/Array/ArrayRow.
 const payloadHasClass = (className: string) => stylesheetHasRule(payloadSelectors, className)
 
 describe('prose-only structural controls in the version editor', () => {
-  it('hides row actions, add-row buttons and drag handles behind the role marker', () => {
+  it.each(versionCollections)('hides structural controls in %s', (collection) => {
+    const scope = scopeFor(collection)
     const expected = [
       `${scope} .array-actions`,
       `${scope} .array-field__add-row`,
       `${scope} .array-field__row .collapsible__drag`,
     ]
-    expect(scopedSelectors).toEqual(expect.arrayContaining(expected))
+    expect(selectorsIn(scope)).toEqual(expect.arrayContaining(expected))
     for (const selector of expected) {
       const rule = rules.find((candidate) => candidate.selectors.includes(selector))
       expect(rule?.body, `${selector} must be hidden`).toMatch(/display:\s*none/)
     }
   })
 
-  it('does not hide collapse/show navigation or row disclosure chevrons', () => {
-    expect(scopedSelectors.join('\n')).not.toMatch(
+  it.each(versionCollections)('preserves row navigation controls in %s', (collection) => {
+    expect(selectorsIn(scopeFor(collection)).join('\n')).not.toMatch(
       /\.array-field__header-action|\.collapsible__indicator|\.collapsible__toggle/,
     )
   })

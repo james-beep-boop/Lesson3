@@ -150,7 +150,7 @@ export default async function LessonView({
           depth: 0,
           pagination: false,
           sort: 'lessonNumber',
-          select: { lessonNumber: true },
+          select: { lessonNumber: true, officialVersion: true },
         })
       : { docs: [] },
   ])
@@ -283,6 +283,7 @@ export default async function LessonView({
             semver={selected.semver}
             deliverables={deliverables}
             slideDecks={slideDecks}
+            canEditDecks={canEdit}
             canDiscuss={forumEnabled}
             smtpEnabled={!!process.env.SMTP_HOST?.trim()}
             mode={mode}

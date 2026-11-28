@@ -959,8 +959,9 @@ export interface EditRecovery {
     | boolean
     | null;
   user: number | User;
-  sourceVersion: number | LessonBundleVersion;
-  lessonPlan: number | LessonPlan;
+  sourceVersion?: (number | null) | LessonBundleVersion;
+  deckVersion?: (number | null) | DeckVersion;
+  lessonPlan?: (number | null) | LessonPlan;
   generation: number;
   revision: number;
   retiredAt?: string | null;
@@ -1951,6 +1952,7 @@ export interface EditRecoverySelect<T extends boolean = true> {
   combineContext?: T;
   user?: T;
   sourceVersion?: T;
+  deckVersion?: T;
   lessonPlan?: T;
   generation?: T;
   revision?: T;

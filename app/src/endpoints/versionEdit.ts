@@ -215,8 +215,8 @@ export const saveVersionEndpoint = (
     // nothing. Both fields ⇒ retirement is mandatory below. Exactly one ⇒ 400, thrown in here.
     const recoveryToken = readSaveRecoveryToken(parsed.form)
     const mergeValues = parsed.form.getAll('mergeParent')
-    if (series !== planSeries && (recoveryToken || mergeValues.length)) {
-      throw new APIError('Drafts and combined versions are available for lesson plans.', 400)
+    if (series !== planSeries && mergeValues.length) {
+      throw new APIError('Combining versions is available for lesson plans.', 400)
     }
     const mergeParent = mergeValues.length ? relId(mergeValues[0]) : null
     if (
@@ -374,7 +374,7 @@ export const saveVersionEndpoint = (
         if (recoveryToken) {
           const retired = await retire(
             req,
-            { userId: caller.id, sourceVersionId: source.id },
+            { userId: caller.id, sourceVersionId: source.id, collection: series.versions },
             {
               by: 'save-as-new',
               generation: recoveryToken.generation,

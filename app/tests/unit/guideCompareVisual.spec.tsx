@@ -49,6 +49,10 @@ const css = readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), '
  */
 const adminCss = sass.compile(resolve(here, '../../src/app/(payload)/custom.scss')).css
 const adminRoot = postcss.parse(adminCss)
+const versionEditorSelectors = [
+  '.collection-edit--lesson-bundle-versions',
+  '.collection-edit--deck-versions',
+]
 
 /**
  * Compiled rules, each tagged with the media query it sits under and its source order.
@@ -123,8 +127,7 @@ describe('Guide + Compare visual system', () => {
     expect(value!.body).toMatch(/text-align:\s*left/)
   })
 
-  it('gives the version editor the shared centered page shell', () => {
-    const selector = '.collection-edit--lesson-bundle-versions'
+  it.each(versionEditorSelectors)('gives %s the shared centered page shell', (selector) => {
     const rule = adminRules.find((r) => r.media === null && r.selectors.includes(selector))
     expect(rule, `${selector} needs a desktop shell rule`).toBeTruthy()
     expect(rule!.body).toMatch(/max-width:\s*var\(--app-content-width\)/)
@@ -372,8 +375,6 @@ describe('admin button-system scope coverage', () => {
     return hits[0]!.selectors
   }
 
-  const EDITOR_SCOPE = '.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn'
-
   it('styles Manage buttons through the opt-in class, not per-control scopes', () => {
     // The altitude fix. If someone re-adds a `.lp-manage__<thing> .btn` entry, the list is growing
     // again and this catches it — that regrowth is what put four controls outside the system.
@@ -407,9 +408,9 @@ describe('admin button-system scope coverage', () => {
         '.lp-accordion__trigger',
       ]),
     )
-    expect(geometry, 'the version editor keeps a container scope — see the rule comment').toContain(
-      EDITOR_SCOPE,
-    )
+    for (const selector of versionEditorSelectors) {
+      expect(geometry).toContain(`${selector} .lesson-controls-wrap .btn`)
+    }
   })
 
   it('lifts the admin compact size to the touch target, outranking its own base rule', () => {
