@@ -4,7 +4,8 @@ import JSZip from 'jszip'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { buildDeck } from '../../src/decks'
-import schema from '../../src/decks/vendor/config/deck_spec.schema.json'
+import { deckSpecErrors, deckSpecSchema } from '../../src/decks/spec'
+import { readDeckSpec, storeDeckSpec } from '../../src/decks/storage'
 import bundle from '../../src/decks/vendor/fixtures/Biology_Cell_Structure_data.json'
 import manifest from '../../src/decks/vendor/fixtures/L1.manifest.json'
 import spec from '../../src/decks/vendor/fixtures/L1.spec.json'
@@ -12,65 +13,23 @@ import spec from '../../src/decks/vendor/fixtures/L1.spec.json'
 afterEach(() => vi.unstubAllEnvs())
 
 it('validates the merged pilot spec against the upstream authoring schema', () => {
-  const a = schema.authoring_call_A
-  const b = schema.authoring_call_B
-  const blocks = a.properties.slides.items.properties.blocks
-  const notes = { $ref: '#/$defs/notes' }
-  const timedWithNotes = (
-    section: typeof b.properties.safety | typeof b.properties.summary,
-    minutes: typeof a.properties.safety_minutes,
-  ) => ({
-    ...section,
-    properties: { ...section.properties, minutes, notes },
-    required: [...section.required, 'minutes', 'notes'],
-  })
-
-  // The authoring merge moves minutes and notes into the rendered sections. The pilot
-  // omits figure coverage and only figure blocks need a figure id in the builder input.
-  const { safety_minutes: safetyMinutes, summary_minutes: summaryMinutes, ...partA } = a.properties
-  const { fixed_notes: _fixedNotes, ...partB } = b.properties
-  const validate = new Ajv({ allErrors: true }).compile({
-    type: 'object',
-    $defs: a.$defs,
-    properties: {
-      ...partA,
-      ...partB,
-      slides: {
-        ...a.properties.slides,
-        items: {
-          ...a.properties.slides.items,
-          properties: {
-            ...a.properties.slides.items.properties,
-            blocks: {
-              ...blocks,
-              items: {
-                ...blocks.items,
-                required: blocks.items.required.filter((key) => key !== 'figure'),
-                if: { properties: { type: { const: 'figure' } } },
-                then: { required: ['figure'] },
-              },
-            },
-          },
-        },
-      },
-      safety: timedWithNotes(b.properties.safety, safetyMinutes),
-      summary: timedWithNotes(b.properties.summary, summaryMinutes),
-      unit_map_notes: notes,
-      goals_notes: notes,
-    },
-    required: [
-      ...new Set([
-        ...a.required.filter(
-          (key) => !['safety_minutes', 'summary_minutes', 'figure_coverage'].includes(key),
-        ),
-        ...b.required.filter((key) => key !== 'fixed_notes'),
-        'unit_map_notes',
-        'goals_notes',
-      ]),
-    ],
-    additionalProperties: false,
-  })
+  const validate = new Ajv({ allErrors: true }).compile(deckSpecSchema)
   expect(validate(spec), JSON.stringify(validate.errors)).toBe(true)
+  expect(deckSpecErrors(spec)).toEqual([])
+  expect(readDeckSpec(storeDeckSpec(spec))).toEqual(spec)
+})
+
+it('validates nested fields and quiz links before accepting a deck', () => {
+  const first = spec.slides[0]
+  expect(deckSpecErrors({ ...spec, slides: [{ ...first, minutes: '4', phase: 'intro' }] })).toEqual(
+    expect.arrayContaining([expect.stringContaining('.minutes'), expect.stringContaining('.phase')]),
+  )
+  expect(deckSpecErrors({ ...spec, slides: [{ ...first, quiz_links: ['file:///test'] }] })).toEqual([
+    'slides[0].quiz_links: use only HTTP or HTTPS links',
+  ])
+  expect(
+    deckSpecErrors({ ...spec, slides: [{ ...first, quiz_links: ['https://quiz.example/lesson1'] }] }),
+  ).toEqual([])
 })
 
 it('renders the pilot slide count and titles in order with placeholder art', async () => {

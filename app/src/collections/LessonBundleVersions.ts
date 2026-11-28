@@ -10,6 +10,7 @@ import {
   versionUpdateGrantForFormRenderOnly,
 } from '../access/versionImmutability'
 import { canEditStructure, systemOnly } from '../access/bundle'
+import { versionAuthorField, versionNumberField } from '../fields/versionMetadata'
 import {
   enforceBundleVersionGeneratable,
   enforceOfficialNotDeletable,
@@ -210,48 +211,8 @@ export const LessonBundleVersions: CollectionConfig = {
     },
     // The same ancestry by worldwide key (2026-10-29), stamped with `lineage` by stampVersionLineage.
     ...ancestryKeyFields,
-    {
-      // Who saved this candidate — stamped by save-as-new from the authenticated caller; empty for
-      // uploaded 1.0.0 / system-created versions. Drives the teacher with editing access delete scope (IA redesign
-      // 2026-07-01): a teacher with editing access may delete only versions they authored ("Your saved versions" on Manage).
-      // System-set only: direct create/update cannot forge it (save-as-new writes via overrideAccess).
-      name: 'author',
-      type: 'relationship',
-      relationTo: 'users' as CollectionSlug,
-      index: true,
-      access: { create: systemOnly, update: systemOnly },
-      label: 'Saved by',
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
-    {
-      name: 'semver',
-      type: 'text',
-      // Display label only — the field name / data / code stay `semver`.
-      label: 'Version',
-      required: true,
-      defaultValue: '1.0.0',
-      index: true,
-      // System-owned identity, on BOTH writes (audit 2026-07-06 — create was previously open, so a
-      // privileged direct create could forge "banana"/"999.0.0" and corrupt ordering + future bump
-      // allocation): only overrideAccess system paths (ingest 1.0.0 / re-ingest next-major /
-      // save-as-new next-patch) may set it. An authenticated direct create has any submitted value
-      // stripped → the 1.0.0 default (right for a fresh plan; a dup on an existing plan is rejected
-      // by the unique (lessonPlan, semver) index). `validate` backstops even the system paths to
-      // strict x.y.z — nextSemverForPlan parses malformed pieces loosely, so garbage must never land.
-      access: {
-        create: systemOnly,
-        update: systemOnly,
-      },
-      validate: (value: null | string | undefined) =>
-        /^\d+\.\d+\.\d+$/.test(value ?? '') || 'Version must be numeric x.y.z',
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
+    versionAuthorField,
+    versionNumberField,
     {
       // Read-only display of the native timestamps, relocated into the sidebar below Version (the
       // native "Last Modified / Created" row in the doc controls is hidden via custom.scss, scoped to

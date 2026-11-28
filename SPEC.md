@@ -655,6 +655,19 @@ resolver (`resolveMode`, today the site switch alone) decides the mode.
   including first ingest, import and Make Official. A system import has no actor; related deletions
   clear the nullable references. Existing rows are not backfilled. Submitted audit values are ignored.
 
+### Lesson decks (beta, 2026-11-28)
+
+Each lesson can have one deck, keyed by subject-grade, sub-strand ID and lesson number. Decks use
+their own version history and Official pointer. An import starts at version 1.0.0. A save creates
+the next patch as Not Official. Site and subject-grade administrators can make a version Official
+for the subject-grades they administer.
+
+The deck spec uses nested fields. Text follows the lesson plan’s plain-text grammar. A teacher
+with editing access can change slide text, the text in speaker notes, goals and key words.
+Administrators can also change structure, phases, timing, pictures and quiz links. Answer keys
+are administrator fields. The build log, figure coverage and prompts used to make pictures are
+system fields. Quiz links store HTTP or HTTPS addresses for Kolibri.
+
 ### ARES release presentation (Part 1b, approved 2026-10-26)
 
 - A version with `releaseFingerprint` shows its semver and **ARES release 14 Nov 2026** (full calendar
@@ -901,6 +914,24 @@ version remains a later phase, alongside stable row identity and support for str
 - **Validate against the schema on upload/import, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo`, `summaryTablePrompt`, a complete and valid `resourceLinks` map, and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced before any version is saved; export then trusts validated-in data.
 - **Resource handling (§3):** validate and store the already-resolved `LESSONS[].resourceLinks` exactly;
   do not run the recommender, infer missing buckets, or silently drop unknown/malformed resource fields.
+
+### Upload lesson decks
+
+In Manage, Site Administrators and Subject-grade Administrators can choose a sub-strand with an
+Official lesson plan, then upload one JSON deck spec or a ZIP for that sub-strand. Name ZIP specs
+like `L1.spec.json`. A single JSON file can also be assigned a lesson number on the upload form.
+The server checks each spec against the vendored merged schema and checks that every lesson number
+exists in the selected plan. For a ZIP, all deck records in the upload are saved in one transaction.
+
+A spec equal to the last import reports “already here” and leaves the saved versions in place.
+During beta, uploading a changed spec replaces the deck and all its versions with a new Official
+1.0.0. The upload form explains this above the Upload decks button.
+
+A ZIP can carry PNG, JPEG or WebP pictures named for their `art_id`. Referenced pictures go in
+Supporting files as Deck art for that lesson. The file store keeps previous pictures, and deck art
+lookup uses the most recent matching picture for the lesson. Re-uploading the same picture skips
+a duplicate file.
+
 
 ---
 

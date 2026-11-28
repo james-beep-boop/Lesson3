@@ -35,7 +35,7 @@ export const MAX_BODY_BYTES = MAX_EXPANDED_BYTES + 256 * 1024
 const MAX_ZIP_ENTRIES = 1000
 
 /** The expanded-byte budget shared by every JSON in one upload. */
-interface Budget {
+export interface ZipBudget {
   limit: number
   remaining: number
 }
@@ -122,8 +122,31 @@ export function zipDirectoryEntries(bytes: Uint8Array, limit: number): number | 
   return count
 }
 
+/** Inspect the directory before JSZip allocates objects for its entries. */
+export async function openUploadZip(file: File): Promise<JSZip> {
+  if (file.size > MAX_ZIP_BYTES) throw new IngestError(`Exceeds the ${MAX_ZIP_BYTES}-byte ZIP limit`)
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const records = zipDirectoryEntries(bytes, MAX_ZIP_ENTRIES)
+  if (records != null && records > MAX_ZIP_ENTRIES) {
+    throw new IngestError(`Too many ZIP entries (max ${MAX_ZIP_ENTRIES})`)
+  }
+  const unreadable = () => new IngestError('Cannot read ZIP archive (invalid, corrupt, or encrypted)')
+  if (records == null) throw unreadable()
+  try {
+    // CRC validation would inflate all entries before the byte limits apply.
+    return await JSZip.loadAsync(bytes)
+  } catch {
+    throw unreadable()
+  }
+}
+
 /** Stop inflation at the actual byte limit, including when ZIP size metadata is dishonest. */
-function readEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Buffer> {
+export function readZipEntry(
+  entry: JSZip.JSZipObject,
+  budget: ZipBudget,
+  maxBytes = MAX_FILE_BYTES,
+  label = 'JSON',
+): Promise<Buffer> {
   // JSZip uses readable-stream 2, whose streams do not support async iteration.
   const stream = entry.nodeStream('nodebuffer') as Readable
   return new Promise((resolve, reject) => {
@@ -138,12 +161,14 @@ function readEntry(entry: JSZip.JSZipObject, budget: Budget): Promise<Buffer> {
     stream.on('data', (chunk: Buffer) => {
       size += chunk.length
       budget.remaining -= chunk.length
-      if (size > MAX_FILE_BYTES) {
-        stop(new IngestError(`Exceeds the ${MAX_FILE_BYTES}-byte JSON limit`))
+      if (size > maxBytes) {
+        stop(new IngestError(`Exceeds the ${maxBytes}-byte ${label} limit`))
         return
       }
       if (budget.remaining < 0) {
-        stop(overBudget(budget.limit))
+        stop(
+          new IngestError(`The upload expands to more than ${budget.limit} bytes. Upload it in parts.`),
+        )
         return
       }
       chunks.push(chunk)
@@ -187,7 +212,7 @@ export async function prepareUploadFiles(
   const waitingForProgram: IngestRejection[] = []
   const setRefused: IngestRejection[] = []
   const warnings: IngestRejection[] = []
-  const budget: Budget = { limit: expandedBytes, remaining: expandedBytes }
+  const budget: ZipBudget = { limit: expandedBytes, remaining: expandedBytes }
   let jsonCount = 0
   const countJson = () => {
     if (++jsonCount > MAX_FILES) {
@@ -212,36 +237,16 @@ export async function prepareUploadFiles(
       rejected.push({ file: file.name, error: 'Only .json and .zip files are accepted' })
       continue
     }
-    if (file.size > MAX_ZIP_BYTES) {
-      rejected.push({ file: file.name, error: `Exceeds the ${MAX_ZIP_BYTES}-byte ZIP limit` })
-      continue
-    }
     // ⚑ ONE ARCHIVE AT A TIME (review of #382, 2026-10-11). Each archive is opened, its JSON read within
     // the budget, and then released before the next is touched. Previously every archive stayed open
     // until the import finished (lazy `extract` closures held their entries), so its bytes sat in memory
     // twice — the uploaded File and JSZip's copy — for every archive at once.
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    const records = zipDirectoryEntries(bytes, MAX_ZIP_ENTRIES)
-    if (records == null) {
-      rejected.push({
-        file: file.name,
-        error: 'Cannot read ZIP archive (invalid, corrupt, or encrypted)',
-      })
-      continue
-    }
-    if (records > MAX_ZIP_ENTRIES) {
-      rejected.push({ file: file.name, error: `Too many ZIP entries (max ${MAX_ZIP_ENTRIES})` })
-      continue
-    }
     let zip: JSZip
     try {
-      // Do not use checkCRC32 here: it inflates ALL entries eagerly, before our byte limits.
-      zip = await JSZip.loadAsync(bytes)
-    } catch {
-      rejected.push({
-        file: file.name,
-        error: 'Cannot read ZIP archive (invalid, corrupt, or encrypted)',
-      })
+      zip = await openUploadZip(file)
+    } catch (error) {
+      if (!(error instanceof IngestError)) throw error
+      rejected.push({ file: file.name, error: error.message })
       continue
     }
     const entries = Object.values(zip.files)
@@ -249,7 +254,7 @@ export async function prepareUploadFiles(
     try {
       const root = entries.find((e) => !e.dir && (e.unsafeOriginalName ?? e.name) === MANIFEST_NAME)
       manifest = parseLessonManifest(
-        root ? (await readEntry(root, budget)).toString('utf8') : undefined,
+        root ? (await readZipEntry(root, budget)).toString('utf8') : undefined,
       )
     } catch (e) {
       if (budget.remaining < 0) throw overBudget(budget.limit)
@@ -271,7 +276,7 @@ export async function prepareUploadFiles(
         if (originalName.toLowerCase().endsWith('.json')) countJson()
         // Check bytes, never parse an unknown kind. The same inflation caps still apply.
         try {
-          for (const error of checksumWarning(await readEntry(entry, budget), kind.declared.sha256))
+          for (const error of checksumWarning(await readZipEntry(entry, budget), kind.declared.sha256))
             warnings.push({ file: name, error })
         } catch (e) {
           if (budget.remaining < 0) throw overBudget(budget.limit)
@@ -290,7 +295,7 @@ export async function prepareUploadFiles(
       found = true
       countJson()
       // A checksum warning is reported once, in the set's warnings, even if the file is then rejected.
-      const outcome = readEntry(entry, budget).then((bytes) => {
+      const outcome = readZipEntry(entry, budget).then((bytes) => {
         for (const error of checksumWarning(bytes, kind.declared?.sha256))
           warnings.push({ file: name, error })
         return extractAresJson(bytes.toString('utf8'))

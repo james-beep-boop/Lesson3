@@ -10,6 +10,9 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+- Administrators can upload lesson decks and their pictures from Manage. A new deck starts at
+  Official 1.0.0. An unchanged upload keeps all versions. During beta, a changed spec replaces the
+  deck and its versions. The upload form warns before the administrator uploads.
 - Every lesson plan now has a Compact Teacher Guide and a blank Student Summary Table. Open
   _Share → Download one document_ for Word or PDF. Both also come with _Download all_ (render version 12).
 - ARES lesson plans in the new format (contract R1, `schemaVersion` 1.1.0) now upload, beside the

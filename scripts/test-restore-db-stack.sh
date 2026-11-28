@@ -217,11 +217,22 @@ variant() { # file-name sql
 OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 # One migration behind = the NEWEST migration undone. ⚑ Update this when a newer migration lands, or the
 # backup has a gap instead of a missing tail and the restore (rightly) refuses it as "not a prefix".
-LATEST_MIGRATION='20261127_165205_supporting_files'
-# Its down(): remove the supporting files table and kind enum.
-ONE_MIGRATION_BEHIND="DROP TABLE supporting_files; DROP TYPE enum_supporting_files_kind; \
+LATEST_MIGRATION='20261128_040000_deck_records'
+# Drop the deck tables (including the nested spec rows) and their enums in the probe database.
+ONE_MIGRATION_BEHIND="DO \$\$ BEGIN
+  EXECUTE 'DROP TABLE ' || (
+    SELECT string_agg(quote_ident(tablename), ', ')
+    FROM pg_tables WHERE schemaname = 'public'
+      AND (tablename = 'decks' OR starts_with(tablename, 'deck_versions'))
+  );
+  EXECUTE 'DROP TYPE ' || (
+    SELECT string_agg(quote_ident(typname), ', ')
+    FROM pg_type JOIN pg_namespace ON pg_namespace.oid = typnamespace
+    WHERE nspname = 'public' AND typtype = 'e' AND starts_with(typname, 'enum_deck_versions_')
+  );
+END \$\$;
 DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
-SCHEMA_PROBE="SELECT count(*) FROM information_schema.tables WHERE table_name = 'supporting_files';"
+SCHEMA_PROBE="SELECT count(*) FROM information_schema.tables WHERE table_name = 'decks';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
 variant "$NEW" "DELETE FROM supporting_files; INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"

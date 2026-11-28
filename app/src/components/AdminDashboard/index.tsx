@@ -746,6 +746,9 @@ export default async function AdminDashboard({
 
             {isAdmin && (
               <p>
+                <Link className="btn lp-btn" href="/decks/import">
+                  Upload lesson decks
+                </Link>{' '}
                 <Link className="btn lp-btn" href="/admin/collections/supporting-files">
                   Manage supporting files
                 </Link>

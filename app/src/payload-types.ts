@@ -70,6 +70,8 @@ export interface Config {
     'lesson-plans': LessonPlan;
     'lesson-bundle-versions': LessonBundleVersion;
     'supporting-files': SupportingFile;
+    decks: Deck;
+    'deck-versions': DeckVersion;
     subjects: Subject;
     'subject-grades': SubjectGrade;
     users: User;
@@ -90,6 +92,8 @@ export interface Config {
     'lesson-plans': LessonPlansSelect<false> | LessonPlansSelect<true>;
     'lesson-bundle-versions': LessonBundleVersionsSelect<false> | LessonBundleVersionsSelect<true>;
     'supporting-files': SupportingFilesSelect<false> | SupportingFilesSelect<true>;
+    decks: DecksSelect<false> | DecksSelect<true>;
+    'deck-versions': DeckVersionsSelect<false> | DeckVersionsSelect<true>;
     subjects: SubjectsSelect<false> | SubjectsSelect<true>;
     'subject-grades': SubjectGradesSelect<false> | SubjectGradesSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
@@ -438,6 +442,443 @@ export interface SupportingFile {
   title: string;
   lessonPlan: number | LessonPlan;
   /**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "decks".
+ */
+export interface Deck {
+  id: number;
+  title: string;
+  lessonPlan: number | LessonPlan;
+  subjectGrade: number | SubjectGrade;
+  substrandId: string;
+  lessonNumber: number;
+  officialVersion?: (number | null) | DeckVersion;
+  importFingerprint: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "deck-versions".
+ */
+export interface DeckVersion {
+  id: number;
+  deck: number | Deck;
+  subjectGrade: number | SubjectGrade;
+  sourceVersion?: (number | null) | DeckVersion;
+  author?: (number | null) | User;
+  semver: string;
+  spec?: {
+    unit_map_minutes?: number | null;
+    goals_minutes?: number | null;
+    hero?: {
+      art_id?: string | null;
+      prompt?: string | null;
+      alt?: string | null;
+      icon?: string | null;
+    };
+    slides?:
+      | {
+          phase?: ('predict' | 'observe' | 'explain' | 'dqb' | 'model') | null;
+          title?: string | null;
+          subtitle?: string | null;
+          check_for_understanding?: boolean | null;
+          student_task?: boolean | null;
+          minutes?: number | null;
+          time_note?: string | null;
+          timers?:
+            | {
+                label?: string | null;
+                time?: string | null;
+                id?: string | null;
+              }[]
+            | null;
+          blocks?:
+            | {
+                type?:
+                  | 'text'
+                  | 'bullets'
+                  | 'numbered'
+                  | 'callout'
+                  | 'table'
+                  | 'cards'
+                  | 'columns'
+                  | 'tiles'
+                  | 'illustration'
+                  | 'diagram'
+                  | 'figure'
+                  | null;
+                style?: ('normal' | 'question' | 'emphasis' | 'caption') | null;
+                text?: string | null;
+                items?:
+                  | {
+                      value?: string | null;
+                      id?: string | null;
+                    }[]
+                  | null;
+                rows?:
+                  | {
+                      cells?:
+                        | {
+                            value?: string | null;
+                            id?: string | null;
+                          }[]
+                        | null;
+                      id?: string | null;
+                    }[]
+                  | null;
+                template?:
+                  | 'none'
+                  | 'animal_cell'
+                  | 'plant_cell'
+                  | 'bacterium'
+                  | 'onion_epidermis'
+                  | 'cheek_cells'
+                  | 'light_microscope'
+                  | 'red_blood_cell'
+                  | 'white_blood_cell'
+                  | 'sperm_cell'
+                  | 'egg_cell'
+                  | 'nerve_cell'
+                  | 'muscle_cell'
+                  | 'ciliated_epithelial_cell'
+                  | 'root_hair_cell'
+                  | 'guard_cells'
+                  | 'xylem_vessel'
+                  | 'phloem_sieve_tube'
+                  | 'palisade_cell'
+                  | 'levels_of_organisation'
+                  | null;
+                labels?:
+                  | {
+                      value?: string | null;
+                      id?: string | null;
+                    }[]
+                  | null;
+                figure?: string | null;
+                art_id?: string | null;
+                art_prompt?: string | null;
+                id?: string | null;
+              }[]
+            | null;
+          resources?:
+            | {
+                value?: string | null;
+                id?: string | null;
+              }[]
+            | null;
+          notes?: {
+            do?:
+              | {
+                  value?: string | null;
+                  id?: string | null;
+                }[]
+              | null;
+            say?:
+              | {
+                  value?: string | null;
+                  id?: string | null;
+                }[]
+              | null;
+            wait_time?: string | null;
+            look_for?:
+              | {
+                  value?: string | null;
+                  id?: string | null;
+                }[]
+              | null;
+            if_then?:
+              | {
+                  value?: string | null;
+                  id?: string | null;
+                }[]
+              | null;
+            why_this_works?: string | null;
+            answer_key?:
+              | {
+                  value?: string | null;
+                  id?: string | null;
+                }[]
+              | null;
+            science_note?: string | null;
+          };
+          quiz_links?:
+            | {
+                value?: string | null;
+                id?: string | null;
+              }[]
+            | null;
+          id?: string | null;
+        }[]
+      | null;
+    figure_coverage?:
+      | {
+          figure_id?: string | null;
+          status?: ('drawn' | 'declined') | null;
+          slide?: string | null;
+          reason?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    build_log?:
+      | {
+          slide?: string | null;
+          type?:
+            | 'science_flag'
+            | 'term_flag'
+            | 'inconsistency'
+            | 'trimmed_time'
+            | 'placeholder_check'
+            | 'added_fact'
+            | 'sow_problem'
+            | 'safety_flag'
+            | 'resource_note'
+            | 'missing_detail'
+            | 'other'
+            | null;
+          sow_says?: string | null;
+          deck_does?: string | null;
+          why?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    lesson_title_short?: string | null;
+    lesson_oneliner?: string | null;
+    purpose?:
+      | {
+          value?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    before_class?:
+      | {
+          value?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    do_not_show?:
+      | {
+          value?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    is_practical?: boolean | null;
+    so_far?: string | null;
+    unit_map_titles?:
+      | {
+          value?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    goals?:
+      | {
+          value?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    key_words?:
+      | {
+          word?: string | null;
+          definition?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    safety?: {
+      title?: string | null;
+      rules?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      minutes?: number | null;
+      notes?: {
+        do?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        say?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        wait_time?: string | null;
+        look_for?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        if_then?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        why_this_works?: string | null;
+        answer_key?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        science_note?: string | null;
+      };
+    };
+    glance?: {
+      rows?:
+        | {
+            group?: ('opening' | 'predict' | 'observe' | 'explain' | 'dqb' | 'model' | 'summary') | null;
+            minutes?: number | null;
+            what?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      materials?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      fallback?: string | null;
+      resource_notes?:
+        | {
+            key?: string | null;
+            match?: ('best_match' | 'preview_first' | 'use_later' | 'do_not_use') | null;
+            note?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+    };
+    summary?: {
+      observe_prompt?: string | null;
+      learn_prompt?: string | null;
+      explain_prompt?: string | null;
+      next_lesson?: string | null;
+      answer_observe?: string | null;
+      answer_learn?: string | null;
+      answer_explain?: string | null;
+      reflection?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      minutes?: number | null;
+      notes?: {
+        do?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        say?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        wait_time?: string | null;
+        look_for?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        if_then?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        why_this_works?: string | null;
+        answer_key?:
+          | {
+              value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        science_note?: string | null;
+      };
+    };
+    unit_map_notes?: {
+      do?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      say?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      wait_time?: string | null;
+      look_for?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      if_then?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      why_this_works?: string | null;
+      answer_key?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      science_note?: string | null;
+    };
+    goals_notes?: {
+      do?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      say?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      wait_time?: string | null;
+      look_for?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      if_then?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      why_this_works?: string | null;
+      answer_key?:
+        | {
+            value?: string | null;
+            id?: string | null;
+          }[]
+        | null;
+      science_note?: string | null;
+    };
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
    * Leave blank if the file is for the whole sub-strand.
    */
   lessonNumber?: number | null;
@@ -1001,6 +1442,416 @@ export interface SupportingFilesSelect<T extends boolean = true> {
   filesize?: T;
   width?: T;
   height?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "decks_select".
+ */
+export interface DecksSelect<T extends boolean = true> {
+  title?: T;
+  lessonPlan?: T;
+  subjectGrade?: T;
+  substrandId?: T;
+  lessonNumber?: T;
+  officialVersion?: T;
+  importFingerprint?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "deck-versions_select".
+ */
+export interface DeckVersionsSelect<T extends boolean = true> {
+  deck?: T;
+  subjectGrade?: T;
+  sourceVersion?: T;
+  author?: T;
+  semver?: T;
+  spec?:
+    | T
+    | {
+        unit_map_minutes?: T;
+        goals_minutes?: T;
+        hero?:
+          | T
+          | {
+              art_id?: T;
+              prompt?: T;
+              alt?: T;
+              icon?: T;
+            };
+        slides?:
+          | T
+          | {
+              phase?: T;
+              title?: T;
+              subtitle?: T;
+              check_for_understanding?: T;
+              student_task?: T;
+              minutes?: T;
+              time_note?: T;
+              timers?:
+                | T
+                | {
+                    label?: T;
+                    time?: T;
+                    id?: T;
+                  };
+              blocks?:
+                | T
+                | {
+                    type?: T;
+                    style?: T;
+                    text?: T;
+                    items?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    rows?:
+                      | T
+                      | {
+                          cells?:
+                            | T
+                            | {
+                                value?: T;
+                                id?: T;
+                              };
+                          id?: T;
+                        };
+                    template?: T;
+                    labels?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    figure?: T;
+                    art_id?: T;
+                    art_prompt?: T;
+                    id?: T;
+                  };
+              resources?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              notes?:
+                | T
+                | {
+                    do?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    say?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    wait_time?: T;
+                    look_for?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    if_then?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    why_this_works?: T;
+                    answer_key?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    science_note?: T;
+                  };
+              quiz_links?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              id?: T;
+            };
+        figure_coverage?:
+          | T
+          | {
+              figure_id?: T;
+              status?: T;
+              slide?: T;
+              reason?: T;
+              id?: T;
+            };
+        build_log?:
+          | T
+          | {
+              slide?: T;
+              type?: T;
+              sow_says?: T;
+              deck_does?: T;
+              why?: T;
+              id?: T;
+            };
+        lesson_title_short?: T;
+        lesson_oneliner?: T;
+        purpose?:
+          | T
+          | {
+              value?: T;
+              id?: T;
+            };
+        before_class?:
+          | T
+          | {
+              value?: T;
+              id?: T;
+            };
+        do_not_show?:
+          | T
+          | {
+              value?: T;
+              id?: T;
+            };
+        is_practical?: T;
+        so_far?: T;
+        unit_map_titles?:
+          | T
+          | {
+              value?: T;
+              id?: T;
+            };
+        goals?:
+          | T
+          | {
+              value?: T;
+              id?: T;
+            };
+        key_words?:
+          | T
+          | {
+              word?: T;
+              definition?: T;
+              id?: T;
+            };
+        safety?:
+          | T
+          | {
+              title?: T;
+              rules?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              minutes?: T;
+              notes?:
+                | T
+                | {
+                    do?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    say?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    wait_time?: T;
+                    look_for?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    if_then?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    why_this_works?: T;
+                    answer_key?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    science_note?: T;
+                  };
+            };
+        glance?:
+          | T
+          | {
+              rows?:
+                | T
+                | {
+                    group?: T;
+                    minutes?: T;
+                    what?: T;
+                    id?: T;
+                  };
+              materials?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              fallback?: T;
+              resource_notes?:
+                | T
+                | {
+                    key?: T;
+                    match?: T;
+                    note?: T;
+                    id?: T;
+                  };
+            };
+        summary?:
+          | T
+          | {
+              observe_prompt?: T;
+              learn_prompt?: T;
+              explain_prompt?: T;
+              next_lesson?: T;
+              answer_observe?: T;
+              answer_learn?: T;
+              answer_explain?: T;
+              reflection?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              minutes?: T;
+              notes?:
+                | T
+                | {
+                    do?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    say?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    wait_time?: T;
+                    look_for?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    if_then?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    why_this_works?: T;
+                    answer_key?:
+                      | T
+                      | {
+                          value?: T;
+                          id?: T;
+                        };
+                    science_note?: T;
+                  };
+            };
+        unit_map_notes?:
+          | T
+          | {
+              do?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              say?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              wait_time?: T;
+              look_for?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              if_then?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              why_this_works?: T;
+              answer_key?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              science_note?: T;
+            };
+        goals_notes?:
+          | T
+          | {
+              do?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              say?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              wait_time?: T;
+              look_for?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              if_then?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              why_this_works?: T;
+              answer_key?:
+                | T
+                | {
+                    value?: T;
+                    id?: T;
+                  };
+              science_note?: T;
+            };
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
