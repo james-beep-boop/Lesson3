@@ -12,15 +12,11 @@ it('restores deck prose by row ID and preserves the live structure', () => {
     notes: { say: [{ id: 'note', value: 'Read this' }] },
   }
   const second = { id: 'two', title: 'Second slide' }
+  const editedNotes = { say: [{ id: 'note', value: 'Look here' }] }
   const updated = {
     spec: {
       slides: [
-        {
-          ...first,
-          title: '',
-          phase: 'model',
-          notes: { say: [{ id: 'note', value: 'Look here' }] },
-        },
+        { ...first, title: '', phase: 'model', notes: editedNotes },
         { id: 'gone', title: 'A new slide' },
       ],
       goals: [{ id: 'goal', value: 'New goal' }],
@@ -50,7 +46,7 @@ it('restores deck prose by row ID and preserves the live structure', () => {
   expect(doc).toEqual({
     spec: {
       ...current.spec,
-      slides: [second, { ...first, title: '', notes: { say: [{ id: 'note', value: 'Look here' }] } }],
+      slides: [second, { ...first, title: '', notes: editedNotes }],
       goals: [{ id: 'goal', value: 'New goal' }],
     },
   })

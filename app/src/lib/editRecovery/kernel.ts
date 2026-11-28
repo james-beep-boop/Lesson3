@@ -268,10 +268,8 @@ export const capture = async (
     /* Drop invalid optional metadata. */
   }
   const context = parsed === null ? null : JSON.stringify(parsed)
-  const projected = projectCapture(
-    args.formDocument as Record<string, unknown> | null,
-    args.collection,
-  )
+  const document = args.formDocument as Record<string, unknown> | null
+  const projected = projectCapture(document, args.collection)
   const json = JSON.stringify(projected)
   const bytes = Buffer.byteLength(json, 'utf8')
   if (bytes > MAX_CAPTURE_BYTES) return { ok: false, reason: 'too-large', bytes }
@@ -478,11 +476,11 @@ export const retireSelected = async (
 ): Promise<ExpiryReport> => {
   const report: ExpiryReport = { retired: 0, skipped: 0 }
   for (const candidate of candidates) {
-    const result = await retire(
-      req,
-      candidate,
-      { by: 'expiry', expectedRevision: candidate.revision, cutoff },
-    )
+    const result = await retire(req, candidate, {
+      by: 'expiry',
+      expectedRevision: candidate.revision,
+      cutoff,
+    })
     if (result.ok) report.retired += 1
     else report.skipped += 1
   }

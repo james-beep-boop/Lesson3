@@ -225,7 +225,8 @@ ALTER TABLE edit_recovery DROP COLUMN deck_version_id;
 ALTER TABLE edit_recovery ALTER COLUMN source_version_id SET NOT NULL;
 ALTER TABLE edit_recovery ALTER COLUMN lesson_plan_id SET NOT NULL;
 DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
-SCHEMA_PROBE="SELECT count(*) FROM information_schema.tables WHERE table_name = 'decks';"
+SCHEMA_PROBE="SELECT count(*) FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'edit_recovery' AND column_name = 'deck_version_id';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
 variant "$NEW" "INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"

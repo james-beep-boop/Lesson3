@@ -195,11 +195,11 @@ function mapDeckGroups(
     rowId?: unknown,
   ): Doc {
     const fields = Object.entries(nativeProperties(schema, scope))
-    const leaves = fields.filter(([key]) => visibility(scope ? `${scope}.${key}` : key) === 'prose')
+    const leaves = fields
+      .filter(([key]) => visibility(scope ? `${scope}.${key}` : key) === 'prose')
+      .map(([name]) => nativeName(name))
     const key = rowId == null ? `deck.${scope}` : keyFor(`deck.${scope}`, rowId)!
-    const updated = leaves.length
-      ? visit(key, heading, group, leaves.map(([name]) => nativeName(name)))
-      : group
+    const updated = leaves.length ? visit(key, heading, group, leaves) : group
     const out = { ...updated }
     for (const [name, child] of fields) {
       const path = scope ? `${scope}.${name}` : name
@@ -342,17 +342,20 @@ export const captureAnchors = (
  *
  * Unnumbered on purpose: there is no row left to count, so any number would be invented.
  */
-export const orphanHeading = (scope: string): string =>
-  (scope.startsWith('deck.') ? 'No longer in this deck' : null) ??
-  ({
-    lesson: 'A lesson that is no longer in this plan',
-    slo: 'A lesson that is no longer in this plan',
-    prompt: 'A lesson that is no longer in this plan',
-    framework: 'A teaching phase that is no longer in this plan',
-    [FINAL_EXPLANATION_KEY]: 'Final explanation',
-    section: 'A section that is no longer in this plan',
-    summaryLesson: 'A summary table row that is no longer in this plan',
-  })[scope] ?? 'No longer in this plan'
+export const orphanHeading = (scope: string): string => {
+  if (scope.startsWith('deck.')) return 'No longer in this deck'
+  return (
+    {
+      lesson: 'A lesson that is no longer in this plan',
+      slo: 'A lesson that is no longer in this plan',
+      prompt: 'A lesson that is no longer in this plan',
+      framework: 'A teaching phase that is no longer in this plan',
+      [FINAL_EXPLANATION_KEY]: 'Final explanation',
+      section: 'A section that is no longer in this plan',
+      summaryLesson: 'A summary table row that is no longer in this plan',
+    }[scope] ?? 'No longer in this plan'
+  )
+}
 
 /** What `applyCapture` did, so the caller can surface a partial restore rather than pretend. */
 export type ApplyReport = {

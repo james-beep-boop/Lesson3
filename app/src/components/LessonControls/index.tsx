@@ -637,14 +637,13 @@ export default function LessonControls({
   const rawTitle = isDeck ? savedDocumentData?.spec?.lesson_title_short : savedDocumentData?.title
   const title = typeof rawTitle === 'string' ? displayTitle(rawTitle) : null
   const backVersion = isDeck ? deckContext : id
-  const backHref =
-    planId == null
-      ? '/'
-      : `/lessons/${planId}${backVersion == null ? '' : `?version=${backVersion}`}`
+  const backQuery = backVersion == null ? '' : `?version=${backVersion}`
+  const backHref = planId == null ? '/' : `/lessons/${planId}${backQuery}`
   const versionApi = `/api/${collection}/${id}`
+  const deckPlanQuery = deckContext == null ? '' : `&planVersion=${deckContext}`
   const deckDownload =
     isDeck && parentId != null
-      ? `/api/decks/${parentId}/download?deckVersion=${id}${deckContext == null ? '' : `&planVersion=${deckContext}`}`
+      ? `/api/decks/${parentId}/download?deckVersion=${id}${deckPlanQuery}`
       : null
 
   /**
@@ -1501,9 +1500,9 @@ export default function LessonControls({
                 <div className="help-rows__row">
                   <dt>Insert a link</dt>
                   <dd>
-                    Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in the
-                    toolbar. Copy the address from your browser’s address bar on the ARES page (or any
-                    web page), paste it, and add an optional label.
+                    Place the cursor in {LINKABLE_FIELD_LIST}, then choose <em>Insert link</em> in
+                    the toolbar. Copy the address from your browser’s address bar on the ARES page
+                    (or any web page), paste it, and add an optional label.
                   </dd>
                 </div>
                 <div className="help-rows__row">

@@ -73,4 +73,3 @@ export function nativeProperties(schema: Schema, path: string): Record<string, S
     ? { ...properties, art_id: stringNode, art_prompt: stringNode }
     : properties
 }
-
