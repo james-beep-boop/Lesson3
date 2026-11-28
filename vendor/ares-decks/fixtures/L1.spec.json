@@ -1,0 +1,1239 @@
+{
+ "unit_map_minutes": 1,
+ "goals_minutes": 1,
+ "hero": {
+  "art_id": "amina_healing_finger",
+  "prompt": "A friendly flat cartoon of one teenage girl in a school uniform smiling and holding up one hand with a neat plaster on her finger, standing beside a kitchen table with a wooden chopping board of sliced onions.",
+  "alt": "A girl smiling and holding up one finger with a neat plaster on it, beside a chopping board with sliced onions.",
+  "icon": "bandage"
+ },
+ "slides": [
+  {
+   "phase": "predict",
+   "title": "Listen: Amina cuts her finger",
+   "subtitle": "Close your eyes. Listen to the story.",
+   "check_for_understanding": false,
+   "student_task": false,
+   "minutes": 4,
+   "time_note": "Teacher narrates slowly and with detail. Students listen with eyes closed.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "illustration",
+     "style": "normal",
+     "text": "A drawing of a Kenyan kitchen with a jiko, a sufuria, a mwiko, a chopping board with onions and a recipe book on a shelf.",
+     "items": [
+      "ugali_kitchen",
+      "A friendly flat cartoon of a Kenyan home kitchen: a charcoal jiko with a sufuria on top, a wooden mwiko, a chopping board with sliced onions, an open wooden door, and a shelf holding a closed recipe book with a pot picture on its cover."
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "bullets",
+     "style": "normal",
+     "text": "",
+     "items": [
+      "eyes :: Close your eyes",
+      "ear :: Listen carefully",
+      "onion :: Picture Amina in the kitchen"
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Ask students to close their eyes or look down. Make sure books and pens are ready on the desk.",
+     "Narrate slowly. Pause after each detail.",
+     "Do not show the next slide until the narration is finished.",
+     "Do not give any science information. This lesson only collects ideas."
+    ],
+    "say": [
+     "Amina is in the kitchen in Eastleigh. She is helping her mother prepare supper.",
+     "She is slicing onions. The smell is sharp. Her eyes are starting to water.",
+     "Then the knife slips. She looks down. A thin line of red appears on her fingertip.",
+     "She presses it with her thumb. After about a minute, the bleeding is already slowing down.",
+     "A dark, sticky material begins to form. What is happening inside that finger right now?"
+    ],
+    "wait_time": "5 seconds of quiet after the last line, before you change the slide.",
+    "look_for": [
+     "Most students have their eyes closed or lowered and are listening.",
+     "A few students smile or nod at the onion smell. Their own kitchen experience is now switched on."
+    ],
+    "if_then": [
+     "If students giggle, say: Stay with Amina. Picture her kitchen and her finger.",
+     "If projection is not working, read the story aloud. The slide is not needed for the narration."
+    ],
+    "why_this_works": "A vivid, familiar story gives every student the same real event to think about. It links the lesson to the anchor phenomenon: the healing cut.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "predict",
+   "title": "What is happening inside Amina's finger?",
+   "subtitle": "Write alone. Do not talk yet.",
+   "check_for_understanding": true,
+   "student_task": true,
+   "minutes": 3,
+   "time_note": "2 minutes of silent writing, plus about 1 minute to settle and start.",
+   "timers": [
+    {
+     "label": "Silent writing",
+     "time": "2:00"
+    }
+   ],
+   "blocks": [
+    {
+     "type": "text",
+     "style": "question",
+     "text": "What do you think is happening inside Amina's finger right now?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "callout",
+     "style": "normal",
+     "text": "Write anything that comes to mind. There are no wrong answers today.",
+     "items": [
+      "Do not talk.",
+      "Do not look at your neighbour."
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Students open their science notebooks and write alone.",
+     "Start the visible 2-minute timer.",
+     "Walk slowly between rows. Read over shoulders. Do not comment, prompt or hint.",
+     "Note the range of ideas: blood clotting, skin repair, bacteria, named cells, or only surface descriptions."
+    ],
+    "say": [
+     "I want everyone to write in your notebook. Do not talk yet. Do not look at your neighbour.",
+     "Just write what you think. You have 2 full minutes.",
+     "There are no wrong answers today. This is your starting point."
+    ],
+    "wait_time": "The full 2 minutes of silence. Do not prompt or hint.",
+    "look_for": [
+     "Check 5 to 6 notebooks from different parts of the room. Every student should have written something.",
+     "Notice who writes only about the surface (blood, pain) and who mentions clotting, bacteria or cells.",
+     "Common misconception: the blood just dries. Note it. Do not correct it."
+    ],
+    "if_then": [
+     "If a student says they do not know what to write, say: Write what you can see in your mind, or what you have seen when you or a friend got a cut.",
+     "If a student asks if their idea is right, say: Today there are no wrong answers. Write what you think.",
+     "If students start talking, say: Silent writing for now. You will talk to your partner soon."
+    ],
+    "why_this_works": "Writing before talking gives every student a personal record of their starting point. Strong voices cannot change what quieter students think. This record is used again later in the unit.",
+    "answer_key": [
+     "Model answer: I think the blood is making a plug to stop the bleeding. Something in the blood goes hard. Maybe the skin starts to grow back under the scab. I am not sure what is doing the work."
+    ],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "observe",
+   "title": "Share your idea with a partner",
+   "subtitle": "Take turns. Listen to each other.",
+   "check_for_understanding": false,
+   "student_task": false,
+   "minutes": 2,
+   "time_note": "90 seconds of pair talk plus a short change-over.",
+   "timers": [
+    {
+     "label": "Pair talk",
+     "time": "1:30"
+    }
+   ],
+   "blocks": [
+    {
+     "type": "bullets",
+     "style": "normal",
+     "text": "",
+     "items": [
+      "people :: Turn to your partner",
+      "speech :: Take turns to share your idea",
+      "ear :: Listen. Do not judge"
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Students work in pairs with the person next to them.",
+     "Start the 90-second timer.",
+     "Circulate and listen for interesting or surprising ideas to use later.",
+     "Choose, in your head, 3 to 4 students to call on. Include students who do not usually raise their hand first."
+    ],
+    "say": [
+     "Now share your notebook idea with your partner. Take turns.",
+     "Listen carefully to your partner. You are collecting ideas, not judging them."
+    ],
+    "wait_time": "",
+    "look_for": [
+     "Both partners in each pair are speaking.",
+     "Ideas that are surprising, different or show cell-level thinking."
+    ],
+    "if_then": [
+     "If one student dominates, say: Now it is your partner's turn.",
+     "If a pair finishes early, say: Add one new idea to your notebook from what your partner said."
+    ],
+    "why_this_works": "Talking to one partner is a safe step before speaking to the whole class. It lets students rehearse an idea and test it.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "observe",
+   "title": "Watch the cut heal",
+   "subtitle": "Look carefully. Add new ideas to your notebook.",
+   "check_for_understanding": true,
+   "student_task": true,
+   "minutes": 4,
+   "time_note": "About 1 minute for each of the four images, including a pause to write.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "tiles",
+     "style": "normal",
+     "text": "",
+     "items": [
+      "droplet :: 1. A fresh cut with blood",
+      "hourglass :: 2. A dark clot forms",
+      "bandage :: 3. A scab on healing skin, after two days",
+      "hand :: 4. New pink skin. The scab is gone"
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "text",
+     "style": "question",
+     "text": "What do you notice? What changed from one image to the next?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Show or describe the four images one at a time. If you can project drawings, reveal them one by one. If not, narrate each one.",
+     "For each image, pause. Ask students to look carefully and add anything new to their notebook predictions.",
+     "Ask: What changed between image one and image two? Repeat for the next images.",
+     "Use drawings or a verbal description. Do not use graphic photographs."
+    ],
+    "say": [
+     "Look carefully. What do you notice?",
+     "What changed between image one and image two?",
+     "Add anything new to your notebook. Use your own words.",
+     "If anyone feels uncomfortable looking at an injury picture, you may look away. I will describe the picture for you."
+    ],
+    "wait_time": "5 seconds after asking: What do you notice?",
+    "look_for": [
+     "Check 5 to 6 notebooks: each has at least one new line added after the images.",
+     "Students describe what they SEE (colour, hard, new skin), not only what they already believed.",
+     "Students who join two images into one story, such as: first the blood stops, then skin grows back."
+    ],
+    "if_then": [
+     "If a student writes only an old idea, say: Look at the picture again. What can you SEE that is different from the one before?",
+     "If you have no projector, say: I will describe each picture slowly. Close your eyes if that helps you picture it.",
+     "If a student seems upset by the injury picture, say: You can look away. I will tell you what the picture shows."
+    ],
+    "why_this_works": "A concrete sequence of images gives everyone the same evidence. Pausing for careful looking builds the habit of observing before explaining.",
+    "answer_key": [
+     "Model answer (added to notebook): Image 1: red blood on the finger. Image 2: the blood has turned dark and thick. Image 3: a hard brown scab on top of the skin. Image 4: the scab has gone and the skin is pink and new."
+    ],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "observe",
+   "title": "BEFORE — Our Predictions",
+   "subtitle": "Share with the class. We write your words exactly.",
+   "check_for_understanding": true,
+   "student_task": false,
+   "minutes": 3,
+   "time_note": "3 to 4 volunteers share. The teacher scribes on the board.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "text",
+     "style": "question",
+     "text": "What did you and your partner talk about?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "bullets",
+     "style": "normal",
+     "text": "",
+     "items": [
+      "pencil :: The teacher writes your words on the board",
+      "check :: Every idea is useful. None is marked right or wrong"
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Write the heading BEFORE — Our Predictions on the board.",
+     "Call on 3 to 4 volunteers. Choose students who are not usually first to raise a hand, and one student whose idea was surprising when you listened to pairs.",
+     "Write key phrases on the board exactly as students say them. For example: the blood goes hard; white cells come; skin grows back; something inside stops the bleeding.",
+     "Do not correct, praise or rank any idea."
+    ],
+    "say": [
+     "I am writing your ideas exactly as you said them. I am not telling you yet whether they are right or not.",
+     "Every idea here is valuable data. It tells us what we already know and what we still need to find out."
+    ],
+    "wait_time": "5 seconds after each question before taking answers.",
+    "look_for": [
+     "Have any students mentioned cell types, such as platelets, white blood cells or skin cells? Note them. They are a link to Lesson 8.",
+     "Count how many ideas are only about the surface of the wound and how many are about what happens inside.",
+     "Do all of the volunteers feel safe sharing unfinished ideas?"
+    ],
+    "if_then": [
+     "If a student gives an idea and then says sorry, say: There is nothing to be sorry for. This is exactly the kind of idea we need on the board.",
+     "If no one volunteers, say: Tell the class one thing your partner said that interested you.",
+     "If a student asks if the idea is right, say: I am not saying yet. We will find out together. Keep your idea."
+    ],
+    "why_this_works": "Writing students' words without correction shows that all observations are recorded before interpretation, as scientists do. It also builds safety for sharing unfinished ideas.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "explain",
+   "title": "Why does the bleeding slow?",
+   "subtitle": "Think first. Then tell us.",
+   "check_for_understanding": false,
+   "student_task": false,
+   "minutes": 1,
+   "time_note": "One question. Short oral responses.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "text",
+     "style": "question",
+     "text": "You said the bleeding slows. What do you think causes that?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Ask the question. Wait. Then take 2 to 3 oral answers.",
+     "Respond to answers with follow-up questions, not with a verdict.",
+     "Students may add a line to their notebook."
+    ],
+    "say": [
+     "You said the bleeding slows. What do you think causes that?",
+     "Interesting. What do you think makes it go hard? Is that a chemical reaction? A physical change? Something else?"
+    ],
+    "wait_time": "5 seconds after the question.",
+    "look_for": [
+     "Does the student say what happens (it goes hard) or try to say why it happens?",
+     "Common misconception: the blood only dries in the air. Note it. Do not correct it."
+    ],
+    "if_then": [
+     "If a student says the blood goes hard, say: Interesting. What do you think makes it go hard?",
+     "If no one answers, say: Think about the dark, sticky material in the story. Where could it come from?"
+    ],
+    "why_this_works": "Questions such as Why? and What causes? move students from describing to reasoning. Answering with a follow-up question keeps students thinking.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "explain",
+   "title": "One thing or many things?",
+   "subtitle": "Think first. Then tell us.",
+   "check_for_understanding": false,
+   "student_task": false,
+   "minutes": 1,
+   "time_note": "One question. Short oral responses.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "text",
+     "style": "question",
+     "text": "You said the skin grows back. Does one thing do that job, or many things?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Ask the question. Wait. Take 2 to 3 answers.",
+     "Use follow-up questions. Do not confirm or deny."
+    ],
+    "say": [
+     "You mentioned the skin grows back. Do you think one thing does that job, or many things?",
+     "Tell us more. Why do you think that?"
+    ],
+    "wait_time": "5 seconds after the question.",
+    "look_for": [
+     "Does the student say one cause or several causes working together?",
+     "Students who describe several steps without being asked are ready for the idea of specialisation."
+    ],
+    "if_then": [
+     "If a student says one thing, say: What would that one thing need to do, from the first minute to the last day?",
+     "If a student says many things, say: Tell us more. What might the different things be doing?"
+    ],
+    "why_this_works": "Asking one thing or many moves students from simple cause thinking towards thinking about a system of parts.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "explain",
+   "title": "What might those things look like?",
+   "subtitle": "Take 10 seconds of silent thinking first.",
+   "check_for_understanding": true,
+   "student_task": false,
+   "minutes": 2,
+   "time_note": "10 seconds of silent thinking, then 2 to 3 oral answers.",
+   "timers": [
+    {
+     "label": "Think time",
+     "time": "0:10"
+    }
+   ],
+   "blocks": [
+    {
+     "type": "text",
+     "style": "question",
+     "text": "If many different things do different jobs in the wound, what might they look like? All the same or different?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Ask the question. Start the 10-second timer.",
+     "Stay silent for the full 10 seconds. Count silently.",
+     "Then take 2 to 3 answers. Call on students who gave a many-things answer to the last question, and one who gave a one-thing answer."
+    ],
+    "say": [
+     "Think about this for 10 seconds before you answer.",
+     "If many different things are doing different jobs inside the wound, what might those things look like? Are they all the same or different?"
+    ],
+    "wait_time": "10 seconds of silence. Do not rephrase or prompt.",
+    "look_for": [
+     "Check 4 to 5 answers. Can the student connect different jobs with different looks?",
+     "Listen for single-cause answers and multi-part answers. Single-cause students need more support in Lessons 8 and 9."
+    ],
+    "if_then": [
+     "If no one answers, say: Think about tools in a kitchen. Are they all the same shape? Why not?",
+     "If a student says all the same, say: Tell us why you think so. What would you see if they were different?",
+     "If you want to rephrase, wait. Silence is harder for the teacher than for students."
+    ],
+    "why_this_works": "The longest wait is on the hardest question. It gives students time to link what something looks like with what it does, which is the heart of the unit.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "explain",
+   "title": "A very big question",
+   "subtitle": "Scientists looked at healing wounds under a microscope.",
+   "check_for_understanding": true,
+   "student_task": false,
+   "minutes": 3,
+   "time_note": "About 1 minute for the statement and 2 minutes for responses.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "callout",
+     "style": "normal",
+     "text": "They found dozens of different types of tiny structures working at the same time.",
+     "items": [
+      "Each did a completely different job.",
+      "Each looked completely different from the others."
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "text",
+     "style": "question",
+     "text": "Does that surprise you? Why?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Read the statement slowly. Pause after it.",
+     "Say that this is not an answer. It is a reframe that leads to a big question.",
+     "Ask: Does that surprise you? Take 2 to 3 spontaneous responses.",
+     "Do not name any cell types today."
+    ],
+    "say": [
+     "Scientists who looked at healing wounds under a microscope found something remarkable.",
+     "They found that dozens of different types of tiny structures were all working at the same time. Each did a completely different job, and each looked completely different from the others.",
+     "That raises a very big question, which we are going to investigate for the next several weeks.",
+     "Does that surprise you? Why?"
+    ],
+    "wait_time": "5 seconds after the question.",
+    "look_for": [
+     "Check 3 students: do they show curiosity or surprise, and give a reason?",
+     "Do any students ask what the tiny structures are, or why they look different? Those are the questions for the Driving Question Board."
+    ],
+    "if_then": [
+     "If a student asks: What are they? say: Great question. Write it on your blue note soon. We will find out in this unit.",
+     "If a student says it is not surprising, say: Tell us why. Did you already know that?",
+     "If students ask for the answer, say: Not yet. Today we collect questions."
+    ],
+    "why_this_works": "A surprising statement without an answer creates a need to know. When students ask why the parts look different, the driving question feels like their own.",
+    "answer_key": [],
+    "science_note": "Teacher only. The wound-healing cell types are platelets, neutrophils, macrophages, fibroblasts and epidermal cells. Do not name them today. They are met in later lessons."
+   }
+  },
+  {
+   "phase": "dqb",
+   "title": "Notice and wonder notes",
+   "subtitle": "Two sticky notes. Two colours.",
+   "check_for_understanding": true,
+   "student_task": true,
+   "minutes": 4,
+   "time_note": "About 1 minute for the teacher think-aloud and 3 minutes for writing.",
+   "timers": [
+    {
+     "label": "Write both notes",
+     "time": "3:00"
+    }
+   ],
+   "blocks": [
+    {
+     "type": "columns",
+     "style": "normal",
+     "text": "",
+     "items": [
+      "Yellow :: What do we notice? Write one thing you saw.",
+      "Blue :: What do we wonder? Write one real question you have."
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "callout",
+     "style": "normal",
+     "text": "Your wonder note should be a real question you actually have.",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Give each student two sticky notes of different colours. The colours in the SoW are an example: yellow for notice, blue for wonder.",
+     "Model first with a think-aloud. Write both examples on the board.",
+     "Start the 3-minute timer. Students write alone.",
+     "Circulate and read 5 to 6 wonder notes."
+    ],
+    "say": [
+     "I notice in the images that the wound looks completely healed after just a few days. That is my notice note.",
+     "I wonder how the body knows exactly what shape to rebuild the skin in. That is my wonder note.",
+     "Your wonder note should be a real question you actually have. It should not be a question you think I want to hear."
+    ],
+    "wait_time": "The full 3 minutes for writing.",
+    "look_for": [
+     "Check 5 to 6 sticky notes: the yellow note says something seen, and the blue note is a real question.",
+     "Many wonder notes start with Why or How. Notes that are only facts are not questions.",
+     "Questions that show a misconception. Note them to address later."
+    ],
+    "if_then": [
+     "If a student writes a fact on the blue note, say: Turn it into a question. What do you not know about it?",
+     "If a student writes a question the teacher wants to hear, say: What do YOU really wonder about the cut?",
+     "If a student cannot think of a question, say: What puzzled you in the four images?"
+    ],
+    "why_this_works": "Two colours separate what we see from what we ask. This is a basic scientific skill. Writing a real question gives each student a stake in the investigation.",
+    "answer_key": [
+     "Model notice note: The wound looks completely healed after just a few days.",
+     "Model wonder note: How does the body know exactly what shape to rebuild the skin in?",
+     "Other model wonder notes: What is actually inside blood? Why does the skin grow back so perfectly?"
+    ],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "dqb",
+   "title": "Post your notes on the Driving Question Board",
+   "subtitle": "Come forward in groups of six to eight.",
+   "check_for_understanding": false,
+   "student_task": false,
+   "minutes": 2,
+   "time_note": "Groups post their notes. The teacher reads and groups some questions.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "illustration",
+     "style": "normal",
+     "text": "A classroom wall covered in blank yellow and green sticky notes with small gold stars beside some of them.",
+     "items": [
+      "dqb_sticky_notes_board",
+      "A friendly flat cartoon of a classroom wall covered in blank yellow and green sticky notes, with three small gold stars stuck beside some notes, and a wooden desk with a pot of pencils in front."
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "numbered",
+     "style": "normal",
+     "text": "",
+     "items": [
+      "pushpin :: Post your yellow note under What do we notice?",
+      "pushpin :: Post your blue note under What do we wonder?",
+      "ear :: Listen as the teacher reads some questions"
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Prepare a large class poster with two column headings: What do we notice? and What do we wonder? Leave space at the top for the driving question.",
+     "Call students forward in groups of six to eight.",
+     "Read aloud a selection of wonder questions. Group similar ones together.",
+     "Do not evaluate or rank any question."
+    ],
+    "say": [
+     "I can see several of you are wondering why the skin grows back so perfectly. Others are wondering what is actually inside blood. These are exactly the kinds of questions scientists ask.",
+     "Every single question on this board is legitimate. Some we will answer in this unit. Some might take years of science to answer. All of them matter."
+    ],
+    "wait_time": "",
+    "look_for": [
+     "Are the notes posted in the correct column?",
+     "Which questions will be answered in this unit, which show misconceptions, and which show deep thinking? You will use this analysis later."
+    ],
+    "if_then": [
+     "If a note is on the wrong side, say: Is this a thing you saw or something you wonder? Move it to the right column.",
+     "If the board is crowded, say: Stand in a line and place the notes in rows. We can sort them later."
+    ],
+    "why_this_works": "Public posting makes every student a contributor to the class investigation. Grouping similar questions shows students that their questions are connected.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "dqb",
+   "title": "Our driving question",
+   "subtitle": "We will answer it piece by piece.",
+   "check_for_understanding": false,
+   "student_task": false,
+   "minutes": 2,
+   "time_note": "8 seconds of silence, then 2 to 3 quick reactions.",
+   "timers": [
+    {
+     "label": "Silent thinking",
+     "time": "0:08"
+    }
+   ],
+   "blocks": [
+    {
+     "type": "text",
+     "style": "question",
+     "text": "Why do cells in our body look so different from each other — and how does the shape of a cell determine the job it can do?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "text",
+     "style": "emphasis",
+     "text": "The Driving Question Board will be updated at the end of every lesson.",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Read the driving question aloud from the top of the Driving Question Board poster.",
+     "Stay silent for 8 seconds.",
+     "Ask: What is your very first reaction to this question? Take 2 to 3 brief answers.",
+     "Explain that the question will be answered piece by piece, and that the board will be updated at the end of every lesson.",
+     "Photograph the Driving Question Board at the end of the lesson."
+    ],
+    "say": [
+     "Why do cells in our body look so different from each other, and how does the shape of a cell determine the job it can do?",
+     "What is your very first reaction to this question?",
+     "We will answer this question piece by piece. At the end of every lesson we will update this board."
+    ],
+    "wait_time": "8 seconds of silence after reading the question, before asking for reactions.",
+    "look_for": [
+     "Do students link their own questions to the driving question?",
+     "Check 2 to 3 reactions: surprise, interest, or confusion. All are useful.",
+     "Wonder questions that are answered in this unit, and those that show misconceptions."
+    ],
+    "if_then": [
+     "If no one answers, say: Which of the questions on the board is closest to this one?",
+     "If a student tries to answer the driving question, say: Thank you. Keep that idea. We will test it with evidence."
+    ],
+    "why_this_works": "The driving question is introduced after students have posted their own questions. They can see that their own wondering leads to it.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "model",
+   "title": "Version 0: Draw what you think a cell looks like",
+   "subtitle": "This is not an art competition. It is not a test.",
+   "check_for_understanding": true,
+   "student_task": true,
+   "minutes": 4,
+   "time_note": "3 minutes of drawing plus about 1 minute to explain the model idea.",
+   "timers": [
+    {
+     "label": "Drawing",
+     "time": "3:00"
+    }
+   ],
+   "blocks": [
+    {
+     "type": "callout",
+     "style": "normal",
+     "text": "Draw from memory and imagination. Label anything you think is inside a cell.",
+     "items": [
+      "No books. No diagrams.",
+      "There is no right answer today."
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "text",
+     "style": "emphasis",
+     "text": "Your model will grow and improve as you learn more.",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Explain that throughout the unit students build one cumulative cell model that grows and improves. Today's drawing is Version 0.",
+     "Give out no diagrams or reference materials.",
+     "Start the visible 3-minute timer. Give the full 3 minutes.",
+     "Circulate. Ask 5 to 6 students quietly: What made you draw it that way? or What is this part doing? Do not correct any drawing.",
+     "At the end, collect the notebooks briefly or photograph some drawings."
+    ],
+    "say": [
+     "Draw what you think a cell looks like. Label anything you think might be inside.",
+     "This is not an art competition and it is not a test. It is a snapshot of what you already know.",
+     "Draw whatever comes to mind: a box, a circle, dots inside, labels, anything at all.",
+     "We will compare this drawing with later versions of your model. Seeing how it changes is part of the learning."
+    ],
+    "wait_time": "The full 3 minutes of drawing time.",
+    "look_for": [
+     "Check 8 to 10 notebooks and sort the drawings: a simple circle with nothing inside, a cell with only a nucleus, a cell with several named parts, or a cell drawn like a brick or a box.",
+     "Common misconception: a cell is like a brick or a box because of the word cell. Note it. Do not correct it.",
+     "Every student has drawn and labelled something."
+    ],
+    "if_then": [
+     "If a student says they do not know how to draw a cell, say: Draw what you think it looks like. Even a circle is a good start.",
+     "If a student asks if it is right, say: There is no right answer today. Draw what you think.",
+     "If a student copies a neighbour, say: Draw your own idea. I want to see what you think."
+    ],
+    "why_this_works": "Drawing from imagination is less threatening than a test and shows students' own ideas. A baseline drawing lets students see how their thinking changes later.",
+    "answer_key": [
+     "Model drawing: a circle with a dot in the middle labelled nucleus, a few small dots labelled with a guess such as parts, and the outer line labelled skin. Any honest drawing is acceptable."
+    ],
+    "science_note": ""
+   }
+  },
+  {
+   "phase": "model",
+   "title": "Hold onto your predictions",
+   "subtitle": "You have already done what scientists do.",
+   "check_for_understanding": false,
+   "student_task": false,
+   "minutes": 1,
+   "time_note": "A short closing from the teacher.",
+   "timers": [],
+   "blocks": [
+    {
+     "type": "illustration",
+     "style": "normal",
+     "text": "A girl smiling and holding up one finger with a neat plaster on it, beside a chopping board with sliced onions.",
+     "items": [
+      "amina_healing_finger",
+      "A friendly flat cartoon of one teenage girl in a school uniform smiling and holding up one hand with a neat plaster on her finger, standing beside a kitchen table with a wooden chopping board of sliced onions."
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "bullets",
+     "style": "normal",
+     "text": "",
+     "items": [
+      "eyes :: You observed carefully",
+      "question :: You asked good questions",
+      "thought :: You made your first predictions"
+     ],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    },
+    {
+     "type": "text",
+     "style": "emphasis",
+     "text": "Next: what is a cell, and why is cell theory so important?",
+     "items": [],
+     "rows": [],
+     "template": "none",
+     "labels": []
+    }
+   ],
+   "resources": [],
+   "notes": {
+    "do": [
+     "Return to Amina to close the lesson.",
+     "Say the sentence about predictions slowly. Pause after the word predictions.",
+     "Tell students to keep their notebooks safe. They will need their predictions again."
+    ],
+    "say": [
+     "In Lesson 2, we will begin to look at what a cell actually is and why cell theory is one of the most important ideas in all of biology.",
+     "But today, you have already done something scientists do every single time they start an investigation.",
+     "You have observed carefully, asked good questions, and made your first predictions.",
+     "Hold onto those predictions. We will need them again."
+    ],
+    "wait_time": "3 seconds of pause after the word predictions.",
+    "look_for": [
+     "Students look engaged and curious, not worried about being wrong.",
+     "Students keep their notebooks safely."
+    ],
+    "if_then": [
+     "If students ask for the answers now, say: We will find the answers together over the next lessons. That is what the Driving Question Board is for."
+    ],
+    "why_this_works": "Ending with the story of Amina links the lesson to the anchor phenomenon. Telling students what they did as scientists shows that wondering is part of science.",
+    "answer_key": [],
+    "science_note": ""
+   }
+  }
+ ],
+ "build_log": [
+  {
+   "slide": "whole lesson",
+   "type": "term_flag",
+   "sow_says": "A Form 1 student in Nairobi cuts their finger while slicing onions (unit phenomenon); Amina, a Form 1 student in Nairobi (Predict phase)",
+   "deck_does": "Slides and notes say 'Amina' without any year group. The teacher narration follows the SoW story without the words 'Form 1'.",
+   "why": "The manual and CBE use 'Grade 10'. 'Form 1' is an outdated term in the SoW. The SoW owner should correct it on main."
+  },
+  {
+   "slide": "whole lesson",
+   "type": "inconsistency",
+   "sow_says": "Lesson plan substrand '1.1 Cell Structure' but unit substrand 'Sub-Strand 1.3: Cell Structure and Specialisation'",
+   "deck_does": "Uses the sub-strand name 'Cell Structure'. The sub-strand number is left for code.",
+   "why": "The sub-strand number does not match (1.1 and 1.3), and the names also differ."
+  },
+  {
+   "slide": "Share your idea with a partner",
+   "type": "other",
+   "sow_says": "Pair sharing for 90 seconds is in the Observe Phase; the Predict Phase is individual silent writing only",
+   "deck_does": "Keeps the SoW order: silent writing in Predict, pair talk and the class share in Observe. The class share slide is titled 'BEFORE — Our Predictions'.",
+   "why": "The manual puts pair talk and the sharing slide at the end of Predict. The golden rule says not to reorder. The SoW owner can decide whether to move them."
+  },
+  {
+   "slide": "whole lesson",
+   "type": "missing_detail",
+   "sow_says": "The SoW gives inner timings (2 min writing, 90 s pair share, 3 min notes, 3 min drawing, 5/8/10 s waits) but no minutes for each phase",
+   "deck_does": "Split the 36 slide minutes: Predict 7, Observe 9, Explain 7, Driving Question Board 8, Model Building 5. Unit map 1, goals 1, summary 2.",
+   "why": "The total must be exactly 40 minutes. The SoW's own timings did not overrun, so nothing was trimmed, but its narration, discussion and posting times are estimates for the teacher to check in a large class."
+  },
+  {
+   "slide": "Watch the cut heal",
+   "type": "missing_detail",
+   "sow_says": "a four-image narrated photo sequence on the board — or narrates it verbally if projection is unavailable — showing: (1) a freshly cut finger with blood, (2) a dark clot forming, (3) a scab on healing skin after two days, and (4) new pink skin with the scab gone",
+   "deck_does": "Shows the four stages as icon tiles with short captions and does not invent images. The notes tell the teacher to use drawings or narrate.",
+   "why": "No images are in the resource list or in the existing illustrations. Manual says no graphic injury images, so the teacher should supply drawings. The SoW safety note about distressing images is in the notes."
+  },
+  {
+   "slide": "Explain slides",
+   "type": "other",
+   "sow_says": "Teacher leads a brief whole-class discussion using three targeted questions... not an answer, but a reframe",
+   "deck_does": "Follows the SoW: three questions then the bridging statement. No marking of predictions and no Claim–Evidence–Reasoning task is added.",
+   "why": "The manual asks students to mark predictions and write a CER in Explain. The SoW says no answers are given in Lesson 1, so adding these would invent activities."
+  },
+  {
+   "slide": "Our driving question",
+   "type": "missing_detail",
+   "sow_says": "Teacher explains that this question will be answered piece by piece... DQB will be updated at the end of every lesson",
+   "deck_does": "No class vote on whether evidence supports a claim is included.",
+   "why": "The manual asks for a vote at the Driving Question Board. The SoW has none, and there is no claim or evidence yet. Not invented."
+  },
+  {
+   "slide": "Hold onto your predictions",
+   "type": "missing_detail",
+   "sow_says": "Teacher closes the lesson by returning to Amina: In Lesson 2, we will begin to look at what a cell actually is",
+   "deck_does": "Ends with the teacher's closing statement about Lesson 2. No one-sentence student prediction for the next lesson is added.",
+   "why": "The manual asks for a prediction at the end of Model Building. The SoW does not have one, so none was invented."
+  },
+  {
+   "slide": "Notice and wonder notes",
+   "type": "inconsistency",
+   "sow_says": "yellow for What do we notice? and blue for What do we wonder? (example) vs the existing Driving Question Board picture with yellow and green sticky notes",
+   "deck_does": "Slide text uses yellow and blue as in the SoW. The picture of the board shows yellow and green notes.",
+   "why": "The colours differ. Teachers can use any two colours. One consistent colour pair may be chosen when the SoW is updated."
+  },
+  {
+   "slide": "Hold onto your predictions",
+   "type": "inconsistency",
+   "sow_says": "Predict: 'compared with final understanding in Lesson 12'; Model Building: 'compared with their Version 4 model in Lesson 11'; Lesson 11 overview: Lesson 1 predictions revisited in Lesson 11; Version 4 is made in Lesson 10",
+   "deck_does": "Slide text only says 'you will need your predictions again'. The notes say the drawing will be compared with later versions, without a lesson number.",
+   "why": "The SoW names different lessons for the same comparison, so the deck avoids a specific lesson number."
+  },
+  {
+   "slide": "A very big question",
+   "type": "term_flag",
+   "sow_says": "dozens of different types of tiny structures were all working at the same time",
+   "deck_does": "Uses the SoW wording on the slide and in the notes.",
+   "why": "'Tiny structures' avoids the word cell, which is introduced later, but may be vague or confusing. 'Dozens' may be more than the cell types in the unit's example. The teacher owner should check."
+  },
+  {
+   "slide": "whole lesson",
+   "type": "resource_note",
+   "sow_says": "ares_resources: predict, observe, explain, dqb and model videos and readings",
+   "deck_does": "No ARES icon is placed on any phase slide.",
+   "why": "The resources (Organization in the human body, plant and animal cells, cell parts) introduce content from later lessons and would give away later discoveries. Match notes are for the glance slide in Part B."
+  },
+  {
+   "slide": "whole lesson",
+   "type": "safety_flag",
+   "sow_says": "If a teacher uses a real photograph of a wound, ensure images are not graphic or distressing... anyone who feels uncomfortable... may look away",
+   "deck_does": "No photographs are used on slides. The notes tell the teacher to use drawings and to let students look away.",
+   "why": "The SoW has a safety note about injury images and the manual forbids graphic injury images."
+  },
+  {
+   "slide": "Unit map",
+   "type": "inconsistency",
+   "sow_says": "The teacher formally introduces the driving question by reading it aloud from the top of the DQB poster (after notes are posted)",
+   "deck_does": "The code puts the driving question on the unit map, which comes before Predict. Notes tell the teacher not to read it aloud until the Our driving question slide. do_not_show warns about this.",
+   "why": "The manual puts the driving question on the unit map, but the SoW introduces it late in the lesson. The question is visible earlier than the SoW intends."
+  },
+  {
+   "slide": "whole lesson",
+   "type": "missing_detail",
+   "sow_says": "Each learner receives two sticky notes of different colours; a large class poster; science notebooks; a visible timer",
+   "deck_does": "Glance materials list only these items. Quantity is given only for the sticky notes (two per student).",
+   "why": "The SoW gives no numbers for notebooks, poster size or timer, and no list of the four drawings. Teachers should add local quantities."
+  },
+  {
+   "slide": "whole lesson",
+   "type": "other",
+   "sow_says": "No fallback is given for missing equipment or materials",
+   "deck_does": "The glance fallback suggests: describe the images aloud (the SoW allows this), small pieces of paper in place of sticky notes, and two columns on the board in place of a poster.",
+   "why": "The manual needs a fallback. The paper and board substitutes are not in the SoW and should be checked by the teacher."
+  },
+  {
+   "slide": "Lesson at a glance",
+   "type": "resource_note",
+   "sow_says": "ares_resources: predict.video (Organization in the human body), predict.reading (Wound Healing Process PLIX), explain, dqb and model videos and readings",
+   "deck_does": "All eight resources have match notes. Seven are do_not_use, and the wound-healing reading is preview_first. No resource is placed on a slide.",
+   "why": "The match notes are based on the resource titles, not on opened content. Most teach cell parts or organisation from later lessons. A teacher should preview the wound-healing reading and confirm."
+  },
+  {
+   "slide": "Unit map",
+   "type": "other",
+   "sow_says": "Lesson 12 title: Consolidation, DQB Closure, and Final Explanation — The Healing Cut Fully Explained",
+   "deck_does": "The unit map uses the short title Final Explanation. Other lesson titles are shortened to parts of their SoW titles.",
+   "why": "The unit map allows at most six words per title, using only words from the SoW title."
+  },
+  {
+   "slide": "Lesson at a glance / ARES resources",
+   "type": "resource_note",
+   "sow_says": "The lesson plan attaches resources to phase slots by topic match.",
+   "deck_does": "Resources re-rated on the 4-level scale (best match / preview first / use later / do not use) after Mark's review, 2026-10-22: well-matched but badly timed resources are 'use later' with when to use them.",
+   "why": "The first 3-level scale marked 59 of 89 resources DO NOT USE because it had no way to say 'good, but after Explain'."
+  }
+ ],
+ "lesson_title_short": "The Healing Cut",
+ "lesson_oneliner": "A cut finger heals. What is happening inside?",
+ "purpose": [
+  "Launch the anchor phenomenon: a healing cut on a finger.",
+  "Bring out students' own ideas about what happens inside the body when a cut heals.",
+  "Set up the Driving Question Board with notice and wonder notes. The board grows across all 12 lessons.",
+  "No science content is taught today. Students should leave puzzled and curious.",
+  "Students practise observing, predicting and recording ideas without fear of being wrong."
+ ],
+ "before_class": [
+  "Prepare a large class poster for the Driving Question Board. Add two column headings: What do we notice? and What do we wonder? Leave space at the top for the driving question.",
+  "Write the driving question on a strip of paper to fix to the top of the poster. Keep it covered until the Our driving question slide.",
+  "Prepare two sticky notes of different colours for each student (for example yellow and blue).",
+  "Prepare four simple drawings of the healing finger: fresh cut, dark clot, scab after two days, new pink skin. Do not use graphic photographs. If you cannot project, plan to describe each image.",
+  "Set up a visible timer for 2:00, 1:30, 0:10, 3:00, 0:08 and 3:00.",
+  "Ask students to bring their science notebooks and pens.",
+  "Practise the Amina story so you can tell it slowly and in your own words.",
+  "Prepare your own notice and wonder think-aloud examples to write on the board."
+ ],
+ "do_not_show": [
+  "Do not show the Watch the cut heal slide until students have written their first predictions.",
+  "Do not show the Our driving question slide until students have posted their notes. The unit map slide also shows the driving question: do not read it aloud at the start.",
+  "Do not name any cell types today (platelets, white blood cells, skin cells). They are met in later lessons.",
+  "Do not show the ARES videos or readings in this lesson. They teach content from later lessons."
+ ],
+ "is_practical": false,
+ "so_far": "This is our first lesson, so we start with a puzzle.",
+ "unit_map_titles": [
+  "The Healing Cut",
+  "What Is a Cell?",
+  "Prokaryotic vs. Eukaryotic Cells",
+  "Plant Cell Ultrastructure",
+  "Animal Cell Ultrastructure",
+  "Observing Onion Epidermal Cells",
+  "Observing Human Cheek Cells",
+  "Cell Specialisation",
+  "Specialised Plant Cells",
+  "Cell Organisation",
+  "Synthesis and Model Revision",
+  "Final Explanation"
+ ],
+ "goals": [
+  "Describe the changes you see when a cut heals.",
+  "Share your first ideas about what happens inside the body.",
+  "Write a real question about the cut on the Driving Question Board."
+ ],
+ "key_words": [
+  {
+   "word": "prediction",
+   "definition": "Your idea about what is happening or will happen, and why."
+  },
+  {
+   "word": "observe",
+   "definition": "Look carefully and note what you see."
+  },
+  {
+   "word": "Driving Question Board",
+   "definition": "A class wall where we post what we notice and what we wonder."
+  },
+  {
+   "word": "model",
+   "definition": "A drawing of your idea. You improve it as you learn more."
+  }
+ ],
+ "safety": {
+  "title": "",
+  "rules": [],
+  "minutes": 0,
+  "notes": {
+   "do": [],
+   "say": [],
+   "wait_time": "",
+   "look_for": [],
+   "if_then": [],
+   "why_this_works": "",
+   "answer_key": [],
+   "science_note": ""
+  }
+ },
+ "glance": {
+  "rows": [
+   {
+    "group": "opening",
+    "minutes": 2,
+    "what": "Unit map and goals: a quick read-through"
+   },
+   {
+    "group": "predict",
+    "minutes": 7,
+    "what": "Listen to Amina's story, then write alone for 2 minutes"
+   },
+   {
+    "group": "observe",
+    "minutes": 9,
+    "what": "Pair share, four-image healing sequence, class shares predictions on board"
+   },
+   {
+    "group": "explain",
+    "minutes": 7,
+    "what": "Three questions, then the bridging statement: a very big question"
+   },
+   {
+    "group": "dqb",
+    "minutes": 8,
+    "what": "Write notice and wonder notes, post them, hear the driving question"
+   },
+   {
+    "group": "model",
+    "minutes": 5,
+    "what": "Draw Version 0 of the cell model, then close with Amina"
+   },
+   {
+    "group": "summary",
+    "minutes": 2,
+    "what": "Summary Table: at the end or as homework"
+   }
+  ],
+  "materials": [
+   "Science notebook and pen for each student",
+   "Visible timer (2:00, 1:30, 0:10, 3:00, 0:08)",
+   "Two sticky notes of different colours per student",
+   "One large class poster for the Driving Question Board",
+   "Board and marker to write students' words",
+   "Four drawings of the healing finger (if projecting)",
+   "Projector or screen (optional)"
+  ],
+  "fallback": "No projector: describe each of the four images aloud. No sticky notes: students write on small pieces of paper and fix them to the poster. No poster: draw two columns on the board.",
+  "resource_notes": [
+   {
+    "key": "predict.video",
+    "match": "preview_first",
+    "note": "Body organisation (cells to organ systems) suits Lesson 10 better. Check it does not give answers; if so, use in Lesson 10."
+   },
+   {
+    "key": "predict.reading",
+    "match": "preview_first",
+    "note": "Wound healing fits the phenomenon, but may explain the cell steps. Check it; if so, use after the 'A very big question' slide."
+   },
+   {
+    "key": "explain.video",
+    "match": "use_later",
+    "note": "Teaches organelles and functions, which Lesson 1 deliberately withholds. Use in Lesson 4, when organelles are taught."
+   },
+   {
+    "key": "explain.reading",
+    "match": "use_later",
+    "note": "Organelle practice exercise would pre-empt content. Use in Lesson 4 or as revision after Lesson 5."
+   },
+   {
+    "key": "dqb.video",
+    "match": "use_later",
+    "note": "Plant versus animal comparison is taught later. Use in Lesson 5; it does not suit DQB creation today."
+   },
+   {
+    "key": "dqb.reading",
+    "match": "use_later",
+    "note": "Plant versus animal cell exercise suits Lesson 5 comparison work, not posting questions. Use it in Lesson 5."
+   },
+   {
+    "key": "model.video",
+    "match": "use_later",
+    "note": "Shows labelled cells, which would spoil the Version 0 baseline drawing. Use in Lesson 2 when students build Version 1."
+   },
+   {
+    "key": "model.reading",
+    "match": "use_later",
+    "note": "Organelle practice would give away content before the Version 0 drawing. Use in Lesson 2 or Lesson 4."
+   }
+  ]
+ },
+ "summary": {
+  "observe_prompt": "Describe the changes you saw as the cut finger healed.",
+  "learn_prompt": "What did you find out about how a cut heals?",
+  "explain_prompt": "What can we not explain yet? Which question will we investigate?",
+  "next_lesson": "What a cell is, and why cell theory matters.",
+  "answer_observe": "We observed a sequence of changes when a finger is cut. Bleeding slows, a clot forms, a scab develops, and new skin appears over several days.",
+  "answer_learn": "We learned that healing is made up of many events happening at the same time. Scientists have found many different types of tiny structures working together during wound healing.",
+  "answer_explain": "We cannot yet explain why the different structures look different, or how each one knows what job to do. Our Driving Question Board will help us answer these questions over the next eleven lessons.",
+  "reflection": [
+   "Did students write genuine wonder questions, or what they thought you wanted to hear?",
+   "Were students willing to share unfinished ideas in public? If not, what might have stopped them?",
+   "Did the story of Amina create real curiosity? How could you tell it more vividly next time?",
+   "Did any students already name cell types such as platelets or white blood cells? How will you use their ideas later without making others feel behind?",
+   "Did you keep the full wait times, especially the 10 seconds and the 8 seconds? Are the wonder questions rich enough for 12 lessons, or do you need to add some in Lesson 2?"
+  ],
+  "minutes": 2,
+  "notes": {
+   "do": [
+    "Show the three questions. Students write short answers in their notebooks. Do this at the end of the lesson, or set it as homework if time is short.",
+    "Do not give the answers. Take one or two spoken answers if there is time.",
+    "Remind students that the Driving Question Board will be updated at the end of every lesson."
+   ],
+   "say": [
+    "Write what you observed, what you learned, and what you cannot yet explain.",
+    "It is fine to say we do not know yet. That is where the investigation starts."
+   ],
+   "wait_time": "",
+   "look_for": [],
+   "if_then": [],
+   "why_this_works": "Writing a short summary shows what students have taken from the lesson. Naming what we cannot yet explain keeps curiosity alive for the next lesson.",
+   "answer_key": [],
+   "science_note": ""
+  }
+ },
+ "unit_map_notes": {
+  "do": [
+   "Show the unit map. Point to YOU ARE HERE on Lesson 1.",
+   "Read the So far line.",
+   "Do not read the driving question aloud yet. Do not explain the later lessons.",
+   "Keep this to one minute."
+  ],
+  "say": [
+   "This is the first lesson in our journey about cells.",
+   "Today is Lesson 1, The Healing Cut. We start with a puzzle, not with answers.",
+   "You will meet the big question for this unit later in today's lesson."
+  ],
+  "wait_time": "",
+  "look_for": [],
+  "if_then": [],
+  "why_this_works": "Showing the whole journey helps students see where today fits. Saving the driving question until students have posted their own questions lets them see that it connects to their wondering.",
+  "answer_key": [],
+  "science_note": ""
+ },
+ "goals_notes": {
+  "do": [
+   "Read the three goals aloud.",
+   "Read the four key words and their short meanings.",
+   "Tell students they will use these words today. Do not test them.",
+   "Keep this to one minute."
+  ],
+  "say": [
+   "By the end of today you can describe the changes when a cut heals, share your first ideas, and write a real question.",
+   "Four words will help us today: prediction, observe, Driving Question Board and model."
+  ],
+  "wait_time": "",
+  "look_for": [],
+  "if_then": [],
+  "why_this_works": "Clear goals show students what they are expected to do. Short key words are heard before they are needed, so students can use them straight away.",
+  "answer_key": [],
+  "science_note": ""
+ }
+}
