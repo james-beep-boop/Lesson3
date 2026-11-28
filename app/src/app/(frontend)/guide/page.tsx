@@ -165,8 +165,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                   <li>
                     <em>Slides</em> appear under <em>Share → Download one document</em> when the
-                    lesson has slides. Choose <em>PowerPoint</em> to present them or <em>PDF</em>{' '}
-                    to read or print them.
+                    lesson has slides. Choose <em>PowerPoint</em> to present them or <em>PDF</em> to
+                    read or print them.
                   </li>
                   <li>
                     Choose <em>Share → Message a colleague</em> to send another ARES Lesson Plans

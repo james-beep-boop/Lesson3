@@ -185,7 +185,7 @@ export default async function LessonView({
   // cache entry is untouched. The jump nav is built from the same split, so every chip has a target.
   const { disclosures, nav: navItems } = readingDisclosures(sections)
   const lessonNumbers = new Set(disclosures.map(({ lessonNumber }) => lessonNumber))
-  const slideDecks = decks.filter(({ lessonNumber }) => viewError || lessonNumbers.has(lessonNumber))
+  const slideDecks = decks.filter((deck) => viewError || lessonNumbers.has(deck.lessonNumber))
 
   return (
     <article className="lesson">
