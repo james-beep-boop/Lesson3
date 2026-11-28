@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One Postgres dump + age encryption, independently copied to the server disk and USB/cloud.
+# One encrypted backup of Postgres and any supporting files, copied to the server disk and USB/cloud.
 # Disk: BACKUP_DISK_DIR (default /var/lib/lesson3-backups; explicit empty disables it). The default
 #   folder is skipped as "not set up" until it exists (see below).
 # USB/cloud: BACKUP_RCLONE_REMOTE (optional). At least one destination is required.
@@ -223,7 +223,7 @@ migrate_records
 for target in "${TARGETS[@]}"; do reject_unsupported_json_controls "${ROOTS[$target]}" 'backup destination'; done
 reject_unsupported_json_controls "$DB_NAME" BACKUP_DB_NAME
 reject_unsupported_json_controls "$LABEL" --label
-for tool in docker age rclone cmp; do need "$tool"; done
+for tool in docker age rclone cmp tar; do need "$tool"; done
 [[ -n "$BACKUP_AGE_RECIPIENT" ]] || die 'BACKUP_AGE_RECIPIENT is not set'
 AGE_RECIPIENT_ARGS=(-r "$BACKUP_AGE_RECIPIENT")
 if [[ -n "$BACKUP_AGE_RECIPIENT_SCHOOL" ]]; then
@@ -308,19 +308,65 @@ COVERS_UNTIL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # Bound the encrypted staging file too: the destination check alone cannot protect /tmp's disk.
 # Bash's file-size limit is inherited by age and stops it before it consumes the free-space reserve.
 STAGE=encrypt
-TEMP_AVAILABLE="$(free_kb "$TMP")"
-[[ "$TEMP_AVAILABLE" =~ ^[0-9]+$ ]] || die 'cannot read staging disk space'
 TEMP_RESERVE_KIB=$((RESERVE_BYTES / 1024))
-(( TEMP_AVAILABLE > TEMP_RESERVE_KIB )) || die 'disk nearly full — no room to stage an encrypted backup'
-TEMP_LIMIT_KIB=$((TEMP_AVAILABLE - TEMP_RESERVE_KIB))
+refresh_temp_limit() {
+  TEMP_AVAILABLE="$(free_kb "$TMP")"
+  [[ "$TEMP_AVAILABLE" =~ ^[0-9]+$ ]] || die 'cannot read staging disk space'
+  (( TEMP_AVAILABLE > TEMP_RESERVE_KIB )) || die 'disk nearly full — no room to stage the backup'
+  TEMP_LIMIT_KIB=$((TEMP_AVAILABLE - TEMP_RESERVE_KIB))
+}
+
+refresh_temp_limit
 STAGE=dump
-set +e
-docker compose exec -T postgres pg_dump -U "$DB_USER" -Fc "$DB_NAME" | (ulimit -f "$TEMP_LIMIT_KIB" && exec age "${AGE_RECIPIENT_ARGS[@]}" -o "$LOCAL")
-PIPE=("${PIPESTATUS[@]}")
-set -e
-[[ "${PIPE[0]}" -eq 0 ]] || die "pg_dump failed (exit ${PIPE[0]}) — nothing uploaded"
+DUMP="$TMP/database.dump"
+(ulimit -f "$TEMP_LIMIT_KIB" && docker compose exec -T postgres pg_dump -U "$DB_USER" -Fc "$DB_NAME" >"$DUMP") \
+  || die "pg_dump failed — nothing uploaded"
+
+# Select the immutable filenames from the COPY section of this exact dump. A concurrent upload
+# is outside the snapshot. If a concurrent removal makes a snapshot file unavailable, tar fails
+# and we keep the last good backup. Older schemas have no supporting_files COPY section.
+FILE_LIST="$TMP/supporting-files.list"
+docker compose exec -T postgres pg_restore --file=- --data-only --schema=public --table=supporting_files <"$DUMP" |
+  awk -F '\t' '
+    /^COPY public.supporting_files \(/ {
+      n = split($0, columns, /[(), ]+/)
+      for (i = 3; i <= n; i++) if (columns[i] == "filename") col = i - 2
+      if (!col) exit 1
+      copying = 1
+      next
+    }
+    $0 == "\\." { copying = 0 }
+    copying {
+      if ($col !~ /^[[:alnum:]_][[:alnum:]_.-]*$/) exit 1
+      print $col
+    }
+  ' >"$FILE_LIST" || die "could not read supporting filenames from the dump — nothing uploaded"
+
+if [[ -s "$FILE_LIST" ]]; then
+  OID="$(docker compose exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -tAc \
+    'SELECT oid FROM pg_database WHERE datname = current_database();')" \
+    || die "could not locate the supporting files — nothing uploaded"
+  refresh_temp_limit
+  (
+    ulimit -f "$TEMP_LIMIT_KIB"
+    # Only whitespace-free filenames reach this list. BusyBox tar builds need no -T support.
+    supporting_files_volume "$OID" 'cd "$dir"; set -f; set -- $(cat); exec tar -cf - "$@"'
+  ) <"$FILE_LIST" >"$TMP/supporting-files.tar" || die "could not archive supporting files — nothing uploaded"
+fi
+
+backup_bytes() {
+  if [[ -s "$FILE_LIST" ]]; then
+    tar -cf - -C "$TMP" database.dump supporting-files.tar
+  else
+    cat "$DUMP"
+  fi
+}
+
 STAGE=encrypt
-[[ "${PIPE[1]}" -eq 0 ]] || die "age could not encrypt the dump (exit ${PIPE[1]}) — nothing uploaded"
+refresh_temp_limit
+backup_bytes | (ulimit -f "$TEMP_LIMIT_KIB" && exec age "${AGE_RECIPIENT_ARGS[@]}" -o "$LOCAL") \
+  || die "could not encrypt the backup — nothing uploaded"
+rm -f "$DUMP" "$TMP/supporting-files.tar"
 SIZE="$(wc -c <"$LOCAL" | tr -d '[:space:]')"
 [[ "$SIZE" -gt 0 ]] || die 'encrypted dump is empty — nothing uploaded'
 

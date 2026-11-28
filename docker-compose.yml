@@ -59,9 +59,8 @@ services:
     ports:
       - "3001:3000"
     env_file: .env
-    # Durable artifact cache (generated DOCX/PDF bytes). A named volume so it survives
-    # `up --build` (which recreates the container) — without it the cache cold-starts on
-    # every deploy. Must match ARTIFACT_CACHE_DIR in .env. Inspect via `docker volume`.
+    # Generated DOCX/PDF cache and supporting uploads (supporting-files/ subdirectory).
+    # The named volume survives container replacement. Its mount must match ARTIFACT_CACHE_DIR.
     volumes:
       - lesson3_artifact_cache:/var/cache/lesson3
       # Host-side backup-db.sh is the sole writer. The app can report the latest successful

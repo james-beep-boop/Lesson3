@@ -9,6 +9,7 @@
 
 /** A bundle reduced to just what the list renders/orders/searches. */
 import type { DeliverableTag } from '../generator/exportArtifacts'
+import type { SupportingFileLink } from './supportingFiles'
 
 /** The canonical "Subject · Grade N" scope label — shared by the browse grouping, the user-menu /
  *  Manage access-scope lines, and the request-editing email, so the format can't drift between them. */
@@ -84,6 +85,7 @@ export interface LessonRow extends CurriculumRow {
   versionId?: number
   /** The Official version's deliverables (T2 document strip); from `versionDeliverables`. */
   deliverables?: DeliverableTag[]
+  supportingFiles?: SupportingFileLink[]
   /** Total versions of this plan (PR ②) — drives the `[N versions ▾]` chip (only when 2+). */
   versionCount?: number
   /** Whether the CALLER may edit this row's subject-grade (PR ②) — the chip is editing-access-and-above only. */

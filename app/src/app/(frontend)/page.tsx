@@ -14,6 +14,7 @@ import { lessonDisplayName, type LessonRow } from '@/lib/substrand'
 import { versionCountsByPlan } from '@/lib/versionCounts'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
 import { listUnsavedWork } from '@/lib/editRecovery/unsavedWork'
+import type { SupportingFileLink } from '@/lib/supportingFiles'
 
 /**
  * Lesson Plans — the one browse page shared by all roles (SPEC §13). Strand-first: subject-grade
@@ -56,25 +57,38 @@ export default async function BrowsePage({
   // The fourth is the "Pick up where you left off" row: the caller's own unsaved work, through the
   // SAME helper as Manage's "Your drafts", so ownership, expiry, readable-source and editing-access
   // checks all apply. It returns before any query for someone with editing access nowhere.
-  const [{ docs: plans }, { docs: favorites }, versionCountByPlan, unsavedWork] = await Promise.all(
-    [
-      t.time('plans', () =>
-        payload.find({
-          collection: 'lesson-plans',
-          overrideAccess: false,
-          user,
-          depth: 0,
-          pagination: false,
-          select: { officialVersion: true },
-        }),
-      ),
-      t.time('favorites', () => findPersonalFavorites(payload, { user })),
-      t.time('versionCounts', () => versionCountsByPlan(payload)),
-      t.time('unsavedWork', async () =>
-        listUnsavedWork(await createLocalReq({ user }, payload), user),
-      ),
-    ],
-  )
+  const [
+    { docs: plans },
+    { docs: favorites },
+    versionCountByPlan,
+    unsavedWork,
+    { docs: supportingFiles },
+  ] = await Promise.all([
+    t.time('plans', () =>
+      payload.find({
+        collection: 'lesson-plans',
+        overrideAccess: false,
+        user,
+        depth: 0,
+        pagination: false,
+        select: { officialVersion: true },
+      }),
+    ),
+    t.time('favorites', () => findPersonalFavorites(payload, { user })),
+    t.time('versionCounts', () => versionCountsByPlan(payload)),
+    t.time('unsavedWork', async () => listUnsavedWork(await createLocalReq({ user }, payload), user)),
+    t.time('supportingFiles', () =>
+      payload.find({
+        collection: 'supporting-files',
+        overrideAccess: false,
+        user,
+        depth: 0,
+        pagination: false,
+        sort: 'title',
+        select: { lessonPlan: true, title: true, kind: true, lessonNumber: true, filename: true },
+      }),
+    ),
+  ])
   // Newest first, as listed; one row only (plan §4). The link is Manage's exact-version continuation.
   const newest = unsavedWork[0]
   const resume = newest
@@ -206,6 +220,16 @@ export default async function BrowsePage({
     ]),
   )
 
+  const supportingFilesByPlan = new Map<number, SupportingFileLink[]>()
+  for (const { lessonPlan, ...file } of supportingFiles) {
+    const id = relId(lessonPlan)
+    if (id === null || !file.filename) continue
+    const link = { ...file, filename: file.filename }
+    const files = supportingFilesByPlan.get(id)
+    if (files) files.push(link)
+    else supportingFilesByPlan.set(id, [link])
+  }
+
   // ONE row builder. The two lists differ only in the pinned suffix and the direct `?version=` link, so
   // the pinned caller decorates the finished row rather than the builder taking a mode flag — every
   // shared field is still written exactly once, which is the property the two old builders lacked.
@@ -226,6 +250,7 @@ export default async function BrowsePage({
       lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
       status: 'published',
       deliverables: versionDeliverables(v),
+      supportingFiles: supportingFilesByPlan.get(planId),
       versionCount: versionCountByPlan.get(planId) ?? 1,
       // At depth 0 `subjectGrade` IS the id `isEditorFor` wants, so no `toId(… as never)` cast here.
       canEdit: isEditorFor(user as User, sgId ?? undefined),

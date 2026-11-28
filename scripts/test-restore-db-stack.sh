@@ -165,6 +165,18 @@ seed "Probe plan A" || die "seeding plan A failed"
 dc up -d app >/dev/null 2>&1 || die "app did not start"
 
 # ─── Backups to restore from ─────────────────────────────────────────────────────────────────────────
+supporting_oid() { sql postgres "SELECT oid FROM pg_database WHERE datname = '$1';"; }
+supporting_bytes() {
+  dc run --rm --no-deps -T --entrypoint sh app -ec \
+    'cat "$ARTIFACT_CACHE_DIR/supporting-files/$1/probe.pdf"' sh "$(supporting_oid "$1")"
+}
+# Give the database a supporting file and put its bytes in the same directory the app uses.
+sql lesson3 "INSERT INTO supporting_files (title, lesson_plan_id, kind, filename, filesize)
+SELECT 'Probe file', id, 'quick-check', 'probe.pdf', 14 FROM lesson_plans;" >/dev/null
+dc run --rm --no-deps -T --entrypoint sh app -ec \
+  'dir="$ARTIFACT_CACHE_DIR/supporting-files/$1"; mkdir -p "$dir"; printf "%s" "supporting PDF" >"$dir/probe.pdf"' \
+  sh "$(supporting_oid lesson3)" >/dev/null || die "supporting file seed failed"
+
 say "backups: current schema (plan A only), older schema, newer schema"
 T bash scripts/backup-db.sh >/dev/null 2>&1 || die "backup-db.sh failed"
 # Production backups are private (0700 directories, 0600 files). The root tools container writes
@@ -180,6 +192,7 @@ check "disk has its own record" test -s "$SANDBOX/out/ops/backup/disk/daily.json
 check "remote has its own record" test -s "$SANDBOX/out/ops/backup/remote/daily.json"
 restore "" --local-file "$SANDBOX/disk-backups/daily/$B1" --into probe_disk_check
 check "disk copy restores through the real drill" has "RESTORE DRILL PASSED"
+check "disk restore holds the supporting PDF" eq "$(supporting_bytes probe_disk_check)" "supporting PDF"
 check "disk restore holds plan A" eq "$(sql probe_disk_check 'SELECT count(*) FROM lesson_plans;')" 1
 sql postgres 'DROP DATABASE probe_disk_check;' >/dev/null
 restore "" --local-file "$SANDBOX/backups/daily/$B1" --into probe_remote_check
@@ -204,14 +217,14 @@ variant() { # file-name sql
 OLD="lesson3-20261001T000000Z-older-schema.dump.age"
 # One migration behind = the NEWEST migration undone. ⚑ Update this when a newer migration lands, or the
 # backup has a gap instead of a missing tail and the restore (rightly) refuses it as "not a prefix".
-LATEST_MIGRATION='20261126_160433_rubric_below_expectations'
-# Its down(): remove the fourth rubric level's column.
-ONE_MIGRATION_BEHIND="ALTER TABLE lesson_bundle_versions_final_explanation_rubric DROP COLUMN below_expectations; \
+LATEST_MIGRATION='20261127_165205_supporting_files'
+# Its down(): remove the supporting files table and kind enum.
+ONE_MIGRATION_BEHIND="DROP TABLE supporting_files; DROP TYPE enum_supporting_files_kind; \
 DELETE FROM payload_migrations WHERE name = '$LATEST_MIGRATION';"
-SCHEMA_PROBE="SELECT count(*) FROM information_schema.columns WHERE table_name = 'lesson_bundle_versions_final_explanation_rubric' AND column_name = 'below_expectations';"
+SCHEMA_PROBE="SELECT count(*) FROM information_schema.tables WHERE table_name = 'supporting_files';"
 NEW="lesson3-20261002T000000Z-newer-schema.dump.age"
 variant "$OLD" "$ONE_MIGRATION_BEHIND"
-variant "$NEW" "INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"
+variant "$NEW" "DELETE FROM supporting_files; INSERT INTO payload_migrations (name, batch) VALUES ('29991231_000000_from_the_future', 99);"
 
 # ─── The property the swap rests on, re-verified on this Postgres ────────────────────────────────────
 say "transactional rename on $(sql postgres "SHOW server_version;")"
@@ -282,6 +295,11 @@ restore "" --resume
 check "[checked] the kill left no lock to clear" bad_lock_message
 check "[checked] resume reverses it" eq "$(dbs)" "$BEFORE_DBS"
 dc run --rm --no-deps -T migrate >/dev/null 2>&1 || die "re-migrating live failed"
+sql lesson3 "INSERT INTO supporting_files (title, lesson_plan_id, kind, filename, filesize)
+SELECT 'Probe file', min(id), 'quick-check', 'probe.pdf', 15 FROM lesson_plans;" >/dev/null
+dc run --rm --no-deps -T --entrypoint sh app -ec \
+  'printf "%s" "new support PDF" >"$ARTIFACT_CACHE_DIR/supporting-files/$1/probe.pdf"' \
+  sh "$(supporting_oid lesson3)" >/dev/null || die "supporting file replacement failed"
 
 say "declining the typed confirmation"
 restore "not-the-date" --local-file "$B1" --into lesson3 --force-prod
@@ -304,8 +322,10 @@ check "[writers-stopped] the app is stopped" eq "$(dc ps --services --status run
 restore "" --resume
 check "[writers-stopped] resume completes to provisional" eq "$(state)" provisional
 check "[writers-stopped] the live check rendered again" has "rendered PDF through Gotenberg"
+check "swap: live can read the supporting PDF" eq "$(supporting_bytes lesson3)" "supporting PDF"
 check "swap: live is now the backup (one plan)" eq "$(plans)" 1
 check "swap: the previous database refuses connections" eq "$(sql postgres "SELECT datallowconn FROM pg_database WHERE datname = '$PREVIOUS';")" f
+check "swap: the previous database keeps its own PDF" eq "$(supporting_bytes "$PREVIOUS")" "new support PDF"
 check "swap: the previous database is kept with both plans" eq "$(count_blocked "$PREVIOUS" "SELECT count(*) FROM lesson_plans;")" 2
 check "swap: exactly lesson3 and the previous database exist" eq "$(dbs)" "lesson3 $PREVIOUS"
 check "swap: the app is running again" eq "$(dc ps --services --status running | grep -c '^app$')" 1
@@ -323,6 +343,7 @@ UNDO_BACKUP="$(ls "$SANDBOX/backups/premigrate/" 2>/dev/null | grep prerestore-u
 check "[undo-backed-up] a prerestore-undo backup was taken" test -n "$UNDO_BACKUP"
 restore "" --resume
 check "[undo-backed-up] resume completes the undo" eq "$(state)" undone
+check "undo: the previous PDF is live again" eq "$(supporting_bytes lesson3)" "new support PDF"
 check "undo: the previous database is live again (two plans)" eq "$(plans)" 2
 UNDONE="$(jkey undone)"
 check "undo: the restored database is kept aside" eq "$(dbs)" "lesson3 $UNDONE"

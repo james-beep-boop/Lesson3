@@ -1117,6 +1117,13 @@ version remains a later phase, alongside stable row identity and support for str
   Official (make-official or first ingest), both kinds are **pre-warmed** into the cache via the
   Jobs Queue, so teachers effectively read stored official PDFs/DOCX; the cache stays a disposable
   optimization, never a storage layer of record.
+- **Supporting files (2026-11-27).** Under **Manage → Lesson plans → Manage supporting files**,
+  a Site Administrator or the administrator for that subject-grade can add or remove an upload.
+  Give the file a title and choose its kind and sub-strand. A lesson number attaches it to that
+  lesson. Leave the number blank to attach it to the whole sub-strand. Files follow the sub-strand
+  across version changes. Signed-in users can download them from **Supporting documents**, where
+  generated documents appear first and uploads follow by kind. Removing a sub-strand removes its
+  uploads.
 - **Public artifacts (direction decided 2026-08-12; launch corpus/licence still open):** public
   discovery may serve a generator-derived online preview and PDF for a deliberately public Lesson
   Plan's **current Official** version. This is a narrow public route, not anonymous read access to
@@ -1201,7 +1208,12 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
   ⚑ **No backend is adopted today** — self-hosted GlitchTip rejected (shared failure domain with the app
   it watches), hosted Sentry deferred (external data flow). `docs/OPS.md` → "Error tracking" is canonical
   for the state and the reasoning.
-- **Automated, encrypted backups** (Postgres dumps); snapshot before migrations. **Two optional
+- **Automated, encrypted backups** (Postgres dumps and supporting files); snapshot before migrations.
+  Supporting files live in the `supporting-files` directory of the app's named volume at
+  `ARTIFACT_CACHE_DIR`. The database and its file directory stay paired during a staged restore,
+  swap and undo. When the database lists files, the same encrypted backup contains both the dump
+  and those files. Restore also accepts older database-only backups.
+  **Two optional
   destinations, at least one enabled** (Part 3a, 2026-10-26; `docs/OPS.md`):
   - **Server disk:** `BACKUP_DISK_DIR`, default `/var/lib/lesson3-backups`; an explicit empty value
     disables it. The default folder needs root to create, so until it exists, and while no disk backup

@@ -4,7 +4,7 @@ import type {
   CollectionBeforeValidateHook,
   CollectionSlug,
 } from 'payload'
-import { NotFound, ValidationError, type PayloadRequest } from 'payload'
+import { APIError, NotFound, ValidationError, type PayloadRequest } from 'payload'
 
 import { isEditorFor, toId } from '../access'
 import { isPubliclyVisible } from '../lib/publicLibrary'
@@ -395,6 +395,13 @@ export const cascadeDeleteLessonPlanVersions: CollectionBeforeDeleteHook = async
     overrideAccess: true,
     req,
   })
+  const files = await req.payload.delete({
+    collection: 'supporting-files',
+    where: { lessonPlan: { equals: id } },
+    overrideAccess: true,
+    req,
+  })
+  if (files.errors.length) throw new APIError('Could not remove this plan’s supporting files.', 500)
 }
 
 /**

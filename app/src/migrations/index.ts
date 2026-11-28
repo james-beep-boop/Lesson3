@@ -40,6 +40,7 @@ import * as migration_20261026_195602_school_name from './20261026_195602_school
 import * as migration_20261029_102600_worldwide_ids_part2 from './20261029_102600_worldwide_ids_part2'
 import * as migration_20261101_002353_reset_code from './20261101_002353_reset_code'
 import * as migration_20261126_160433_rubric_below_expectations from './20261126_160433_rubric_below_expectations'
+import * as migration_20261127_165205_supporting_files from './20261127_165205_supporting_files'
 
 export const migrations = [
   {
@@ -251,5 +252,10 @@ export const migrations = [
     up: migration_20261126_160433_rubric_below_expectations.up,
     down: migration_20261126_160433_rubric_below_expectations.down,
     name: '20261126_160433_rubric_below_expectations',
+  },
+  {
+    up: migration_20261127_165205_supporting_files.up,
+    down: migration_20261127_165205_supporting_files.down,
+    name: '20261127_165205_supporting_files',
   },
 ]

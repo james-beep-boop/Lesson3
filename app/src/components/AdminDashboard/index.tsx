@@ -744,11 +744,19 @@ export default async function AdminDashboard({
               </AccordionPanel>
             )}
 
+            {isAdmin && (
+              <p>
+                <Link className="btn lp-btn" href="/admin/collections/supporting-files">
+                  Manage supporting files
+                </Link>
+              </p>
+            )}
+
             {siteAdmin && (
               <AccordionPanel id="plans.delete" title="Delete a plan (all versions)">
                 <p className="lp-manage__desc">
-                  Select the plans to delete. Every version of each selected plan is removed. This
-                  cannot be undone.
+                  Select the plans to delete. This removes every version and supporting file for
+                  each selected plan. This cannot be undone.
                 </p>
                 <DeletePlansPanel rows={planRows} />
               </AccordionPanel>
